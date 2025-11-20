@@ -1,0 +1,46 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+
+# Windows system files
+AppData/
+*.odl
+*.aodl
+*.tmp
+*.ldb
+
+# Chrome cache
+**/Chrome/User Data/**
+
+# OneDrive logs
+**/OneDrive/logs/**
+
+# WhatsApp cache
+**/WhatsAppDesktop_*/
