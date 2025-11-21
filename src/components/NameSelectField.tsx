@@ -339,6 +339,14 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
               placeholderTextColor={theme.colors.textSecondary}
               returnKeyType="done"
               onSubmitEditing={handleEnterPress}
+              onKeyPress={(e) => {
+                // Suporte para Android/iOS com teclado físico ou virtual
+                if (Platform.OS !== 'web') {
+                  // No mobile, Enter já é tratado por onSubmitEditing
+                  // Mas podemos adicionar lógica adicional se necessário
+                  return;
+                }
+              }}
               {...(Platform.OS === 'web'
                 ? {
                     onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -356,6 +364,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                               flatListRef.current?.scrollToIndex({
                                 index: nextIndex,
                                 animated: true,
+                                viewOffset: 10,
                               });
                             }, 50);
                           }
@@ -371,11 +380,13 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                               flatListRef.current?.scrollToIndex({
                                 index: prevIndex,
                                 animated: true,
+                                viewOffset: 10,
                               });
                             }, 50);
                           }
                         }
                       } else if (e.key === 'Escape') {
+                        e.preventDefault();
                         setShowList(false);
                         if (inputRef.current) {
                           inputRef.current.blur();

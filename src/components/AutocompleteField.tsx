@@ -219,6 +219,54 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
           placeholderTextColor={theme.colors.textSecondary}
           returnKeyType="done"
           onSubmitEditing={handleEnterPress}
+          {...(Platform.OS === 'web'
+            ? {
+                onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleEnterPress();
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (filtered.length > 0) {
+                      const nextIndex =
+                        selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
+                      setSelectedIndex(nextIndex);
+                      if (flatListRef.current && nextIndex >= 0) {
+                        setTimeout(() => {
+                          flatListRef.current?.scrollToIndex({
+                            index: nextIndex,
+                            animated: true,
+                            viewOffset: 10,
+                          });
+                        }, 50);
+                      }
+                    }
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (filtered.length > 0) {
+                      const prevIndex =
+                        selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
+                      setSelectedIndex(prevIndex);
+                      if (flatListRef.current && prevIndex >= 0) {
+                        setTimeout(() => {
+                          flatListRef.current?.scrollToIndex({
+                            index: prevIndex,
+                            animated: true,
+                            viewOffset: 10,
+                          });
+                        }, 50);
+                      }
+                    }
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowList(false);
+                    if (inputRef.current) {
+                      inputRef.current.blur();
+                    }
+                  }
+                },
+              }
+            : {})}
         />
 
         {/* Dropdown inline - SEM Modal */}

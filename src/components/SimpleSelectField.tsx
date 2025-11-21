@@ -217,7 +217,7 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
           onSubmitEditing={handleEnterPress}
           {...(Platform.OS === 'web'
             ? {
-                onKeyDown: (e: any) => {
+                onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     handleEnterPress();
@@ -228,7 +228,11 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
                       setSelectedIndex(nextIndex);
                       if (flatListRef.current && nextIndex >= 0) {
                         setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+                          flatListRef.current?.scrollToIndex({ 
+                            index: nextIndex, 
+                            animated: true,
+                            viewOffset: 10,
+                          });
                         }, 50);
                       }
                     }
@@ -239,11 +243,16 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
                       setSelectedIndex(prevIndex);
                       if (flatListRef.current && prevIndex >= 0) {
                         setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({ index: prevIndex, animated: true });
+                          flatListRef.current?.scrollToIndex({ 
+                            index: prevIndex, 
+                            animated: true,
+                            viewOffset: 10,
+                          });
                         }, 50);
                       }
                     }
                   } else if (e.key === 'Escape') {
+                    e.preventDefault();
                     setShowList(false);
                     if (inputRef.current) {
                       inputRef.current.blur();
