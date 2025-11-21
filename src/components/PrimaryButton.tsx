@@ -17,6 +17,7 @@ interface PrimaryButtonProps {
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  icon?: string;
 }
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
@@ -25,6 +26,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   loading = false,
   disabled = false,
   style,
+  icon = 'paper-plane',
 }) => {
   return (
     <TouchableOpacity
@@ -38,7 +40,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       ) : (
         <View style={styles.buttonContent}>
           <FontAwesome
-            name="paper-plane"
+            name={icon as any}
             size={12}
             color={theme.colors.surface}
             style={styles.icon}

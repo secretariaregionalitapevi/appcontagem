@@ -138,12 +138,16 @@ export const offlineSyncService = {
     console.log(`✅ Sincronização de registros concluída`);
   },
 
-  async createRegistro(registro: RegistroPresenca): Promise<{ success: boolean; error?: string }> {
+  async createRegistro(
+    registro: RegistroPresenca,
+    skipDuplicateCheck = false
+  ): Promise<{ success: boolean; error?: string }> {
     const isOnline = await this.isOnline();
 
     // 🛡️ VERIFICAÇÃO DE DUPLICADOS NO SUPABASE PRIMEIRO (se online)
     // Deve verificar ANTES de salvar em qualquer lugar
-    if (isOnline) {
+    // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
+    if (isOnline && !skipDuplicateCheck) {
       try {
         // Buscar dados necessários para verificação
         const [comuns, cargos] = await Promise.all([
@@ -243,7 +247,9 @@ export const offlineSyncService = {
 
     // 🛡️ VERIFICAÇÃO DE DUPLICADOS LOCAL: Verificar se já existe registro no mesmo dia
     // Baseado na lógica do backupcont/app.js
-    try {
+    // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
+    if (!skipDuplicateCheck) {
+      try {
       const registrosLocais = await supabaseDataService.getRegistrosPendentesFromLocal();
 
       // Buscar dados da pessoa, comum e cargo para comparação
@@ -328,9 +334,10 @@ export const offlineSyncService = {
           }
         }
       }
-    } catch (error) {
-      console.warn('⚠️ Erro ao verificar duplicatas locais (continuando...):', error);
-      // Continuar mesmo com erro na verificação local
+      } catch (error) {
+        console.warn('⚠️ Erro ao verificar duplicatas locais (continuando...):', error);
+        // Continuar mesmo com erro na verificação local
+      }
     }
 
     // Sempre salvar localmente primeiro (para garantir que não perdemos o registro)
@@ -343,19 +350,25 @@ export const offlineSyncService = {
 
     if (isOnline) {
       try {
-        // Verificar se a sessão é válida
-        const sessionValid = await authService.isSessionValid();
+        // Verificar se a sessão é válida e tentar renovar se necessário
+        let sessionValid = await authService.isSessionValid();
         if (!sessionValid) {
-          console.warn(
-            '⚠️ Sessão inválida, registro salvo localmente para sincronização posterior'
-          );
-          return {
-            success: true,
-            error: 'Registro salvo localmente. Será sincronizado quando a sessão for renovada.',
-          };
+          console.warn('⚠️ Sessão inválida, tentando renovar...');
+          // Tentar renovar a sessão antes de desistir
+          const refreshed = await authService.refreshSession();
+          if (refreshed) {
+            console.log('✅ Sessão renovada com sucesso');
+            sessionValid = true;
+          } else {
+            console.warn('⚠️ Não foi possível renovar a sessão, mas tentando enviar mesmo assim...');
+            // IMPORTANTE: Tentar enviar mesmo com sessão inválida
+            // O Supabase pode aceitar a requisição mesmo assim
+            // Se falhar, será tratado nos try/catch abaixo
+          }
         }
 
         // ORDEM CORRETA: Google Sheets primeiro, depois Supabase
+        // SEMPRE tentar enviar, mesmo se a sessão parecer inválida
         let sheetsSuccess = false;
 
         // 1. Tentar enviar para Google Sheets primeiro
@@ -377,10 +390,13 @@ export const offlineSyncService = {
         // 2. Tentar enviar para Supabase (já tem verificação de duplicados interna)
         console.log('📤 Tentando enviar registro para Supabase...');
         try {
-          const createdRegistro = await supabaseDataService.createRegistroPresenca({
-            ...registro,
-            id: localId,
-          });
+          const createdRegistro = await supabaseDataService.createRegistroPresenca(
+            {
+              ...registro,
+              id: localId,
+            },
+            skipDuplicateCheck
+          );
 
           // Se Supabase foi bem-sucedido, atualizar status local para sincronizado
           if (createdRegistro) {

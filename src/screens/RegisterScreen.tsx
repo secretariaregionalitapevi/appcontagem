@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { useAuthContext } from '../context/AuthContext';
 import { SimpleSelectField } from '../components/SimpleSelectField';
@@ -17,6 +18,8 @@ import { TextInputField } from '../components/TextInputField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { OfflineBadge } from '../components/OfflineBadge';
 import { AppHeader } from '../components/AppHeader';
+import { DuplicateModal } from '../components/DuplicateModal';
+import { NewRegistrationModal } from '../components/NewRegistrationModal';
 import { theme } from '../theme';
 import { supabaseDataService } from '../services/supabaseDataService';
 import { offlineSyncService } from '../services/offlineSyncService';
@@ -27,12 +30,13 @@ import { getCurrentDateTimeISO } from '../utils/dateUtils';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
+import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 
 export const RegisterScreen: React.FC = () => {
   const { user } = useAuthContext();
   const navigation = useNavigation();
   const isOnline = useOnlineStatus();
-  const { pendingCount } = useOfflineQueue();
+  const { pendingCount, refreshCount } = useOfflineQueue();
 
   const [comuns, setComuns] = useState<Comum[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
@@ -56,6 +60,7 @@ export const RegisterScreen: React.FC = () => {
     horario: string;
   } | null>(null);
   const [pendingRegistro, setPendingRegistro] = useState<RegistroPresenca | null>(null);
+  const [newRegistrationModalVisible, setNewRegistrationModalVisible] = useState(false);
 
   // Mostrar campo de instrumento apenas para Músico
   // Organista NÃO mostra campo de instrumento (sempre toca órgão)
@@ -70,6 +75,7 @@ export const RegisterScreen: React.FC = () => {
 
   useEffect(() => {
     if (isOnline && !syncing) {
+      console.log('🌐 Conexão restaurada - iniciando sincronização automática...');
       syncData();
     }
   }, [isOnline]);
@@ -165,12 +171,23 @@ export const RegisterScreen: React.FC = () => {
 
     try {
       setSyncing(true);
+      console.log('🔄 Iniciando sincronização de dados...');
+      
+      // Atualizar contador antes de sincronizar
+      await refreshCount();
+      
       const result = await offlineSyncService.syncAllData();
+      
+      // Atualizar contador após sincronizar
+      await refreshCount();
+      
       // Não mostrar erro se for apenas falta de conexão ou sessão (são esperados)
       if (!result.success && result.error) {
         if (!result.error.includes('conexão') && !result.error.includes('Sessão')) {
           console.warn('⚠️ Erro na sincronização:', result.error);
         }
+      } else if (result.success) {
+        console.log('✅ Sincronização concluída com sucesso');
       }
     } catch (error) {
       // Não logar erros de rede como erros críticos
@@ -268,64 +285,107 @@ export const RegisterScreen: React.FC = () => {
 
     try {
       const result = await offlineSyncService.createRegistro(registro);
+      
+      // Atualizar contador da fila após criar registro
+      await refreshCount();
 
       console.log('📋 Resultado do createRegistro:', result);
+      console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
 
       if (result.success) {
-        // Se está online, tentar sincronizar imediatamente após salvar
-        if (isOnline && !syncing) {
-          setTimeout(() => {
-            syncData();
-          }, 500);
+        // Verificar se realmente foi enviado ou apenas salvo localmente
+        const foiEnviado = !result.error || !result.error.includes('salvo localmente');
+        
+        if (foiEnviado) {
+          // Registro foi enviado com sucesso
+          showToast.success('Registro enviado!', 'Registro enviado com sucesso!');
+        } else {
+          // Registro foi salvo localmente mas não enviado
+          // Tentar sincronizar imediatamente
+          if (isOnline && !syncing) {
+            console.log('🔄 Tentando sincronizar registro pendente imediatamente...');
+            setTimeout(() => {
+              syncData();
+            }, 500);
+          }
+          showToast.warning(
+            'Registro salvo localmente',
+            'O registro foi salvo mas não foi enviado. Tentando sincronizar...'
+          );
         }
-
-        showToast.success('Registro enviado!', result.error || 'Registro enviado com sucesso!');
-        // Limpar formulário
-        setSelectedComum('');
-        setSelectedCargo('');
-        setSelectedInstrumento('');
-        setSelectedPessoa('');
-        setIsNomeManual(false);
+        
+        // Limpar formulário apenas se foi enviado com sucesso
+        if (foiEnviado) {
+          setSelectedComum('');
+          setSelectedCargo('');
+          setSelectedInstrumento('');
+          setSelectedPessoa('');
+          setIsNomeManual(false);
+        }
       } else {
         // Verificar se é erro de duplicata
-        if (
-          result.error &&
-          (result.error.includes('DUPLICATA:') ||
-            result.error.includes('já foi cadastrado hoje') ||
-            result.error.includes('DUPLICATA_BLOQUEADA'))
-        ) {
+        const isDuplicateError = result.error && (
+          result.error.includes('DUPLICATA') ||
+          result.error.includes('duplicat') ||
+          result.error.includes('já foi cadastrado hoje') ||
+          result.error.includes('DUPLICATA_BLOQUEADA')
+        );
+        
+        console.log('❌ Registro falhou - Verificando se é duplicata...');
+        console.log('   Error:', result.error);
+        console.log('   É duplicata?:', isDuplicateError);
+        
+        if (isDuplicateError) {
+          console.log('✅ DUPLICATA DETECTADA! Processando erro:', result.error);
+          
           let nome = '';
           let comumNome = '';
           let dataFormatada = '';
           let horarioFormatado = '';
 
+          // SEMPRE usar dados do formulário primeiro (mais confiável)
+          nome = isNomeManual
+            ? selectedPessoa
+            : pessoas.find(p => p.id === selectedPessoa)?.nome_completo || 
+              (pessoas.find(p => p.id === selectedPessoa)?.nome + ' ' + 
+               (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')).trim() || '';
+          comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
+
           // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario
-          if (result.error.includes('DUPLICATA:')) {
-            const parts = result.error.split('DUPLICATA:')[1]?.split('|');
-            if (parts && parts.length >= 4) {
-              nome = parts[0];
-              comumNome = parts[1];
-              dataFormatada = parts[2];
-              horarioFormatado = parts[3];
+          if (result.error && result.error.includes('DUPLICATA:')) {
+            const errorPart = result.error.split('DUPLICATA:')[1]?.trim() || '';
+            
+            // Tentar formato com pipes primeiro: DUPLICATA:nome|comum|data|horario
+            if (errorPart.includes('|')) {
+              const parts = errorPart.split('|');
+              if (parts.length >= 4) {
+                nome = parts[0].trim() || nome;
+                comumNome = parts[1].trim() || comumNome;
+                dataFormatada = parts[2].trim();
+                horarioFormatado = parts[3].trim();
+              }
+            } else {
+              // Tentar formato sem pipes: DUPLICATA: nome comum data/horario
+              // Exemplo: "DUPLICATA: ADRIANO MOTA BR-22-1739 - JARDIM MIRANDA 21/11/2025/13:18"
+              const match = errorPart.match(/^(.+?)\s+(BR-\d+-\d+\s*-\s*.+?)\s+(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/);
+              if (match) {
+                nome = match[1].trim() || nome;
+                comumNome = match[2].trim() || comumNome;
+                dataFormatada = match[3].trim();
+                horarioFormatado = match[4].trim();
+              } else {
+                // Tentar extrair apenas data e horário do formato: ... data/horario
+                const dataHorarioMatch = errorPart.match(/(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/);
+                if (dataHorarioMatch) {
+                  dataFormatada = dataHorarioMatch[1];
+                  horarioFormatado = dataHorarioMatch[2];
+                }
+              }
             }
           }
 
-          // Se não conseguiu extrair, usar fallback
-          if (!nome || !comumNome) {
-            const errorMsg = result.error;
-            const nomeMatch = errorMsg.match(/^([^d]+) de/);
-            const comumMatch = errorMsg.match(/de ([^j]+) já/);
-
-            nome = nomeMatch
-              ? nomeMatch[1].trim()
-              : isNomeManual
-                ? selectedPessoa
-                : pessoas.find(p => p.id === selectedPessoa)?.nome_completo || '';
-            comumNome = comumMatch
-              ? comumMatch[1].trim()
-              : comuns.find(c => c.id === selectedComum)?.nome || '';
-
-            // Formatar data e horário atual como fallback
+          // Se não conseguiu extrair data/horário, usar data/horário atual
+          if (!dataFormatada || !horarioFormatado) {
             const agora = new Date();
             dataFormatada = agora.toLocaleDateString('pt-BR', {
               day: '2-digit',
@@ -339,54 +399,166 @@ export const RegisterScreen: React.FC = () => {
             });
           }
 
-          // Mostrar alerta simples
-          Alert.alert(
-            'Cadastro Duplicado!',
-            `${nome} de ${comumNome} já foi cadastrado hoje!\n\nData: ${dataFormatada}\nHorário: ${horarioFormatado}`,
-            [
-              {
-                text: 'Cancelar',
-                style: 'cancel',
-              },
-              {
-                text: 'Cadastrar Mesmo Assim',
-                onPress: async () => {
-                  setLoading(true);
-                  try {
-                    // Forçar duplicata - criar registro mesmo assim
-                    const registroForce = { ...registro };
-                    const resultForce = await offlineSyncService.createRegistro(registroForce);
-                    if (resultForce.success) {
-                      if (isOnline && !syncing) {
-                        setTimeout(() => {
-                          syncData();
-                        }, 500);
-                      }
-                      showToast.success(
-                        'Registro enviado!',
-                        'Registro duplicado cadastrado com sucesso!'
-                      );
-                      setSelectedComum('');
-                      setSelectedCargo('');
-                      setSelectedInstrumento('');
-                      setSelectedPessoa('');
-                      setIsNomeManual(false);
-                    } else {
-                      showToast.error(
-                        'Erro',
-                        resultForce.error || 'Erro ao cadastrar registro duplicado'
-                      );
-                    }
-                  } catch (error) {
-                    Alert.alert('Erro', 'Ocorreu um erro ao processar o registro duplicado');
-                    console.error('Erro ao criar registro duplicado:', error);
-                  } finally {
-                    setLoading(false);
-                  }
+          console.log('📋 Informações extraídas:', { nome, comumNome, dataFormatada, horarioFormatado });
+
+          // Mostrar alerta de duplicata usando SweetAlert2 (igual ao backupcont)
+          if (Platform.OS === 'web') {
+            // Usar SweetAlert2 na web (igual ao backupcont)
+            const getSwal = (): any => {
+              if (typeof window === 'undefined') return null;
+              try {
+                const sweetalert2 = require('sweetalert2');
+                return sweetalert2.default || sweetalert2;
+              } catch (error) {
+                console.warn('SweetAlert2 não disponível:', error);
+                return null;
+              }
+            };
+
+            const Swal = getSwal();
+            if (Swal) {
+              const mensagem = `
+                <div style="text-align: left;">
+                  <strong>${nome || 'Nome não encontrado'}</strong> de <strong>${comumNome || 'Comum não encontrada'}</strong><br>
+                  já foi cadastrado hoje!<br><br>
+                  <small>Data: ${dataFormatada}</small><br>
+                  <small>Horário: ${horarioFormatado}</small>
+                </div>
+              `;
+
+              const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                typeof navigator !== 'undefined' ? navigator.userAgent : ''
+              );
+
+              // Garantir que FontAwesome está carregado
+              if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+                const linkId = 'fontawesome-css';
+                if (!document.getElementById(linkId)) {
+                  const link = document.createElement('link');
+                  link.id = linkId;
+                  link.rel = 'stylesheet';
+                  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+                  document.head.appendChild(link);
+                }
+              }
+
+              Swal.fire({
+                title: '⚠️ Cadastro Duplicado!',
+                html: mensagem,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-check"></i> Cadastrar Mesmo Assim',
+                cancelButtonText: '<i class="fa-solid fa-times"></i> Cancelar',
+                confirmButtonColor: '#f59e0b',
+                cancelButtonColor: '#6b7280',
+                reverseButtons: true,
+                width: isMobileDevice ? '90%' : '500px',
+                padding: isMobileDevice ? '1.5rem' : '2rem',
+                position: 'center',
+                backdrop: true,
+                allowOutsideClick: false,
+                allowEscapeKey: true,
+                focusConfirm: false,
+                focusCancel: false,
+                buttonsStyling: true,
+                customClass: {
+                  confirmButton: 'swal-duplicity-confirm',
+                  cancelButton: 'swal-duplicity-cancel',
                 },
-              },
-            ]
-          );
+                didOpen: () => {
+                  // Ajustar estilos dos botões para mostrar ícones corretamente
+                  setTimeout(() => {
+                    const confirmBtn = document.querySelector('.swal2-confirm, .swal-duplicity-confirm') as HTMLElement;
+                    const cancelBtn = document.querySelector('.swal2-cancel, .swal-duplicity-cancel') as HTMLElement;
+                    
+                    if (confirmBtn) {
+                      const icon = confirmBtn.querySelector('i');
+                      if (icon) {
+                        icon.style.marginRight = '0.5rem';
+                      }
+                    }
+                    if (cancelBtn) {
+                      const icon = cancelBtn.querySelector('i');
+                      if (icon) {
+                        icon.style.marginRight = '0.5rem';
+                      }
+                    }
+                  }, 100);
+                },
+              }).then(async (result: any) => {
+                if (!result.isConfirmed) {
+                  // Usuário cancelou - recarrega a página
+                  console.log('❌ Usuário cancelou registro por duplicata - recarregando página...');
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 100);
+                  return;
+                }
+
+                // Usuário confirmou - criar registro mesmo assim
+                console.log('✅ Usuário confirmou registro mesmo com duplicata');
+                setLoading(true);
+                try {
+                  const registroForce = { ...registro };
+                  const resultForce = await offlineSyncService.createRegistro(registroForce, true);
+                  
+                  if (resultForce.success) {
+                    if (isOnline && !syncing) {
+                      setTimeout(() => {
+                        syncData();
+                      }, 500);
+                    }
+                    showToast.success(
+                      'Registro enviado!',
+                      'Registro duplicado cadastrado com sucesso!'
+                    );
+                    // Recarregar página após sucesso
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
+                  } else {
+                    showToast.error(
+                      'Erro',
+                      resultForce.error || 'Erro ao cadastrar registro duplicado'
+                    );
+                    // Recarregar página mesmo em caso de erro
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 2000);
+                  }
+                } catch (error) {
+                  showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
+                  console.error('Erro ao criar registro duplicado:', error);
+                  // Recarregar página mesmo em caso de erro
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2000);
+                } finally {
+                  setLoading(false);
+                }
+              });
+            } else {
+              // Fallback: usar modal React Native
+              setDuplicateInfo({
+                nome: nome || 'Nome não encontrado',
+                comum: comumNome || 'Comum não encontrada',
+                data: dataFormatada,
+                horario: horarioFormatado,
+              });
+              setPendingRegistro(registro);
+              setDuplicateModalVisible(true);
+            }
+          } else {
+            // Mobile: usar modal React Native
+            setDuplicateInfo({
+              nome: nome || 'Nome não encontrado',
+              comum: comumNome || 'Comum não encontrada',
+              data: dataFormatada,
+              horario: horarioFormatado,
+            });
+            setPendingRegistro(registro);
+            setDuplicateModalVisible(true);
+          }
         } else {
           showToast.error('Erro', result.error || 'Erro ao enviar registro');
         }
@@ -455,6 +627,113 @@ export const RegisterScreen: React.FC = () => {
     (navigation as any).navigate('EditRegistros');
   };
 
+  // Função para salvar novo registro do modal (pessoas de outras cidades)
+  const handleSaveNewRegistration = async (data: {
+    comum: string;
+    cidade: string;
+    cargo: string;
+    instrumento?: string;
+    classe?: string;
+    nome: string;
+  }) => {
+    if (!user) {
+      Alert.alert('Erro', 'Usuário não autenticado');
+      return;
+    }
+
+    try {
+      const localEnsaio = await localStorageService.getLocalEnsaio();
+      const nomeUsuario = user.nome || user.email || user.id;
+
+      // Buscar cargo e instrumento para obter nomes
+      const cargoObj = cargos.find(c => c.id === data.cargo);
+      const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
+
+      if (!cargoObj) {
+        Alert.alert('Erro', 'Cargo não encontrado');
+        return;
+      }
+
+      // Criar registro com dados do modal
+      const registro: RegistroPresenca = {
+        pessoa_id: `manual_${data.nome.toUpperCase()}`,
+        comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`, // ID temporário
+        cargo_id: data.cargo,
+        instrumento_id: data.instrumento || undefined,
+        classe_organista: data.classe || undefined,
+        local_ensaio: localEnsaio || 'Não definido',
+        data_hora_registro: getCurrentDateTimeISO(),
+        usuario_responsavel: nomeUsuario,
+        status_sincronizacao: 'pending',
+      };
+
+      // Preparar dados para Google Sheets
+      const naipeInstrumento = instrumentoObj
+        ? getNaipeByInstrumento(instrumentoObj.nome).toUpperCase()
+        : data.classe
+          ? 'TECLADO'
+          : '';
+
+      const instrumentoFinal = instrumentoObj?.nome.toUpperCase() || (data.classe ? 'ÓRGÃO' : '');
+
+      const sheetRow = {
+        UUID: registro.id || `external_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        'NOME COMPLETO': data.nome.trim().toUpperCase(),
+        COMUM: data.comum.toUpperCase(),
+        CIDADE: data.cidade.toUpperCase(),
+        CARGO: cargoObj.nome.toUpperCase(),
+        INSTRUMENTO: instrumentoFinal,
+        NAIPE_INSTRUMENTO: naipeInstrumento,
+        CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
+        LOCAL_ENSAIO: (localEnsaio || 'Não definido').toUpperCase(),
+        DATA_ENSAIO: new Date().toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        REGISTRADO_POR: nomeUsuario.toUpperCase(),
+        ANOTACOES: 'Cadastro fora da Regional',
+      };
+
+      // Enviar para Google Sheets diretamente
+      const GOOGLE_SHEETS_API_URL =
+        'https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec';
+      
+      const response = await fetch(GOOGLE_SHEETS_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({
+          op: 'append',
+          sheet: 'Dados',
+          data: sheetRow,
+        }),
+      });
+
+      if (response.ok || response.type === 'opaque') {
+        showToast.success(
+          'Registro salvo!',
+          'Registro de visita salvo com sucesso.'
+        );
+
+        // Recarregar página após salvar (igual ao backupcont)
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      } else {
+        throw new Error('Erro ao enviar para Google Sheets');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar novo registro:', error);
+      showToast.error('Erro', 'Erro ao salvar registro. Tente novamente.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader onEditRegistrosPress={handleEditRegistros} />
@@ -466,7 +745,7 @@ export const RegisterScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           collapsable={false}
-          style={Platform.OS === 'web' ? { zIndex: 1 } : undefined}
+          style={Platform.OS === 'web' ? { zIndex: 1, position: 'relative' as const } : undefined}
         >
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -476,29 +755,43 @@ export const RegisterScreen: React.FC = () => {
               </Text>
             </View>
             <View style={styles.cardBody}>
-              <AutocompleteField
-                label="COMUM CONGREGAÇÃO *"
-                value={selectedComum}
-                options={comunsOptions}
-                onSelect={option => {
-                  setSelectedComum(option.value);
-                  setSelectedPessoa('');
-                  setIsNomeManual(false);
-                }}
-                placeholder="Digite para buscar..."
-              />
+              <View>
+                <AutocompleteField
+                  label="COMUM CONGREGAÇÃO *"
+                  value={selectedComum}
+                  options={comunsOptions}
+                  onSelect={option => {
+                    setSelectedComum(String(option.value));
+                    setSelectedPessoa('');
+                    setIsNomeManual(false);
+                  }}
+                  placeholder="Selecione a comum..."
+                />
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.preventDefault?.();
+                    e.stopPropagation?.();
+                    console.log('🔘 Botão "+ Novo registro" clicado');
+                    setNewRegistrationModalVisible(true);
+                  }}
+                  style={styles.newRegistrationLink}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.newRegistrationLinkText}>+ Novo registro</Text>
+                </TouchableOpacity>
+              </View>
 
-              <SimpleSelectField
+              <AutocompleteField
                 label="CARGO/MINISTÉRIO *"
                 value={selectedCargo}
                 options={cargosOptions}
                 onSelect={option => {
-                  setSelectedCargo(option.value);
+                  setSelectedCargo(String(option.value));
                   setSelectedInstrumento('');
                   setSelectedPessoa('');
                   setIsNomeManual(false);
                 }}
-                placeholder="Digite para buscar..."
+                placeholder="Selecione o cargo..."
               />
 
               {showInstrumento && (
@@ -528,7 +821,7 @@ export const RegisterScreen: React.FC = () => {
                     setIsNomeManual(false);
                   }
                 }}
-                placeholder="Digite para buscar..."
+                placeholder="Selecione o nome..."
               />
 
               <Text style={styles.hint}>
@@ -549,6 +842,133 @@ export const RegisterScreen: React.FC = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Modal de Duplicata */}
+      {duplicateInfo && (
+        <DuplicateModal
+          visible={duplicateModalVisible}
+          nome={duplicateInfo.nome}
+          comum={duplicateInfo.comum}
+          data={duplicateInfo.data}
+          horario={duplicateInfo.horario}
+          onCancel={() => {
+            setDuplicateModalVisible(false);
+            setDuplicateInfo(null);
+            setPendingRegistro(null);
+            // Recarregar página após cancelar (igual ao backupcont)
+            if (Platform.OS === 'web' && typeof window !== 'undefined') {
+              setTimeout(() => {
+                window.location.reload();
+              }, 100);
+            }
+          }}
+          onConfirm={async () => {
+            if (!pendingRegistro) {
+              setDuplicateModalVisible(false);
+              setDuplicateInfo(null);
+              return;
+            }
+
+            setDuplicateModalVisible(false);
+            setLoading(true);
+            try {
+              // Forçar duplicata - criar registro mesmo assim
+              // Pular verificação de duplicata (skipDuplicateCheck = true)
+              const registroForce = { ...pendingRegistro };
+              const resultForce = await offlineSyncService.createRegistro(registroForce, true);
+              
+              if (resultForce.success) {
+                if (isOnline && !syncing) {
+                  setTimeout(() => {
+                    syncData();
+                  }, 500);
+                }
+                showToast.success(
+                  'Registro enviado!',
+                  'Registro duplicado cadastrado com sucesso!'
+                );
+                // Recarregar página após sucesso (igual ao backupcont)
+                if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
+                } else {
+                  // Mobile: limpar formulário
+                  setSelectedComum('');
+                  setSelectedCargo('');
+                  setSelectedInstrumento('');
+                  setSelectedPessoa('');
+                  setIsNomeManual(false);
+                }
+              } else {
+                // Se ainda for duplicata, mostrar modal novamente
+                if (
+                  resultForce.error &&
+                  (resultForce.error.includes('DUPLICATA:') ||
+                    resultForce.error.includes('DUPLICATA_BLOQUEADA'))
+                ) {
+                  // Extrair informações novamente
+                  let nome = duplicateInfo.nome;
+                  let comumNome = duplicateInfo.comum;
+                  let dataFormatada = duplicateInfo.data;
+                  let horarioFormatado = duplicateInfo.horario;
+
+                  if (resultForce.error.includes('DUPLICATA:')) {
+                    const parts = resultForce.error.split('DUPLICATA:')[1]?.split('|');
+                    if (parts && parts.length >= 4) {
+                      nome = parts[0];
+                      comumNome = parts[1];
+                      dataFormatada = parts[2];
+                      horarioFormatado = parts[3];
+                    }
+                  }
+
+                  setDuplicateInfo({
+                    nome,
+                    comum: comumNome,
+                    data: dataFormatada,
+                    horario: horarioFormatado,
+                  });
+                  setDuplicateModalVisible(true);
+                } else {
+                  showToast.error(
+                    'Erro',
+                    resultForce.error || 'Erro ao cadastrar registro duplicado'
+                  );
+                  // Recarregar página mesmo em caso de erro
+                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 2000);
+                  }
+                }
+              }
+            } catch (error) {
+              showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
+              console.error('Erro ao criar registro duplicado:', error);
+              // Recarregar página mesmo em caso de erro
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2000);
+              }
+            } finally {
+              setLoading(false);
+              setDuplicateInfo(null);
+              setPendingRegistro(null);
+            }
+          }}
+        />
+      )}
+
+      {/* Modal de Novo Registro (para visitas de outras cidades) */}
+      <NewRegistrationModal
+        visible={newRegistrationModalVisible}
+        cargos={cargos}
+        instrumentos={instrumentos}
+        onClose={() => setNewRegistrationModalVisible(false)}
+        onSave={handleSaveNewRegistration}
+      />
     </View>
   );
 };
@@ -621,6 +1041,14 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     marginTop: theme.spacing.lg,
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'relative' as const,
+          zIndex: 1,
+        }
+      : {
+          elevation: 0,
+        }),
   },
   syncIndicator: {
     flexDirection: 'row',
@@ -631,5 +1059,30 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
+  },
+  newRegistrationLink: {
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.md,
+    alignSelf: 'flex-start',
+    ...(Platform.OS === 'web'
+      ? {
+          cursor: 'pointer',
+          zIndex: 10,
+        }
+      : {
+          zIndex: 10,
+        }),
+  },
+  newRegistrationLinkText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+    ...(Platform.OS === 'web'
+      ? {
+          cursor: 'pointer',
+          userSelect: 'none',
+        }
+      : {}),
   },
 });

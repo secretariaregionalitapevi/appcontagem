@@ -60,14 +60,34 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
   };
 
   return (
-    <View style={getBadgeStyle()}>
-      <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
-      <Text style={getBadgeTextStyle()}>{getText()}</Text>
+    <View style={styles.container}>
+      <Text style={styles.queueText}>{count} itens em fila</Text>
+      <View style={getBadgeStyle()}>
+        <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
+        <Text style={getBadgeTextStyle()}>{getText()}</Text>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'relative' as const,
+          zIndex: 1,
+        }
+      : {}),
+  },
+  queueText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -79,8 +99,12 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
           display: 'inline-flex',
+          position: 'relative' as const,
+          zIndex: 1,
         }
-      : {}),
+      : {
+          elevation: 0,
+        }),
   },
   badgeEmpty: {
     backgroundColor: '#dcfce7',
