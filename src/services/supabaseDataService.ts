@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuidv4 } from '../utils/uuid';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { normalizarRegistroCargoFeminino } from '../utils/normalizeCargoFeminino';
+import { extractFirstAndLastName } from '../utils/userNameUtils';
 
 // Cache em memória para web (quando SQLite não está disponível)
 const memoryCache: {
@@ -1000,7 +1001,10 @@ export const supabaseDataService = {
   },
 
   // Registros de Presença
-  async createRegistroPresenca(registro: RegistroPresenca): Promise<RegistroPresenca> {
+  async createRegistroPresenca(
+    registro: RegistroPresenca,
+    skipDuplicateCheck = false
+  ): Promise<RegistroPresenca> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Supabase não está configurado');
     }
@@ -1118,14 +1122,8 @@ export const supabaseDataService = {
         // Extrair apenas primeiro e último nome do usuário
         const nomeUsuario = registro.usuario_responsavel || '';
         if (!nomeUsuario) return null;
-        const partesNome = nomeUsuario
-          .trim()
-          .split(' ')
-          .filter(p => p.trim());
-        if (partesNome.length > 1) {
-          return `${partesNome[0]} ${partesNome[partesNome.length - 1]}`;
-        }
-        return partesNome[0] || null;
+        const nomeFormatado = extractFirstAndLastName(nomeUsuario);
+        return nomeFormatado || null;
       })(),
       created_at: registro.created_at || new Date().toISOString(),
     };
@@ -1133,78 +1131,81 @@ export const supabaseDataService = {
     // 🛡️ VERIFICAÇÃO DE DUPLICADOS: Verificar se já existe registro no mesmo dia
     // IMPORTANTE: Verificar por nome + comum + cargo REAL (não importa o instrumento ou local de ensaio)
     // Baseado na lógica do backupcont/app.js
-    try {
-      const nomeBusca = row.nome_completo.trim().toUpperCase();
-      const comumBusca = row.comum.trim().toUpperCase();
-      const cargoBusca = row.cargo.trim().toUpperCase(); // Cargo REAL já está em row.cargo
+    // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
+    if (!skipDuplicateCheck) {
+      try {
+        const nomeBusca = row.nome_completo.trim().toUpperCase();
+        const comumBusca = row.comum.trim().toUpperCase();
+        const cargoBusca = row.cargo.trim().toUpperCase(); // Cargo REAL já está em row.cargo
 
-      // Extrair apenas a data (sem hora) para comparação
-      const dataRegistro = new Date(row.data_ensaio);
-      const dataInicio = new Date(
-        dataRegistro.getFullYear(),
-        dataRegistro.getMonth(),
-        dataRegistro.getDate()
-      );
-      const dataFim = new Date(dataInicio);
-      dataFim.setDate(dataFim.getDate() + 1);
+        // Extrair apenas a data (sem hora) para comparação
+        const dataRegistro = new Date(row.data_ensaio);
+        const dataInicio = new Date(
+          dataRegistro.getFullYear(),
+          dataRegistro.getMonth(),
+          dataRegistro.getDate()
+        );
+        const dataFim = new Date(dataInicio);
+        dataFim.setDate(dataFim.getDate() + 1);
 
-      console.log('🔍 Verificando duplicados:', {
-        nome: nomeBusca,
-        comum: comumBusca,
-        cargo: cargoBusca,
-        dataInicio: dataInicio.toISOString(),
-        dataFim: dataFim.toISOString(),
-      });
-
-      const { data: duplicatas, error: duplicataError } = await supabase
-        .from('presencas')
-        .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
-        .ilike('nome_completo', nomeBusca)
-        .ilike('comum', comumBusca)
-        .ilike('cargo', cargoBusca)
-        .gte('data_ensaio', dataInicio.toISOString())
-        .lt('data_ensaio', dataFim.toISOString());
-
-      if (duplicataError) {
-        console.warn('⚠️ Erro ao verificar duplicatas:', duplicataError);
-        // Continuar mesmo com erro na verificação
-      } else if (duplicatas && duplicatas.length > 0) {
-        const duplicata = duplicatas[0];
-        console.error('🚨🚨🚨 DUPLICATA DETECTADA - BLOQUEANDO INSERÇÃO 🚨🚨🚨', {
+        console.log('🔍 Verificando duplicados:', {
           nome: nomeBusca,
           comum: comumBusca,
           cargo: cargoBusca,
-          uuidExistente: duplicata.uuid,
-          dataExistente: duplicata.data_ensaio,
-          created_at: duplicata.created_at,
+          dataInicio: dataInicio.toISOString(),
+          dataFim: dataFim.toISOString(),
         });
 
-        // Formatar data e horário do registro existente
-        const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
-        const dataFormatada = dataExistente.toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        });
-        const horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
+        const { data: duplicatas, error: duplicataError } = await supabase
+          .from('presencas')
+          .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
+          .ilike('nome_completo', nomeBusca)
+          .ilike('comum', comumBusca)
+          .ilike('cargo', cargoBusca)
+          .gte('data_ensaio', dataInicio.toISOString())
+          .lt('data_ensaio', dataFim.toISOString());
 
-        // Lançar erro para bloquear inserção com informações formatadas
-        throw new Error(
-          `DUPLICATA_BLOQUEADA:DUPLICATA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`
-        );
+        if (duplicataError) {
+          console.warn('⚠️ Erro ao verificar duplicatas:', duplicataError);
+          // Continuar mesmo com erro na verificação
+        } else if (duplicatas && duplicatas.length > 0) {
+          const duplicata = duplicatas[0];
+          console.error('🚨🚨🚨 DUPLICATA DETECTADA - BLOQUEANDO INSERÇÃO 🚨🚨🚨', {
+            nome: nomeBusca,
+            comum: comumBusca,
+            cargo: cargoBusca,
+            uuidExistente: duplicata.uuid,
+            dataExistente: duplicata.data_ensaio,
+            created_at: duplicata.created_at,
+          });
+
+          // Formatar data e horário do registro existente
+          const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+          const dataFormatada = dataExistente.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          });
+          const horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+
+          // Lançar erro para bloquear inserção com informações formatadas
+          throw new Error(
+            `DUPLICATA_BLOQUEADA:DUPLICATA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`
+          );
+        }
+      } catch (error) {
+        // Se o erro for de duplicata bloqueada, propagar o erro
+        if (error instanceof Error && error.message.includes('DUPLICATA_BLOQUEADA')) {
+          console.error('🚨🚨🚨 BLOQUEIO DEFINITIVO DE DUPLICATA 🚨🚨🚨');
+          throw error;
+        }
+        // Outros erros na verificação não devem bloquear
+        console.warn('⚠️ Erro ao verificar duplicatas (continuando...):', error);
       }
-    } catch (error) {
-      // Se o erro for de duplicata bloqueada, propagar o erro
-      if (error instanceof Error && error.message.includes('DUPLICATA_BLOQUEADA')) {
-        console.error('🚨🚨🚨 BLOQUEIO DEFINITIVO DE DUPLICATA 🚨🚨🚨');
-        throw error;
-      }
-      // Outros erros na verificação não devem bloquear
-      console.warn('⚠️ Erro ao verificar duplicatas (continuando...):', error);
     }
 
     console.log('📤 Enviando para Supabase (tabela presencas):', row);

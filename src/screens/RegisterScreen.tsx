@@ -31,11 +31,19 @@ import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
+import { formatRegistradoPor } from '../utils/userNameUtils';
 
 export const RegisterScreen: React.FC = () => {
   const { user } = useAuthContext();
+
+  // Definir título da página na web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'CCB | Contagem EnR';
+    }
+  }, []);
   const navigation = useNavigation();
-  const isOnline = useOnlineStatus();
+  const { isOnline, setOnStatusChange } = useOnlineStatus();
   const { pendingCount, refreshCount } = useOfflineQueue();
 
   const [comuns, setComuns] = useState<Comum[]>([]);
@@ -73,9 +81,29 @@ export const RegisterScreen: React.FC = () => {
     loadInitialData();
   }, []);
 
+  // Configurar listener para mudanças de status de conexão
+  useEffect(() => {
+    setOnStatusChange((newStatus: boolean) => {
+      if (!newStatus) {
+        // Conexão caiu
+        console.log('📵 Conexão perdida - modo offline ativado');
+        showToast.warning('Modo offline', 'Registros serão salvos na fila');
+      } else {
+        // Conexão restaurada
+        console.log('🌐 Conexão restaurada - iniciando sincronização automática...');
+        // Aguardar um pouco para garantir que a conexão está estável
+        setTimeout(() => {
+          if (!syncing) {
+            syncData();
+          }
+        }, 2000);
+      }
+    });
+  }, [setOnStatusChange, syncing]);
+
   useEffect(() => {
     if (isOnline && !syncing) {
-      console.log('🌐 Conexão restaurada - iniciando sincronização automática...');
+      // Sincronização automática quando voltar online (backup)
       syncData();
     }
   }, [isOnline]);
@@ -86,7 +114,7 @@ export const RegisterScreen: React.FC = () => {
     const selectedCargoObj = cargos.find(c => c.id === selectedCargo);
     const cargoNome = selectedCargoObj?.nome || '';
     const precisaInstrumento = cargoNome === 'Músico'; // Organista removido
-
+    
     // Só carregar pessoas se tiver comum + cargo + (instrumento se necessário)
     if (selectedComum && selectedCargo) {
       if (precisaInstrumento && !selectedInstrumento) {
@@ -106,7 +134,7 @@ export const RegisterScreen: React.FC = () => {
   const loadInitialData = async () => {
     try {
       setInitialLoading(true);
-
+      
       // Se está online, sempre tentar sincronizar primeiro
       if (isOnline) {
         console.log('🔄 Sincronizando dados do Supabase...');
@@ -116,7 +144,7 @@ export const RegisterScreen: React.FC = () => {
           console.warn('⚠️ Erro na sincronização:', syncError);
         }
       }
-
+      
       // Carregar do banco local/cache
       let [comunsData, cargosData, instrumentosData] = await Promise.all([
         supabaseDataService.getComunsFromLocal(),
@@ -168,7 +196,7 @@ export const RegisterScreen: React.FC = () => {
 
   const syncData = async () => {
     if (syncing || !isOnline) return; // Não sincronizar se já está sincronizando ou está offline
-
+    
     try {
       setSyncing(true);
       console.log('🔄 Iniciando sincronização de dados...');
@@ -180,6 +208,15 @@ export const RegisterScreen: React.FC = () => {
       
       // Atualizar contador após sincronizar
       await refreshCount();
+      
+      // Mostrar toast se registros foram sincronizados
+      if (result.syncResult && result.syncResult.successCount > 0) {
+        const mensagem = result.syncResult.successCount === 1
+          ? '1 registro enviado com sucesso'
+          : `${result.syncResult.successCount} registros enviados com sucesso`;
+        showToast.success('Sincronização concluída', mensagem);
+        console.log(`✅ ${result.syncResult.successCount} registro(s) sincronizado(s) com sucesso`);
+      }
       
       // Não mostrar erro se for apenas falta de conexão ou sessão (são esperados)
       if (!result.success && result.error) {
@@ -205,19 +242,19 @@ export const RegisterScreen: React.FC = () => {
 
   const loadPessoas = async () => {
     try {
-      console.log('📚 Carregando pessoas:', {
-        selectedComum,
-        selectedCargo,
+      console.log('📚 Carregando pessoas:', { 
+        selectedComum, 
+        selectedCargo, 
         selectedInstrumento,
         showInstrumento,
       });
-
+      
       const pessoasData = await supabaseDataService.getPessoasFromLocal(
         selectedComum,
         selectedCargo,
         showInstrumento ? selectedInstrumento : undefined
       );
-
+      
       console.log(`✅ ${pessoasData.length} pessoas carregadas`);
       setPessoas(pessoasData);
     } catch (error) {
@@ -250,10 +287,12 @@ export const RegisterScreen: React.FC = () => {
 
     // Preparar registro antes do try para estar disponível no catch
     const localEnsaio = await localStorageService.getLocalEnsaio();
-
+    
     // Usar nome do usuário ao invés do ID
-    const nomeUsuario = user.nome || user.email || user.id;
-
+      // Extrair apenas primeiro e último nome do usuário
+      const nomeCompletoUsuario = user.nome || user.email || user.id;
+      const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario);
+    
     // Buscar classe da organista do banco de dados se for Organista
     // Se nome é manual, não buscar classe (cadastro desatualizado)
     let classeOrganistaDB: string | undefined = undefined;
@@ -301,26 +340,33 @@ export const RegisterScreen: React.FC = () => {
           showToast.success('Registro enviado!', 'Registro enviado com sucesso!');
         } else {
           // Registro foi salvo localmente mas não enviado
-          // Tentar sincronizar imediatamente
-          if (isOnline && !syncing) {
-            console.log('🔄 Tentando sincronizar registro pendente imediatamente...');
-            setTimeout(() => {
-              syncData();
-            }, 500);
+          // Verificar se está offline
+          if (!isOnline) {
+            // Modo offline - mostrar mensagem igual ao ContPedras
+            showToast.info('Salvo offline', 'Enviado quando voltar online');
+          } else {
+            // Online mas não foi enviado (pode ser erro temporário)
+            // Tentar sincronizar imediatamente
+            if (!syncing) {
+              console.log('🔄 Tentando sincronizar registro pendente imediatamente...');
+          setTimeout(() => {
+            syncData();
+          }, 500);
+        }
+            showToast.warning(
+              'Registro salvo localmente',
+              'O registro foi salvo mas não foi enviado. Tentando sincronizar...'
+            );
           }
-          showToast.warning(
-            'Registro salvo localmente',
-            'O registro foi salvo mas não foi enviado. Tentando sincronizar...'
-          );
         }
         
         // Limpar formulário apenas se foi enviado com sucesso
         if (foiEnviado) {
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
+        setSelectedComum('');
+        setSelectedCargo('');
+        setSelectedInstrumento('');
+        setSelectedPessoa('');
+        setIsNomeManual(false);
         }
       } else {
         // Verificar se é erro de duplicata
@@ -350,7 +396,7 @@ export const RegisterScreen: React.FC = () => {
               (pessoas.find(p => p.id === selectedPessoa)?.nome + ' ' + 
                (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')).trim() || '';
           comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
-
+          
           // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario
           if (result.error && result.error.includes('DUPLICATA:')) {
             const errorPart = result.error.split('DUPLICATA:')[1]?.trim() || '';
@@ -387,13 +433,13 @@ export const RegisterScreen: React.FC = () => {
           // Se não conseguiu extrair data/horário, usar data/horário atual
           if (!dataFormatada || !horarioFormatado) {
             const agora = new Date();
-            dataFormatada = agora.toLocaleDateString('pt-BR', {
-              day: '2-digit',
-              month: '2-digit',
+            dataFormatada = agora.toLocaleDateString('pt-BR', { 
+              day: '2-digit', 
+              month: '2-digit', 
               year: 'numeric',
             });
-            horarioFormatado = agora.toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
+            horarioFormatado = agora.toLocaleTimeString('pt-BR', { 
+              hour: '2-digit', 
               minute: '2-digit',
               hour12: false,
             });
@@ -497,17 +543,17 @@ export const RegisterScreen: React.FC = () => {
 
                 // Usuário confirmou - criar registro mesmo assim
                 console.log('✅ Usuário confirmou registro mesmo com duplicata');
-                setLoading(true);
-                try {
-                  const registroForce = { ...registro };
+                  setLoading(true);
+                  try {
+                    const registroForce = { ...registro };
                   const resultForce = await offlineSyncService.createRegistro(registroForce, true);
                   
-                  if (resultForce.success) {
-                    if (isOnline && !syncing) {
-                      setTimeout(() => {
-                        syncData();
-                      }, 500);
-                    }
+                    if (resultForce.success) {
+                      if (isOnline && !syncing) {
+                        setTimeout(() => {
+                          syncData();
+                        }, 500);
+                      }
                     showToast.success(
                       'Registro enviado!',
                       'Registro duplicado cadastrado com sucesso!'
@@ -516,7 +562,7 @@ export const RegisterScreen: React.FC = () => {
                     setTimeout(() => {
                       window.location.reload();
                     }, 1000);
-                  } else {
+                    } else {
                     showToast.error(
                       'Erro',
                       resultForce.error || 'Erro ao cadastrar registro duplicado'
@@ -525,17 +571,17 @@ export const RegisterScreen: React.FC = () => {
                     setTimeout(() => {
                       window.location.reload();
                     }, 2000);
-                  }
-                } catch (error) {
+                    }
+                  } catch (error) {
                   showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
-                  console.error('Erro ao criar registro duplicado:', error);
+                    console.error('Erro ao criar registro duplicado:', error);
                   // Recarregar página mesmo em caso de erro
                   setTimeout(() => {
                     window.location.reload();
                   }, 2000);
-                } finally {
-                  setLoading(false);
-                }
+                  } finally {
+                    setLoading(false);
+                  }
               });
             } else {
               // Fallback: usar modal React Native
@@ -643,7 +689,9 @@ export const RegisterScreen: React.FC = () => {
 
     try {
       const localEnsaio = await localStorageService.getLocalEnsaio();
-      const nomeUsuario = user.nome || user.email || user.id;
+      // Extrair apenas primeiro e último nome do usuário
+      const nomeCompletoUsuario = user.nome || user.email || user.id;
+      const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario);
 
       // Buscar cargo e instrumento para obter nomes
       const cargoObj = cargos.find(c => c.id === data.cargo);
@@ -693,7 +741,7 @@ export const RegisterScreen: React.FC = () => {
           hour: '2-digit',
           minute: '2-digit',
         }),
-        REGISTRADO_POR: nomeUsuario.toUpperCase(),
+        REGISTRADO_POR: nomeUsuario, // Já está em maiúscula da função formatRegistradoPor
         ANOTACOES: 'Cadastro fora da Regional',
       };
 
@@ -745,7 +793,7 @@ export const RegisterScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           collapsable={false}
-          style={Platform.OS === 'web' ? { zIndex: 1, position: 'relative' as const } : undefined}
+          style={Platform.OS === 'web' ? { position: 'relative' as const } : undefined}
         >
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -756,15 +804,15 @@ export const RegisterScreen: React.FC = () => {
             </View>
             <View style={styles.cardBody}>
               <View>
-                <AutocompleteField
-                  label="COMUM CONGREGAÇÃO *"
-                  value={selectedComum}
-                  options={comunsOptions}
-                  onSelect={option => {
+              <AutocompleteField
+            label="COMUM CONGREGAÇÃO *"
+            value={selectedComum}
+            options={comunsOptions}
+            onSelect={option => {
                     setSelectedComum(String(option.value));
-                    setSelectedPessoa('');
-                    setIsNomeManual(false);
-                  }}
+              setSelectedPessoa('');
+              setIsNomeManual(false);
+            }}
                   placeholder="Selecione a comum..."
                 />
                 <TouchableOpacity
@@ -782,51 +830,51 @@ export const RegisterScreen: React.FC = () => {
               </View>
 
               <AutocompleteField
-                label="CARGO/MINISTÉRIO *"
-                value={selectedCargo}
-                options={cargosOptions}
-                onSelect={option => {
+            label="CARGO/MINISTÉRIO *"
+            value={selectedCargo}
+            options={cargosOptions}
+            onSelect={option => {
                   setSelectedCargo(String(option.value));
-                  setSelectedInstrumento('');
-                  setSelectedPessoa('');
-                  setIsNomeManual(false);
-                }}
+              setSelectedInstrumento('');
+              setSelectedPessoa('');
+              setIsNomeManual(false);
+            }}
                 placeholder="Selecione o cargo..."
-              />
+          />
 
-              {showInstrumento && (
-                <SimpleSelectField
-                  label="Instrumento (apenas para cargos musicais)"
-                  value={selectedInstrumento}
-                  options={instrumentosOptions}
-                  onSelect={(option: any) => {
-                    setSelectedInstrumento(option.value);
-                    setSelectedPessoa('');
-                    setIsNomeManual(false);
-                  }}
-                  placeholder="Selecione o instrumento"
-                />
-              )}
+                  {showInstrumento && (
+                    <SimpleSelectField
+                      label="Instrumento (apenas para cargos musicais)"
+                      value={selectedInstrumento}
+                      options={instrumentosOptions}
+                      onSelect={(option: any) => {
+                        setSelectedInstrumento(option.value);
+                        setSelectedPessoa('');
+                        setIsNomeManual(false);
+                      }}
+                      placeholder="Selecione o instrumento"
+                    />
+                  )}
 
-              <NameSelectField
-                label="Nome e Sobrenome *"
-                value={selectedPessoa}
-                options={pessoasOptions}
-                onSelect={(option: any) => {
-                  if (option.id === 'manual') {
-                    setSelectedPessoa(option.value);
-                    setIsNomeManual(true);
-                  } else {
-                    setSelectedPessoa(option.value);
-                    setIsNomeManual(false);
-                  }
-                }}
+          <NameSelectField
+            label="Nome e Sobrenome *"
+            value={selectedPessoa}
+            options={pessoasOptions}
+            onSelect={(option: any) => {
+              if (option.id === 'manual') {
+                setSelectedPessoa(option.value);
+                setIsNomeManual(true);
+              } else {
+                setSelectedPessoa(option.value);
+                setIsNomeManual(false);
+              }
+            }}
                 placeholder="Selecione o nome..."
-              />
+          />
 
-              <Text style={styles.hint}>
-                Selecione um nome da lista após preencher Comum e Cargo.
-              </Text>
+          <Text style={styles.hint}>
+            Selecione um nome da lista após preencher Comum e Cargo.
+          </Text>
 
               <PrimaryButton
                 title="ENVIAR REGISTRO"
@@ -837,8 +885,8 @@ export const RegisterScreen: React.FC = () => {
             </View>
           </View>
 
-          <View style={styles.footer}>
-            <OfflineBadge count={pendingCount} syncing={syncing} />
+        <View style={styles.footer}>
+          <OfflineBadge count={pendingCount} syncing={syncing} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -1006,6 +1054,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     overflow: 'visible',
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'relative' as const,
+          zIndex: 1,
+        }
+      : {}),
   },
   cardHeader: {
     backgroundColor: theme.colors.surface,

@@ -2,6 +2,7 @@ import { RegistroPresenca } from '../types/models';
 import { supabaseDataService } from './supabaseDataService';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { normalizarRegistroCargoFeminino } from '../utils/normalizeCargoFeminino';
+import { formatRegistradoPor } from '../utils/userNameUtils';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
 const GOOGLE_SHEETS_API_URL =
@@ -107,22 +108,8 @@ export const googleSheetsService = {
         return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
       };
 
-      // Buscar nome do usuário (se for ID, tentar buscar do contexto)
-      // Por enquanto, usar o valor direto se não for possível buscar
-      let registradoPorNome = registro.usuario_responsavel || '';
-
-      // Extrair apenas primeiro e último nome do usuário
-      if (registradoPorNome) {
-        const partesNome = registradoPorNome
-          .trim()
-          .split(' ')
-          .filter(p => p.trim());
-        if (partesNome.length > 1) {
-          registradoPorNome = `${partesNome[0]} ${partesNome[partesNome.length - 1]}`;
-        } else {
-          registradoPorNome = partesNome[0] || '';
-        }
-      }
+      // Buscar nome do usuário e extrair apenas primeiro e último nome
+      const registradoPorNome = formatRegistradoPor(registro.usuario_responsavel || '');
 
       // Usar naipe normalizado se for cargo feminino, senão calcular normalmente
       const naipeInstrumento = normalizacao.isNormalizado

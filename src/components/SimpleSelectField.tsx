@@ -122,9 +122,9 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
   // Quando o campo perde foco
   const handleBlur = () => {
     setIsFocused(false);
-    // Delay maior para permitir clique com mouse/touch
-    // Web precisa de mais tempo para processar o clique do mouse
-    const delay = Platform.OS === 'web' ? 200 : Platform.OS === 'android' ? 500 : 300;
+    // Delay muito maior no web para permitir clique com mouse
+    // O mouse precisa de mais tempo porque o blur acontece antes do click
+    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 500 : 300;
     blurTimeoutRef.current = setTimeout(() => {
       setShowList(false);
       blurTimeoutRef.current = null;
@@ -174,35 +174,34 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
 
   const maxHeight = Math.min(filtered.length * 48, 300);
 
-  // Z-index dinâmico baseado no foco
-  const dynamicZIndex =
-    isFocused || showList ? DROPDOWN_FIELD_CONTAINER + 1000 : DROPDOWN_FIELD_CONTAINER;
-  const dropdownZIndex =
-    isFocused || showList ? DROPDOWN_FIELD_DROPDOWN : DROPDOWN_FIELD_DROPDOWN - 1000;
+  // Z-index PERMANENTE e ALTO - sempre em evidência
+  const dynamicZIndex = 99999; // Valor fixo e alto
+  const dropdownZIndex = 999999; // Valor ainda mais alto para o dropdown
 
   return (
-    <View
-      style={[
-        styles.container,
-        style,
-        Platform.OS === 'web' && (isFocused || showList)
-          ? {
-              zIndex: dynamicZIndex,
-              position: 'relative' as any,
-            }
-          : {},
-      ]}
-      ref={containerRef}
-      collapsable={false}
-    >
+      <View
+        style={[
+          styles.container,
+          style,
+          Platform.OS === 'web'
+            ? {
+                zIndex: dynamicZIndex,
+                position: 'relative' as any,
+              }
+            : {},
+        ]}
+        ref={containerRef}
+        collapsable={false}
+      >
       {label && <Text style={styles.label}>{label}</Text>}
 
       <View
         style={[
           styles.inputContainer,
-          Platform.OS === 'web' && (isFocused || showList)
+          Platform.OS === 'web'
             ? {
                 zIndex: dynamicZIndex,
+                position: 'relative' as ViewStyle['position'],
               }
             : {},
         ]}
@@ -273,10 +272,30 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
               styles.dropdown,
               Platform.OS === 'web'
                 ? {
-                    zIndex: dropdownZIndex,
+                    zIndex: 9999999,
                   }
                 : {},
             ]}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            {...(Platform.OS === 'web'
+              ? {
+                  onMouseEnter: () => {
+                    // Cancelar blur quando mouse entra no dropdown
+                    if (blurTimeoutRef.current) {
+                      clearTimeout(blurTimeoutRef.current);
+                      blurTimeoutRef.current = null;
+                    }
+                  },
+                  onMouseDown: (e: React.MouseEvent) => {
+                    // Cancelar blur ao clicar no dropdown
+                    if (blurTimeoutRef.current) {
+                      clearTimeout(blurTimeoutRef.current);
+                      blurTimeoutRef.current = null;
+                    }
+                  },
+                }
+              : {})}
           >
             <FlatList
               ref={flatListRef}
@@ -352,7 +371,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
           position: 'relative' as any,
-          zIndex: DROPDOWN_FIELD_CONTAINER,
+          zIndex: 99999,
         }
       : {}),
   },
@@ -368,7 +387,8 @@ const styles = StyleSheet.create({
     position: 'relative' as any,
     ...(Platform.OS === 'web'
       ? {
-          zIndex: DROPDOWN_FIELD_CONTAINER,
+          zIndex: 99999,
+          position: 'relative' as any,
         }
       : {}),
   },
@@ -390,7 +410,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
           position: 'relative' as any,
-          zIndex: DROPDOWN_FIELD_INPUT,
+          zIndex: 99999,
         }
       : {}),
   },
@@ -416,8 +436,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
-          zIndex: DROPDOWN_FIELD_DROPDOWN,
-          position: 'absolute' as any,
+          zIndex: 9999999,
         }
       : {
           zIndex: 1000,

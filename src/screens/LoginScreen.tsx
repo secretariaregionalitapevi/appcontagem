@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,26 @@ import {
   TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthContext } from '../context/AuthContext';
+
+type RootStackParamList = {
+  Login: undefined;
+  SignUp: undefined;
+  Register: undefined;
+  EditRegistros: undefined;
+};
+
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 import { TextInputField } from '../components/TextInputField';
-import { DropdownField } from '../components/DropdownField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { theme } from '../theme';
 import { localStorageService } from '../services/localStorageService';
 import { LocalEnsaio } from '../types/models';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 export const LoginScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +42,13 @@ export const LoginScreen: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
 
   const { signIn, signUp } = useAuthContext();
+
+  // Definir título da página na web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'CCB | Login';
+    }
+  }, []);
 
   React.useEffect(() => {
     loadLocaisEnsaio();
@@ -49,6 +66,7 @@ export const LoginScreen: React.FC = () => {
         { id: '6', nome: 'Pirapora' },
         { id: '7', nome: 'Vargem Grande' },
       ];
+      console.log('📍 Locais de ensaio carregados:', mockLocais);
       setLocaisEnsaio(mockLocais);
     } catch (error) {
       console.error('Erro ao carregar locais de ensaio:', error);
@@ -106,12 +124,6 @@ export const LoginScreen: React.FC = () => {
     return msg;
   };
 
-  const locaisOptions = locaisEnsaio.map(local => ({
-    id: local.id,
-    label: local.nome,
-    value: local.id,
-    icon: 'map-marker-alt', // Ícone FontAwesome para cada local
-  }));
 
   return (
     <KeyboardAvoidingView
@@ -185,16 +197,29 @@ export const LoginScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.inputGroupDropdown}>
-              <DropdownField
-                value={localEnsaio}
-                options={locaisOptions}
-                onSelect={option => setLocalEnsaio(option.value)}
-                placeholder="Local do Ensaio"
-                icon="map-marker-alt"
-                iconColor={theme.colors.primary}
-                style={styles.dropdownFullWidth}
-              />
+            <View style={styles.inputGroup}>
+              <View style={styles.inputGroupText}>
+                <FontAwesome5 name="map-marker-alt" size={theme.fontSize.md} color={theme.colors.icon} style={styles.icon} />
+              </View>
+              {Platform.OS === 'web' ? (
+                <select
+                  style={styles.selectWeb}
+                  value={localEnsaio}
+                  onChange={(e) => setLocalEnsaio(e.target.value)}
+                  required
+                >
+                  <option value="">Local do Ensaio</option>
+                  {locaisEnsaio.map(local => (
+                    <option key={local.id} value={local.id}>
+                      {local.nome}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <View style={styles.selectNative}>
+                  <Text style={styles.selectText}>{localEnsaio ? locaisEnsaio.find(l => l.id === localEnsaio)?.nome || 'Local do Ensaio' : 'Local do Ensaio'}</Text>
+                </View>
+              )}
             </View>
 
             <PrimaryButton
@@ -210,7 +235,16 @@ export const LoginScreen: React.FC = () => {
               <Text style={styles.registerText}>Não tem uma conta?</Text>
               <TouchableOpacity
                 style={styles.registerButton}
-                onPress={() => navigation.navigate('SignUp' as never)}
+                onPress={() => {
+                  console.log('🔘 Botão "Criar conta" clicado');
+                  try {
+                    navigation.navigate('SignUp');
+                  } catch (error) {
+                    console.error('❌ Erro ao navegar para SignUp:', error);
+                    Alert.alert('Erro', 'Não foi possível abrir a tela de cadastro. Tente novamente.');
+                  }
+                }}
+                activeOpacity={0.7}
               >
                 <Text style={styles.registerButtonText}>Criar conta</Text>
               </TouchableOpacity>
@@ -305,33 +339,51 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minHeight: 48,
   },
-  inputGroupDropdown: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.surface,
-    overflow: 'visible',
-    minHeight: 48,
-    zIndex: 1000,
-  },
-  dropdownFullWidth: {
+  selectWeb: {
     flex: 1,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    paddingVertical: theme.spacing.sm,
+    paddingLeft: theme.spacing.md,
+    paddingRight: theme.spacing.md,
+    minHeight: 48,
+    borderLeftWidth: 1,
+    borderLeftColor: theme.colors.border,
+    borderTopWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+    backgroundColor: 'transparent',
+    outline: 'none',
+    cursor: 'pointer',
+  } as any,
+  selectNative: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    paddingLeft: theme.spacing.md,
+    paddingRight: theme.spacing.md,
+    minHeight: 48,
+    borderLeftWidth: 1,
+    borderLeftColor: theme.colors.border,
+    justifyContent: 'center',
+  },
+  selectText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
   },
   inputGroupText: {
     backgroundColor: theme.colors.surface,
-    borderRightWidth: 0,
+    borderRightWidth: 1,
+    borderRightColor: theme.colors.border,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 40,
+    minWidth: 48,
+    borderTopLeftRadius: theme.borderRadius.md,
+    borderBottomLeftRadius: theme.borderRadius.md,
+    minHeight: 48,
   },
   icon: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.icon,
     textAlign: 'center',
   },
   input: {

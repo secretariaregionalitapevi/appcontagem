@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface OfflineBadgeProps {
   count: number;
@@ -9,6 +10,7 @@ interface OfflineBadgeProps {
 }
 
 export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = false }) => {
+  const { isOnline } = useOnlineStatus();
   const getBadgeStyle = () => {
     if (syncing) {
       return [styles.badge, styles.badgeSyncing];
@@ -60,28 +62,46 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.queueText}>{count} itens em fila</Text>
-      <View style={getBadgeStyle()}>
-        <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
-        <Text style={getBadgeTextStyle()}>{getText()}</Text>
+    <View style={styles.wrapper}>
+      <View style={styles.container}>
+        <Text style={styles.queueText}>{count} itens em fila</Text>
+        <View style={getBadgeStyle()}>
+          <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
+          <Text style={getBadgeTextStyle()}>{getText()}</Text>
+        </View>
+      </View>
+      {/* Status Online/Offline - abaixo do badge */}
+      <View style={styles.statusIndicator}>
+        <FontAwesome5 
+          name={isOnline ? "wifi" : "wifi-slash"} 
+          size={12} 
+          color={isOnline ? "#10b981" : "#ef4444"} 
+        />
+        <Text style={styles.statusText}>
+          {isOnline ? 'Online' : 'Offline'}
+        </Text>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
+  wrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.sm,
+    gap: theme.spacing.xs,
     ...(Platform.OS === 'web'
       ? {
           position: 'relative' as const,
           zIndex: 1,
         }
       : {}),
+  },
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
   },
   queueText: {
     fontSize: theme.fontSize.sm,
@@ -147,5 +167,17 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: 2,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: theme.spacing.xs,
+  },
+  statusText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
 });

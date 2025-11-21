@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Criar Usuários CCB - Supabase</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style> body{padding:20px} code{user-select:all} </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="h4 mb-3">🔧 Criar Usuários CCB no Supabase</h1>
+    <p class="text-muted">Cria os usuários que foram deletados acidentalmente.</p>
+
+    <div class="alert alert-info">
+      <b>📋 Usuários que serão criados:</b>
+      <ul class="mb-0">
+        <li>Ricardo Grangeiro - ricardograngeiro@gmail.com (master)</li>
+        <li>Secretaria Musical Itapevi - secretariaregionalitapevi1@gmail.com (master)</li>
+        <li>Eduardo Oliveira - eduardooliveira@gmail.com (master)</li>
+      </ul>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">SUPABASE_URL</label>
+        <input id="url" class="form-control" placeholder="https://xxxxx.supabase.co">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">SUPABASE_ANON_KEY</label>
+        <input id="anon" class="form-control" placeholder="eyJhbGciOi...">
+      </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+      <button id="btnCriarTodos" class="btn btn-success">🚀 Criar Todos os Usuários</button>
+      <button id="btnVerificar" class="btn btn-info">🔍 Verificar Usuários</button>
+      <button id="btnReenviarEmail" class="btn btn-warning">📧 Reenviar Email Confirmação</button>
+      <button id="btnLimpar" class="btn btn-secondary">🧹 Limpar Log</button>
+    </div>
+
+    <pre id="out" class="mt-3 bg-light p-3 border rounded" style="min-height:140px;white-space:pre-wrap"></pre>
+  </div>
+
+<script>
+const out = document.getElementById('out');
+const log = (msg)=> out.textContent += (msg + "\\n");
+
+// Lista de usuários para criar
+const usuarios = [
+    {
+        nome: 'Ricardo Grangeiro',
+        email: 'ricardograngeiro@gmail.com',
+        senha: 'admin123',
+        nivel: 'master'
+    },
+    {
+        nome: 'Secretaria Musical Itapevi',
+        email: 'secretariaregionalitapevi1@gmail.com',
+        senha: 'admin123',
+        nivel: 'master'
+    },
+    {
+        nome: 'Eduardo Oliveira',
+        email: 'eduardooliveira@gmail.com',
+        senha: 'admin123',
+        nivel: 'master'
+    }
+];
+
+function getClient(){
+  const url = document.getElementById('url').value.trim();
+  const anon = document.getElementById('anon').value.trim();
+  if(!url || !anon){ alert('Preencha SUPABASE_URL e ANON_KEY'); throw new Error('missing keys'); }
+  return window.supabase.createClient(url, anon);
+}
+
+// Função para criar um usuário específico
+async function criarUsuario(usuario) {
+    try {
+        log(`→ Criando usuário: ${usuario.nome} (${usuario.email})`);
+        
+        const sb = getClient();
+        
+        // 1. Criar usuário na autenticação
+        const { data: authData, error: authError } = await sb.auth.signUp({ 
+            email: usuario.email, 
+            password: usuario.senha 
+        });
+        
+        if (authError) {
+            log(`❌ Erro ao criar usuário ${usuario.email}: ${authError.message}`);
+            return false;
+        }
+        
+        if (!authData.user) {
+            log(`⚠️ Usuário ${usuario.email} requer confirmação de email`);
+            log(`📧 Email de confirmação enviado para ${usuario.email}`);
+            log(`💡 Verifique a caixa de entrada e clique no link de confirmação`);
+            return false;
+        }
+        
+        log(`✅ Usuário ${usuario.email} criado com ID: ${authData.user.id}`);
+        
+        // 2. Criar perfil na tabela profiles
+        const { error: profileError } = await sb
+            .from('profiles')
+            .upsert({
+                id: authData.user.id,
+                email: usuario.email,
+                role: usuario.nivel
+            }, { onConflict: 'id' });
+        
+        if (profileError) {
+            log(`❌ Erro ao criar perfil para ${usuario.email}: ${profileError.message}`);
+            return false;
+        }
+        
+        log(`✅ Perfil criado para ${usuario.email} com role: ${usuario.nivel}`);
+        return true;
+        
+    } catch (error) {
+        log(`❌ Erro geral ao criar usuário ${usuario.email}: ${error.message}`);
+        return false;
+    }
+}
+
+// Função para criar todos os usuários
+async function criarTodosUsuarios() {
+    log('🚀 Iniciando criação de usuários...');
+    
+    let sucessos = 0;
+    let falhas = 0;
+    
+    for (const usuario of usuarios) {
+        const sucesso = await criarUsuario(usuario);
+        if (sucesso) {
+            sucessos++;
+        } else {
+            falhas++;
+        }
+        
+        // Pequena pausa entre criações
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    log(`\\n📊 Resumo:`);
+    log(`✅ Sucessos: ${sucessos}`);
+    log(`❌ Falhas: ${falhas}`);
+    log(`📝 Total: ${usuarios.length}`);
+}
+
+// Função para verificar usuários existentes
+async function verificarUsuarios() {
+    try {
+        log('🔍 Verificando usuários existentes...');
+        
+        const sb = getClient();
+        const emails = usuarios.map(u => u.email);
+        
+        const { data, error } = await sb
+            .from('profiles')
+            .select('email, role')
+            .in('email', emails);
+        
+        if (error) {
+            log(`❌ Erro ao verificar usuários: ${error.message}`);
+            return;
+        }
+        
+        log('📋 Usuários encontrados:');
+        data.forEach(user => {
+            log(`  - ${user.email} (${user.role})`);
+        });
+        
+        const usuariosNaoEncontrados = emails.filter(email => 
+            !data.some(user => user.email === email)
+        );
+        
+        if (usuariosNaoEncontrados.length > 0) {
+            log('\\n❌ Usuários não encontrados:');
+            usuariosNaoEncontrados.forEach(email => {
+                log(`  - ${email}`);
+            });
+        }
+        
+    } catch (error) {
+        log(`❌ Erro ao verificar usuários: ${error.message}`);
+    }
+}
+
+// Função para reenviar email de confirmação
+async function reenviarEmailConfirmacao() {
+    try {
+        log('📧 Reenviando emails de confirmação...');
+        
+        const sb = getClient();
+        
+        for (const usuario of usuarios) {
+            log(`→ Reenviando email para: ${usuario.email}`);
+            
+            const { error } = await sb.auth.resend({
+                type: 'signup',
+                email: usuario.email
+            });
+            
+            if (error) {
+                log(`❌ Erro ao reenviar email para ${usuario.email}: ${error.message}`);
+            } else {
+                log(`✅ Email de confirmação reenviado para ${usuario.email}`);
+            }
+        }
+        
+        log('\\n💡 Verifique as caixas de entrada dos emails!');
+        
+    } catch (error) {
+        log(`❌ Erro ao reenviar emails: ${error.message}`);
+    }
+}
+
+// Event listeners
+document.getElementById('btnCriarTodos').addEventListener('click', criarTodosUsuarios);
+document.getElementById('btnVerificar').addEventListener('click', verificarUsuarios);
+document.getElementById('btnReenviarEmail').addEventListener('click', reenviarEmailConfirmacao);
+document.getElementById('btnLimpar').addEventListener('click', () => {
+    out.textContent = 'Log limpo...\\n';
+});
+
+// Log inicial
+log('🔧 Sistema de criação de usuários carregado');
+log('📝 Preencha as credenciais do Supabase e clique em "Criar Todos os Usuários"');
+</script>
+</body>
+</html>

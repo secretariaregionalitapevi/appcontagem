@@ -42,6 +42,7 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
   const containerRef = useRef<View>(null);
   const [layout, setLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
+
   const selectedOption = options.find(opt => opt.id === value);
 
   const handleSelect = (option: DropdownOption) => {
@@ -50,23 +51,23 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
   };
 
   const handleOpen = () => {
+    if (options.length === 0) {
+      return;
+    }
+
     if (containerRef.current) {
-      try {
-        containerRef.current.measure((x, y, width, height, pageX, pageY) => {
-          if (pageX !== undefined && pageY !== undefined) {
-            setLayout({ x: pageX, y: pageY, width, height });
-          } else {
-            // Fallback para mobile quando measure não retorna coordenadas absolutas
-            setLayout({ x: 0, y: 0, width: width || 300, height: height || 48 });
-          }
-          setIsOpen(true);
-        });
-      } catch (error) {
-        // Fallback em caso de erro
-        console.warn('Erro ao medir componente:', error);
-        setLayout({ x: 0, y: 0, width: 300, height: 48 });
+      containerRef.current.measure((x, y, width, height, pageX, pageY) => {
+        const newLayout = Platform.OS === 'web'
+          ? (pageX !== undefined && pageY !== undefined
+              ? { x: pageX, y: pageY, width: width || 300, height: height || 48 }
+              : { x: 0, y: 0, width: width || 300, height: height || 48 })
+          : (pageX !== undefined && pageY !== undefined
+              ? { x: pageX, y: pageY, width, height }
+              : { x: 0, y: 0, width: width || 300, height: height || 48 });
+        
+        setLayout(newLayout);
         setIsOpen(true);
-      }
+      });
     } else {
       setLayout({ x: 0, y: 0, width: 300, height: 48 });
       setIsOpen(true);
@@ -117,35 +118,47 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
         />
       </TouchableOpacity>
 
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
-        statusBarTranslucent
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setIsOpen(false)}
+      {isOpen && options.length > 0 && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsOpen(false)}
+          statusBarTranslucent
         >
-          <View
-            style={[
-              styles.dropdownContainer,
-              {
-                top: layout.y + layout.height + 2,
-                left: layout.x || 0,
-                width: layout.width || '100%',
-                maxHeight: maxHeight,
-              },
-            ]}
-            onStartShouldSetResponder={() => true}
-            onResponderTerminationRequest={() => false}
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setIsOpen(false)}
           >
-            <FlatList
-              data={options}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={[
+                styles.dropdownContainer,
+                {
+                  top: layout.y + layout.height + 2,
+                  left: layout.x || 0,
+                  width: layout.width || '100%',
+                  maxHeight: maxHeight,
+                  ...(Platform.OS === 'web'
+                    ? {
+                        position: 'fixed' as const,
+                        zIndex: 9999,
+                      }
+                    : {}),
+                },
+              ]}
+            >
+            {options.length === 0 ? (
+              <View style={styles.optionItem}>
+                <Text style={styles.optionText}>Nenhuma opção disponível</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={options}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
                     styles.optionItem,
@@ -202,14 +215,16 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
                     />
                   )}
                 </TouchableOpacity>
-              )}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                )}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              />
+            )}
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </View>
   );
 };

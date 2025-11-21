@@ -184,22 +184,58 @@ export const showToast = {
 
   info: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
-      // Usar SweetAlert2 na web
+      // Usar SweetAlert2 na web - modo toast (igual ao ContPedras)
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'info',
           title: title,
           text: message || '',
-          timer: 4000,
-          timerProgressBar: true,
-          showConfirmButton: true,
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#3b82f6',
+          timer: 3000, // 3 segundos
+          timerProgressBar: false,
+          showConfirmButton: false,
+          toast: true, // Modo toast (menor e mais elegante)
+          position: 'top-end',
+          width: 'auto',
+          padding: '1rem',
         });
       } else {
         // Fallback para console
         console.info(`ℹ️ ${title}: ${message || ''}`);
+      }
+    } else if (Toast) {
+      Toast.show({
+        type: 'info',
+        text1: title,
+        text2: message,
+        position: 'top',
+        visibilityTime: 3000,
+        autoHide: true,
+        topOffset: 60,
+      });
+    } else {
+      Alert.alert(title, message || '');
+    }
+  },
+
+  warning: (title: string, message?: string) => {
+    if (Platform.OS === 'web') {
+      // Usar SweetAlert2 na web
+      const Swal = getSwal();
+      if (Swal) {
+        Swal.fire({
+          icon: 'warning',
+          title: title,
+          text: message || '',
+          timer: 5000,
+          timerProgressBar: true,
+          showConfirmButton: true,
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#f59e0b',
+        });
+      } else {
+        // Fallback para console
+        console.warn(`⚠️ ${title}: ${message || ''}`);
         if (typeof window !== 'undefined' && window.alert) {
           alert(`${title}\n${message || ''}`);
         }
@@ -210,7 +246,7 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 3000,
+        visibilityTime: 5000,
         autoHide: true,
         topOffset: 60,
       });

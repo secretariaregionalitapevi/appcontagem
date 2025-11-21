@@ -32,6 +32,13 @@ export const SignUpScreen: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Definir título da página na web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'CCB | Cadastro';
+    }
+  }, []);
+
   useEffect(() => {
     // Verificar conexão com Supabase ao montar o componente
     if (!isSupabaseConfigured()) {
