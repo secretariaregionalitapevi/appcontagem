@@ -724,8 +724,6 @@ export const EditRegistrosScreen: React.FC = () => {
                   />
                 </View>
               </View>
-                </TouchableOpacity>
-              </KeyboardAvoidingView>
             </View>
           </View>
         </Modal>
