@@ -584,11 +584,15 @@ export const EditRegistrosScreen: React.FC = () => {
 
                   <ScrollView 
                     style={styles.modalBody} 
+                    contentContainerStyle={{ flexGrow: 1 }}
                     keyboardShouldPersistTaps="handled"
-                    nestedScrollEnabled={true}
+                    nestedScrollEnabled={Platform.OS !== 'web'}
                     scrollEnabled={true}
                     bounces={Platform.OS === 'ios'}
                     showsVerticalScrollIndicator={true}
+                    alwaysBounceVertical={false}
+                    scrollEventThrottle={16}
+                    removeClippedSubviews={Platform.OS === 'android'}
                   >
                 <View style={styles.formField}>
                   <Text style={styles.formLabel}>Nome Completo *</Text>
