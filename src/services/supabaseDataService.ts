@@ -61,6 +61,7 @@ const INSTRUMENTS_FIXED = [
 const CARGOS_FIXED = [
   'Músico',
   'Organista',
+  'Candidato(a)',
   'Irmandade',
   'Ancião',
   'Diácono',
@@ -915,6 +916,113 @@ export const supabaseDataService = {
     }
   },
 
+  // Buscar candidatos da tabela candidatos (seguindo lógica similar ao cadastro)
+  async fetchCandidatosFromSupabase(
+    comumNome?: string
+  ): Promise<any[]> {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Supabase não está configurado');
+    }
+
+    if (!comumNome) {
+      return [];
+    }
+
+    try {
+      console.log('📚 Buscando candidatos da tabela candidatos:', {
+        comumNome,
+      });
+
+      // Normalizar valores para busca
+      const comumBusca = comumNome.trim();
+
+      // Usar tabela candidatos
+      const tableName = 'candidatos';
+      let allData: any[] = [];
+      let hasMore = true;
+      let currentPage = 0;
+      const pageSize = 1000;
+      let finalError: any = null;
+
+      const fetchPage = async (
+        table: string,
+        page: number
+      ): Promise<{ data: any[]; error: any; hasMore: boolean }> => {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        // Construir query base com filtro de comum
+        let query = supabase
+          .from(table)
+          .select('nome, comum, cidade')
+          .ilike('comum', `%${comumBusca}%`)
+          .order('nome', { ascending: true });
+
+        // Aplicar range para paginação
+        const result = await query.range(from, to);
+
+        return {
+          data: result.data || [],
+          error: result.error,
+          hasMore: (result.data?.length || 0) === pageSize,
+        };
+      };
+
+      // Buscar todas as páginas da tabela candidatos
+      while (hasMore) {
+        try {
+          const pageResult = await fetchPage(tableName, currentPage);
+
+          if (pageResult.error) {
+            finalError = pageResult.error;
+            console.error('❌ Erro ao buscar da tabela candidatos:', pageResult.error);
+            break;
+          }
+
+          if (pageResult.data && pageResult.data.length > 0) {
+            allData = allData.concat(pageResult.data);
+            console.log(
+              `📄 Página ${currentPage + 1}: ${pageResult.data.length} registros (total: ${allData.length})`
+            );
+          }
+
+          hasMore = pageResult.hasMore;
+          currentPage++;
+        } catch (error) {
+          finalError = error;
+          console.error('❌ Erro ao buscar página:', error);
+          break;
+        }
+      }
+
+      if (allData.length === 0) {
+        console.log('⚠️ Nenhum candidato encontrado');
+        return [];
+      }
+
+      console.log(`✅ Total de ${allData.length} registros encontrados na tabela ${tableName}`);
+
+      // Remover duplicatas baseado em nome + comum
+      const uniqueMap = new Map<string, any>();
+      allData.forEach(r => {
+        const nomeCompleto = (r.nome || '').trim();
+        const comum = (r.comum || '').trim();
+        const key = `${nomeCompleto}_${comum}`;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, r);
+        }
+      });
+
+      const uniqueData = Array.from(uniqueMap.values());
+      console.log(`✅ ${uniqueData.length} candidatos únicos após remover duplicatas`);
+
+      return uniqueData;
+    } catch (error) {
+      console.error('❌ Erro ao buscar candidatos da tabela candidatos:', error);
+      throw error;
+    }
+  },
+
   async getPessoasFromLocal(
     comumId?: string,
     cargoId?: string,
@@ -949,7 +1057,44 @@ export const supabaseDataService = {
       return [];
     }
 
-    // Buscar pessoas da tabela cadastro
+    // Verificar se é cargo Candidato(a) - buscar da tabela candidatos
+    if (cargoNome.toUpperCase() === 'CANDIDATO(A)' || cargoNome.toUpperCase() === 'CANDIDATO') {
+      try {
+        const candidatosData = await this.fetchCandidatosFromSupabase(comumNome);
+
+        // Converter para formato Pessoa[]
+        const pessoas: Pessoa[] = candidatosData.map((p, index) => {
+          const nomeCompleto = (p.nome || '').trim();
+          const partesNome = nomeCompleto.split(' ').filter(p => p.trim());
+          const primeiroNome = partesNome[0] || '';
+          const ultimoNome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : '';
+
+          const pessoa: Pessoa = {
+            id: `candidato_${index}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
+            nome: primeiroNome,
+            sobrenome: ultimoNome,
+            nome_completo: nomeCompleto,
+            comum_id: comumId || '',
+            cargo_id: cargoId || '',
+            cargo_real: 'Candidato(a)', // Cargo fixo para candidatos
+            instrumento_id: null, // Candidatos não têm instrumento
+            cidade: (p.cidade || '').toUpperCase().trim(),
+            ativo: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          return pessoa;
+        });
+
+        return pessoas;
+      } catch (error) {
+        console.error('❌ Erro ao buscar candidatos:', error);
+        return [];
+      }
+    }
+
+    // Buscar pessoas da tabela cadastro (para outros cargos)
     try {
       const pessoasData = await this.fetchPessoasFromCadastro(
         comumNome,
