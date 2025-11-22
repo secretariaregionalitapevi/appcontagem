@@ -197,16 +197,6 @@ export const offlineSyncService = {
       }
     }
 
-        // Pausa entre envios para evitar sobrecarga (removido - agora processa em lotes)
-        if (registros.indexOf(registro) < registros.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      } catch (error) {
-        // Se falhou completamente, manter como pending para tentar novamente depois
-        console.error(`❌ Erro ao sincronizar registro ${registro.id}:`, error);
-      }
-    }
-
     console.log(`✅ Sincronização concluída: ${successCount} de ${totalCount} registros enviados`);
     return { successCount, totalCount };
   },
