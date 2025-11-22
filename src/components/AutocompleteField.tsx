@@ -54,7 +54,6 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
   const inputRef = useRef<TextInput>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const flatListRef = useRef<FlatList>(null);
-  const [fixedPosition, setFixedPosition] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Normalizar texto (remove acentos, converte para minúscula)
   const normalize = (text: string) => {
@@ -96,32 +95,8 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
     setSelectedIndex(-1); // Reset seleção ao digitar
     if (text.trim().length >= 2) {
       setShowList(true);
-      setTimeout(() => updateFixedPosition(), 10);
     } else {
       setShowList(false);
-    }
-  };
-
-  // Calcular posição para position: fixed
-  const updateFixedPosition = () => {
-    if (Platform.OS === 'web' && inputRef.current) {
-      try {
-        const inputElement = (inputRef.current as any)._nativeNode || 
-                            (inputRef.current as any).base || 
-                            inputRef.current;
-        if (inputElement && typeof window !== 'undefined') {
-          if (inputElement.getBoundingClientRect) {
-            const rect = inputElement.getBoundingClientRect();
-            setFixedPosition({
-              top: rect.bottom + 4,
-              left: rect.left,
-              width: rect.width,
-            });
-          }
-        }
-      } catch (e) {
-        // Ignorar erro
-      }
     }
   };
 
@@ -135,7 +110,6 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
     }
     if (searchText.trim().length >= 2) {
       setShowList(true);
-      setTimeout(() => updateFixedPosition(), 10);
     }
   };
 
@@ -197,20 +171,6 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
 
 
 
-  // Atualizar posição durante scroll
-  useEffect(() => {
-    if (Platform.OS === 'web' && showList && isFocused) {
-      const handleScroll = () => updateFixedPosition();
-      if (typeof window !== 'undefined') {
-        window.addEventListener('scroll', handleScroll, true);
-        window.addEventListener('resize', handleScroll);
-        return () => {
-          window.removeEventListener('scroll', handleScroll, true);
-          window.removeEventListener('resize', handleScroll);
-        };
-      }
-    }
-  }, [showList, isFocused]);
 
   // Limpar timeouts ao desmontar
   useEffect(() => {
@@ -221,9 +181,9 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
     };
   }, []);
 
-  // Z-index MUITO ALTO para garantir que apareça acima de TUDO (botão, footer, etc)
-  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 9998 : 1000) : 1;
-  const dropdownZIndex = Platform.OS === 'web' ? 9999 : 1001;
+  // Z-index simples para dropdown inline
+  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 10 : 10) : 1;
+  const dropdownZIndex = Platform.OS === 'web' ? 11 : 11;
 
   return (
       <View
@@ -332,7 +292,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
             : {})}
         />
 
-        {/* Dropdown - Modal no mobile, FIXED na web para aparecer acima de TUDO */}
+        {/* Dropdown inline simples */}
         {showList && filtered.length > 0 && (
           Platform.OS === 'web' ? (
             <View
@@ -340,20 +300,6 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                 styles.dropdown,
                 {
                   zIndex: dropdownZIndex,
-                  ...(fixedPosition ? {
-                    position: 'fixed' as ViewStyle['position'],
-                    top: fixedPosition.top,
-                    left: fixedPosition.left,
-                    width: fixedPosition.width,
-                    backgroundColor: '#ffffff',
-                    opacity: 1,
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
-                  } : {
-                    position: 'absolute' as ViewStyle['position'],
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                  }),
                 },
               ]}
               onStartShouldSetResponder={() => false}
@@ -562,7 +508,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: Platform.OS === 'android' ? 1000 : 15,
     overflow: 'hidden',
-    zIndex: Platform.OS === 'web' ? 9999 : 1001,
+    zIndex: Platform.OS === 'web' ? 11 : 11,
   },
   list: {
     maxHeight: 300,
