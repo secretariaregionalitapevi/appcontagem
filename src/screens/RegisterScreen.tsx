@@ -861,11 +861,19 @@ export const RegisterScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           collapsable={false}
-          nestedScrollEnabled={true}
+          nestedScrollEnabled={Platform.OS !== 'web'}
           scrollEnabled={true}
           bounces={Platform.OS === 'ios'}
           showsVerticalScrollIndicator={true}
-          style={Platform.OS === 'web' ? { position: 'relative' as const, overflow: 'visible' as const } : { overflow: 'visible' as const, flex: 1 }}
+          alwaysBounceVertical={false}
+          scrollEventThrottle={16}
+          removeClippedSubviews={Platform.OS === 'android'}
+          style={Platform.OS === 'web' 
+            ? { position: 'relative' as const, overflow: 'visible' as const } 
+            : { 
+                flex: 1,
+                width: '100%',
+              }}
           refreshControl={
             Platform.OS !== 'web' ? (
               <RefreshControl
