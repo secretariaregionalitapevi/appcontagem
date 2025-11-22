@@ -10,7 +10,6 @@ import {
   TextInput,
   Modal,
   Platform,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AppHeader } from '../components/AppHeader';
