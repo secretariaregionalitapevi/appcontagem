@@ -916,7 +916,7 @@ export const supabaseDataService = {
     }
   },
 
-  // Buscar candidatos da tabela candidatos (seguindo lógica similar ao cadastro)
+  // Buscar candidatos da tabela candidatos (seguindo lógica IDÊNTICA ao cadastro)
   async fetchCandidatosFromSupabase(
     comumNome?: string,
     nomeBusca?: string
@@ -925,23 +925,19 @@ export const supabaseDataService = {
       throw new Error('Supabase não está configurado');
     }
 
+    if (!comumNome) {
+      return [];
+    }
+
     try {
       console.log('📚 Buscando candidatos da tabela candidatos:', {
         comumNome,
         nomeBusca,
       });
 
-      // Preparar valores para busca
-      // NÃO normalizar o comum - manter formato original para melhor matching
-      // O formato na tabela é "BR-22-1739 - JARDIM MIRANDA" (com hífen e espaço)
-      const comumBusca = comumNome ? comumNome.trim().toUpperCase() : '';
-      const nomeBuscaNormalizado = nomeBusca ? normalizeForSearch(nomeBusca.trim()) : '';
-
-      console.log('🔍 Parâmetros de busca:', {
-        comumNomeOriginal: comumNome,
-        comumBusca,
-        nomeBusca,
-      });
+      // Normalizar valores para busca (EXATAMENTE como fetchPessoasFromCadastro)
+      const comumBusca = comumNome.trim();
+      const nomeBuscaNormalizado = nomeBusca ? nomeBusca.trim() : '';
 
       // Usar tabela candidatos
       const tableName = 'candidatos';
@@ -958,33 +954,15 @@ export const supabaseDataService = {
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
-        // Construir query base
+        // Construir query base com filtro de comum (EXATAMENTE como fetchPessoasFromCadastro)
         let query = supabase
           .from(table)
           .select('nome, comum, cidade, instrumento')
+          .ilike('comum', `%${comumBusca}%`)
           .order('nome', { ascending: true });
 
-        // Aplicar filtros de busca
-        if (comumBusca) {
-          // Buscar por comum - usar ilike para busca flexível (case-insensitive)
-          // Buscar tanto o código completo quanto apenas a parte do nome
-          // Exemplo: "BR-22-1739 - JARDIM MIRANDA" ou apenas "JARDIM MIRANDA"
-          const partesComum = comumBusca.split(/\s+-\s+/); // Separar código e nome
-          const codigoComum = partesComum[0]?.trim(); // Ex: "BR-22-1739"
-          const nomeComum = partesComum[1]?.trim() || partesComum[0]?.trim(); // Ex: "JARDIM MIRANDA" ou o próprio código se não tiver hífen
-          
-          // Buscar por código OU nome (mais flexível)
-          if (codigoComum && codigoComum !== nomeComum) {
-            // Se tem código separado, buscar por ambos
-            query = query.or(`comum.ilike.%${codigoComum}%,comum.ilike.%${nomeComum}%`);
-          } else {
-            // Se não tem código separado, buscar pelo texto completo
-            query = query.ilike('comum', `%${comumBusca}%`);
-          }
-        }
-
+        // Aplicar filtro de nome se fornecido
         if (nomeBuscaNormalizado) {
-          // Buscar por nome também
           query = query.ilike('nome', `%${nomeBuscaNormalizado}%`);
         }
 
