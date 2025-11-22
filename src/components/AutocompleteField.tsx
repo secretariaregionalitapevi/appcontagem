@@ -181,9 +181,9 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
     };
   }, []);
 
-  // Z-index simples para dropdown inline
-  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 10 : 10) : 1;
-  const dropdownZIndex = Platform.OS === 'web' ? 11 : 11;
+  // Z-index MUITO ALTO para aparecer acima de TUDO
+  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 99999 : 10) : 1;
+  const dropdownZIndex = Platform.OS === 'web' ? 99999 : 11;
 
   return (
       <View
@@ -456,6 +456,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
+      position: 'relative' as ViewStyle['position'],
     } : {}),
   },
   label: {
@@ -470,7 +471,7 @@ const styles = StyleSheet.create({
     position: 'relative' as ViewStyle['position'],
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
-      zIndex: 1,
+      zIndex: isFocused ? 99998 : 1,
     } : {}),
   },
   input: {
@@ -508,7 +509,12 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: Platform.OS === 'android' ? 1000 : 15,
     overflow: 'hidden',
-    zIndex: Platform.OS === 'web' ? 11 : 11,
+    zIndex: Platform.OS === 'web' ? 99999 : 11,
+    ...(Platform.OS === 'web' ? {
+      backgroundColor: '#ffffff',
+      opacity: 1,
+      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+    } : {}),
   },
   list: {
     maxHeight: 300,
