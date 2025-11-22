@@ -234,18 +234,21 @@ export const EditRegistrosScreen: React.FC = () => {
 
   const handleSaveEdit = async () => {
     if (!editingRegistro || !editingRegistro.uuid) {
+      console.error('❌ Registro inválido para edição');
       showToast.error('Erro', 'Registro inválido');
       return;
     }
 
     // Validação básica
     if (!editNome.trim() || !editComum.trim() || !editCargo.trim()) {
+      console.warn('⚠️ Campos obrigatórios não preenchidos');
       showToast.error('Campos obrigatórios', 'Nome, Comum e Cargo são obrigatórios');
       return;
     }
 
     try {
       setSaving(true);
+      console.log('💾 Iniciando salvamento de edição...', { uuid: editingRegistro.uuid });
 
       // Encontrar o nome do cargo pelo ID
       const cargoSelecionado = cargos.find(c => c.id === editCargo);
@@ -263,27 +266,56 @@ export const EditRegistrosScreen: React.FC = () => {
         anotacoes: editAnotacoes.trim() ? editAnotacoes.trim().toUpperCase() : undefined,
       };
 
+      console.log('📤 Dados para atualização:', updateData);
+
+      // Atualizar no Google Sheets PRIMEIRO (como backupcont)
+      console.log('📤 ETAPA 1: Atualizando no Google Sheets...');
+      const sheetsResult = await googleSheetsService.updateRegistroInSheet(editingRegistro.uuid, updateData);
+      
+      if (!sheetsResult.success) {
+        console.warn('⚠️ Google Sheets falhou, mas continuando com Supabase:', sheetsResult.error);
+      } else {
+        console.log('✅ Google Sheets atualizado com sucesso');
+      }
+
       // Atualizar no Supabase
+      console.log('📤 ETAPA 2: Atualizando no Supabase...');
       const supabaseResult = await supabaseDataService.updateRegistroInSupabase(
         editingRegistro.uuid,
         updateData
       );
 
-      // Atualizar no Google Sheets (não bloqueia se falhar)
-      await googleSheetsService.updateRegistroInSheet(editingRegistro.uuid, updateData);
-
       if (supabaseResult.success) {
-        showToast.success('Sucesso', 'Registro atualizado com sucesso!');
+        console.log('✅ Supabase atualizado com sucesso');
+        // Fechar modal primeiro
         setEditFormVisible(false);
         setEditingRegistro(null);
-        // Recarregar lista
-        await performSearch(searchTerm);
+        
+        // Mostrar toast de sucesso
+        showToast.success('Sucesso!', 'Registro atualizado com sucesso!');
+        
+        // Recarregar lista após pequeno delay para garantir que o toast apareça
+        setTimeout(async () => {
+          await performSearch(searchTerm);
+        }, 500);
       } else {
-        throw new Error(supabaseResult.error || 'Erro ao atualizar registro');
+        // Se Supabase falhou mas Google Sheets OK, ainda considerar sucesso
+        if (sheetsResult.success) {
+          console.log('✅ Google Sheets OK, Supabase falhou mas continuando...');
+          setEditFormVisible(false);
+          setEditingRegistro(null);
+          showToast.success('Sucesso!', 'Registro atualizado no Google Sheets');
+          setTimeout(async () => {
+            await performSearch(searchTerm);
+          }, 500);
+        } else {
+          throw new Error(supabaseResult.error || 'Erro ao atualizar registro');
+        }
       }
     } catch (error) {
-      console.error('Erro ao salvar edição:', error);
-      showToast.error('Erro', 'Falha ao salvar alterações');
+      console.error('❌ Erro ao salvar edição:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      showToast.error('Erro', `Falha ao salvar: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -359,18 +391,17 @@ export const EditRegistrosScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <AppHeader />
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled={true}
+        nestedScrollEnabled={Platform.OS !== 'web'}
         scrollEnabled={true}
         bounces={Platform.OS === 'ios'}
         showsVerticalScrollIndicator={true}
+        alwaysBounceVertical={false}
+        scrollEventThrottle={16}
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.card}>
@@ -513,7 +544,6 @@ export const EditRegistrosScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Modal de edição */}
       {editFormVisible && (
@@ -537,15 +567,8 @@ export const EditRegistrosScreen: React.FC = () => {
               }}
             />
             <View style={styles.modalContentWrapper}>
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1, width: '100%' }}
-              >
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={(e) => e.stopPropagation()}
-                  style={styles.modalContent}
-                >
+              <View style={{ flex: 1, width: '100%' }}>
+                <View style={styles.modalContent}>
                   <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>Editar Registro</Text>
                     <TouchableOpacity
