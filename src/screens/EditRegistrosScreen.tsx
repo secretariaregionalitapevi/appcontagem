@@ -366,6 +366,11 @@ export const EditRegistrosScreen: React.FC = () => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
+        scrollEnabled={true}
+        bounces={Platform.OS === 'ios'}
+        showsVerticalScrollIndicator={true}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.card}>
@@ -554,7 +559,14 @@ export const EditRegistrosScreen: React.FC = () => {
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+                  <ScrollView 
+                    style={styles.modalBody} 
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled={true}
+                    scrollEnabled={true}
+                    bounces={Platform.OS === 'ios'}
+                    showsVerticalScrollIndicator={true}
+                  >
                 <View style={styles.formField}>
                   <Text style={styles.formLabel}>Nome Completo *</Text>
                   <TextInput
@@ -661,18 +673,29 @@ export const EditRegistrosScreen: React.FC = () => {
 
               <View style={styles.modalFooter}>
                 <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => setEditFormVisible(false)}
+                  style={[
+                    styles.cancelButton,
+                    saving && { opacity: 0.6 },
+                  ]}
+                  onPress={() => {
+                    if (!saving) {
+                      setEditFormVisible(false);
+                    }
+                  }}
                   disabled={saving}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
-                <PrimaryButton
-                  title="Salvar Alterações"
-                  onPress={handleSaveEdit}
-                  loading={saving}
-                  icon="save"
-                />
+                <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
+                  <PrimaryButton
+                    title="SALVAR ALTERAÇÕES"
+                    onPress={handleSaveEdit}
+                    loading={saving}
+                    icon="save"
+                    style={{ minHeight: 48 }}
+                  />
+                </View>
               </View>
                 </TouchableOpacity>
               </KeyboardAvoidingView>
@@ -959,22 +982,41 @@ const styles = StyleSheet.create({
   modalFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: theme.spacing.lg,
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     gap: theme.spacing.md,
+    ...(Platform.OS === 'web' ? {
+      position: 'sticky' as any,
+      bottom: 0,
+    } : {}),
   },
   cancelButton: {
     flex: 1,
-    padding: theme.spacing.md,
+    minHeight: 48,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.border,
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    ...(Platform.OS === 'web' ? {
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    } : {
+      elevation: 0,
+    }),
   },
   cancelButtonText: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
-    color: theme.colors.text,
+    color: '#374151',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
