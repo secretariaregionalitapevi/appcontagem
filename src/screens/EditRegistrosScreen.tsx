@@ -593,138 +593,139 @@ export const EditRegistrosScreen: React.FC = () => {
                     scrollEventThrottle={16}
                     removeClippedSubviews={Platform.OS === 'android'}
                   >
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Nome Completo *</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editNome}
-                    onChangeText={setEditNome}
-                    placeholder="Nome completo"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Nome Completo *</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editNome}
+                        onChangeText={setEditNome}
+                        placeholder="Nome completo"
+                        placeholderTextColor={theme.colors.textSecondary}
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Comum *</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editComum}
-                    onChangeText={setEditComum}
-                    placeholder="Comum"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Comum *</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editComum}
+                        onChangeText={setEditComum}
+                        placeholder="Comum"
+                        placeholderTextColor={theme.colors.textSecondary}
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Cidade</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editCidade}
-                    onChangeText={setEditCidade}
-                    placeholder="Cidade"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Cidade</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editCidade}
+                        onChangeText={setEditCidade}
+                        placeholder="Cidade"
+                        placeholderTextColor={theme.colors.textSecondary}
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Cargo/Ministério *</Text>
-                  <AutocompleteField
-                    value={editCargo}
-                    options={cargosOptions}
-                    onSelect={option => {
-                      setEditCargo(String(option.value));
-                    }}
-                    placeholder="Selecione o cargo..."
-                    icon="user"
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Cargo/Ministério *</Text>
+                      <AutocompleteField
+                        value={editCargo}
+                        options={cargosOptions}
+                        onSelect={option => {
+                          setEditCargo(String(option.value));
+                        }}
+                        placeholder="Selecione o cargo..."
+                        icon="user"
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Instrumento</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editInstrumento}
-                    onChangeText={setEditInstrumento}
-                    placeholder="Instrumento"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Instrumento</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editInstrumento}
+                        onChangeText={setEditInstrumento}
+                        placeholder="Instrumento"
+                        placeholderTextColor={theme.colors.textSecondary}
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Naipe do Instrumento</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editNaipe}
-                    onChangeText={setEditNaipe}
-                    placeholder="Naipe"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Naipe do Instrumento</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editNaipe}
+                        onChangeText={setEditNaipe}
+                        placeholder="Naipe"
+                        placeholderTextColor={theme.colors.textSecondary}
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Classe da Organista</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editClasse}
-                    onChangeText={setEditClasse}
-                    placeholder="Classe"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Classe da Organista</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editClasse}
+                        onChangeText={setEditClasse}
+                        placeholder="Classe"
+                        placeholderTextColor={theme.colors.textSecondary}
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Data do Ensaio</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    value={editDataEnsaio}
-                    onChangeText={setEditDataEnsaio}
-                    placeholder="Data do ensaio"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                </View>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Data do Ensaio</Text>
+                      <TextInput
+                        style={styles.formInput}
+                        value={editDataEnsaio}
+                        onChangeText={setEditDataEnsaio}
+                        placeholder="Data do ensaio"
+                        placeholderTextColor={theme.colors.textSecondary}
+                      />
+                    </View>
 
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Anotações</Text>
-                  <TextInput
-                    style={[styles.formInput, styles.formTextArea]}
-                    value={editAnotacoes}
-                    onChangeText={setEditAnotacoes}
-                    placeholder="Anotações"
-                    placeholderTextColor={theme.colors.textSecondary}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </View>
-              </ScrollView>
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Anotações</Text>
+                      <TextInput
+                        style={[styles.formInput, styles.formTextArea]}
+                        value={editAnotacoes}
+                        onChangeText={setEditAnotacoes}
+                        placeholder="Anotações"
+                        placeholderTextColor={theme.colors.textSecondary}
+                        multiline
+                        numberOfLines={3}
+                      />
+                    </View>
+                  </ScrollView>
 
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={[
-                    styles.cancelButton,
-                    saving && { opacity: 0.6 },
-                  ]}
-                  onPress={() => {
-                    if (!saving) {
-                      setEditFormVisible(false);
-                    }
-                  }}
-                  disabled={saving}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
-                  <PrimaryButton
-                    title="SALVAR ALTERAÇÕES"
-                    onPress={handleSaveEdit}
-                    loading={saving}
-                    icon="save"
-                    style={{ minHeight: 48 }}
-                  />
+                  <View style={styles.modalFooter}>
+                    <TouchableOpacity
+                      style={[
+                        styles.cancelButton,
+                        saving && { opacity: 0.6 },
+                      ]}
+                      onPress={() => {
+                        if (!saving) {
+                          setEditFormVisible(false);
+                        }
+                      }}
+                      disabled={saving}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
+                      <PrimaryButton
+                        title="SALVAR ALTERAÇÕES"
+                        onPress={handleSaveEdit}
+                        loading={saving}
+                        icon="save"
+                        style={{ minHeight: 48 }}
+                      />
+                    </View>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
           </View>
         </Modal>
       )}
