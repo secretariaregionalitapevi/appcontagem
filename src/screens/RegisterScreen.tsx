@@ -1074,7 +1074,7 @@ export const RegisterScreen: React.FC = () => {
               // Forçar duplicata - criar registro mesmo assim
               // Pular verificação de duplicata (skipDuplicateCheck = true)
               const registroForce = { ...pendingRegistro };
-              const resultForce = await offlineSyncService.createRegistro(registroForce, true);
+              const resultForce = await (offlineSyncService as any).createRegistro(registroForce, true);
               
               if (resultForce.success) {
                 if (isOnline && !syncing) {
