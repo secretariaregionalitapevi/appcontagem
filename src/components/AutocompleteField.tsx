@@ -215,6 +215,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                 position: 'relative' as ViewStyle['position'],
                 overflow: 'visible' as ViewStyle['overflow'],
                 zIndex: containerZIndex,
+                backgroundColor: '#ffffff',
               }
             : {
                 overflow: 'visible' as ViewStyle['overflow'],
@@ -471,7 +472,6 @@ const styles = StyleSheet.create({
     position: 'relative' as ViewStyle['position'],
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
-      zIndex: isFocused ? 99998 : 1,
     } : {}),
   },
   input: {
