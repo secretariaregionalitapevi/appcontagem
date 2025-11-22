@@ -137,7 +137,9 @@ export const showToast = {
         position: 'top',
         visibilityTime: 2000, // Reduzido para 2 segundos
         autoHide: true,
-        topOffset: 60,
+        topOffset: Platform.OS === 'ios' ? 50 : 40,
+        text1Style: { fontSize: 14, fontWeight: '600' },
+        text2Style: { fontSize: 12 },
       });
     } else {
       // Fallback mínimo para mobile sem Toast
@@ -173,9 +175,11 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 5000,
+        visibilityTime: 4000,
         autoHide: true,
-        topOffset: 60,
+        topOffset: Platform.OS === 'ios' ? 50 : 40,
+        text1Style: { fontSize: 14, fontWeight: '600' },
+        text2Style: { fontSize: 12 },
       });
     } else {
       Alert.alert(title, message || '');
@@ -211,7 +215,9 @@ export const showToast = {
         position: 'top',
         visibilityTime: 3000,
         autoHide: true,
-        topOffset: 60,
+        topOffset: Platform.OS === 'ios' ? 50 : 40,
+        text1Style: { fontSize: 14, fontWeight: '600' },
+        text2Style: { fontSize: 12 },
       });
     } else {
       Alert.alert(title, message || '');
@@ -246,9 +252,11 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 5000,
+        visibilityTime: 4000,
         autoHide: true,
-        topOffset: 60,
+        topOffset: Platform.OS === 'ios' ? 50 : 40,
+        text1Style: { fontSize: 14, fontWeight: '600' },
+        text2Style: { fontSize: 12 },
       });
     } else {
       Alert.alert(title, message || '');

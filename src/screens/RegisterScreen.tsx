@@ -127,6 +127,13 @@ export const RegisterScreen: React.FC = () => {
       syncIntervalRef.current = setInterval(async () => {
         if (!syncing && isOnline) {
           try {
+            // Verificar conectividade real antes de processar
+            const reallyOnline = await offlineSyncService.isOnline();
+            if (!reallyOnline) {
+              console.log('📴 Sem conexão real - pulando processamento da fila');
+              return;
+            }
+
             const queue = await supabaseDataService.getRegistrosPendentesFromLocal();
             const pendingItems = queue.filter((item: any) => !item.status_sincronizacao || item.status_sincronizacao === 'pending');
             
@@ -854,7 +861,11 @@ export const RegisterScreen: React.FC = () => {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           collapsable={false}
-          style={Platform.OS === 'web' ? { position: 'relative' as const, overflow: 'visible' as const } : { overflow: 'visible' as const }}
+          nestedScrollEnabled={true}
+          scrollEnabled={true}
+          bounces={Platform.OS === 'ios'}
+          showsVerticalScrollIndicator={true}
+          style={Platform.OS === 'web' ? { position: 'relative' as const, overflow: 'visible' as const } : { overflow: 'visible' as const, flex: 1 }}
           refreshControl={
             Platform.OS !== 'web' ? (
               <RefreshControl

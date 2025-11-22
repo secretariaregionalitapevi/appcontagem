@@ -308,8 +308,9 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                     elevation: 1000, // Elevation alto no Android
                   },
             ]}
-            onStartShouldSetResponder={() => true}
-            onMoveShouldSetResponder={() => true}
+            onStartShouldSetResponder={() => false}
+            onMoveShouldSetResponder={() => false}
+            pointerEvents="box-none"
             {...(Platform.OS === 'web'
               ? {
                   onMouseEnter: () => {
