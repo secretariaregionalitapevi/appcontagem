@@ -931,9 +931,17 @@ export const supabaseDataService = {
         nomeBusca,
       });
 
-      // Normalizar valores para busca (remover acentos, espaços extras, etc)
-      const comumBusca = comumNome ? normalizeForSearch(comumNome.trim()) : '';
+      // Preparar valores para busca
+      // NÃO normalizar o comum - manter formato original para melhor matching
+      // O formato na tabela é "BR-22-1739 - JARDIM MIRANDA" (com hífen e espaço)
+      const comumBusca = comumNome ? comumNome.trim().toUpperCase() : '';
       const nomeBuscaNormalizado = nomeBusca ? normalizeForSearch(nomeBusca.trim()) : '';
+
+      console.log('🔍 Parâmetros de busca:', {
+        comumNomeOriginal: comumNome,
+        comumBusca,
+        nomeBusca,
+      });
 
       // Usar tabela candidatos
       const tableName = 'candidatos';
@@ -959,8 +967,20 @@ export const supabaseDataService = {
         // Aplicar filtros de busca
         if (comumBusca) {
           // Buscar por comum - usar ilike para busca flexível (case-insensitive)
-          // Tentar tanto o nome normalizado quanto o original
-          query = query.ilike('comum', `%${comumBusca}%`);
+          // Buscar tanto o código completo quanto apenas a parte do nome
+          // Exemplo: "BR-22-1739 - JARDIM MIRANDA" ou apenas "JARDIM MIRANDA"
+          const partesComum = comumBusca.split(/\s+-\s+/); // Separar código e nome
+          const codigoComum = partesComum[0]?.trim(); // Ex: "BR-22-1739"
+          const nomeComum = partesComum[1]?.trim() || partesComum[0]?.trim(); // Ex: "JARDIM MIRANDA" ou o próprio código se não tiver hífen
+          
+          // Buscar por código OU nome (mais flexível)
+          if (codigoComum && codigoComum !== nomeComum) {
+            // Se tem código separado, buscar por ambos
+            query = query.or(`comum.ilike.%${codigoComum}%,comum.ilike.%${nomeComum}%`);
+          } else {
+            // Se não tem código separado, buscar pelo texto completo
+            query = query.ilike('comum', `%${comumBusca}%`);
+          }
         }
 
         if (nomeBuscaNormalizado) {
