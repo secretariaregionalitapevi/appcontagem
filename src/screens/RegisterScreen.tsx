@@ -970,7 +970,7 @@ export const RegisterScreen: React.FC = () => {
               </Text>
             </View>
             <View style={styles.cardBody}>
-              <View>
+              <View style={Platform.OS === 'web' ? { position: 'relative' as const, zIndex: 1000, overflow: 'visible' as const } : {}}>
               <AutocompleteField
             label="COMUM CONGREGAÇÃO *"
             value={selectedComum}
@@ -996,7 +996,7 @@ export const RegisterScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.field}>
+              <View style={[styles.field, Platform.OS === 'web' ? { position: 'relative' as const, zIndex: 1002, overflow: 'visible' as const } : {}]}>
                 <Text style={styles.label}>CARGO/MINISTÉRIO *</Text>
                 {Platform.OS === 'web' ? (
                   <select
@@ -1041,7 +1041,7 @@ export const RegisterScreen: React.FC = () => {
               </View>
 
                   {showInstrumento && (
-                    <View style={styles.field}>
+                    <View style={[styles.field, Platform.OS === 'web' ? { position: 'relative' as const, zIndex: 1004, overflow: 'visible' as const } : {}]}>
                       <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
                       {Platform.OS === 'web' ? (
                         <select
@@ -1084,6 +1084,7 @@ export const RegisterScreen: React.FC = () => {
                     </View>
                   )}
 
+          <View style={Platform.OS === 'web' ? { position: 'relative' as const, zIndex: 1006, overflow: 'visible' as const } : {}}>
           <NameSelectField
             label="Nome e Sobrenome *"
             value={selectedPessoa}
@@ -1099,6 +1100,7 @@ export const RegisterScreen: React.FC = () => {
             }}
                 placeholder="Selecione o nome..."
           />
+          </View>
 
           <Text style={styles.hint}>
             Selecione um nome da lista após preencher Comum e Cargo.

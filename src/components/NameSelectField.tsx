@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -52,7 +52,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   const inputRef = useRef<TextInput>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const flatListRef = useRef<FlatList>(null);
-  const [dropdownLayout, setDropdownLayout] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Normalizar texto (remove acentos, converte para minúscula)
   const normalize = (text: string) => {
@@ -163,47 +162,11 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     } else {
       if (text.trim().length > 0 || options.length > 0) {
         setShowList(true);
-        setTimeout(() => calculateDropdownPosition(), 50);
       } else {
         setShowList(false);
       }
     }
   };
-
-  // Calcular posição do dropdown usando position: fixed
-  const calculateDropdownPosition = useCallback(() => {
-    if (Platform.OS === 'web' && inputRef.current && !isManualMode) {
-      try {
-        const inputElement = (inputRef.current as any)._nativeNode || 
-                            (inputRef.current as any).base || 
-                            inputRef.current;
-        
-        if (inputElement && typeof window !== 'undefined') {
-          if (inputElement.getBoundingClientRect) {
-            const rect = inputElement.getBoundingClientRect();
-            setDropdownLayout({
-              top: rect.bottom + 4,
-              left: rect.left,
-              width: rect.width,
-            });
-            return;
-          }
-          
-          if (inputElement.offsetTop !== undefined) {
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-            setDropdownLayout({
-              top: inputElement.offsetTop + inputElement.offsetHeight + scrollTop + 4,
-              left: inputElement.offsetLeft + scrollLeft,
-              width: inputElement.offsetWidth || 300,
-            });
-          }
-        }
-      } catch (error) {
-        console.warn('Erro ao calcular posição:', error);
-      }
-    }
-  }, [isManualMode]);
 
   // Quando o campo recebe foco
   const handleFocus = () => {
@@ -220,10 +183,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
     if (options.length > 0) {
       setShowList(true);
-      setTimeout(() => calculateDropdownPosition(), 50);
     } else {
       setShowList(true);
-      setTimeout(() => calculateDropdownPosition(), 50);
     }
   };
 
@@ -297,24 +258,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   };
 
 
-  // Atualizar posição quando scroll ou resize
-  useEffect(() => {
-    if (Platform.OS === 'web' && showList && isFocused && !isManualMode) {
-      const updatePosition = () => {
-        calculateDropdownPosition();
-      };
-      
-      if (typeof window !== 'undefined') {
-        window.addEventListener('scroll', updatePosition, true);
-        window.addEventListener('resize', updatePosition);
-        
-        return () => {
-          window.removeEventListener('scroll', updatePosition, true);
-          window.removeEventListener('resize', updatePosition);
-        };
-      }
-    }
-  }, [showList, isFocused, isManualMode, calculateDropdownPosition]);
 
   // Limpar timeouts ao desmontar
   useEffect(() => {
@@ -325,9 +268,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     };
   }, []);
 
-  // Z-index muito alto para garantir que dropdown apareça acima de TUDO
-  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 9999 : 1000) : 1;
-  const dropdownZIndex = Platform.OS === 'web' ? 10000 : 1001;
+  // Z-index alto quando focado - usar z-index do container pai + 1 para dropdown
+  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 1006 : 1000) : 1;
+  const dropdownZIndex = isFocused ? (Platform.OS === 'web' ? 1007 : 1001) : 1;
 
   return (
     <View
@@ -569,16 +512,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                   Platform.OS === 'web'
                     ? {
                         zIndex: dropdownZIndex,
-                        position: dropdownLayout ? ('fixed' as ViewStyle['position']) : ('absolute' as ViewStyle['position']),
-                        ...(dropdownLayout ? {
-                          top: dropdownLayout.top,
-                          left: dropdownLayout.left,
-                          width: dropdownLayout.width,
-                        } : {
-                          top: '100%',
-                          left: 0,
-                          right: 0,
-                        }),
                       }
                     : {
                         zIndex: dropdownZIndex,
@@ -764,10 +697,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: Platform.OS === 'android' ? 1000 : 15,
     overflow: 'hidden',
-    zIndex: Platform.OS === 'web' ? 10000 : 1001,
-    ...(Platform.OS === 'web' ? {
-      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-    } : {}),
+    zIndex: Platform.OS === 'web' ? 1001 : 1001,
   },
   list: {
     maxHeight: 300,
