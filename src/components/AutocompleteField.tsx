@@ -175,6 +175,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
               left: rect.left + window.scrollX,
               width: rect.width || 300,
             };
+            console.log('📍 Posição calculada (getBoundingClientRect):', newPosition);
             setDropdownPosition(newPosition);
             return;
           }
@@ -188,6 +189,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
               left: x,
               width: width || 300,
             };
+            console.log('📍 Posição calculada (measureInWindow):', newPosition);
             setDropdownPosition(newPosition);
           });
           return;
@@ -195,17 +197,13 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
       } catch (error) {
         console.warn('Erro ao calcular posição:', error);
       }
-      // Se chegou aqui, não conseguiu calcular - usar fallback baseado no container
-      if (containerRef.current) {
-        // @ts-ignore
-        containerRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-          setDropdownPosition({
-            top: y + height + 4,
-            left: x,
-            width: width || 300,
-          });
-        });
-      }
+      // Se chegou aqui, não conseguiu calcular - usar valores padrão
+      console.warn('⚠️ Não conseguiu calcular posição, usando valores padrão');
+      setDropdownPosition({
+        top: 200,
+        left: 50,
+        width: 400,
+      });
     }
   };
 
@@ -401,7 +399,18 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
         />
 
         {/* Dropdown - Usar Modal em TODAS as plataformas para garantir funcionamento */}
-        {showList && filtered.length > 0 && (
+        {(() => {
+          const shouldRender = showList && filtered.length > 0;
+          if (shouldRender && Platform.OS === 'web') {
+            console.log('🔍 Renderizando Modal:', {
+              showList,
+              filteredLength: filtered.length,
+              dropdownPosition,
+              hasPosition: dropdownPosition.width > 0,
+            });
+          }
+          return shouldRender;
+        })() && (
           <Modal
             visible={true}
             transparent={true}
@@ -434,10 +443,10 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                       left: dropdownPosition.left,
                       width: dropdownPosition.width,
                     } : {
-                      // Fallback: posicionar relativo ao container
-                      top: 0,
-                      left: 0,
-                      width: '100%',
+                      // Fallback: tentar calcular novamente ou usar valores padrão
+                      top: 100,
+                      left: 50,
+                      width: 400,
                     },
                   ]}
                   onStartShouldSetResponder={() => true}
