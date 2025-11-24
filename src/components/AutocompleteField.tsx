@@ -114,7 +114,6 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
   }, [value, options]);
 
   // Recalcular posição quando showList mudar no web (apenas uma vez quando mostrar)
-  const positionCalculatedRef = useRef(false);
   useEffect(() => {
     if (Platform.OS === 'web' && showList && filtered.length > 0 && !positionCalculatedRef.current) {
       // Recalcular posição apenas uma vez quando mostrar a lista
