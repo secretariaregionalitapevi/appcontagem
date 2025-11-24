@@ -63,6 +63,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
   const [showList, setShowList] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<View>(null);
   const inputRef = useRef<TextInput>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -123,15 +124,63 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
     // Mostrar lista mesmo com 1 caractere se houver resultados
     if (text.trim().length >= 1) {
       setShowList(true);
+      // Atualizar posição no web
+      if (Platform.OS === 'web') {
+        setTimeout(() => {
+          updateDropdownPosition();
+        }, 50);
+      }
       console.log('🔍 AutocompleteField - Texto digitado:', text, 'Mostrando lista');
     } else {
       setShowList(false);
     }
   };
 
+  // Calcular posição do dropdown no web
+  const updateDropdownPosition = () => {
+    if (Platform.OS === 'web' && containerRef.current) {
+      try {
+        // @ts-ignore
+        const element = containerRef.current as any;
+        if (element && typeof document !== 'undefined') {
+          // Tentar usar getBoundingClientRect
+          if (element.getBoundingClientRect) {
+            const rect = element.getBoundingClientRect();
+            const inputRect = element.querySelector?.('input')?.getBoundingClientRect?.();
+            if (inputRect) {
+              setDropdownPosition({
+                top: inputRect.bottom + window.scrollY + 4,
+                left: inputRect.left + window.scrollX,
+                width: inputRect.width,
+              });
+              return;
+            }
+          }
+        }
+        // Fallback: usar measureInWindow
+        // @ts-ignore
+        containerRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+          setDropdownPosition({
+            top: y + height + 4,
+            left: x,
+            width: width,
+          });
+        });
+      } catch (error) {
+        console.warn('Erro ao calcular posição:', error);
+      }
+    }
+  };
+
   // Quando o campo recebe foco
   const handleFocus = () => {
     setIsFocused(true);
+    // Calcular posição no web
+    if (Platform.OS === 'web') {
+      setTimeout(() => {
+        updateDropdownPosition();
+      }, 50);
+    }
     // Cancelar blur pendente
     if (blurTimeoutRef.current) {
       clearTimeout(blurTimeoutRef.current);
@@ -343,16 +392,19 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                 styles.dropdown,
                 {
                   zIndex: dropdownZIndex,
-                  ...(Platform.OS === 'web' ? {
-                    // Forçar fundo opaco no web usando estilos inline
+                  ...(Platform.OS === 'web' && dropdownPosition.width > 0 ? {
+                    // Usar position: fixed com posição calculada
+                    // @ts-ignore
+                    position: 'fixed',
+                    top: dropdownPosition.top,
+                    left: dropdownPosition.left,
+                    width: dropdownPosition.width,
+                  } : Platform.OS === 'web' ? {
+                    // Fallback: position absolute
                     // @ts-ignore
                     backgroundColor: '#ffffff',
                     // @ts-ignore
                     background: '#ffffff',
-                    // @ts-ignore
-                    backgroundImage: 'none',
-                    // @ts-ignore
-                    backgroundClip: 'padding-box',
                   } : {}),
                 },
               ]}
@@ -378,47 +430,37 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                   }
                 : {})}
             >
-              <View style={styles.dropdownInner}>
-                {filtered.map((item, index) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.item,
-                      index === selectedIndex && styles.itemSelected,
-                      Platform.OS === 'web' ? {
-                        // Forçar fundo opaco em cada item
-                        // @ts-ignore
-                        backgroundColor: index === selectedIndex 
-                          ? theme.colors.primary + '15' 
-                          : '#ffffff',
-                        // @ts-ignore
-                        background: index === selectedIndex 
-                          ? theme.colors.primary + '15' 
-                          : '#ffffff',
-                        // @ts-ignore
-                        backgroundImage: 'none',
-                      } : {},
-                    ]}
-                    onPress={() => {
-                      // Cancelar blur pendente ao clicar
-                      if (blurTimeoutRef.current) {
-                        clearTimeout(blurTimeoutRef.current);
-                        blurTimeoutRef.current = null;
-                      }
-                      setSelectedIndex(index);
-                      handleSelect(item);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <FontAwesome5
-                      name={icon}
-                      size={12}
-                      color={theme.colors.textSecondary}
-                      style={styles.icon}
-                    />
-                    <Text style={styles.itemText}>{item.label}</Text>
-                  </TouchableOpacity>
-                ))}
+              {/* View wrapper com fundo sólido que cobre tudo */}
+              <View style={styles.dropdownWrapper}>
+                <View style={styles.dropdownInner}>
+                  {filtered.map((item, index) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.item,
+                        index === selectedIndex && styles.itemSelected,
+                      ]}
+                      onPress={() => {
+                        // Cancelar blur pendente ao clicar
+                        if (blurTimeoutRef.current) {
+                          clearTimeout(blurTimeoutRef.current);
+                          blurTimeoutRef.current = null;
+                        }
+                        setSelectedIndex(index);
+                        handleSelect(item);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <FontAwesome5
+                        name={icon}
+                        size={12}
+                        color={theme.colors.textSecondary}
+                        style={styles.icon}
+                      />
+                      <Text style={styles.itemText}>{item.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             </View>
           ) : (
@@ -586,6 +628,27 @@ const styles = StyleSheet.create({
       opacity: 1,
       boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
       zIndex: 999999,
+      // @ts-ignore
+      background: '#ffffff',
+      // @ts-ignore
+      backgroundImage: 'none',
+      // @ts-ignore
+      willChange: 'transform',
+    } : {}),
+  },
+  dropdownWrapper: {
+    backgroundColor: '#ffffff',
+    width: '100%',
+    minHeight: '100%',
+    ...(Platform.OS === 'web' ? {
+      backgroundColor: '#ffffff',
+      opacity: 1,
+      // @ts-ignore
+      background: '#ffffff',
+      // @ts-ignore
+      backgroundImage: 'none',
+      // @ts-ignore
+      position: 'relative',
     } : {}),
   },
   dropdownInner: {
@@ -596,10 +659,6 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
       opacity: 1,
-      // @ts-ignore
-      background: '#ffffff',
-      // @ts-ignore
-      backgroundImage: 'none',
     } : {}),
   },
   list: {
