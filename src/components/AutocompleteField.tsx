@@ -138,36 +138,54 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
 
   // Calcular posição do dropdown no web
   const updateDropdownPosition = () => {
-    if (Platform.OS === 'web' && containerRef.current) {
+    if (Platform.OS === 'web' && inputRef.current) {
       try {
         // @ts-ignore
-        const element = containerRef.current as any;
-        if (element && typeof document !== 'undefined') {
-          // Tentar usar getBoundingClientRect
-          if (element.getBoundingClientRect) {
-            const rect = element.getBoundingClientRect();
-            const inputRect = element.querySelector?.('input')?.getBoundingClientRect?.();
-            if (inputRect) {
+        const inputElement = inputRef.current as any;
+        if (inputElement && typeof document !== 'undefined') {
+          // Tentar usar getBoundingClientRect do input
+          if (inputElement.getBoundingClientRect) {
+            const rect = inputElement.getBoundingClientRect();
+            setDropdownPosition({
+              top: rect.bottom + window.scrollY + 4,
+              left: rect.left + window.scrollX,
+              width: rect.width,
+            });
+            return;
+          }
+          // Tentar acessar o elemento DOM nativo
+          if (inputElement._nativeNode) {
+            const nativeNode = inputElement._nativeNode;
+            if (nativeNode.getBoundingClientRect) {
+              const rect = nativeNode.getBoundingClientRect();
               setDropdownPosition({
-                top: inputRect.bottom + window.scrollY + 4,
-                left: inputRect.left + window.scrollX,
-                width: inputRect.width,
+                top: rect.bottom + window.scrollY + 4,
+                left: rect.left + window.scrollX,
+                width: rect.width,
               });
               return;
             }
           }
         }
-        // Fallback: usar measureInWindow
-        // @ts-ignore
-        containerRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-          setDropdownPosition({
-            top: y + height + 4,
-            left: x,
-            width: width,
+        // Fallback: usar measureInWindow do container
+        if (containerRef.current) {
+          // @ts-ignore
+          containerRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+            setDropdownPosition({
+              top: y + height + 4,
+              left: x,
+              width: width,
+            });
           });
-        });
+        }
       } catch (error) {
         console.warn('Erro ao calcular posição:', error);
+        // Fallback: usar valores padrão
+        setDropdownPosition({
+          top: 0,
+          left: 0,
+          width: 0,
+        });
       }
     }
   };
@@ -369,124 +387,85 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
             : {})}
         />
 
-        {/* Dropdown - Modal no mobile, inline no web mas com z-index muito alto */}
-        {(() => {
-          const shouldShow = showList && filtered.length > 0;
-          const isWebDesktop = Platform.OS === 'web' && !isMobileDevice();
-          if (shouldShow) {
-            console.log('🔍 AutocompleteField - Renderizando dropdown:', {
-              showList,
-              filteredLength: filtered.length,
-              shouldShow,
-              isWebDesktop,
-              PlatformOS: Platform.OS,
-              isMobile: isMobileDevice(),
-              searchText
-            });
-          }
-          return shouldShow;
-        })() && (
-          Platform.OS === 'web' && !isMobileDevice() ? (
-            <View
-              style={[
-                styles.dropdown,
-                {
-                  zIndex: dropdownZIndex,
-                  ...(Platform.OS === 'web' && dropdownPosition.width > 0 ? {
-                    // Usar position: fixed com posição calculada
-                    // @ts-ignore
-                    position: 'fixed',
-                    top: dropdownPosition.top,
-                    left: dropdownPosition.left,
-                    width: dropdownPosition.width,
-                  } : Platform.OS === 'web' ? {
-                    // Fallback: position absolute
-                    // @ts-ignore
-                    backgroundColor: '#ffffff',
-                    // @ts-ignore
-                    background: '#ffffff',
-                  } : {}),
-                },
-              ]}
-              onStartShouldSetResponder={() => false}
-              onMoveShouldSetResponder={() => false}
-              pointerEvents="auto"
-              {...(Platform.OS === 'web'
-                ? {
-                    onMouseEnter: () => {
-                      // Cancelar blur quando mouse entra no dropdown
-                      if (blurTimeoutRef.current) {
-                        clearTimeout(blurTimeoutRef.current);
-                        blurTimeoutRef.current = null;
-                      }
-                    },
-                    onMouseDown: (e: React.MouseEvent) => {
-                      // Cancelar blur ao clicar no dropdown
-                      if (blurTimeoutRef.current) {
-                        clearTimeout(blurTimeoutRef.current);
-                        blurTimeoutRef.current = null;
-                      }
-                    },
-                  }
-                : {})}
-            >
-              {/* View wrapper com fundo sólido que cobre tudo */}
-              <View style={styles.dropdownWrapper}>
-                <View style={styles.dropdownInner}>
-                  {filtered.map((item, index) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.item,
-                        index === selectedIndex && styles.itemSelected,
-                      ]}
-                      onPress={() => {
-                        // Cancelar blur pendente ao clicar
-                        if (blurTimeoutRef.current) {
-                          clearTimeout(blurTimeoutRef.current);
-                          blurTimeoutRef.current = null;
-                        }
-                        setSelectedIndex(index);
-                        handleSelect(item);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <FontAwesome5
-                        name={icon}
-                        size={12}
-                        color={theme.colors.textSecondary}
-                        style={styles.icon}
-                      />
-                      <Text style={styles.itemText}>{item.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-          ) : (
-            // MOBILE: SEMPRE usar Modal para evitar sobreposição
-            <Modal
-              visible={showList && filtered.length > 0}
-              transparent={true}
-              animationType="slide"
-              onRequestClose={() => {
+        {/* Dropdown - Usar Modal em TODAS as plataformas para garantir funcionamento */}
+        {showList && filtered.length > 0 && (
+          <Modal
+            visible={true}
+            transparent={true}
+            animationType={Platform.OS === 'web' ? 'fade' : 'slide'}
+            onRequestClose={() => {
+              setShowList(false);
+              if (inputRef.current) {
+                inputRef.current.blur();
+              }
+            }}
+            statusBarTranslucent={true}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => {
                 setShowList(false);
                 if (inputRef.current) {
                   inputRef.current.blur();
                 }
               }}
-              statusBarTranslucent={true}
             >
-              <TouchableOpacity
-                style={styles.modalOverlay}
-                activeOpacity={1}
-                onPress={() => {
-                  setShowList(false);
-                  if (inputRef.current) {
-                    inputRef.current.blur();
-                  }
-                }}
-              >
+              {Platform.OS === 'web' ? (
+                // WEB: Dropdown posicionado abaixo do input
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onPress={(e) => e.stopPropagation()}
+                  style={[
+                    styles.webDropdownContainer,
+                    {
+                      top: dropdownPosition.top || 0,
+                      left: dropdownPosition.left || 0,
+                      width: dropdownPosition.width || '100%',
+                    },
+                  ]}
+                >
+                  <View style={styles.webDropdown}>
+                    <ScrollView
+                      style={styles.webDropdownList}
+                      nestedScrollEnabled
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {filtered.map((item, index) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[
+                            styles.item,
+                            index === selectedIndex && styles.itemSelected,
+                          ]}
+                          onPress={() => {
+                            if (blurTimeoutRef.current) {
+                              clearTimeout(blurTimeoutRef.current);
+                              blurTimeoutRef.current = null;
+                            }
+                            setSelectedIndex(index);
+                            handleSelect(item);
+                            setShowList(false);
+                            if (inputRef.current) {
+                              inputRef.current.blur();
+                            }
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <FontAwesome5
+                            name={icon}
+                            size={12}
+                            color={theme.colors.textSecondary}
+                            style={styles.icon}
+                          />
+                          <Text style={styles.itemText}>{item.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                // MOBILE: Modal fullscreen
                 <SafeAreaView style={styles.modalContainer}>
                   <TouchableOpacity
                     activeOpacity={1}
@@ -542,9 +521,9 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                     </View>
                   </TouchableOpacity>
                 </SafeAreaView>
-              </TouchableOpacity>
-            </Modal>
-          )
+              )}
+            </TouchableOpacity>
+          </Modal>
         )}
 
         {/* Mensagem quando não há resultados */}
@@ -710,13 +689,48 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontStyle: 'italic',
   },
-  // Estilos para Modal no mobile
+  // Estilos para Modal em todas as plataformas
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: Platform.OS === 'web' ? 'rgba(0, 0, 0, 0.01)' : 'rgba(0, 0, 0, 0.5)',
+    justifyContent: Platform.OS === 'web' ? 'flex-start' : 'flex-end',
     zIndex: 99999,
     elevation: 99999,
+    ...(Platform.OS === 'web' ? {
+      position: 'fixed' as any,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    } : {}),
+  },
+  webDropdownContainer: {
+    position: 'absolute' as any,
+    zIndex: 100000,
+    ...(Platform.OS === 'web' ? {
+      position: 'fixed' as any,
+    } : {}),
+  },
+  webDropdown: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 999999,
+    overflow: 'hidden',
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+      backgroundColor: '#ffffff',
+    } : {}),
+  },
+  webDropdownList: {
+    maxHeight: 300,
+    backgroundColor: '#ffffff',
   },
   modalContainer: {
     flex: 1,
