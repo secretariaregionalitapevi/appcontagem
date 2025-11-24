@@ -436,4 +436,16 @@ export const authService = {
 
     return true;
   },
+
+  async clearSession(): Promise<void> {
+    try {
+      await secureStore.deleteItemAsync(SESSION_KEY);
+      await secureStore.deleteItemAsync(USER_KEY);
+      if (isSupabaseConfigured() && supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.warn('Erro ao limpar sessão:', error);
+    }
+  },
 };

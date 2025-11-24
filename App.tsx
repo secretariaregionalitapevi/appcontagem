@@ -6,6 +6,21 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { initializeStorage } from './src/utils/robustStorage';
 import { logDeviceInfo } from './src/utils/deviceDetection';
 
+// Importar SpeedInsights apenas para web
+// Para React/React Native, usar injectSpeedInsights ao invés de componente
+if (Platform.OS === 'web') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { injectSpeedInsights } = require('@vercel/speed-insights');
+    // Injetar SpeedInsights no head do documento
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+      injectSpeedInsights();
+    }
+  } catch (error) {
+    console.warn('SpeedInsights não disponível:', error);
+  }
+}
+
 // Importar Toast apenas para plataformas nativas (não web)
 type ToastComponent = React.ComponentType | null;
 let Toast: ToastComponent = null;

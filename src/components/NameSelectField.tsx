@@ -15,6 +15,17 @@ import { theme } from '../theme';
 
 const { DROPDOWN_FIELD_CONTAINER, DROPDOWN_FIELD_DROPDOWN } = theme.zIndex;
 
+// Detectar se é mobile (apenas para apps nativos, não para web)
+const isMobileDevice = (): boolean => {
+  // IMPORTANTE: No web, SEMPRE retornar false para usar dropdown inline
+  // Modal só deve ser usado em apps nativos (iOS/Android)
+  if (Platform.OS === 'web') {
+    return false; // Sempre usar dropdown inline no web
+  }
+  // Para apps nativos, verificar se é iOS ou Android
+  return Platform.OS === 'ios' || Platform.OS === 'android';
+};
+
 interface SelectOption {
   id: string;
   label: string;
@@ -269,9 +280,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     };
   }, []);
 
-  // Z-index simples para dropdown inline
-  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 10 : 10) : 1;
-  const dropdownZIndex = Platform.OS === 'web' ? 11 : 11;
+  // Z-index MUITO ALTO para aparecer acima de TUDO em TODAS as plataformas
+  const containerZIndex = isFocused ? 99999 : 1;
+  const dropdownZIndex = 999999; // Z-index extremamente alto para garantir que apareça acima de tudo
 
   return (
     <View
@@ -298,16 +309,14 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       <View
         style={[
           styles.inputContainer,
-          Platform.OS === 'web'
-            ? {
-                position: 'relative' as ViewStyle['position'],
-                overflow: 'visible' as ViewStyle['overflow'],
-                zIndex: containerZIndex,
-              }
-            : {
-                overflow: 'visible' as ViewStyle['overflow'],
-                zIndex: containerZIndex,
-              },
+          {
+            position: 'relative' as ViewStyle['position'],
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+            ...(Platform.OS === 'web' ? {
+              backgroundColor: '#ffffff',
+            } : {}),
+          },
         ]}
       >
         {isManualMode ? (
@@ -430,8 +439,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                 : {})}
             />
 
-            {/* Dropdown - Modal no Android, inline no Web */}
-            {Platform.OS === 'android' ? (
+            {/* Dropdown - Modal no mobile nativo, inline no Web */}
+            {Platform.OS !== 'web' ? (
               <Modal
                 visible={showList && (filtered.length > 0 || searchText.trim().length > 0)}
                 transparent
@@ -510,18 +519,23 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
               <View
                 style={[
                   styles.dropdown,
-                  Platform.OS === 'web'
-                    ? {
-                        zIndex: dropdownZIndex,
-                      }
-                    : {
-                        zIndex: dropdownZIndex,
-                        elevation: 1000,
-                      },
+                  {
+                    zIndex: dropdownZIndex,
+                  },
+                  Platform.OS === 'web' ? {
+                    position: 'absolute' as any,
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    opacity: 1,
+                    backgroundColor: '#ffffff',
+                  } : {
+                    elevation: 999999,
+                  },
                 ]}
                     onStartShouldSetResponder={() => false}
                     onMoveShouldSetResponder={() => false}
-                    pointerEvents="box-none"
+                    pointerEvents="auto"
                     {...(Platform.OS === 'web'
                       ? {
                           onMouseEnter: () => {
@@ -707,9 +721,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
-    elevation: Platform.OS === 'android' ? 1000 : 15,
+    elevation: 999999, // Elevation muito alto para Android
     overflow: 'hidden',
-    zIndex: Platform.OS === 'web' ? 11 : 11,
+    zIndex: 999999, // Z-index extremamente alto para aparecer acima de TUDO
+    ...(Platform.OS === 'web' ? {
+      backgroundColor: '#ffffff !important' as any,
+      opacity: 1,
+      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3) !important' as any,
+      position: 'absolute' as any,
+      zIndex: '999999 !important' as any,
+      background: '#ffffff !important' as any,
+    } : {}),
   },
   list: {
     maxHeight: 300,

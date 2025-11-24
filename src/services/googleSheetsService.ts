@@ -1,9 +1,10 @@
 import { RegistroPresenca } from '../types/models';
 import { supabaseDataService } from './supabaseDataService';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
-import { normalizarRegistroCargoFeminino } from '../utils/normalizeCargoFeminino';
+import { normalizarRegistroCargoFeminino, isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { generateExternalUUID } from '../utils/uuid';
+import { normalizarNivel } from '../utils/normalizeNivel';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
 const GOOGLE_SHEETS_API_URL =
@@ -66,6 +67,15 @@ export const googleSheetsService = {
         nomeCompleto = pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`;
       }
 
+      // Buscar nivel da pessoa (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)
+      // 🚨 CORREÇÃO: Normalizar nivel baseado em regras (instrumento e cargo)
+      const nivelPessoaOriginal = pessoa?.nivel || null;
+      const nivelPessoa = normalizarNivel(
+        nivelPessoaOriginal,
+        instrumentoParaUsar?.nome,
+        cargoReal
+      );
+
       const cargo = { ...cargoSelecionado, nome: cargoReal };
 
       // Normalizar para cargos femininos que tocam órgão (usar cargo real da pessoa)
@@ -75,8 +85,19 @@ export const googleSheetsService = {
         registro.classe_organista
       );
 
+      // 🚨 CORREÇÃO: Para candidatos, buscar instrumento da pessoa se não tiver no registro
+      // A pessoa candidata já tem o instrumento_id convertido do nome do instrumento
+      let instrumentoParaUsar = instrumentoOriginal;
+      if (!instrumentoParaUsar && pessoa && pessoa.instrumento_id) {
+        // Buscar instrumento pelo ID da pessoa
+        const instrumentoDaPessoa = instrumentos.find(i => i.id === pessoa.instrumento_id);
+        if (instrumentoDaPessoa) {
+          instrumentoParaUsar = instrumentoDaPessoa;
+        }
+      }
+
       // Usar instrumento normalizado se for cargo feminino
-      const instrumento = normalizacao.isNormalizado ? { nome: 'ÓRGÃO' } : instrumentoOriginal;
+      const instrumento = normalizacao.isNormalizado ? { nome: 'ÓRGÃO' } : instrumentoParaUsar;
 
       // Buscar cidade da pessoa (se disponível) - só se não for nome manual
       const cidade = isNomeManual ? '' : pessoa?.cidade || '';
@@ -112,21 +133,38 @@ export const googleSheetsService = {
       // Buscar nome do usuário e extrair apenas primeiro e último nome
       const registradoPorNome = formatRegistradoPor(registro.usuario_responsavel || '');
 
-      // Usar naipe normalizado se for cargo feminino, senão calcular normalmente
-      const naipeInstrumento = normalizacao.isNormalizado
-        ? normalizacao.naipeInstrumento || 'TECLADO'
-        : instrumento?.nome
-          ? getNaipeByInstrumento(instrumento.nome)
-          : '';
-
       // Usar valores normalizados se for cargo feminino
       const instrumentoFinal = normalizacao.isNormalizado
         ? normalizacao.instrumentoNome || 'ÓRGÃO'
-        : instrumento?.nome || '';
+        : instrumentoParaUsar?.nome || '';
 
-      const classeOrganistaFinal = normalizacao.isNormalizado
-        ? normalizacao.classeOrganista || 'OFICIALIZADA'
-        : registro.classe_organista || '';
+      // 🚨 CORREÇÃO: Calcular naipe usando instrumentoFinal (já normalizado) para garantir que funciona com candidatos
+      const naipeInstrumento = normalizacao.isNormalizado
+        ? normalizacao.naipeInstrumento || 'TECLADO'
+        : instrumentoFinal
+          ? getNaipeByInstrumento(instrumentoFinal)
+          : '';
+      
+      // Log para debug se naipe não foi encontrado
+      if (instrumentoFinal && !naipeInstrumento) {
+        console.warn('⚠️ Naipe não encontrado para instrumento no Google Sheets:', {
+          instrumentoFinal,
+          instrumentoParaUsar: instrumentoParaUsar?.nome,
+          cargoReal,
+        });
+      }
+
+      // 🚨 CORREÇÃO CRÍTICA: Para cargos femininos/órgão, classe_organista deve ser igual ao nivel
+      // Se for cargo feminino (Organista, Instrutora, Examinadora, Secretária) ou órgão, usar o nivel normalizado como classe_organista
+      const isOrgaoOuCargoFeminino = normalizacao.isNormalizado || 
+        (instrumentoParaUsar?.nome?.toUpperCase() === 'ÓRGÃO' || instrumentoParaUsar?.nome?.toUpperCase() === 'ORGAO') ||
+        isCargoFemininoOrganista(cargoReal);
+      
+      const classeOrganistaFinal = isOrgaoOuCargoFeminino && nivelPessoa
+        ? nivelPessoa // Usar nivel como classe_organista para cargos femininos/órgão
+        : normalizacao.isNormalizado
+          ? normalizacao.classeOrganista || 'OFICIALIZADA'
+          : registro.classe_organista || '';
 
       // Formato esperado pelo Google Apps Script (Code.gs) - tudo em maiúscula
       const sheetRow = {
@@ -134,7 +172,8 @@ export const googleSheetsService = {
         'NOME COMPLETO': nomeCompleto.trim().toUpperCase(),
         COMUM: comum.nome.toUpperCase(),
         CIDADE: cidade.toUpperCase(),
-        CARGO: cargo.nome.toUpperCase(),
+        CARGO: cargoReal.toUpperCase(), // 🚨 CORREÇÃO: Usar cargo REAL da pessoa, não o selecionado
+        NÍVEL: nivelPessoa ? nivelPessoa.toUpperCase() : '', // 🚨 CORREÇÃO: Adicionar campo NÍVEL (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)
         INSTRUMENTO: instrumentoFinal.toUpperCase(),
         NAIPE_INSTRUMENTO: naipeInstrumento.toUpperCase(),
         CLASSE_ORGANISTA: classeOrganistaFinal.toUpperCase(), // Classe normalizada
@@ -147,7 +186,7 @@ export const googleSheetsService = {
       console.log('📤 Enviando para Google Sheets:', sheetRow);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos timeout (aumentado para evitar timeout prematuro)
 
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
@@ -209,6 +248,7 @@ export const googleSheetsService = {
       comum?: string;
       cidade?: string;
       cargo?: string;
+      nivel?: string; // 🚨 CORREÇÃO: Adicionar campo nivel
       instrumento?: string;
       naipe_instrumento?: string;
       classe_organista?: string;
@@ -232,6 +272,9 @@ export const googleSheetsService = {
       }
       if (updateData.cargo) {
         sheetData['CARGO'] = updateData.cargo.toUpperCase();
+      }
+      if (updateData.nivel !== undefined) {
+        sheetData['NÍVEL'] = updateData.nivel.toUpperCase();
       }
       if (updateData.instrumento !== undefined) {
         sheetData['INSTRUMENTO'] = updateData.instrumento.toUpperCase();

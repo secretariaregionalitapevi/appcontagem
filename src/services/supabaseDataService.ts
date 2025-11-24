@@ -1,14 +1,16 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { supabase, isSupabaseConfigured, ensureSessionRestored } from './supabaseClient';
 import { Comum, Cargo, Instrumento, Pessoa, RegistroPresenca } from '../types/models';
 import { getDatabase } from '../database/database';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuidv4 } from '../utils/uuid';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
-import { normalizarRegistroCargoFeminino } from '../utils/normalizeCargoFeminino';
+import { normalizarRegistroCargoFeminino, isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
 import { extractFirstAndLastName } from '../utils/userNameUtils';
+import { normalizarNivel } from '../utils/normalizeNivel';
 import { robustGetItem, robustSetItem, robustRemoveItem, initializeStorage } from '../utils/robustStorage';
 import { normalizeForSearch, normalizeString, sanitizeString, isValidString } from '../utils/stringNormalization';
+import { normalizeInstrumentoForSearch, expandInstrumentoSearch } from '../utils/normalizeInstrumento';
 import { getDeviceInfo, logDeviceInfo, isXiaomiDevice } from '../utils/deviceDetection';
 
 // Cache em memória para web (quando SQLite não está disponível)
@@ -39,12 +41,16 @@ const INSTRUMENTS_FIXED = [
   'CLARINETE',
   'CLARINETE ALTO',
   'CLARINETE BAIXO (CLARONE)',
+  'CLARINETE CONTRA BAIXO',
   'FAGOTE',
   'SAXOFONE SOPRANO (RETO)',
+  'SAXOFONE SOPRANINO',
   'SAXOFONE ALTO',
   'SAXOFONE TENOR',
   'SAXOFONE BARÍTONO',
+  'SAXOFONE BAIXO',
   'SAX OCTA CONTRABAIXO',
+  'SAX HORN',
   'TROMPA',
   'TROMPETE',
   'CORNET',
@@ -54,14 +60,13 @@ const INSTRUMENTS_FIXED = [
   'EUFÔNIO',
   'BARÍTONO (PISTO)',
   'TUBA',
-  'ÓRGÃO',
 ];
 
 // Lista fixa de cargos do backup.js (ordem exata do CARGOS_FIXED)
 const CARGOS_FIXED = [
   'Músico',
   'Organista',
-  'Candidato(a)',
+  'Candidato (a)',
   'Irmandade',
   'Ancião',
   'Diácono',
@@ -403,7 +408,8 @@ export const supabaseDataService = {
 
     // Sempre usar lista fixa de cargos (seguindo lógica do backup.js)
     const cargos: Cargo[] = CARGOS_FIXED.map((nome, index) => {
-      // Determinar se é cargo musical baseado no nome (apenas Músico e Organista requerem instrumento obrigatório)
+      // Determinar se é cargo musical baseado no nome (apenas Músico e Organista)
+      // Candidatos têm instrumento na tabela, mas não mostramos campo na UI
       const isMusical = nome === 'Músico' || nome === 'Organista';
 
       return {
@@ -486,7 +492,7 @@ export const supabaseDataService = {
   async getCargosFromLocal(): Promise<Cargo[]> {
     // Sempre retornar na ordem exata da lista fixa CARGOS_FIXED
     const cargosNaOrdem: Cargo[] = CARGOS_FIXED.map((nome, index) => {
-      // Apenas Músico e Organista requerem instrumento obrigatório
+      // Apenas Músico e Organista podem ter instrumento
       const isMusical = nome === 'Músico' || nome === 'Organista';
       return {
         id: `cargo_${index + 1}_${nome.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '')}`,
@@ -786,6 +792,9 @@ export const supabaseDataService = {
     }
 
     try {
+      // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de buscar (RLS requer autenticação)
+      await ensureSessionRestored();
+
       console.log('📚 Buscando pessoas da tabela cadastro:', {
         comumNome,
         cargoNome,
@@ -795,7 +804,10 @@ export const supabaseDataService = {
       // Normalizar valores para busca
       const comumBusca = comumNome.trim();
       const cargoBusca = cargoNome.trim().toUpperCase();
-      const instrumentoBusca = instrumentoNome?.trim().toUpperCase();
+      // 🚨 CORREÇÃO: Normalizar instrumento expandindo abreviações (ex: "RET" → "RETO")
+      const instrumentoBusca = instrumentoNome 
+        ? normalizeInstrumentoForSearch(instrumentoNome.trim())
+        : undefined;
 
       // Determinar se precisa de instrumento obrigatório (APENAS Músico)
       // Organista NÃO precisa de instrumento (sempre toca órgão)
@@ -822,6 +834,64 @@ export const supabaseDataService = {
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
+        // 🚨 CORREÇÃO CRÍTICA: Para SAXOFONE SOPRANO, fazer múltiplas queries e combinar resultados
+        // (como o backupcont faz para garantir robustez)
+        if (instrumentoBusca && instrumentoBusca.includes('SAXOFONE') && instrumentoBusca.includes('SOPRANO')) {
+          console.log('🔍 Buscando SAXOFONE SOPRANO com múltiplas variações...');
+          
+          // Criar queries separadas para cada variação (mais confiável que OR)
+          const queries = [
+            supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', `%${comumBusca}%`)
+              .ilike('instrumento', '%SAXOFONE SOPRANO RET%')
+              .order('nome', { ascending: true })
+              .range(from, to),
+            supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', `%${comumBusca}%`)
+              .ilike('instrumento', '%SAXOFONE SOPRANO RETO%')
+              .order('nome', { ascending: true })
+              .range(from, to),
+            supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', `%${comumBusca}%`)
+              .ilike('instrumento', '%SAXOFONE SOPRANO (RETO)%')
+              .order('nome', { ascending: true })
+              .range(from, to),
+          ];
+
+          // Executar todas as queries em paralelo
+          const results = await Promise.all(queries);
+          
+          // Combinar resultados removendo duplicatas
+          const combinedData: any[] = [];
+          const seenNames = new Set<string>();
+          
+          results.forEach((result, idx) => {
+            if (result.data && !result.error) {
+              result.data.forEach((item: any) => {
+                const key = `${item.nome}_${item.comum}`.toUpperCase();
+                if (!seenNames.has(key)) {
+                  seenNames.add(key);
+                  combinedData.push(item);
+                }
+              });
+            } else if (result.error) {
+              console.warn(`⚠️ Erro na query ${idx + 1} para SAXOFONE SOPRANO:`, result.error);
+            }
+          });
+
+          return {
+            data: combinedData,
+            error: null,
+            hasMore: combinedData.length === pageSize,
+          };
+        }
+
         // Construir query base com filtro de comum (incluindo cidade e nivel - que é a classe da organista)
         let query = supabase
           .from(table)
@@ -840,7 +910,22 @@ export const supabaseDataService = {
           // (incluindo instrutores, secretários da música, encarregados)
           // Isso permite que ao selecionar um nome, o cargo real seja capturado do banco
           if (instrumentoBusca) {
-            query = query.ilike('instrumento', `%${instrumentoBusca}%`);
+            // Para outros instrumentos, criar variações de busca
+            const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
+            
+            console.log('🔍 Variações de busca para instrumento:', {
+              instrumentoOriginal: instrumentoNome,
+              instrumentoNormalizado: instrumentoBusca,
+              variacoesBusca,
+            });
+            
+            if (variacoesBusca.length > 1) {
+              // Criar condições OR para todas as variações
+              const conditions = variacoesBusca.map(v => `instrumento.ilike.%${v}%`).join(',');
+              query = query.or(conditions);
+            } else {
+              query = query.ilike('instrumento', `%${instrumentoBusca}%`);
+            }
           } else {
             // Se não tem instrumento, buscar apenas por cargo MÚSICO (sem instrutores/secretários)
             query = query.ilike('cargo', '%MÚSICO%').not('cargo', 'ilike', '%SECRETÁRIO%');
@@ -916,10 +1001,9 @@ export const supabaseDataService = {
     }
   },
 
-  // Buscar candidatos da tabela candidatos (seguindo lógica IDÊNTICA ao cadastro)
+  // Buscar candidatos da tabela candidatos (CÓPIA EXATA de fetchPessoasFromCadastro, só muda a tabela)
   async fetchCandidatosFromSupabase(
-    comumNome?: string,
-    nomeBusca?: string
+    comumNome?: string
   ): Promise<any[]> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Supabase não está configurado');
@@ -930,16 +1014,34 @@ export const supabaseDataService = {
     }
 
     try {
+      // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de buscar (RLS requer autenticação)
+      const sessionRestaurada = await ensureSessionRestored();
+      
+      // Verificar autenticação após restaurar
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('🔐 Verificação de autenticação:', {
+        user: user ? { id: user.id, email: user.email } : null,
+        authError: authError?.message,
+        hasUser: !!user,
+        sessionRestaurada,
+      });
+
+      // Se ainda não há usuário autenticado, logar aviso mas continuar (RLS pode permitir)
+      if (!user) {
+        console.warn('⚠️ Nenhum usuário autenticado encontrado. Verifique se RLS permite acesso sem autenticação.');
+      }
+
       console.log('📚 Buscando candidatos da tabela candidatos:', {
         comumNome,
-        nomeBusca,
+        comumNomeLength: comumNome?.length,
+        comumNomeTrimmed: comumNome?.trim(),
       });
 
       // Normalizar valores para busca (EXATAMENTE como fetchPessoasFromCadastro)
       const comumBusca = comumNome.trim();
-      const nomeBuscaNormalizado = nomeBusca ? nomeBusca.trim() : '';
+      console.log('🔍 comumBusca normalizado:', comumBusca);
 
-      // Usar tabela candidatos
+      // ÚNICA DIFERENÇA: usar tabela candidatos ao invés de cadastro
       const tableName = 'candidatos';
       let allData: any[] = [];
       let hasMore = true;
@@ -954,20 +1056,39 @@ export const supabaseDataService = {
         const from = page * pageSize;
         const to = from + pageSize - 1;
 
-        // Construir query base com filtro de comum (EXATAMENTE como fetchPessoasFromCadastro)
+        // Construir query base com filtro de comum
+        // Tentar busca flexível: com e sem hífen (formato pode variar)
+        const comumBuscaSemHifen = comumBusca.replace(/\s*-\s*/g, ' ').trim();
+        const comumBuscaComHifen = comumBusca.includes(' - ') 
+          ? comumBusca 
+          : comumBusca.replace(/\s+/, ' - ');
+        
+        console.log(`🔍 Query página ${page + 1}:`, {
+          comumBuscaOriginal: comumBusca,
+          comumBuscaSemHifen,
+          comumBuscaComHifen,
+        });
+        
+        // Tentar busca com formato flexível (com OU sem hífen)
+        // A tabela candidatos tem apenas 'instrumento' (texto), não 'instrumento_id'
+        // 🚨 CORREÇÃO: Buscar também o campo 'cargo' e 'nivel' para usar os valores reais do banco
         let query = supabase
           .from(table)
-          .select('nome, comum, cidade, instrumento')
-          .ilike('comum', `%${comumBusca}%`)
+          .select('nome, comum, cidade, instrumento, cargo, nivel')
+          .or(`comum.ilike.%${comumBusca}%,comum.ilike.%${comumBuscaSemHifen}%,comum.ilike.%${comumBuscaComHifen}%`)
           .order('nome', { ascending: true });
-
-        // Aplicar filtro de nome se fornecido
-        if (nomeBuscaNormalizado) {
-          query = query.ilike('nome', `%${nomeBuscaNormalizado}%`);
-        }
 
         // Aplicar range para paginação
         const result = await query.range(from, to);
+        
+        console.log(`📊 Resultado query página ${page + 1}:`, {
+          dataLength: result.data?.length || 0,
+          error: result.error,
+          sampleData: result.data?.slice(0, 3).map((c: any) => ({
+            nome: c.nome,
+            comum: c.comum,
+          })),
+        });
 
         return {
           data: result.data || [],
@@ -1004,13 +1125,68 @@ export const supabaseDataService = {
       }
 
       if (allData.length === 0) {
-        console.log('⚠️ Nenhum candidato encontrado');
+        console.log('⚠️ Nenhum candidato encontrado com filtro de comum');
+        // Testar buscar TODOS os candidatos para verificar se a tabela tem dados
+        try {
+          console.log('🔍 Teste 1: buscando TODOS os candidatos (sem filtro, sem RLS):');
+          const testResult1 = await supabase
+            .from(tableName)
+            .select('nome, comum, cidade, instrumento, cargo, nivel')
+            .limit(5)
+            .order('nome', { ascending: true });
+          console.log('📊 Resultado teste 1:', {
+            dataLength: testResult1.data?.length || 0,
+            error: testResult1.error,
+            errorCode: testResult1.error?.code,
+            errorMessage: testResult1.error?.message,
+            sampleData: testResult1.data?.slice(0, 3).map((c: any) => ({
+              nome: c.nome,
+              comum: c.comum,
+            })),
+          });
+          
+          // Teste 2: buscar apenas pelo código BR-22-1739
+          console.log('🔍 Teste 2: buscando pelo código BR-22-1739:');
+          const testResult2 = await supabase
+            .from(tableName)
+            .select('nome, comum, cidade, instrumento, cargo, nivel')
+            .ilike('comum', '%BR-22-1739%')
+            .limit(5)
+            .order('nome', { ascending: true });
+          console.log('📊 Resultado teste 2:', {
+            dataLength: testResult2.data?.length || 0,
+            error: testResult2.error,
+            sampleData: testResult2.data?.slice(0, 3).map((c: any) => ({
+              nome: c.nome,
+              comum: c.comum,
+            })),
+          });
+          
+          // Teste 3: buscar apenas pelo nome JARDIM MIRANDA
+          console.log('🔍 Teste 3: buscando pelo nome JARDIM MIRANDA:');
+          const testResult3 = await supabase
+            .from(tableName)
+            .select('nome, comum, cidade, instrumento, cargo, nivel')
+            .ilike('comum', '%JARDIM MIRANDA%')
+            .limit(5)
+            .order('nome', { ascending: true });
+          console.log('📊 Resultado teste 3:', {
+            dataLength: testResult3.data?.length || 0,
+            error: testResult3.error,
+            sampleData: testResult3.data?.slice(0, 3).map((c: any) => ({
+              nome: c.nome,
+              comum: c.comum,
+            })),
+          });
+        } catch (testError) {
+          console.error('❌ Erro no teste:', testError);
+        }
         return [];
       }
 
       console.log(`✅ Total de ${allData.length} registros encontrados na tabela ${tableName}`);
 
-      // Remover duplicatas baseado em nome + comum
+      // Remover duplicatas baseado em nome + comum (EXATAMENTE como fetchPessoasFromCadastro)
       const uniqueMap = new Map<string, any>();
       allData.forEach(r => {
         const nomeCompleto = (r.nome || '').trim();
@@ -1066,50 +1242,90 @@ export const supabaseDataService = {
     }
 
     // Verificar se é cargo Candidato(a) - buscar da tabela candidatos
-    if (cargoNome.toUpperCase() === 'CANDIDATO(A)' || cargoNome.toUpperCase() === 'CANDIDATO') {
+    // Normalizar para comparar (remover espaços e parênteses)
+    const cargoNomeNormalizado = cargoNome.toUpperCase().replace(/\s+/g, '').replace(/[()]/g, '');
+    if (cargoNomeNormalizado === 'CANDIDATOA' || cargoNomeNormalizado === 'CANDIDATO') {
       try {
+        console.log('🔍 Buscando candidatos com:', {
+          comumId,
+          comumNome,
+          cargoId,
+          cargoNome,
+        });
         const candidatosData = await this.fetchCandidatosFromSupabase(comumNome);
+        console.log(`✅ ${candidatosData.length} candidatos retornados da busca`);
 
-        // Buscar instrumentos uma vez para mapear nomes para IDs
+        // Buscar lista de instrumentos para converter nome (texto) para instrumento_id
         const instrumentos = await this.getInstrumentosFromLocal();
 
         // Converter para formato Pessoa[]
-        const pessoas: Pessoa[] = await Promise.all(
-          candidatosData.map(async (p, index) => {
-            const nomeCompleto = (p.nome || '').trim();
-            const partesNome = nomeCompleto.split(' ').filter(p => p.trim());
-            const primeiroNome = partesNome[0] || '';
-            const ultimoNome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : '';
+        const pessoas: Pessoa[] = candidatosData.map((p, index) => {
+          const nomeCompleto = (p.nome || '').trim();
+          const partesNome = nomeCompleto.split(' ').filter(p => p.trim());
+          const primeiroNome = partesNome[0] || '';
+          const ultimoNome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : '';
 
-            // Tentar encontrar o ID do instrumento pelo nome (se existir)
-            let instrumentoId: string | null = null;
-            if (p.instrumento) {
-              const instrumentoEncontrado = instrumentos.find(
-                i => i.nome.toUpperCase() === (p.instrumento || '').toUpperCase().trim()
-              );
-              if (instrumentoEncontrado) {
-                instrumentoId = instrumentoEncontrado.id;
-              }
+          // Converter nome do instrumento (texto) para instrumento_id
+          // A tabela candidatos tem apenas 'instrumento' (texto), não 'instrumento_id'
+          let instrumentoId: string | null = null;
+          if (p.instrumento) {
+            const instrumentoNomeOriginal = (p.instrumento || '').trim();
+            
+            // 🚨 CORREÇÃO: Normalizar instrumento expandindo abreviações (ex: "RET" → "RETO")
+            const instrumentoNomeNormalizado = normalizeInstrumentoForSearch(instrumentoNomeOriginal);
+            
+            // 🚨 CORREÇÃO: Criar variações de busca para encontrar mesmo com abreviações
+            const variacoesBusca = expandInstrumentoSearch(instrumentoNomeOriginal);
+            
+            // 🚨 OTIMIZAÇÃO: Buscar instrumento pelo nome (case-insensitive e com variações)
+            // Primeiro tentar busca exata com nome normalizado (mais rápida)
+            let instrumentoEncontrado = instrumentos.find(inst => {
+              const instNomeUpper = inst.nome.toUpperCase();
+              return instNomeUpper === instrumentoNomeNormalizado || variacoesBusca.includes(instNomeUpper);
+            });
+            
+            // Se não encontrou, tentar busca normalizada (sem acentos)
+            if (!instrumentoEncontrado) {
+              const instrumentoNomeSemAcentos = normalizeString(instrumentoNomeNormalizado);
+              instrumentoEncontrado = instrumentos.find(inst => {
+                const instNomeNormalizado = normalizeString(inst.nome.toUpperCase());
+                return instNomeNormalizado === instrumentoNomeSemAcentos;
+              });
             }
+            
+            instrumentoId = instrumentoEncontrado?.id || null;
+            
+            // 🚨 OTIMIZAÇÃO: Log apenas se não encontrou (evitar logs desnecessários)
+            if (!instrumentoId && instrumentoNomeOriginal) {
+              console.warn('⚠️ Instrumento não encontrado para candidato:', {
+                instrumentoOriginal: instrumentoNomeOriginal,
+                instrumentoNormalizado: instrumentoNomeNormalizado,
+                variacoesBusca,
+                totalInstrumentos: instrumentos.length,
+              });
+            }
+          }
 
-            const pessoa: Pessoa = {
-              id: `candidato_${index}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
-              nome: primeiroNome,
-              sobrenome: ultimoNome,
-              nome_completo: nomeCompleto,
-              comum_id: comumId || '',
-              cargo_id: cargoId || '',
-              cargo_real: 'Candidato(a)', // Cargo fixo para candidatos
-              instrumento_id: instrumentoId, // Incluir instrumento se existir
-              cidade: (p.cidade || '').toUpperCase().trim(),
-              ativo: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
+          const pessoa: Pessoa = {
+            id: `candidato_${index}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
+            nome: primeiroNome,
+            sobrenome: ultimoNome,
+            nome_completo: nomeCompleto,
+            comum_id: comumId || '',
+            cargo_id: cargoId || '',
+            // 🚨 CORREÇÃO: Usar o cargo REAL da tabela candidatos (ex: "MÚSICO") ao invés de "Candidato(a)"
+            cargo_real: (p.cargo || '').trim().toUpperCase() || 'MÚSICO', // Usar cargo do banco de dados
+            instrumento_id: instrumentoId, // Converter nome do instrumento para ID
+            cidade: (p.cidade || '').toUpperCase().trim(),
+            // 🚨 CORREÇÃO: Mapear campo nivel da tabela candidatos (ex: "CANDIDATO", "OFICIALIZADO", "CULTO OFICIAL")
+            nivel: (p.nivel || '').trim().toUpperCase() || 'CANDIDATO', // Usar nivel do banco de dados
+            ativo: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
 
-            return pessoa;
-          })
-        );
+          return pessoa;
+        });
 
         return pessoas;
       } catch (error) {
@@ -1143,13 +1359,16 @@ export const supabaseDataService = {
           cargo_real: (p.cargo || '').toUpperCase().trim(), // Cargo real da pessoa no banco de dados
           instrumento_id: instrumentoId || null,
           cidade: (p.cidade || '').toUpperCase().trim(), // Incluir cidade da pessoa
+          // 🚨 CORREÇÃO: Mapear campo nivel da tabela cadastro (ex: "CANDIDATO", "OFICIALIZADO", "CULTO OFICIAL")
+          nivel: (p.nivel || '').trim().toUpperCase() || null, // Nível da pessoa no banco de dados
           ativo: true, // Campo obrigatório do tipo, mas não usado como filtro na busca
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
 
-        // Incluir classe_organista se existir (para Organistas) - usar campo 'nivel' da tabela
-        if (p.nivel) {
+        // Incluir classe_organista se existir (para Organistas) - usar campo 'nivel' da tabela apenas se for classe
+        // Nota: nivel agora é um campo separado, classe_organista é apenas para organistas
+        if (p.nivel && (p.nivel.toUpperCase().includes('OFICIALIZADA') || p.nivel.toUpperCase().includes('CLASSE'))) {
           pessoa.classe_organista = p.nivel.toUpperCase().trim();
         }
 
@@ -1193,8 +1412,33 @@ export const supabaseDataService = {
     registro: RegistroPresenca,
     skipDuplicateCheck = false
   ): Promise<RegistroPresenca> {
+    // 🚨 OTIMIZAÇÃO: Medir tempo de processamento
+    const inicioTempo = performance.now();
+    
     if (!isSupabaseConfigured() || !supabase) {
+      console.error('❌ Supabase não está configurado');
       throw new Error('Supabase não está configurado');
+    }
+
+    // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de inserir
+    // Mas não bloquear se não conseguir restaurar (RLS pode permitir algumas operações)
+    try {
+      const sessionRestored = await ensureSessionRestored();
+      
+      if (sessionRestored) {
+        // Verificar autenticação apenas se conseguiu restaurar
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) {
+          console.warn('⚠️ Erro ao verificar autenticação:', authError.message);
+        } else if (user) {
+          console.log('🔐 Sessão restaurada com sucesso:', { userId: user.id });
+        }
+      } else {
+        console.warn('⚠️ Não foi possível restaurar sessão. Tentando inserir mesmo assim (RLS pode permitir).');
+      }
+    } catch (sessionError) {
+      console.warn('⚠️ Erro ao restaurar sessão (continuando...):', sessionError);
+      // Continuar mesmo com erro - pode funcionar sem autenticação dependendo das políticas RLS
     }
 
     // Buscar nomes a partir dos IDs
@@ -1275,37 +1519,101 @@ export const supabaseDataService = {
       localEnsaioNome = localEncontrado?.nome || localEnsaioNome;
     }
 
+    // 🚨 CORREÇÃO: Para candidatos, buscar instrumento da pessoa se não tiver no registro
+    // A pessoa candidata já tem o instrumento_id convertido do nome do instrumento
+    let instrumentoParaSalvar = instrumento;
+    if (!instrumentoParaSalvar && pessoa && pessoa.instrumento_id) {
+      // Buscar instrumento pelo ID da pessoa
+      const instrumentoDaPessoa = instrumentos.find(i => i.id === pessoa.instrumento_id);
+      if (instrumentoDaPessoa) {
+        instrumentoParaSalvar = instrumentoDaPessoa;
+      }
+    }
+
+    // Buscar nivel da pessoa (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)
+    // 🚨 CORREÇÃO: Normalizar nivel baseado em regras (instrumento e cargo)
+    // IMPORTANTE: Calcular nivel DEPOIS de definir instrumentoParaSalvar
+    let nivelPessoaOriginal = pessoa?.nivel || null;
+    
+    // 🚨 CORREÇÃO: Se for nome manual ou não houver pessoa, usar valor padrão baseado no cargo
+    if (!nivelPessoaOriginal && isNomeManual) {
+      // Para nomes manuais, tentar inferir nivel baseado no cargo
+      if (cargoReal.toUpperCase().includes('CANDIDATO')) {
+        nivelPessoaOriginal = 'CANDIDATO';
+      } else {
+        // Para outros cargos, deixar null (será normalizado depois)
+        nivelPessoaOriginal = null;
+      }
+    }
+    
+    const nivelPessoa = normalizarNivel(
+      nivelPessoaOriginal,
+      instrumentoParaSalvar?.nome,
+      cargoReal
+    );
+    
+    // 🚨 OTIMIZAÇÃO: Log apenas se nivel não foi encontrado (evitar logs desnecessários)
+    if (!nivelPessoa) {
+      console.warn('⚠️ Nivel não encontrado:', {
+        nivelPessoaOriginal,
+        instrumentoParaSalvar: instrumentoParaSalvar?.nome,
+        cargoReal,
+        pessoaId: pessoa?.id,
+        isNomeManual,
+        pessoaNivel: pessoa?.nivel,
+      });
+    }
+
     // Normalizar para cargos femininos que tocam órgão (usar cargo real da pessoa)
     const normalizacao = normalizarRegistroCargoFeminino(
       cargoReal, // Usar cargo real da pessoa
-      instrumento?.nome,
+      instrumentoParaSalvar?.nome,
       registro.classe_organista
     );
 
     // Usar valores normalizados se for cargo feminino
     const instrumentoFinal = normalizacao.isNormalizado
       ? normalizacao.instrumentoNome || 'ÓRGÃO'
-      : instrumento?.nome || null;
+      : instrumentoParaSalvar?.nome || null;
 
+    // 🚨 CORREÇÃO: Calcular naipe sempre que houver instrumento (incluindo candidatos)
     const naipeInstrumento = normalizacao.isNormalizado
       ? normalizacao.naipeInstrumento || 'TECLADO'
-      : instrumento?.nome
-        ? getNaipeByInstrumento(instrumento.nome)
+      : instrumentoFinal // Usar instrumentoFinal ao invés de instrumentoParaSalvar para garantir que está normalizado
+        ? getNaipeByInstrumento(instrumentoFinal)
         : null;
+    
+    // Log para debug se naipe não foi encontrado
+    if (instrumentoFinal && !naipeInstrumento) {
+      console.warn('⚠️ Naipe não encontrado para instrumento:', {
+        instrumentoFinal,
+        instrumentoParaSalvar: instrumentoParaSalvar?.nome,
+        cargoReal,
+      });
+    }
 
-    const classeOrganistaFinal = normalizacao.isNormalizado
-      ? normalizacao.classeOrganista || 'OFICIALIZADA'
-      : registro.classe_organista || null;
+    // 🚨 CORREÇÃO CRÍTICA: Para cargos femininos/órgão, classe_organista deve ser igual ao nivel
+    // Se for cargo feminino (Organista, Instrutora, Examinadora, Secretária) ou órgão, usar o nivel normalizado como classe_organista
+    const isOrgaoOuCargoFeminino = normalizacao.isNormalizado || 
+      (instrumentoParaSalvar?.nome?.toUpperCase() === 'ÓRGÃO' || instrumentoParaSalvar?.nome?.toUpperCase() === 'ORGAO') ||
+      isCargoFemininoOrganista(cargoReal);
+    
+    const classeOrganistaFinal = isOrgaoOuCargoFeminino && nivelPessoa
+      ? nivelPessoa // Usar nivel como classe_organista para cargos femininos/órgão
+      : normalizacao.isNormalizado
+        ? normalizacao.classeOrganista || 'OFICIALIZADA'
+        : registro.classe_organista || null;
 
     // Converter para formato da tabela presencas (nomes em maiúscula)
     const row = {
       uuid: uuid,
       nome_completo: nomeCompleto.trim().toUpperCase(),
       comum: comum.nome.toUpperCase(),
-      cargo: cargo.nome.toUpperCase(),
+      cargo: cargoReal.toUpperCase(), // 🚨 CORREÇÃO: Usar cargo REAL da pessoa, não o selecionado
       instrumento: instrumentoFinal ? instrumentoFinal.toUpperCase() : null,
       naipe_instrumento: naipeInstrumento ? naipeInstrumento.toUpperCase() : null,
       classe_organista: classeOrganistaFinal ? classeOrganistaFinal.toUpperCase() : null, // Classe normalizada
+      nivel: nivelPessoa && nivelPessoa.trim() ? nivelPessoa.toUpperCase() : null, // 🚨 CORREÇÃO: Campo nivel adicionado - coluna existe na tabela presencas do Supabase
       cidade: cidade.toUpperCase(),
       local_ensaio: localEnsaioNome?.toUpperCase() || null,
       data_ensaio: registro.data_hora_registro || new Date().toISOString(), // Usar ISO string ao invés de formato brasileiro
@@ -1399,23 +1707,92 @@ export const supabaseDataService = {
       }
     }
 
-    console.log('📤 Enviando para Supabase (tabela presencas):', row);
+    // 🚨 OTIMIZAÇÃO: Log apenas se nivel estiver null (evitar logs desnecessários)
+    if (!row.nivel) {
+      console.warn('⚠️ Nivel será NULL no Supabase:', {
+        nivelPessoa,
+        nivelPessoaOriginal,
+        pessoaNivel: pessoa?.nivel,
+        isNomeManual,
+        cargoReal,
+      });
+    }
+    
+    // 🚨 OTIMIZAÇÃO: Log resumido ao invés de JSON completo (mais rápido)
+    console.log('📤 Enviando para Supabase (tabela presencas):', {
+      uuid: row.uuid,
+      nome: row.nome_completo,
+      comum: row.comum,
+      cargo: row.cargo,
+      instrumento: row.instrumento,
+      nivel: row.nivel,
+    });
 
-    const { data, error } = await supabase.from('presencas').insert(row).select().single();
+    // 🚨 CORREÇÃO CRÍTICA: Tentar inserir com retry e logs detalhados
+    let tentativas = 0;
+    const maxTentativas = 3;
+    let ultimoErro: any = null;
 
-    if (error) {
-      console.error('❌ Erro ao inserir no Supabase:', error);
-      throw error;
+    while (tentativas < maxTentativas) {
+      tentativas++;
+      console.log(`📤 Tentativa ${tentativas}/${maxTentativas} de inserir no Supabase...`);
+
+      try {
+        const { data, error } = await supabase.from('presencas').insert(row).select().single();
+
+        if (error) {
+          ultimoErro = error;
+          console.error(`❌ Erro ao inserir no Supabase (tentativa ${tentativas}):`, {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            row: JSON.stringify(row, null, 2),
+          });
+
+          // Se for erro de autenticação ou sessão, tentar restaurar sessão e tentar novamente
+          if (
+            (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('session') || error.message?.includes('permission')) &&
+            tentativas < maxTentativas
+          ) {
+            console.log('🔄 Tentando restaurar sessão e tentar novamente...');
+            await ensureSessionRestored();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Aguardar 500ms
+            continue; // Tentar novamente
+          }
+
+          // Se não for erro de sessão ou já tentou todas as vezes, lançar erro
+          if (tentativas >= maxTentativas) {
+            console.error('❌❌❌ FALHA DEFINITIVA AO INSERIR NO SUPABASE ❌❌❌', error);
+            throw error;
+          }
+        } else {
+          const tempoTotal = performance.now() - inicioTempo;
+          console.log(`✅✅✅ Registro salvo no Supabase com sucesso ✅✅✅ (${tempoTotal.toFixed(2)}ms):`, data);
+          // Retornar registro atualizado
+          return {
+            ...registro,
+            id: data.uuid || uuid,
+            status_sincronizacao: 'synced',
+          };
+        }
+      } catch (error) {
+        ultimoErro = error;
+        console.error(`❌ Exceção ao inserir no Supabase (tentativa ${tentativas}):`, error);
+        
+        if (tentativas >= maxTentativas) {
+          console.error('❌❌❌ FALHA DEFINITIVA APÓS TODAS AS TENTATIVAS ❌❌❌', error);
+          throw error;
+        }
+        
+        // Aguardar antes de tentar novamente
+        await new Promise(resolve => setTimeout(resolve, 1000 * tentativas));
+      }
     }
 
-    console.log('✅ Registro salvo no Supabase com sucesso:', data);
-
-    // Retornar registro atualizado com o ID do Supabase
-    return {
-      ...registro,
-      id: data.uuid || uuid,
-      status_sincronizacao: 'synced',
-    };
+    // Se chegou aqui, todas as tentativas falharam
+    console.error('❌❌❌ TODAS AS TENTATIVAS FALHARAM ❌❌❌', ultimoErro);
+    throw ultimoErro || new Error('Falha ao inserir no Supabase após múltiplas tentativas');
   },
 
   async getRegistrosPendentesFromLocal(): Promise<RegistroPresenca[]> {
@@ -1504,6 +1881,69 @@ export const supabaseDataService = {
   },
 
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
+    // 🛡️ VERIFICAR DUPLICATA ANTES DE SALVAR - CRÍTICO para evitar duplicação na fila
+    const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+    
+    // Buscar dados para comparação
+    const [comuns, cargos, pessoas] = await Promise.all([
+      this.getComunsFromLocal(),
+      this.getCargosFromLocal(),
+      this.getPessoasFromLocal(
+        registro.comum_id,
+        registro.cargo_id,
+        registro.instrumento_id || undefined
+      ),
+    ]);
+
+    const comum = comuns.find(c => c.id === registro.comum_id);
+    const cargo = cargos.find(c => c.id === registro.cargo_id);
+    const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
+    
+    if (comum && cargo && pessoa) {
+      const nomeBusca = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`).trim().toUpperCase();
+      const comumBusca = comum.nome.toUpperCase();
+      const cargoBusca = (pessoa.cargo_real || cargo.nome).toUpperCase();
+      const dataRegistro = new Date(registro.data_hora_registro);
+      const dataRegistroStr = dataRegistro.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Verificar se já existe registro duplicado na fila
+      for (const r of registrosPendentes) {
+        const rComum = comuns.find(c => c.id === r.comum_id);
+        const rCargo = cargos.find(c => c.id === r.cargo_id);
+        const rPessoas = await this.getPessoasFromLocal(
+          r.comum_id,
+          r.cargo_id,
+          r.instrumento_id || undefined
+        );
+        const rPessoa = rPessoas.find(p => p.id === r.pessoa_id);
+
+        if (rComum && rCargo && rPessoa) {
+          const rNome = (rPessoa.nome_completo || `${rPessoa.nome} ${rPessoa.sobrenome}`).trim().toUpperCase();
+          const rComumBusca = rComum.nome.toUpperCase();
+          const rCargoBusca = (rPessoa.cargo_real || rCargo.nome).toUpperCase();
+          const rData = new Date(r.data_hora_registro);
+          const rDataStr = rData.toISOString().split('T')[0];
+
+          // Se for duplicata (mesmo nome, comum, cargo e data), não salvar novamente
+          if (
+            rNome === nomeBusca &&
+            rComumBusca === comumBusca &&
+            rCargoBusca === cargoBusca &&
+            rDataStr === dataRegistroStr &&
+            r.id !== registro.id // Não é o mesmo registro
+          ) {
+            console.warn('🚨 Duplicata detectada na fila, não salvando novamente:', {
+              nome: nomeBusca,
+              comum: comumBusca,
+              cargo: cargoBusca,
+              data: dataRegistroStr,
+            });
+            return; // Não salvar duplicata
+          }
+        }
+      }
+    }
+
     // Sempre usar UUID v4 válido
     const id = registro.id && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(registro.id)
       ? registro.id
@@ -1715,6 +2155,7 @@ export const supabaseDataService = {
       comum?: string;
       cidade?: string;
       cargo?: string;
+      nivel?: string; // 🚨 CORREÇÃO: Adicionar campo nivel
       instrumento?: string;
       naipe_instrumento?: string;
       classe_organista?: string;

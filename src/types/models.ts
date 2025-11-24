@@ -31,6 +31,7 @@ export interface Pessoa {
   instrumento_id?: string | null;
   cidade?: string; // Cidade da pessoa
   classe_organista?: string; // Classe da organista (do banco de dados)
+  nivel?: string; // Nível: "OFICIALIZADO", "CULTO OFICIAL" ou "CANDIDATO"
   ativo: boolean;
   created_at?: string;
   updated_at?: string;

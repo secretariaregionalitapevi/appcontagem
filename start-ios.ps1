@@ -31,17 +31,41 @@ if ($port8081) {
     }
 }
 
-# Limpar cache do Expo
-Write-Host "🧹 Limpando cache do Expo..." -ForegroundColor Cyan
+# Limpar todos os caches possíveis
+Write-Host "🧹 Limpando caches (Expo, Metro, npm)..." -ForegroundColor Cyan
+
+# Cache do Expo
 if (Test-Path ".\.expo") {
     Remove-Item -Recurse -Force ".\.expo" -ErrorAction SilentlyContinue
+    Write-Host "  ✅ Cache do Expo limpo" -ForegroundColor Green
 }
 
-# Iniciar Expo com LAN
-Write-Host "🚀 Iniciando Expo com LAN..." -ForegroundColor Cyan
-Write-Host "📱 Seu IP: $ipAddress" -ForegroundColor Green
-Write-Host "📱 Certifique-se de que o iPhone está na mesma rede Wi-Fi" -ForegroundColor Yellow
+# Cache do Metro
+if (Test-Path "$env:TEMP\metro-*") {
+    Remove-Item -Recurse -Force "$env:TEMP\metro-*" -ErrorAction SilentlyContinue
+    Write-Host "  ✅ Cache do Metro limpo" -ForegroundColor Green
+}
+
+# Cache do npm (opcional, mas pode ajudar)
+Write-Host "  💡 Para limpar cache do npm completamente, execute: npm cache clean --force" -ForegroundColor Yellow
+
+# Limpar node_modules/.cache se existir
+if (Test-Path ".\node_modules\.cache") {
+    Remove-Item -Recurse -Force ".\node_modules\.cache" -ErrorAction SilentlyContinue
+    Write-Host "  ✅ Cache do node_modules limpo" -ForegroundColor Green
+}
+
 Write-Host ""
 
+# Iniciar Expo com LAN e otimizações
+Write-Host "🚀 Iniciando Expo com LAN e otimizações..." -ForegroundColor Cyan
+Write-Host "📱 Seu IP: $ipAddress" -ForegroundColor Green
+Write-Host "📱 Certifique-se de que o iPhone está na mesma rede Wi-Fi" -ForegroundColor Yellow
+Write-Host "⚡ Usando modo otimizado (--clear para garantir cache limpo)" -ForegroundColor Cyan
+Write-Host ""
+
+# Iniciar com cache limpo e otimizações
+# --clear: limpa cache do Metro
+# --host lan: permite conexão via rede local
 npx expo start --host lan --clear
 

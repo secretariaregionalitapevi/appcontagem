@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Platform,
@@ -12,11 +13,23 @@ import {
   TextInputKeyPressEventData,
   Modal,
   SafeAreaView,
+  Dimensions,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
 
 const { DROPDOWN_FIELD_CONTAINER, DROPDOWN_FIELD_INPUT, DROPDOWN_FIELD_DROPDOWN } = theme.zIndex;
+
+// Detectar se é mobile (apenas para apps nativos, não para web)
+const isMobileDevice = (): boolean => {
+  // IMPORTANTE: No web, SEMPRE retornar false para usar dropdown inline
+  // Modal só deve ser usado em apps nativos (iOS/Android)
+  if (Platform.OS === 'web') {
+    return false; // Sempre usar dropdown inline no web
+  }
+  // Para apps nativos, verificar se é iOS ou Android
+  return Platform.OS === 'ios' || Platform.OS === 'android';
+};
 
 interface AutocompleteOption {
   id: string;
@@ -67,16 +80,25 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
 
   // Filtrar opções baseado no texto digitado
   const filtered = React.useMemo(() => {
-    if (!searchText.trim() || searchText.trim().length < 2) {
+    if (!searchText.trim()) {
       return [];
     }
 
+    // Mostrar resultados mesmo com 1 caractere para melhor UX
     const query = normalize(searchText);
-    return options.filter(opt => {
+    const results = options.filter(opt => {
       const labelNorm = normalize(opt.label);
       const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
       return labelNorm.includes(query) || nomeNorm.includes(query);
     });
+    console.log('🔍 AutocompleteField - Filtro:', {
+      searchText,
+      query,
+      totalOptions: options.length,
+      filteredCount: results.length,
+      firstResults: results.slice(0, 5).map(r => r.label)
+    });
+    return results;
   }, [searchText, options]);
 
   // Sincronizar searchText com value quando muda externamente
@@ -93,8 +115,15 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
   const handleChange = (text: string) => {
     setSearchText(text);
     setSelectedIndex(-1); // Reset seleção ao digitar
-    if (text.trim().length >= 2) {
+    // Cancelar blur pendente ao digitar
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
+    // Mostrar lista mesmo com 1 caractere se houver resultados
+    if (text.trim().length >= 1) {
       setShowList(true);
+      console.log('🔍 AutocompleteField - Texto digitado:', text, 'Mostrando lista');
     } else {
       setShowList(false);
     }
@@ -108,7 +137,8 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
-    if (searchText.trim().length >= 2) {
+    // Mostrar lista se houver texto digitado
+    if (searchText.trim().length >= 1) {
       setShowList(true);
     }
   };
@@ -181,9 +211,9 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
     };
   }, []);
 
-  // Z-index MUITO ALTO para aparecer acima de TUDO
-  const containerZIndex = isFocused ? (Platform.OS === 'web' ? 99999 : 10) : 1;
-  const dropdownZIndex = Platform.OS === 'web' ? 99999 : 11;
+  // Z-index MUITO ALTO para aparecer acima de TUDO em TODAS as plataformas
+  const containerZIndex = isFocused ? 99999 : 1;
+  const dropdownZIndex = 999999; // Z-index extremamente alto para garantir que apareça acima de tudo
 
   return (
       <View
@@ -210,29 +240,27 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
       <View
         style={[
           styles.inputContainer,
-          Platform.OS === 'web'
-            ? {
-                position: 'relative' as ViewStyle['position'],
-                overflow: 'visible' as ViewStyle['overflow'],
-                zIndex: containerZIndex,
-              }
-            : {
-                overflow: 'visible' as ViewStyle['overflow'],
-                zIndex: containerZIndex,
-              },
+          {
+            position: 'relative' as ViewStyle['position'],
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+            ...(Platform.OS === 'web' ? {
+              backgroundColor: '#ffffff',
+            } : {}),
+          },
         ]}
       >
         <TextInput
           ref={inputRef}
           style={[
             styles.input,
-            error && styles.inputError,
+            error ? styles.inputError : undefined,
             Platform.OS === 'web'
               ? {
                   position: 'relative' as ViewStyle['position'],
                 }
-              : {},
-          ]}
+              : undefined,
+          ].filter(Boolean)}
           value={searchText}
           onChangeText={handleChange}
           onFocus={handleFocus}
@@ -292,19 +320,45 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
             : {})}
         />
 
-        {/* Dropdown inline simples */}
-        {showList && filtered.length > 0 && (
-          Platform.OS === 'web' ? (
+        {/* Dropdown - Modal no mobile, inline no web mas com z-index muito alto */}
+        {(() => {
+          const shouldShow = showList && filtered.length > 0;
+          const isWebDesktop = Platform.OS === 'web' && !isMobileDevice();
+          if (shouldShow) {
+            console.log('🔍 AutocompleteField - Renderizando dropdown:', {
+              showList,
+              filteredLength: filtered.length,
+              shouldShow,
+              isWebDesktop,
+              PlatformOS: Platform.OS,
+              isMobile: isMobileDevice(),
+              searchText
+            });
+          }
+          return shouldShow;
+        })() && (
+          Platform.OS === 'web' && !isMobileDevice() ? (
             <View
               style={[
                 styles.dropdown,
                 {
                   zIndex: dropdownZIndex,
+                  ...(Platform.OS === 'web' ? {
+                    // Forçar fundo opaco no web usando estilos inline
+                    // @ts-ignore
+                    backgroundColor: '#ffffff',
+                    // @ts-ignore
+                    background: '#ffffff',
+                    // @ts-ignore
+                    backgroundImage: 'none',
+                    // @ts-ignore
+                    backgroundClip: 'padding-box',
+                  } : {}),
                 },
               ]}
               onStartShouldSetResponder={() => false}
               onMoveShouldSetResponder={() => false}
-              pointerEvents="box-none"
+              pointerEvents="auto"
               {...(Platform.OS === 'web'
                 ? {
                     onMouseEnter: () => {
@@ -324,13 +378,27 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                   }
                 : {})}
             >
-              <FlatList
-                ref={flatListRef}
-                data={filtered}
-                keyExtractor={item => item.id}
-                renderItem={({ item, index }) => (
+              <View style={styles.dropdownInner}>
+                {filtered.map((item, index) => (
                   <TouchableOpacity
-                    style={[styles.item, index === selectedIndex && styles.itemSelected]}
+                    key={item.id}
+                    style={[
+                      styles.item,
+                      index === selectedIndex && styles.itemSelected,
+                      Platform.OS === 'web' ? {
+                        // Forçar fundo opaco em cada item
+                        // @ts-ignore
+                        backgroundColor: index === selectedIndex 
+                          ? theme.colors.primary + '15' 
+                          : '#ffffff',
+                        // @ts-ignore
+                        background: index === selectedIndex 
+                          ? theme.colors.primary + '15' 
+                          : '#ffffff',
+                        // @ts-ignore
+                        backgroundImage: 'none',
+                      } : {},
+                    ]}
                     onPress={() => {
                       // Cancelar blur pendente ao clicar
                       if (blurTimeoutRef.current) {
@@ -350,26 +418,22 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                     />
                     <Text style={styles.itemText}>{item.label}</Text>
                   </TouchableOpacity>
-                )}
-                style={styles.list}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
-                windowSize={5}
-              />
+                ))}
+              </View>
             </View>
           ) : (
+            // MOBILE: SEMPRE usar Modal para evitar sobreposição
             <Modal
-              visible={showList}
+              visible={showList && filtered.length > 0}
               transparent={true}
-              animationType="fade"
+              animationType="slide"
               onRequestClose={() => {
                 setShowList(false);
                 if (inputRef.current) {
                   inputRef.current.blur();
                 }
               }}
+              statusBarTranslucent={true}
             >
               <TouchableOpacity
                 style={styles.modalOverlay}
@@ -382,54 +446,59 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
                 }}
               >
                 <SafeAreaView style={styles.modalContainer}>
-                  <View style={styles.modalDropdown}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setShowList(false);
-                          if (inputRef.current) {
-                            inputRef.current.blur();
-                          }
-                        }}
-                        style={styles.modalCloseButton}
-                      >
-                        <FontAwesome5 name="times" size={20} color={theme.colors.text} />
-                      </TouchableOpacity>
-                    </View>
-                    <FlatList
-                      ref={flatListRef}
-                      data={filtered}
-                      keyExtractor={item => item.id}
-                      renderItem={({ item, index }) => (
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    onPress={(e) => e.stopPropagation()}
+                  >
+                    <View style={styles.modalDropdown}>
+                      <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
                         <TouchableOpacity
-                          style={[styles.modalItem, index === selectedIndex && styles.itemSelected]}
                           onPress={() => {
-                            setSelectedIndex(index);
-                            handleSelect(item);
                             setShowList(false);
                             if (inputRef.current) {
                               inputRef.current.blur();
                             }
                           }}
-                          activeOpacity={0.7}
+                          style={styles.modalCloseButton}
                         >
-                          <FontAwesome5
-                            name={icon}
-                            size={14}
-                            color={theme.colors.textSecondary}
-                            style={styles.icon}
-                          />
-                          <Text style={styles.modalItemText}>{item.label}</Text>
+                          <FontAwesome5 name="times" size={20} color={theme.colors.text} />
                         </TouchableOpacity>
-                      )}
-                      style={styles.modalList}
-                      keyboardShouldPersistTaps="handled"
-                      initialNumToRender={20}
-                      maxToRenderPerBatch={20}
-                      windowSize={10}
-                    />
-                  </View>
+                      </View>
+                      <FlatList
+                        ref={flatListRef}
+                        data={filtered}
+                        keyExtractor={item => item.id}
+                        renderItem={({ item, index }) => (
+                          <TouchableOpacity
+                            style={[styles.modalItem, index === selectedIndex && styles.itemSelected]}
+                            onPress={() => {
+                              setSelectedIndex(index);
+                              handleSelect(item);
+                              setShowList(false);
+                              if (inputRef.current) {
+                                inputRef.current.blur();
+                              }
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <FontAwesome5
+                              name={icon}
+                              size={14}
+                              color={theme.colors.textSecondary}
+                              style={styles.icon}
+                            />
+                            <Text style={styles.modalItemText}>{item.label}</Text>
+                          </TouchableOpacity>
+                        )}
+                        style={styles.modalList}
+                        keyboardShouldPersistTaps="handled"
+                        initialNumToRender={20}
+                        maxToRenderPerBatch={20}
+                        windowSize={10}
+                      />
+                    </View>
+                  </TouchableOpacity>
                 </SafeAreaView>
               </TouchableOpacity>
             </Modal>
@@ -437,7 +506,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
         )}
 
         {/* Mensagem quando não há resultados */}
-        {showList && filtered.length === 0 && searchText.trim().length >= 2 && (
+        {showList && filtered.length === 0 && searchText.trim().length >= 1 && (
           <View style={styles.dropdown}>
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
@@ -469,9 +538,11 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'relative' as ViewStyle['position'],
+    zIndex: 1,
     ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-      zIndex: isFocused ? 99998 : 1,
+      position: 'relative' as any,
+      overflow: 'visible' as any,
+      zIndex: 1,
     } : {}),
   },
   input: {
@@ -485,7 +556,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     minHeight: 48,
     ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff !important' as any,
+      backgroundColor: '#ffffff',
       opacity: 1,
     } : {}),
   },
@@ -507,17 +578,33 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
-    elevation: Platform.OS === 'android' ? 1000 : 15,
+    elevation: 999999,
     overflow: 'hidden',
-    zIndex: Platform.OS === 'web' ? 99999 : 11,
+    zIndex: 999999,
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
       opacity: 1,
       boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+      zIndex: 999999,
+    } : {}),
+  },
+  dropdownInner: {
+    backgroundColor: '#ffffff',
+    maxHeight: 300,
+    overflow: 'scroll',
+    width: '100%',
+    ...(Platform.OS === 'web' ? {
+      backgroundColor: '#ffffff',
+      opacity: 1,
+      // @ts-ignore
+      background: '#ffffff',
+      // @ts-ignore
+      backgroundImage: 'none',
     } : {}),
   },
   list: {
     maxHeight: 300,
+    backgroundColor: '#ffffff',
   },
   item: {
     flexDirection: 'row',
@@ -528,7 +615,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff !important' as any,
+      backgroundColor: '#ffffff',
+      // @ts-ignore
+      background: '#ffffff',
       opacity: 1,
     } : {}),
   },
@@ -567,10 +656,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+    zIndex: 99999,
+    elevation: 99999,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
+    zIndex: 99999,
+    elevation: 99999,
   },
   modalDropdown: {
     backgroundColor: theme.colors.surface,
@@ -581,7 +674,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 20,
+    elevation: 99999,
+    zIndex: 99999,
   },
   modalHeader: {
     flexDirection: 'row',
