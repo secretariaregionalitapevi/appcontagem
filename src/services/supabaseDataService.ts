@@ -1936,10 +1936,31 @@ export const supabaseDataService = {
     supabaseDataService.lastSaveKey = saveKey;
     
     try {
-      // 🛡️ VERIFICAR DUPLICATA ANTES DE SALVAR - CRÍTICO para evitar duplicação na fila
+      // 🛡️ VERIFICAÇÃO RÁPIDA DE DUPLICATA (mais eficiente - verifica primeiro)
+      const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+      const dataRegistro = new Date(registro.data_hora_registro);
+      const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
+      
+      // Verificação rápida: mesmo pessoa_id, comum_id, cargo_id e data
+      const isDuplicataRapida = registrosPendentes.some(r => {
+        const rData = new Date(r.data_hora_registro);
+        const rDataStr = rData.toISOString().split('T')[0];
+        return (
+          r.pessoa_id === registro.pessoa_id &&
+          r.comum_id === registro.comum_id &&
+          r.cargo_id === registro.cargo_id &&
+          rDataStr === dataRegistroStr &&
+          r.status_sincronizacao === 'pending'
+        );
+      });
+      
+      if (isDuplicataRapida) {
+        console.warn('🚨 [BLOQUEIO] Duplicata detectada - NÃO será salvo');
+        return;
+      }
+      
+      // 🛡️ VERIFICAÇÃO DETALHADA DE DUPLICATA (apenas se passou na rápida)
       try {
-        const registrosPendentes = await this.getRegistrosPendentesFromLocal();
-        
         // Buscar dados para comparação (com tratamento de erro)
         let comuns: Comum[] = [];
         let cargos: Cargo[] = [];
