@@ -437,13 +437,26 @@ export const RegisterScreen: React.FC = () => {
     };
 
     try {
+      console.log('🚀 Iniciando envio de registro...', {
+        isOnline,
+        pessoa_id: registro.pessoa_id,
+        comum_id: registro.comum_id,
+        cargo_id: registro.cargo_id,
+      });
+      
       const result = await (offlineSyncService as any).createRegistro(registro);
       
-      // Atualizar contador da fila após criar registro
-      await refreshCount();
-
       console.log('📋 Resultado do createRegistro:', result);
       console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
+      
+      // Atualizar contador da fila após criar registro (sempre, mesmo se houver erro)
+      try {
+        await refreshCount();
+        console.log('✅ Contador da fila atualizado');
+      } catch (countError) {
+        console.warn('⚠️ Erro ao atualizar contador da fila:', countError);
+        // Não bloquear o fluxo por erro no contador
+      }
 
       if (result.success) {
         // Verificar se foi enviado com sucesso ou salvo localmente
@@ -710,12 +723,49 @@ export const RegisterScreen: React.FC = () => {
             setDuplicateModalVisible(true);
           }
         } else {
-          showToast.error('Erro', result.error || 'Erro ao enviar registro');
+          // Erro não é duplicata - mostrar erro
+          const errorMessage = result.error || 'Erro ao enviar registro';
+          console.error('❌ Erro ao enviar registro:', errorMessage);
+          showToast.error('Erro', errorMessage);
+          
+          // Se for erro de salvamento local, tentar salvar manualmente como fallback
+          if (errorMessage.includes('salvar') || errorMessage.includes('localmente')) {
+            console.log('🔄 Tentando salvar registro manualmente como fallback...');
+            try {
+              await supabaseDataService.saveRegistroToLocal({
+                ...registro,
+                status_sincronizacao: 'pending',
+              });
+              console.log('✅ Registro salvo manualmente com sucesso');
+              showToast.info('Salvo offline', 'Registro salvo na fila local');
+              await refreshCount();
+            } catch (fallbackError) {
+              console.error('❌ Erro ao salvar registro manualmente:', fallbackError);
+            }
+          }
         }
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao processar o registro');
-      console.error('Erro ao criar registro:', error);
+      console.error('❌ ERRO CRÍTICO ao processar registro:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Tentar salvar localmente como último recurso
+      try {
+        console.log('🔄 Tentando salvar registro localmente como último recurso...');
+        await supabaseDataService.saveRegistroToLocal({
+          ...registro,
+          status_sincronizacao: 'pending',
+        });
+        console.log('✅ Registro salvo localmente como último recurso');
+        showToast.warning('Salvo offline', 'Registro salvo na fila. Será enviado quando possível.');
+        await refreshCount();
+      } catch (fallbackError) {
+        console.error('❌ ERRO CRÍTICO: Não foi possível salvar registro nem localmente:', fallbackError);
+        Alert.alert(
+          'Erro Crítico',
+          'Não foi possível salvar o registro. Tente novamente ou verifique sua conexão.'
+        );
+      }
     } finally {
       setLoading(false);
     }

@@ -1913,68 +1913,129 @@ export const supabaseDataService = {
   },
 
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
-    // 🛡️ VERIFICAR DUPLICATA ANTES DE SALVAR - CRÍTICO para evitar duplicação na fila
-    const registrosPendentes = await this.getRegistrosPendentesFromLocal();
-    
-    // Buscar dados para comparação
-    const [comuns, cargos, pessoas] = await Promise.all([
-      this.getComunsFromLocal(),
-      this.getCargosFromLocal(),
-      this.getPessoasFromLocal(
-        registro.comum_id,
-        registro.cargo_id,
-        registro.instrumento_id || undefined
-      ),
-    ]);
+    try {
+      // 🛡️ VERIFICAR DUPLICATA ANTES DE SALVAR - CRÍTICO para evitar duplicação na fila
+      // Mas não bloquear salvamento se houver erro na verificação
+      try {
+        const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+        
+        // Buscar dados para comparação (com tratamento de erro)
+        let comuns: Comum[] = [];
+        let cargos: Cargo[] = [];
+        let pessoas: Pessoa[] = [];
+        
+        try {
+          [comuns, cargos] = await Promise.all([
+            this.getComunsFromLocal(),
+            this.getCargosFromLocal(),
+          ]);
+        } catch (error) {
+          console.warn('⚠️ Erro ao buscar comuns/cargos para validação de duplicata:', error);
+        }
 
-    const comum = comuns.find(c => c.id === registro.comum_id);
-    const cargo = cargos.find(c => c.id === registro.cargo_id);
-    const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
-    
-    if (comum && cargo && pessoa) {
-      const nomeBusca = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`).trim().toUpperCase();
-      const comumBusca = comum.nome.toUpperCase();
-      const cargoBusca = (pessoa.cargo_real || cargo.nome).toUpperCase();
-      const dataRegistro = new Date(registro.data_hora_registro);
-      const dataRegistroStr = dataRegistro.toISOString().split('T')[0]; // YYYY-MM-DD
-
-      // Verificar se já existe registro duplicado na fila
-      for (const r of registrosPendentes) {
-        const rComum = comuns.find(c => c.id === r.comum_id);
-        const rCargo = cargos.find(c => c.id === r.cargo_id);
-        const rPessoas = await this.getPessoasFromLocal(
-          r.comum_id,
-          r.cargo_id,
-          r.instrumento_id || undefined
-        );
-        const rPessoa = rPessoas.find(p => p.id === r.pessoa_id);
-
-        if (rComum && rCargo && rPessoa) {
-          const rNome = (rPessoa.nome_completo || `${rPessoa.nome} ${rPessoa.sobrenome}`).trim().toUpperCase();
-          const rComumBusca = rComum.nome.toUpperCase();
-          const rCargoBusca = (rPessoa.cargo_real || rCargo.nome).toUpperCase();
-          const rData = new Date(r.data_hora_registro);
-          const rDataStr = rData.toISOString().split('T')[0];
-
-          // Se for duplicata (mesmo nome, comum, cargo e data), não salvar novamente
-          if (
-            rNome === nomeBusca &&
-            rComumBusca === comumBusca &&
-            rCargoBusca === cargoBusca &&
-            rDataStr === dataRegistroStr &&
-            r.id !== registro.id // Não é o mesmo registro
-          ) {
-            console.warn('🚨 Duplicata detectada na fila, não salvando novamente:', {
-              nome: nomeBusca,
-              comum: comumBusca,
-              cargo: cargoBusca,
-              data: dataRegistroStr,
-            });
-            return; // Não salvar duplicata
+        // Verificar se é registro manual (pessoa_id começa com "manual_")
+        const isManualRegistro = registro.pessoa_id.startsWith('manual_');
+        
+        if (!isManualRegistro) {
+          try {
+            pessoas = await this.getPessoasFromLocal(
+              registro.comum_id,
+              registro.cargo_id,
+              registro.instrumento_id || undefined
+            );
+          } catch (error) {
+            console.warn('⚠️ Erro ao buscar pessoas para validação de duplicata:', error);
           }
         }
+
+        const comum = comuns.find(c => c.id === registro.comum_id);
+        const cargo = cargos.find(c => c.id === registro.cargo_id);
+        const pessoa = isManualRegistro ? null : pessoas.find(p => p.id === registro.pessoa_id);
+        
+        // Preparar dados para comparação
+        let nomeBusca = '';
+        let comumBusca = '';
+        let cargoBusca = '';
+        
+        if (isManualRegistro) {
+          // Para registros manuais, usar o nome do pessoa_id
+          nomeBusca = registro.pessoa_id.replace(/^manual_/, '').trim().toUpperCase();
+          comumBusca = comum?.nome.toUpperCase() || '';
+          cargoBusca = cargo?.nome.toUpperCase() || '';
+        } else if (comum && cargo && pessoa) {
+          nomeBusca = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`).trim().toUpperCase();
+          comumBusca = comum.nome.toUpperCase();
+          cargoBusca = (pessoa.cargo_real || cargo.nome).toUpperCase();
+        } else {
+          // Se não conseguiu buscar dados, pular validação de duplicata
+          console.warn('⚠️ Dados incompletos para validação de duplicata, pulando verificação');
+        }
+
+        if (nomeBusca && comumBusca && cargoBusca) {
+          const dataRegistro = new Date(registro.data_hora_registro);
+          const dataRegistroStr = dataRegistro.toISOString().split('T')[0]; // YYYY-MM-DD
+
+          // Verificar se já existe registro duplicado na fila
+          for (const r of registrosPendentes) {
+            try {
+              const rIsManual = r.pessoa_id.startsWith('manual_');
+              const rComum = comuns.find(c => c.id === r.comum_id);
+              const rCargo = cargos.find(c => c.id === r.cargo_id);
+              
+              let rNome = '';
+              let rComumBusca = '';
+              let rCargoBusca = '';
+              
+              if (rIsManual) {
+                rNome = r.pessoa_id.replace(/^manual_/, '').trim().toUpperCase();
+                rComumBusca = rComum?.nome.toUpperCase() || '';
+                rCargoBusca = rCargo?.nome.toUpperCase() || '';
+              } else {
+                const rPessoas = await this.getPessoasFromLocal(
+                  r.comum_id,
+                  r.cargo_id,
+                  r.instrumento_id || undefined
+                );
+                const rPessoa = rPessoas.find(p => p.id === r.pessoa_id);
+                
+                if (rComum && rCargo && rPessoa) {
+                  rNome = (rPessoa.nome_completo || `${rPessoa.nome} ${rPessoa.sobrenome}`).trim().toUpperCase();
+                  rComumBusca = rComum.nome.toUpperCase();
+                  rCargoBusca = (rPessoa.cargo_real || rCargo.nome).toUpperCase();
+                }
+              }
+
+              if (rNome && rComumBusca && rCargoBusca) {
+                const rData = new Date(r.data_hora_registro);
+                const rDataStr = rData.toISOString().split('T')[0];
+
+                // Se for duplicata (mesmo nome, comum, cargo e data), não salvar novamente
+                if (
+                  rNome === nomeBusca &&
+                  rComumBusca === comumBusca &&
+                  rCargoBusca === cargoBusca &&
+                  rDataStr === dataRegistroStr &&
+                  r.id !== registro.id // Não é o mesmo registro
+                ) {
+                  console.warn('🚨 Duplicata detectada na fila, não salvando novamente:', {
+                    nome: nomeBusca,
+                    comum: comumBusca,
+                    cargo: cargoBusca,
+                    data: dataRegistroStr,
+                  });
+                  return; // Não salvar duplicata
+                }
+              }
+            } catch (error) {
+              // Se houver erro ao verificar um registro, continuar com os outros
+              console.warn('⚠️ Erro ao verificar duplicata para registro:', r.id, error);
+            }
+          }
+        }
+      } catch (error) {
+        // Se houver erro na validação de duplicata, logar mas continuar com o salvamento
+        console.warn('⚠️ Erro na validação de duplicata, continuando com salvamento:', error);
       }
-    }
 
     // Sempre usar UUID v4 válido
     const id = registro.id && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(registro.id)
@@ -2005,26 +2066,36 @@ export const supabaseDataService = {
       return;
     }
 
-    // Para mobile, usar SQLite
-    const db = await getDatabase();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO registros_presenca 
-       (id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        registro.pessoa_id,
-        registro.comum_id,
-        registro.cargo_id,
-        registro.instrumento_id || null,
-        registro.local_ensaio,
-        registro.data_hora_registro,
-        registro.usuario_responsavel,
-        registro.status_sincronizacao,
-        registro.created_at || now,
-        registro.updated_at || now,
-      ]
-    );
+      // Para mobile, usar SQLite
+      try {
+        const db = await getDatabase();
+        await db.runAsync(
+          `INSERT OR REPLACE INTO registros_presenca 
+           (id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            registro.pessoa_id,
+            registro.comum_id,
+            registro.cargo_id,
+            registro.instrumento_id || null,
+            registro.local_ensaio,
+            registro.data_hora_registro,
+            registro.usuario_responsavel,
+            registro.status_sincronizacao,
+            registro.created_at || now,
+            registro.updated_at || now,
+          ]
+        );
+        console.log('✅ Registro salvo no SQLite com sucesso (ID:', id, ')');
+      } catch (error) {
+        console.error('❌ ERRO CRÍTICO ao salvar registro no SQLite:', error);
+        throw error; // Re-lançar erro para ser tratado no nível superior
+      }
+    } catch (error) {
+      console.error('❌ ERRO CRÍTICO em saveRegistroToLocal:', error);
+      throw error; // Re-lançar erro para ser tratado no nível superior
+    }
   },
 
   async updateRegistroStatus(id: string, status: 'pending' | 'synced'): Promise<void> {
@@ -2052,11 +2123,39 @@ export const supabaseDataService = {
   },
 
   async countRegistrosPendentes(): Promise<number> {
-    const db = await getDatabase();
-    const result = (await db.getFirstAsync(
-      "SELECT COUNT(*) as count FROM registros_presenca WHERE status_sincronizacao = 'pending'"
-    )) as { count: number } | null;
-    return result?.count || 0;
+    if (Platform.OS === 'web') {
+      // Para web, usar cache em memória ou AsyncStorage
+      if (memoryCache.registros.length > 0) {
+        return memoryCache.registros.filter(r => r.status_sincronizacao === 'pending').length;
+      }
+      try {
+        const cached = await robustGetItem('cached_registros');
+        if (cached) {
+          const registros = JSON.parse(cached);
+          // Validar e sanitizar dados
+          const validRegistros = registros.filter((r: any) => 
+            isValidString(r.id) && r.status_sincronizacao
+          );
+          memoryCache.registros = validRegistros;
+          return validRegistros.filter((r: RegistroPresenca) => r.status_sincronizacao === 'pending').length;
+        }
+      } catch (error) {
+        console.warn('⚠️ Erro ao contar registros do cache robusto:', error);
+      }
+      return 0;
+    }
+
+    // Para mobile, usar SQLite
+    try {
+      const db = await getDatabase();
+      const result = (await db.getFirstAsync(
+        "SELECT COUNT(*) as count FROM registros_presenca WHERE status_sincronizacao = 'pending'"
+      )) as { count: number } | null;
+      return result?.count || 0;
+    } catch (error) {
+      console.error('❌ Erro ao contar registros pendentes:', error);
+      return 0;
+    }
   },
 
   /**

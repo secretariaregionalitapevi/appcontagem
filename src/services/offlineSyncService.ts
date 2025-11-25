@@ -295,7 +295,17 @@ export const offlineSyncService = {
   ): Promise<{ success: boolean; error?: string }> {
     // 🚨 OTIMIZAÇÃO: Medir tempo de processamento
     const inicioTempo = performance.now();
-    const isOnline = await this.isOnline();
+    
+    // Verificar status online com tratamento de erro robusto
+    let isOnline = false;
+    try {
+      isOnline = await this.isOnline();
+      console.log('🔍 Status de conexão verificado:', isOnline ? 'Online' : 'Offline');
+    } catch (error) {
+      console.warn('⚠️ Erro ao verificar status online, assumindo offline:', error);
+      // Se houver erro na verificação, assumir offline para garantir que salve localmente
+      isOnline = false;
+    }
 
     // 🛡️ VERIFICAÇÃO DE DUPLICADOS NO SUPABASE PRIMEIRO (se online)
     // Deve verificar ANTES de salvar em qualquer lugar
@@ -665,16 +675,27 @@ export const offlineSyncService = {
       }
     } else {
       // Offline: salvar localmente como pending
-      await supabaseDataService.saveRegistroToLocal({
-        ...registro,
-        id: uuidFinal,
-        status_sincronizacao: 'pending',
-      });
-      console.log('📱 Modo offline, registro salvo localmente');
-      return {
-        success: true,
-        error: 'Registro salvo localmente. Será sincronizado quando a conexão voltar.',
-      };
+      try {
+        console.log('📱 Modo offline detectado, salvando registro localmente...');
+        await supabaseDataService.saveRegistroToLocal({
+          ...registro,
+          id: uuidFinal,
+          status_sincronizacao: 'pending',
+        });
+        console.log('✅ Registro salvo localmente com sucesso (ID:', uuidFinal, ')');
+        return {
+          success: true,
+          error: 'Registro salvo localmente. Será sincronizado quando a conexão voltar.',
+        };
+      } catch (error) {
+        console.error('❌ ERRO CRÍTICO ao salvar registro localmente quando offline:', error);
+        // Mesmo com erro, tentar retornar sucesso para não bloquear o usuário
+        // O erro será logado para debug
+        return {
+          success: false,
+          error: `Erro ao salvar registro localmente: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
     }
   },
 };
