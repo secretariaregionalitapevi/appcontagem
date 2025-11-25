@@ -2105,8 +2105,7 @@ export const supabaseDataService = {
         ? registro.id
         : uuidv4();
       
-      // 🚨 VERIFICAÇÃO CRÍTICA: Verificar se UUID já existe na fila
-      const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+      // 🚨 VERIFICAÇÃO CRÍTICA: Verificar se UUID já existe na fila (reutilizar variável já declarada)
       const existeComMesmoId = registrosPendentes.find(r => r.id === id);
       if (existeComMesmoId) {
         console.warn('🚨 [BLOQUEIO] Registro com mesmo UUID já existe na fila');

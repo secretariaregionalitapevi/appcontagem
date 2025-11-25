@@ -134,11 +134,7 @@ export const RegisterScreen: React.FC = () => {
           ? '1 item sincronizado'
           : `${result.successCount} itens sincronizados`;
         // Mostrar apenas mensagem, sem título (igual ao contpedras)
-        console.log(`📱 [TOAST] Exibindo toast de sucesso: "${mensagem}" (Platform: ${Platform.OS})`);
         showToast.success(mensagem);
-        console.log(`✅ [SYNC] ${result.successCount} registro(s) sincronizado(s) com sucesso`);
-      } else if (result.totalCount > 0) {
-        console.warn('⚠️ [SYNC] Nenhum registro foi enviado (pode haver erros)');
       }
     } catch (error) {
       // Não logar erros de rede como erros críticos

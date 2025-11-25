@@ -136,12 +136,6 @@ export const showToast = {
       // No mobile, usar apenas text1 se não houver message (igual ao contpedras)
       // Garantir que funcione no iOS e Android
       try {
-        console.log(`📱 [TOAST] Tentando exibir toast (Platform: ${Platform.OS}):`, {
-          type: 'success',
-          text1: finalTitle || finalMessage,
-          text2: finalTitle ? finalMessage : undefined,
-        });
-        
         Toast.show({
           type: 'success',
           text1: finalTitle || finalMessage,
@@ -153,19 +147,13 @@ export const showToast = {
           text1Style: { fontSize: 14, fontWeight: '600' },
           text2Style: { fontSize: 12 },
         });
-        
-        console.log(`✅ [TOAST] Toast exibido com sucesso`);
       } catch (toastError) {
         // Fallback se Toast falhar
-        console.error(`❌ [TOAST] Erro ao exibir toast:`, toastError);
-        console.log(`✅ ${finalMessage}`);
         if (Platform.OS !== 'web') {
           Alert.alert('Sucesso', finalMessage);
         }
       }
     } else {
-      console.warn(`⚠️ [TOAST] Toast não disponível (Platform: ${Platform.OS})`);
-      console.log(`✅ ${finalMessage}`);
       // Fallback para iOS se Toast não estiver disponível
       if (Platform.OS === 'ios') {
         Alert.alert('Sucesso', finalMessage);
