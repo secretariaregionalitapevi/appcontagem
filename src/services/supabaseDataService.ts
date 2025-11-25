@@ -1913,10 +1913,19 @@ export const supabaseDataService = {
   },
 
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
+    console.log('💾 [SAVE TO LOCAL] Iniciando salvamento de registro na fila local...', {
+      pessoa_id: registro.pessoa_id,
+      comum_id: registro.comum_id,
+      cargo_id: registro.cargo_id,
+      status: registro.status_sincronizacao,
+      tem_id: !!registro.id,
+    });
+    
     try {
       // 🛡️ VERIFICAR DUPLICATA ANTES DE SALVAR - CRÍTICO para evitar duplicação na fila
       // Mas não bloquear salvamento se houver erro na verificação
       try {
+        console.log('🔍 [SAVE TO LOCAL] Verificando duplicatas...');
         const registrosPendentes = await this.getRegistrosPendentesFromLocal();
         
         // Buscar dados para comparação (com tratamento de erro)
@@ -2017,16 +2026,16 @@ export const supabaseDataService = {
                   rDataStr === dataRegistroStr &&
                   r.id !== registro.id // Não é o mesmo registro
                 ) {
-                  console.warn('🚨 Duplicata detectada na fila, não salvando novamente:', {
+                  console.warn('⚠️ [DUPLICATA CHECK] Duplicata detectada na fila:', {
                     nome: nomeBusca,
                     comum: comumBusca,
                     cargo: cargoBusca,
                     data: dataRegistroStr,
                   });
-                  // 🚨 CRÍTICO: Não retornar aqui - continuar e salvar mesmo assim se for necessário
+                  // 🚨 CRÍTICO: Em modo offline, SEMPRE salvar mesmo se for duplicata
                   // A validação de duplicata é apenas um aviso, não deve bloquear salvamento offline
-                  console.warn('⚠️ AVISO: Duplicata detectada, mas continuando com salvamento (modo offline)');
-                  // Não retornar - continuar com o salvamento
+                  console.warn('⚠️ [DUPLICATA CHECK] AVISO: Duplicata detectada, mas CONTINUANDO com salvamento (modo offline)');
+                  // NÃO retornar - continuar com o salvamento sempre
                 }
               }
             } catch (error) {
@@ -2051,6 +2060,15 @@ export const supabaseDataService = {
         created_at: registro.created_at || now,
         updated_at: registro.updated_at || now,
       };
+      
+      console.log('📝 [SAVE TO LOCAL] Registro preparado:', {
+        id,
+        pessoa_id: registroCompleto.pessoa_id,
+        comum_id: registroCompleto.comum_id,
+        cargo_id: registroCompleto.cargo_id,
+        status: registroCompleto.status_sincronizacao,
+        platform: Platform.OS,
+      });
 
       if (Platform.OS === 'web') {
         // Para web, usar cache em memória e AsyncStorage
@@ -2063,18 +2081,32 @@ export const supabaseDataService = {
 
         try {
           await robustSetItem('cached_registros', JSON.stringify(memoryCache.registros));
-          console.log('✅ Registro salvo no cache web com sucesso (ID:', id, ')');
+          console.log('✅ [SAVE TO LOCAL] Registro salvo no cache web (ID:', id, ')');
+          console.log('📊 [SAVE TO LOCAL] Total de registros no cache:', memoryCache.registros.length);
+          
+          // Verificar se foi realmente salvo
+          const verificarCache = await robustGetItem('cached_registros');
+          if (verificarCache) {
+            const registrosVerificados = JSON.parse(verificarCache);
+            const encontrado = registrosVerificados.find((r: any) => r.id === id);
+            if (encontrado) {
+              console.log('✅ [SAVE TO LOCAL] CONFIRMADO: Registro encontrado no cache após salvar!');
+            } else {
+              console.error('❌ [SAVE TO LOCAL] ERRO: Registro NÃO encontrado no cache após salvar!');
+            }
+          }
         } catch (error) {
-          console.error('❌ ERRO CRÍTICO ao salvar registro no cache web:', error);
+          console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO ao salvar registro no cache web:', error);
           // Tentar salvar novamente sem cache em memória
           try {
             const registrosExistentes = await robustGetItem('cached_registros');
             const registros = registrosExistentes ? JSON.parse(registrosExistentes) : [];
             registros.push(registroCompleto);
             await robustSetItem('cached_registros', JSON.stringify(registros));
-            console.log('✅ Registro salvo no cache web (segunda tentativa)');
+            console.log('✅ [SAVE TO LOCAL] Registro salvo no cache web (segunda tentativa)');
+            console.log('📊 [SAVE TO LOCAL] Total de registros após segunda tentativa:', registros.length);
           } catch (retryError) {
-            console.error('❌ ERRO CRÍTICO: Falha mesmo na segunda tentativa:', retryError);
+            console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO: Falha mesmo na segunda tentativa:', retryError);
             throw retryError;
           }
         }
@@ -2102,9 +2134,26 @@ export const supabaseDataService = {
             registro.updated_at || now,
           ]
         );
-        console.log('✅ Registro salvo no SQLite com sucesso (ID:', id, ')');
+        console.log('✅ [SAVE TO LOCAL] Registro salvo no SQLite (ID:', id, ')');
+        
+        // Verificar se foi realmente salvo
+        try {
+          const db = await getDatabase();
+          const verificarRegistro = await db.getFirstAsync(
+            'SELECT * FROM registros_presenca WHERE id = ?',
+            [id]
+          ) as RegistroPresenca | null;
+          
+          if (verificarRegistro) {
+            console.log('✅ [SAVE TO LOCAL] CONFIRMADO: Registro encontrado no SQLite após salvar!');
+          } else {
+            console.error('❌ [SAVE TO LOCAL] ERRO: Registro NÃO encontrado no SQLite após salvar!');
+          }
+        } catch (verifyError) {
+          console.warn('⚠️ [SAVE TO LOCAL] Erro ao verificar salvamento no SQLite (não crítico):', verifyError);
+        }
       } catch (error) {
-        console.error('❌ ERRO CRÍTICO ao salvar registro no SQLite:', error);
+        console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO ao salvar registro no SQLite:', error);
         // Tentar novamente
         try {
           const db = await getDatabase();
@@ -2126,9 +2175,9 @@ export const supabaseDataService = {
               registro.updated_at || now,
             ]
           );
-          console.log('✅ Registro salvo no SQLite (segunda tentativa)');
+          console.log('✅ [SAVE TO LOCAL] Registro salvo no SQLite (segunda tentativa)');
         } catch (retryError) {
-          console.error('❌ ERRO CRÍTICO: Falha mesmo na segunda tentativa SQLite:', retryError);
+          console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO: Falha mesmo na segunda tentativa SQLite:', retryError);
           throw retryError;
         }
       }

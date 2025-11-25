@@ -378,23 +378,43 @@ export const RegisterScreen: React.FC = () => {
     // Esta é a verificação mais confiável e funciona tanto na web quanto no mobile
     let isOfflineNow = false;
     
+    // Verificação PRIMÁRIA: navigator.onLine (mais confiável)
     if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
-      // Na web, usar navigator.onLine diretamente (mais confiável)
       isOfflineNow = !navigator.onLine;
-      console.log('🌐 Web - navigator.onLine:', navigator.onLine, 'isOfflineNow:', isOfflineNow);
+      console.log('🌐 [OFFLINE CHECK] Web - navigator.onLine:', navigator.onLine, '→ isOfflineNow:', isOfflineNow);
+    } else if (typeof navigator !== 'undefined' && 'onLine' in navigator) {
+      // Mobile com suporte a navigator.onLine
+      isOfflineNow = !navigator.onLine;
+      console.log('📱 [OFFLINE CHECK] Mobile - navigator.onLine:', navigator.onLine, '→ isOfflineNow:', isOfflineNow);
     } else {
-      // No mobile, usar NetInfo mas também verificar navigator.onLine se disponível
+      // Fallback: usar hook isOnline
       isOfflineNow = !isOnline;
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        isOfflineNow = true; // Se navigator diz offline, confiar nele
-      }
-      console.log('📱 Mobile - isOnline:', isOnline, 'navigator.onLine:', typeof navigator !== 'undefined' ? navigator.onLine : 'N/A', 'isOfflineNow:', isOfflineNow);
+      console.log('📱 [OFFLINE CHECK] Mobile - isOnline (hook):', isOnline, '→ isOfflineNow:', isOfflineNow);
     }
     
-    // 🚨 VERIFICAÇÃO ADICIONAL: Tentar fazer uma requisição simples para confirmar offline
-    // Se navigator.onLine for false, assumir offline imediatamente (como BACKUPCONT)
+    // 🚨 VERIFICAÇÃO SECUNDÁRIA: Se qualquer verificação indicar offline, assumir offline
+    // Isso garante que mesmo com inconsistências, salvamos na fila
+    if (!isOfflineNow && !isOnline) {
+      isOfflineNow = true;
+      console.log('⚠️ [OFFLINE CHECK] Conflito detectado - hook diz offline, forçando isOfflineNow = true');
+    }
+    
+    // 🚨 VERIFICAÇÃO FINAL: Se navigator.onLine for false, SEMPRE assumir offline (como BACKUPCONT)
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      isOfflineNow = true;
+      console.log('📴 [OFFLINE CHECK] navigator.onLine = false, forçando offline');
+    }
+    
+    console.log('🔍 [OFFLINE CHECK] RESULTADO FINAL:', {
+      isOfflineNow,
+      navigatorOnLine: typeof navigator !== 'undefined' ? navigator.onLine : 'N/A',
+      isOnline,
+      platform: Platform.OS,
+    });
+    
+    // Se estiver offline, salvar IMEDIATAMENTE na fila (como BACKUPCONT)
     if (isOfflineNow) {
-      console.log('📴 OFFLINE DETECTADO - Salvando diretamente na fila (sem tentar enviar)');
+      console.log('📴 [OFFLINE MODE] OFFLINE DETECTADO - Salvando diretamente na fila (sem tentar enviar)');
       try {
         console.log('📴 Offline detectado - adicionando à fila imediatamente');
         
@@ -458,14 +478,50 @@ export const RegisterScreen: React.FC = () => {
           });
           
           await supabaseDataService.saveRegistroToLocal(registro);
-          console.log('✅ Registro salvo na fila local com sucesso');
+          console.log('✅ [OFFLINE SAVE] Registro salvo na fila local');
+          
+          // 🚨 VERIFICAÇÃO CRÍTICA: Confirmar que o registro foi realmente salvo
+          try {
+            const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
+            const registroSalvo = registrosPendentes.find(r => 
+              r.pessoa_id === registro.pessoa_id &&
+              r.comum_id === registro.comum_id &&
+              r.cargo_id === registro.cargo_id &&
+              r.status_sincronizacao === 'pending'
+            );
+            
+            if (registroSalvo) {
+              console.log('✅ [OFFLINE SAVE] CONFIRMADO: Registro encontrado na fila!', {
+                id: registroSalvo.id,
+                totalNaFila: registrosPendentes.length,
+              });
+            } else {
+              console.error('❌ [OFFLINE SAVE] ERRO: Registro NÃO encontrado na fila após salvar!');
+              console.error('   Tentando salvar novamente...');
+              // Tentar salvar novamente
+              const registroComId = {
+                ...registro,
+                id: registro.id || generateExternalUUID(),
+              };
+              await supabaseDataService.saveRegistroToLocal(registroComId);
+              console.log('✅ [OFFLINE SAVE] Registro salvo novamente (segunda tentativa)');
+            }
+          } catch (verifyError) {
+            console.warn('⚠️ [OFFLINE SAVE] Erro ao verificar salvamento (não crítico):', verifyError);
+          }
           
           // Atualizar contador da fila IMEDIATAMENTE
           try {
+            const countBefore = await supabaseDataService.countRegistrosPendentes();
             await refreshCount();
-            console.log('✅ Contador da fila atualizado');
+            const countAfter = await supabaseDataService.countRegistrosPendentes();
+            console.log('📊 [OFFLINE SAVE] Contador da fila:', {
+              antes: countBefore,
+              depois: countAfter,
+              atualizado: countAfter > countBefore || countAfter === countBefore,
+            });
           } catch (countError) {
-            console.warn('⚠️ Erro ao atualizar contador (não crítico):', countError);
+            console.warn('⚠️ [OFFLINE SAVE] Erro ao atualizar contador (não crítico):', countError);
             // Não bloquear o fluxo por erro no contador
           }
           
