@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { useAuthContext } from '../context/AuthContext';
 import { SimpleSelectField } from '../components/SimpleSelectField';
@@ -363,6 +364,11 @@ export const RegisterScreen: React.FC = () => {
       setRefreshing(true);
       console.log('🔄 Pull-to-refresh: recarregando dados...');
       
+      // Mostrar feedback visual imediato
+      if (Platform.OS !== 'web') {
+        showToast.info('Atualizando...', 'Recarregando dados');
+      }
+      
       // Recarregar dados iniciais
       await loadInitialData();
       
@@ -373,6 +379,11 @@ export const RegisterScreen: React.FC = () => {
       
       // Atualizar contador
       await refreshCount();
+      
+      // Feedback de sucesso
+      if (Platform.OS !== 'web') {
+        showToast.success('Atualizado!', 'Dados recarregados com sucesso');
+      }
     } catch (error) {
       console.error('❌ Erro ao atualizar:', error);
       showToast.error('Erro', 'Não foi possível atualizar os dados');
@@ -1247,12 +1258,12 @@ export const RegisterScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           collapsable={false}
           nestedScrollEnabled={true}
-          showsVerticalScrollIndicator={true}
+          showsVerticalScrollIndicator={Platform.OS !== 'web'}
           scrollEnabled={true}
           bounces={Platform.OS === 'ios'}
-          alwaysBounceVertical={false}
+          alwaysBounceVertical={Platform.OS === 'ios'}
           scrollEventThrottle={16}
-          removeClippedSubviews={false}
+          removeClippedSubviews={Platform.OS === 'android'}
           style={Platform.OS === 'web' 
             ? { 
                 position: 'relative' as const, 
@@ -1261,6 +1272,7 @@ export const RegisterScreen: React.FC = () => {
               } 
             : { 
                 flex: 1,
+                backgroundColor: theme.colors.background,
               }}
           refreshControl={
             Platform.OS !== 'web' ? (
@@ -1269,6 +1281,10 @@ export const RegisterScreen: React.FC = () => {
                 onRefresh={onRefresh}
                 colors={[theme.colors.primary]}
                 tintColor={theme.colors.primary}
+                progressViewOffset={Platform.OS === 'android' ? 20 : 0}
+                title="Puxe para atualizar"
+                titleColor={theme.colors.textSecondary}
+                progressBackgroundColor={theme.colors.surface}
               />
             ) : undefined
           }
@@ -1599,6 +1615,8 @@ const styles = StyleSheet.create({
         }
       : {
           overflow: 'visible' as const,
+          paddingHorizontal: theme.spacing.md, // Menos padding horizontal no mobile
+          paddingTop: theme.spacing.md, // Menos padding top no mobile
         }),
   },
   loadingContainer: {
@@ -1618,17 +1636,19 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'visible' as const,
+    shadowOpacity: Platform.OS === 'web' ? 0.1 : 0.15,
+    shadowRadius: Platform.OS === 'web' ? 4 : 6,
+    elevation: Platform.OS === 'web' ? 3 : 4,
     ...(Platform.OS === 'web'
       ? {
           position: 'relative' as const,
           zIndex: 1,
           overflow: 'visible' as const,
         }
-      : {}),
+      : {
+          marginHorizontal: theme.spacing.xs, // Margem horizontal no mobile
+          overflow: 'visible' as const,
+        }),
   },
   cardHeader: {
     backgroundColor: theme.colors.surface,
@@ -1657,6 +1677,7 @@ const styles = StyleSheet.create({
         }
       : {
           overflow: 'visible' as const,
+          padding: theme.spacing.md, // Menos padding no mobile
         }),
   },
   hint: {
@@ -1669,6 +1690,12 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: theme.spacing.md,
     alignSelf: 'center',
+    ...(Platform.OS !== 'web' ? {
+      width: '100%', // Botão full width no mobile
+      maxWidth: 400, // Mas com limite máximo
+      paddingVertical: theme.spacing.md, // Mais padding vertical no mobile
+      minHeight: 50, // Altura mínima maior no mobile para melhor toque
+    } : {}),
   },
   footer: {
     alignItems: 'center',

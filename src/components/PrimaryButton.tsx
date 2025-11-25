@@ -33,7 +33,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       style={[styles.button, (disabled || loading) && styles.buttonDisabled, style]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.85}
+      activeOpacity={Platform.OS === 'web' ? 0.85 : 0.7} // Feedback mais visível no mobile
     >
       {loading ? (
         <ActivityIndicator color={theme.colors.surface} size="small" />
@@ -71,10 +71,12 @@ const styles = StyleSheet.create({
         }
       : {
           shadowColor: theme.colors.primary,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-          elevation: 2,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.4,
+          shadowRadius: 6,
+          elevation: 4, // Elevação maior no mobile para melhor feedback visual
+          minHeight: 48, // Altura mínima maior no mobile para melhor toque
+          paddingVertical: 12, // Mais padding vertical no mobile
         }),
   },
   buttonDisabled: {
