@@ -58,13 +58,12 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
     if (count === 0) {
       return 'VAZIO';
     }
-    return `${count} ${count === 1 ? 'item' : 'itens'} em fila`;
+    return `${count} ${count === 1 ? 'pendente' : 'pendentes'}`;
   };
 
   return (
     <View style={styles.wrapper}>
       <View style={styles.container}>
-        <Text style={styles.queueText}>{count} itens em fila</Text>
     <View style={getBadgeStyle()}>
       <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
       <Text style={getBadgeTextStyle()}>{getText()}</Text>

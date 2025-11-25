@@ -84,6 +84,76 @@ export const RegisterScreen: React.FC = () => {
   // Candidatos têm instrumento na tabela, será buscado automaticamente ao enviar
   const showInstrumento = !isOrganista && !isCandidato && selectedCargoObj?.is_musical;
 
+  // Função de sincronização - declarada ANTES dos useEffects que a usam
+  const syncData = useCallback(async () => {
+    // Verificar se já está sincronizando
+    if (syncing) {
+      console.log('⏳ Sincronização já em andamento, aguardando...');
+      return;
+    }
+    
+    // Verificar se está online antes de sincronizar
+    const isOnlineNow = Platform.OS === 'web' 
+      ? (typeof navigator !== 'undefined' && navigator.onLine)
+      : isOnline;
+    
+    if (!isOnlineNow) {
+      console.log('📴 Sem conexão - não é possível sincronizar agora');
+      return;
+    }
+    
+    try {
+      setSyncing(true);
+      console.log('🔄 [SYNC] Iniciando sincronização de dados...');
+      
+      // Verificar quantos registros pendentes existem
+      const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
+      console.log(`📊 [SYNC] ${registrosPendentes.length} registro(s) pendente(s) encontrado(s)`);
+      
+      if (registrosPendentes.length === 0) {
+        console.log('📭 [SYNC] Nenhum registro pendente para sincronizar');
+        setSyncing(false);
+        return;
+      }
+      
+      // Atualizar contador antes de sincronizar
+      await refreshCount();
+      
+      // Sincronizar apenas registros pendentes (mais eficiente)
+      const result = await offlineSyncService.syncPendingRegistros();
+      
+      console.log(`📊 [SYNC] Resultado: ${result.successCount} de ${result.totalCount} registros enviados`);
+      
+      // Atualizar contador após sincronizar
+      await refreshCount();
+      
+      // Mostrar toast se registros foram sincronizados
+      if (result.successCount > 0) {
+        const mensagem = result.successCount === 1
+          ? '1 registro enviado com sucesso'
+          : `${result.successCount} registros enviados com sucesso`;
+        showToast.success('Sincronização concluída', mensagem);
+        console.log(`✅ [SYNC] ${result.successCount} registro(s) sincronizado(s) com sucesso`);
+      } else if (result.totalCount > 0) {
+        console.warn('⚠️ [SYNC] Nenhum registro foi enviado (pode haver erros)');
+      }
+    } catch (error) {
+      // Não logar erros de rede como erros críticos
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (
+        !errorMessage.toLowerCase().includes('fetch') &&
+        !errorMessage.toLowerCase().includes('network') &&
+        !errorMessage.toLowerCase().includes('internet')
+      ) {
+        console.error('❌ [SYNC] Erro ao sincronizar:', error);
+      } else {
+        console.log('📴 [SYNC] Erro de rede (esperado se offline):', errorMessage);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }, [syncing, isOnline, refreshCount]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -96,24 +166,60 @@ export const RegisterScreen: React.FC = () => {
         console.log('📵 Conexão perdida - modo offline ativado');
         showToast.warning('Modo offline', 'Registros serão salvos na fila');
       } else {
-        // Conexão restaurada
+        // Conexão restaurada - SINCRONIZAR IMEDIATAMENTE
         console.log('🌐 Conexão restaurada - iniciando sincronização automática...');
-        // Aguardar um pouco para garantir que a conexão está estável
-        setTimeout(() => {
-          if (!syncing) {
-            syncData();
+        
+        // Verificar se há registros pendentes antes de sincronizar
+        supabaseDataService.getRegistrosPendentesFromLocal().then((registros) => {
+          if (registros.length > 0) {
+            console.log(`🔄 ${registros.length} registro(s) pendente(s) encontrado(s) - iniciando sincronização...`);
+            // Aguardar um pouco para garantir que a conexão está estável
+            setTimeout(() => {
+              if (!syncing) {
+                syncData().catch(error => {
+                  console.error('❌ Erro na sincronização automática ao voltar online:', error);
+                });
+              }
+            }, 1500); // Reduzido para 1.5s para ser mais rápido
+          } else {
+            console.log('📭 Nenhum registro pendente para sincronizar');
           }
-        }, 2000);
+        }).catch(error => {
+          console.error('❌ Erro ao verificar registros pendentes:', error);
+          // Tentar sincronizar mesmo assim
+          setTimeout(() => {
+            if (!syncing) {
+              syncData().catch(err => {
+                console.error('❌ Erro na sincronização automática:', err);
+              });
+            }
+          }, 1500);
+        });
       }
     });
-  }, [setOnStatusChange, syncing]);
+  }, [setOnStatusChange, syncing, syncData]);
 
+  // Sincronização automática quando voltar online
   useEffect(() => {
     if (isOnline && !syncing) {
-      // Sincronização automática quando voltar online (backup)
-      syncData();
+      // Verificar se há registros pendentes
+      supabaseDataService.getRegistrosPendentesFromLocal().then((registros) => {
+        if (registros.length > 0) {
+          console.log(`🔄 [AUTO SYNC] ${registros.length} registro(s) pendente(s) - iniciando sincronização automática...`);
+          // Aguardar um pouco para garantir que a conexão está estável
+          setTimeout(() => {
+            if (!syncing && isOnline) {
+              syncData().catch(error => {
+                console.error('❌ Erro na sincronização automática:', error);
+              });
+            }
+          }, 2000);
+        }
+      }).catch(error => {
+        console.error('❌ Erro ao verificar registros pendentes:', error);
+      });
     }
-  }, [isOnline]);
+  }, [isOnline, syncing, syncData]);
 
   // Sincronização automática periódica da fila offline (igual ao backupcont)
   useEffect(() => {
@@ -248,52 +354,6 @@ export const RegisterScreen: React.FC = () => {
       setInitialLoading(false);
     }
   };
-
-  const syncData = useCallback(async () => {
-    if (syncing || !isOnline) return; // Não sincronizar se já está sincronizando ou está offline
-    
-    try {
-      setSyncing(true);
-      console.log('🔄 Iniciando sincronização de dados...');
-      
-      // Atualizar contador antes de sincronizar
-      await refreshCount();
-      
-      const result = await offlineSyncService.syncAllData();
-      
-      // Atualizar contador após sincronizar
-      await refreshCount();
-      
-      // Mostrar toast se registros foram sincronizados
-      if (result.syncResult && result.syncResult.successCount > 0) {
-        const mensagem = result.syncResult.successCount === 1
-          ? '1 registro enviado com sucesso'
-          : `${result.syncResult.successCount} registros enviados com sucesso`;
-        showToast.success('Sincronização concluída', mensagem);
-        console.log(`✅ ${result.syncResult.successCount} registro(s) sincronizado(s) com sucesso`);
-      }
-      
-      // Não mostrar erro se for apenas falta de conexão ou sessão (são esperados)
-      if (!result.success && result.error) {
-        if (!result.error.includes('conexão') && !result.error.includes('Sessão')) {
-          console.warn('⚠️ Erro na sincronização:', result.error);
-        }
-      } else if (result.success) {
-        console.log('✅ Sincronização concluída com sucesso');
-      }
-    } catch (error) {
-      // Não logar erros de rede como erros críticos
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (
-        !errorMessage.toLowerCase().includes('fetch') &&
-        !errorMessage.toLowerCase().includes('network')
-      ) {
-        console.error('❌ Erro ao sincronizar:', error);
-      }
-    } finally {
-      setSyncing(false);
-    }
-  }, [syncing, isOnline, refreshCount]);
 
   // Função para pull-to-refresh (otimizada com useCallback)
   const onRefresh = useCallback(async () => {
