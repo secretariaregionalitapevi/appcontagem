@@ -28,6 +28,11 @@ const memoryCache: {
   registros: [],
 };
 
+// Flag global para evitar salvamentos simultâneos
+let savingLock = false;
+let lastSaveTimestamp = 0;
+let lastSaveKey = '';
+
 // Lista fixa de instrumentos do backup.js
 const INSTRUMENTS_FIXED = [
   'ACORDEON',
@@ -1912,28 +1917,23 @@ export const supabaseDataService = {
     await db.runAsync('DELETE FROM registros_presenca WHERE id = ?', [id]);
   },
 
-  // Flag global para evitar salvamentos simultâneos
-  private static savingLock = false;
-  private static lastSaveTimestamp = 0;
-  private static lastSaveKey = '';
-
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
     // 🚨 BLOQUEIO CRÍTICO: Prevenir salvamentos simultâneos do mesmo registro
     const saveKey = `${registro.pessoa_id}_${registro.comum_id}_${registro.cargo_id}_${registro.data_hora_registro}`;
     const now = Date.now();
     
     // Se está salvando o mesmo registro em menos de 3 segundos, bloquear
-    if (supabaseDataService.savingLock && 
-        supabaseDataService.lastSaveKey === saveKey && 
-        (now - supabaseDataService.lastSaveTimestamp) < 3000) {
+    if (savingLock && 
+        lastSaveKey === saveKey && 
+        (now - lastSaveTimestamp) < 3000) {
       console.warn('🚨 [BLOQUEIO] Salvamento duplicado bloqueado');
       return;
     }
     
     // Ativar lock
-    supabaseDataService.savingLock = true;
-    supabaseDataService.lastSaveTimestamp = now;
-    supabaseDataService.lastSaveKey = saveKey;
+    savingLock = true;
+    lastSaveTimestamp = now;
+    lastSaveKey = saveKey;
     
     try {
       // 🛡️ VERIFICAÇÃO RÁPIDA DE DUPLICATA (mais eficiente - verifica primeiro)
@@ -2202,7 +2202,7 @@ export const supabaseDataService = {
     } finally {
       // Liberar lock após 1 segundo (tempo suficiente para evitar duplicatas)
       setTimeout(() => {
-        supabaseDataService.savingLock = false;
+        savingLock = false;
       }, 1000);
     }
   },
