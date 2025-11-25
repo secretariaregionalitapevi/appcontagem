@@ -145,13 +145,11 @@ export const offlineSyncService = {
       return { successCount: 0, totalCount: 0 };
     }
 
-    console.log(`🔄 Sincronizando ${registros.length} registros pendentes...`);
-
     let successCount = 0;
     const totalCount = registros.length;
     
-    // Processar em lotes de 5 para não travar a UI
-    const batchSize = 5;
+    // Processar em lotes de 10 para ser mais rápido
+    const batchSize = 10;
     for (let i = 0; i < registros.length; i += batchSize) {
       const batch = registros.slice(i, i + batchSize);
       
@@ -167,125 +165,60 @@ export const offlineSyncService = {
               return;
             }
 
-            // 🚀 FLUXO OTIMIZADO: Google Sheets PRIMEIRO (como backupcont)
-            // 1. Enviar para Google Sheets PRIMEIRO
-            console.log(`📤 Enviando registro ${registro.id} para Google Sheets...`);
+            // 🚀 FLUXO OTIMIZADO: Google Sheets PRIMEIRO
             const sheetsResult = await googleSheetsService.sendRegistroToSheet(registro);
         
         if (sheetsResult.success) {
-          console.log(`✅ Registro ${registro.id} enviado para Google Sheets`);
+          // Enviar para Supabase em background (não bloquear)
+          supabaseDataService.createRegistroPresenca(registro, false).catch(() => {
+            // Erro no Supabase não é crítico se Google Sheets OK
+          });
           
-          // 🚨 CORREÇÃO CRÍTICA: Enviar para Supabase APÓS confirmação do Google Sheets
-          try {
-            console.log(`📤 Enviando registro ${registro.id} para Supabase após confirmação do Google Sheets...`);
-            const createdRegistro = await supabaseDataService.createRegistroPresenca(registro, false);
-            if (createdRegistro) {
-              console.log(`✅ Registro ${registro.id} também enviado para Supabase com sucesso`);
-            } else {
-              console.warn(`⚠️ Registro ${registro.id} não foi criado no Supabase (mas Google Sheets OK)`);
-            }
-          } catch (supabaseError) {
-            const errorMessage = supabaseError instanceof Error ? supabaseError.message : String(supabaseError);
-            // Se for erro de dados incompletos, remover da fila
-            if (errorMessage.includes('Dados incompletos')) {
-              console.error(`❌ Registro ${registro.id} tem dados incompletos no Supabase, removendo da fila:`, errorMessage);
-              await supabaseDataService.updateRegistroStatus(registro.id, 'error');
-              return;
-            }
-            // 🚨 CRÍTICO: Logar erro detalhado ao invés de apenas warning
-            console.error(`❌❌❌ ERRO CRÍTICO ao enviar registro ${registro.id} para Supabase ❌❌❌`, {
-              error: supabaseError,
-              message: errorMessage,
-              stack: supabaseError instanceof Error ? supabaseError.stack : undefined,
-              registroId: registro.id,
-            });
-            // Continuar mesmo com erro no Supabase - Google Sheets já salvou
-            // Mas logar como erro crítico para debug
-          }
-          
-          // Google Sheets OK - marcar como sincronizado
+          // Marcar como sincronizado
           if (registro.id) {
             await supabaseDataService.updateRegistroStatus(registro.id, 'synced');
             successCount++;
-            console.log(`✅ Registro ${registro.id} sincronizado com sucesso`);
           }
         } else {
-          // Google Sheets falhou - verificar se é erro de dados incompletos
-          if (sheetsResult.error && sheetsResult.error.includes('Dados incompletos')) {
-            console.error(`❌ Registro ${registro.id} tem dados incompletos, removendo da fila:`, sheetsResult.error);
-            // Remover registro inválido da fila
+          // Google Sheets falhou - verificar tipo de erro
+          if (sheetsResult.error?.includes('Dados incompletos')) {
             await supabaseDataService.updateRegistroStatus(registro.id, 'error');
             return;
           }
-          // Google Sheets falhou - verificar se é erro de conectividade
+          
           const isNetworkError = 
             sheetsResult.error?.includes('Failed to fetch') ||
             sheetsResult.error?.includes('Timeout') ||
             sheetsResult.error?.includes('Network') ||
             sheetsResult.error?.includes('AbortError');
 
-          if (isNetworkError) {
-            // Erro de conectividade - manter na fila
-            console.warn(`⚠️ Erro de conectividade ao enviar ${registro.id} para Google Sheets, mantendo na fila`);
-            return; // Sair da função callback (não usar continue em map)
-          }
-
-          // Outro erro do Google Sheets - tentar Supabase como fallback
-          console.warn(`⚠️ Falha ao enviar ${registro.id} para Google Sheets, tentando Supabase:`, sheetsResult.error);
-          try {
-            // O método createRegistroPresenca já trata UUID local automaticamente (gera UUID válido)
-            const createdRegistro = await supabaseDataService.createRegistroPresenca(registro, false);
-            if (createdRegistro) {
-              console.log(`✅ Registro ${registro.id} enviado para Supabase (fallback)`);
-              if (registro.id) {
+          if (!isNetworkError) {
+            // Tentar Supabase como fallback
+            try {
+              const createdRegistro = await supabaseDataService.createRegistroPresenca(registro, false);
+              if (createdRegistro && registro.id) {
                 await supabaseDataService.updateRegistroStatus(registro.id, 'synced');
                 successCount++;
               }
-            }
-          } catch (supabaseError: any) {
-            const errorMessage = supabaseError instanceof Error ? supabaseError.message : String(supabaseError);
-            // Se for erro de dados incompletos, remover da fila
-            if (errorMessage.includes('Dados incompletos')) {
-              console.error(`❌ Registro ${registro.id} tem dados incompletos no Supabase (fallback), removendo da fila:`, errorMessage);
-              await supabaseDataService.updateRegistroStatus(registro.id, 'error');
-              return;
-            }
-            // Verificar se é erro de duplicata
-            if (
-              supabaseError instanceof Error &&
-              (supabaseError.message.includes('DUPLICATA') ||
-                supabaseError.message.includes('duplicat') ||
-                supabaseError.message.includes('já foi cadastrado'))
-            ) {
-              // Duplicata - remover da fila local
-              console.warn(`🚨 Duplicata detectada para registro ${registro.id}, removendo da fila`);
-              if (registro.id) {
-                try {
+            } catch (supabaseError: any) {
+              const errorMessage = supabaseError instanceof Error ? supabaseError.message : String(supabaseError);
+              if (errorMessage.includes('DUPLICATA') || errorMessage.includes('duplicat')) {
+                // Duplicata - remover da fila
+                if (registro.id) {
                   await supabaseDataService.deleteRegistroFromLocal(registro.id);
-                  successCount++; // Contar como processado
-                } catch (deleteError) {
-                  console.warn(`⚠️ Erro ao remover registro duplicado ${registro.id}:`, deleteError);
+                  successCount++;
                 }
               }
-            } else {
-              console.warn(`⚠️ Erro ao tentar Supabase para ${registro.id}:`, supabaseError);
-              // Manter na fila para tentar novamente depois
             }
           }
         }
       } catch (error) {
-        console.error(`❌ Erro ao processar registro ${registro.id}:`, error);
+        // Erro silencioso - manter na fila para próxima tentativa
       }
         })
       );
-      
-      // Pequena pausa entre lotes para não sobrecarregar
-      if (i + batchSize < registros.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
     }
 
-    console.log(`✅ Sincronização concluída: ${successCount} de ${totalCount} registros enviados`);
     return { successCount, totalCount };
   },
 

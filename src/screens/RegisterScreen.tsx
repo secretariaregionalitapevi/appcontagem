@@ -538,103 +538,45 @@ export const RegisterScreen: React.FC = () => {
           status_sincronizacao: 'pending',
         };
 
-        // Salvar diretamente na fila local (sem tentar enviar)
-        // 🚨 CRÍTICO: Garantir que o salvamento sempre funcione, mesmo com erros
-        try {
-          console.log('💾 Tentando salvar registro na fila local...', {
-            pessoa_id: registro.pessoa_id,
-            comum_id: registro.comum_id,
-            cargo_id: registro.cargo_id,
-            status: registro.status_sincronizacao,
-          });
-          
-          await supabaseDataService.saveRegistroToLocal(registro);
-          console.log('✅ [OFFLINE SAVE] Registro salvo na fila local');
-          
-          // 🚨 VERIFICAÇÃO CRÍTICA: Confirmar que o registro foi realmente salvo
-          try {
-            const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
-            const registroSalvo = registrosPendentes.find(r => 
-              r.pessoa_id === registro.pessoa_id &&
-              r.comum_id === registro.comum_id &&
-              r.cargo_id === registro.cargo_id &&
-              r.status_sincronizacao === 'pending'
-            );
-            
-            if (registroSalvo) {
-              console.log('✅ [OFFLINE SAVE] CONFIRMADO: Registro encontrado na fila!', {
-                id: registroSalvo.id,
-                totalNaFila: registrosPendentes.length,
-              });
-            } else {
-              console.error('❌ [OFFLINE SAVE] ERRO: Registro NÃO encontrado na fila após salvar!');
-              console.error('   Tentando salvar novamente...');
-              // Tentar salvar novamente
-              const registroComId = {
-                ...registro,
-                id: registro.id || generateExternalUUID(),
-              };
-              await supabaseDataService.saveRegistroToLocal(registroComId);
-              console.log('✅ [OFFLINE SAVE] Registro salvo novamente (segunda tentativa)');
-            }
-          } catch (verifyError) {
-            console.warn('⚠️ [OFFLINE SAVE] Erro ao verificar salvamento (não crítico):', verifyError);
-          }
-          
-          // Atualizar contador da fila IMEDIATAMENTE
-          try {
-            const countBefore = await supabaseDataService.countRegistrosPendentes();
-            await refreshCount();
-            const countAfter = await supabaseDataService.countRegistrosPendentes();
-            console.log('📊 [OFFLINE SAVE] Contador da fila:', {
-              antes: countBefore,
-              depois: countAfter,
-              atualizado: countAfter > countBefore || countAfter === countBefore,
-            });
-          } catch (countError) {
-            console.warn('⚠️ [OFFLINE SAVE] Erro ao atualizar contador (não crítico):', countError);
-            // Não bloquear o fluxo por erro no contador
-          }
-          
-          // Mostrar mensagem de sucesso
-          showToast.info('Salvo offline', 'Registro salvo na fila. Será enviado quando voltar online.');
-          
-          // Limpar formulário
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
-          
+        // 🚨 VERIFICAÇÃO CRÍTICA: Verificar duplicata ANTES de salvar
+        const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
+        const dataRegistro = new Date(registro.data_hora_registro);
+        const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
+        
+        // Verificação rápida de duplicata
+        const isDuplicata = registrosPendentes.some(r => {
+          const rData = new Date(r.data_hora_registro);
+          const rDataStr = rData.toISOString().split('T')[0];
+          return (
+            r.pessoa_id === registro.pessoa_id &&
+            r.comum_id === registro.comum_id &&
+            r.cargo_id === registro.cargo_id &&
+            rDataStr === dataRegistroStr &&
+            r.status_sincronizacao === 'pending'
+          );
+        });
+        
+        if (isDuplicata) {
+          console.warn('🚨 Registro duplicado - já está na fila');
+          showToast.warning('Atenção', 'Este registro já está na fila');
           setLoading(false);
-          return; // Retornar imediatamente - não tentar enviar
-        } catch (saveError) {
-          console.error('❌ ERRO CRÍTICO ao salvar na fila local:', saveError);
-          // Tentar novamente com tratamento de erro mais robusto
-          try {
-            // Forçar salvamento mesmo com erro
-            const registroComId = {
-              ...registro,
-              id: registro.id || generateExternalUUID(),
-            };
-            await supabaseDataService.saveRegistroToLocal(registroComId);
-            console.log('✅ Registro salvo na fila local (segunda tentativa)');
-            await refreshCount();
-            showToast.info('Salvo offline', 'Registro salvo na fila. Será enviado quando voltar online.');
-            setSelectedComum('');
-            setSelectedCargo('');
-            setSelectedInstrumento('');
-            setSelectedPessoa('');
-            setIsNomeManual(false);
-            setLoading(false);
-            return;
-          } catch (retryError) {
-            console.error('❌ ERRO CRÍTICO: Falha mesmo na segunda tentativa:', retryError);
-            showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
-            setLoading(false);
-            return;
-          }
+          return;
         }
+        
+        // Salvar apenas se não for duplicata
+        await supabaseDataService.saveRegistroToLocal(registro);
+        await refreshCount();
+        showToast.success('Salvo offline', 'Será enviado quando voltar online');
+        
+        // Limpar formulário
+        setSelectedComum('');
+        setSelectedCargo('');
+        setSelectedInstrumento('');
+        setSelectedPessoa('');
+        setIsNomeManual(false);
+        
+        setLoading(false);
+        return;
       } catch (error) {
         console.error('❌ Erro crítico ao processar envio offline:', error);
         showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');

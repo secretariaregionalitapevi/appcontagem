@@ -1912,20 +1912,32 @@ export const supabaseDataService = {
     await db.runAsync('DELETE FROM registros_presenca WHERE id = ?', [id]);
   },
 
+  // Flag global para evitar salvamentos simultâneos
+  private static savingLock = false;
+  private static lastSaveTimestamp = 0;
+  private static lastSaveKey = '';
+
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
-    console.log('💾 [SAVE TO LOCAL] Iniciando salvamento de registro na fila local...', {
-      pessoa_id: registro.pessoa_id,
-      comum_id: registro.comum_id,
-      cargo_id: registro.cargo_id,
-      status: registro.status_sincronizacao,
-      tem_id: !!registro.id,
-    });
+    // 🚨 BLOQUEIO CRÍTICO: Prevenir salvamentos simultâneos do mesmo registro
+    const saveKey = `${registro.pessoa_id}_${registro.comum_id}_${registro.cargo_id}_${registro.data_hora_registro}`;
+    const now = Date.now();
+    
+    // Se está salvando o mesmo registro em menos de 3 segundos, bloquear
+    if (supabaseDataService.savingLock && 
+        supabaseDataService.lastSaveKey === saveKey && 
+        (now - supabaseDataService.lastSaveTimestamp) < 3000) {
+      console.warn('🚨 [BLOQUEIO] Salvamento duplicado bloqueado');
+      return;
+    }
+    
+    // Ativar lock
+    supabaseDataService.savingLock = true;
+    supabaseDataService.lastSaveTimestamp = now;
+    supabaseDataService.lastSaveKey = saveKey;
     
     try {
       // 🛡️ VERIFICAR DUPLICATA ANTES DE SALVAR - CRÍTICO para evitar duplicação na fila
-      // Mas não bloquear salvamento se houver erro na verificação
       try {
-        console.log('🔍 [SAVE TO LOCAL] Verificando duplicatas...');
         const registrosPendentes = await this.getRegistrosPendentesFromLocal();
         
         // Buscar dados para comparação (com tratamento de erro)
@@ -1976,8 +1988,27 @@ export const supabaseDataService = {
           comumBusca = comum.nome.toUpperCase();
           cargoBusca = (pessoa.cargo_real || cargo.nome).toUpperCase();
         } else {
-          // Se não conseguiu buscar dados, pular validação de duplicata
-          console.warn('⚠️ Dados incompletos para validação de duplicata, pulando verificação');
+          // Se não conseguiu buscar dados, usar verificação simplificada
+          const dataRegistro = new Date(registro.data_hora_registro);
+          const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
+          
+          // Verificação simplificada: mesmo pessoa_id, comum_id, cargo_id e data
+          const isDuplicata = registrosPendentes.some(r => {
+            const rData = new Date(r.data_hora_registro);
+            const rDataStr = rData.toISOString().split('T')[0];
+            return (
+              r.pessoa_id === registro.pessoa_id &&
+              r.comum_id === registro.comum_id &&
+              r.cargo_id === registro.cargo_id &&
+              rDataStr === dataRegistroStr &&
+              r.status_sincronizacao === 'pending'
+            );
+          });
+          
+          if (isDuplicata) {
+            console.warn('🚨 [BLOQUEIO] Duplicata detectada (verificação simplificada)');
+            return;
+          }
         }
 
         if (nomeBusca && comumBusca && cargoBusca) {
@@ -2018,7 +2049,7 @@ export const supabaseDataService = {
                 const rData = new Date(r.data_hora_registro);
                 const rDataStr = rData.toISOString().split('T')[0];
 
-                // Se for duplicata (mesmo nome, comum, cargo e data), não salvar novamente
+                // 🚨 CRÍTICO: Se for duplicata (mesmo nome, comum, cargo e data), BLOQUEAR salvamento
                 if (
                   rNome === nomeBusca &&
                   rComumBusca === comumBusca &&
@@ -2026,16 +2057,15 @@ export const supabaseDataService = {
                   rDataStr === dataRegistroStr &&
                   r.id !== registro.id // Não é o mesmo registro
                 ) {
-                  console.warn('⚠️ [DUPLICATA CHECK] Duplicata detectada na fila:', {
+                  console.warn('🚨 [DUPLICATA BLOQUEADA] Registro duplicado detectado na fila - NÃO será salvo:', {
                     nome: nomeBusca,
                     comum: comumBusca,
                     cargo: cargoBusca,
                     data: dataRegistroStr,
+                    registroExistente: r.id,
                   });
-                  // 🚨 CRÍTICO: Em modo offline, SEMPRE salvar mesmo se for duplicata
-                  // A validação de duplicata é apenas um aviso, não deve bloquear salvamento offline
-                  console.warn('⚠️ [DUPLICATA CHECK] AVISO: Duplicata detectada, mas CONTINUANDO com salvamento (modo offline)');
-                  // NÃO retornar - continuar com o salvamento sempre
+                  // BLOQUEAR salvamento - retornar imediatamente
+                  return;
                 }
               }
             } catch (error) {
@@ -2053,6 +2083,14 @@ export const supabaseDataService = {
       const id = registro.id && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(registro.id)
         ? registro.id
         : uuidv4();
+      
+      // 🚨 VERIFICAÇÃO CRÍTICA: Verificar se UUID já existe na fila
+      const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+      const existeComMesmoId = registrosPendentes.find(r => r.id === id);
+      if (existeComMesmoId) {
+        console.warn('🚨 [BLOQUEIO] Registro com mesmo UUID já existe na fila');
+        return;
+      }
       const now = new Date().toISOString();
       const registroCompleto: RegistroPresenca = {
         ...registro,
@@ -2060,15 +2098,6 @@ export const supabaseDataService = {
         created_at: registro.created_at || now,
         updated_at: registro.updated_at || now,
       };
-      
-      console.log('📝 [SAVE TO LOCAL] Registro preparado:', {
-        id,
-        pessoa_id: registroCompleto.pessoa_id,
-        comum_id: registroCompleto.comum_id,
-        cargo_id: registroCompleto.cargo_id,
-        status: registroCompleto.status_sincronizacao,
-        platform: Platform.OS,
-      });
 
       if (Platform.OS === 'web') {
         // Para web, usar cache em memória e AsyncStorage
@@ -2081,32 +2110,16 @@ export const supabaseDataService = {
 
         try {
           await robustSetItem('cached_registros', JSON.stringify(memoryCache.registros));
-          console.log('✅ [SAVE TO LOCAL] Registro salvo no cache web (ID:', id, ')');
-          console.log('📊 [SAVE TO LOCAL] Total de registros no cache:', memoryCache.registros.length);
-          
-          // Verificar se foi realmente salvo
-          const verificarCache = await robustGetItem('cached_registros');
-          if (verificarCache) {
-            const registrosVerificados = JSON.parse(verificarCache);
-            const encontrado = registrosVerificados.find((r: any) => r.id === id);
-            if (encontrado) {
-              console.log('✅ [SAVE TO LOCAL] CONFIRMADO: Registro encontrado no cache após salvar!');
-            } else {
-              console.error('❌ [SAVE TO LOCAL] ERRO: Registro NÃO encontrado no cache após salvar!');
-            }
-          }
         } catch (error) {
-          console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO ao salvar registro no cache web:', error);
-          // Tentar salvar novamente sem cache em memória
+          console.error('❌ Erro ao salvar no cache web:', error);
+          // Tentar salvar novamente
           try {
             const registrosExistentes = await robustGetItem('cached_registros');
             const registros = registrosExistentes ? JSON.parse(registrosExistentes) : [];
             registros.push(registroCompleto);
             await robustSetItem('cached_registros', JSON.stringify(registros));
-            console.log('✅ [SAVE TO LOCAL] Registro salvo no cache web (segunda tentativa)');
-            console.log('📊 [SAVE TO LOCAL] Total de registros após segunda tentativa:', registros.length);
           } catch (retryError) {
-            console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO: Falha mesmo na segunda tentativa:', retryError);
+            console.error('❌ Erro crítico ao salvar:', retryError);
             throw retryError;
           }
         }
@@ -2134,26 +2147,8 @@ export const supabaseDataService = {
             registro.updated_at || now,
           ]
         );
-        console.log('✅ [SAVE TO LOCAL] Registro salvo no SQLite (ID:', id, ')');
-        
-        // Verificar se foi realmente salvo
-        try {
-          const db = await getDatabase();
-          const verificarRegistro = await db.getFirstAsync(
-            'SELECT * FROM registros_presenca WHERE id = ?',
-            [id]
-          ) as RegistroPresenca | null;
-          
-          if (verificarRegistro) {
-            console.log('✅ [SAVE TO LOCAL] CONFIRMADO: Registro encontrado no SQLite após salvar!');
-          } else {
-            console.error('❌ [SAVE TO LOCAL] ERRO: Registro NÃO encontrado no SQLite após salvar!');
-          }
-        } catch (verifyError) {
-          console.warn('⚠️ [SAVE TO LOCAL] Erro ao verificar salvamento no SQLite (não crítico):', verifyError);
-        }
       } catch (error) {
-        console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO ao salvar registro no SQLite:', error);
+        console.error('❌ Erro ao salvar no SQLite:', error);
         // Tentar novamente
         try {
           const db = await getDatabase();
@@ -2175,15 +2170,19 @@ export const supabaseDataService = {
               registro.updated_at || now,
             ]
           );
-          console.log('✅ [SAVE TO LOCAL] Registro salvo no SQLite (segunda tentativa)');
         } catch (retryError) {
-          console.error('❌ [SAVE TO LOCAL] ERRO CRÍTICO: Falha mesmo na segunda tentativa SQLite:', retryError);
+          console.error('❌ Erro crítico ao salvar:', retryError);
           throw retryError;
         }
       }
     } catch (error) {
       console.error('❌ ERRO CRÍTICO em saveRegistroToLocal:', error);
       throw error; // Re-lançar erro para ser tratado no nível superior
+    } finally {
+      // Liberar lock após 1 segundo (tempo suficiente para evitar duplicatas)
+      setTimeout(() => {
+        supabaseDataService.savingLock = false;
+      }, 1000);
     }
   },
 
