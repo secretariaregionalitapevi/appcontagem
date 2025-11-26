@@ -336,6 +336,9 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
             Platform.OS === 'web'
               ? {
                   position: 'relative' as ViewStyle['position'],
+                  outline: 'none',
+                  outlineStyle: 'none',
+                  outlineWidth: 0,
                 }
               : undefined,
           ].filter(Boolean)}
@@ -585,6 +588,9 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
       opacity: 1,
+      outline: 'none',
+      outlineStyle: 'none',
+      outlineWidth: 0,
     } : {}),
   },
   inputError: {

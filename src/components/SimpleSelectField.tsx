@@ -229,6 +229,9 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
               ? {
                   position: 'relative' as ViewStyle['position'],
                   zIndex: 1,
+                  outline: 'none',
+                  outlineStyle: 'none',
+                  outlineWidth: 0,
                 }
               : {},
           ]}
@@ -491,6 +494,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+    ...(Platform.OS === 'web' ? {
+      outline: 'none',
+      outlineStyle: 'none',
+      outlineWidth: 0,
+    } : {}),
   },
   inputError: {
     borderColor: theme.colors.error,
