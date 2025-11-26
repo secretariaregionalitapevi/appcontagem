@@ -719,11 +719,40 @@ export const RegisterScreen: React.FC = () => {
     };
 
     try {
+      // 🚨 iOS: Se forceSaveToQueue for true, salvar diretamente na fila sem tentar online
+      if (Platform.OS === 'ios' && forceSaveToQueue) {
+        console.log('🍎 [iOS] forceSaveToQueue=true - salvando diretamente na fila sem tentar online');
+        try {
+          await supabaseDataService.saveRegistroToLocal({
+            ...registro,
+            status_sincronizacao: 'pending',
+          });
+          await refreshCount();
+          showToast.success('Salvo offline', 'Será enviado quando voltar online');
+          
+          // Limpar formulário
+          setSelectedComum('');
+          setSelectedCargo('');
+          setSelectedInstrumento('');
+          setSelectedPessoa('');
+          setIsNomeManual(false);
+          
+          setLoading(false);
+          return;
+        } catch (saveError) {
+          console.error('❌ [iOS] Erro ao salvar na fila (forceSaveToQueue):', saveError);
+          showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
+          setLoading(false);
+          return;
+        }
+      }
+      
       console.log('🚀 Iniciando envio de registro...', {
         isOnline,
         pessoa_id: registro.pessoa_id,
         comum_id: registro.comum_id,
         cargo_id: registro.cargo_id,
+        forceSaveToQueue,
       });
       
       const result = await (offlineSyncService as any).createRegistro(registro);
