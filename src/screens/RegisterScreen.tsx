@@ -448,19 +448,20 @@ export const RegisterScreen: React.FC = () => {
     let isOfflineNow = false;
     
     if (Platform.OS === 'ios') {
-      // iOS: Múltiplas verificações para máxima confiabilidade
+      // 🚨 iOS: Múltiplas verificações para máxima confiabilidade (iPhone 8 até 17)
       // 1. Verificar NetInfo diretamente (mais confiável no iOS)
       let netInfoOffline = false;
       try {
-        const NetInfo = require('@react-native-community/netinfo').default;
         const netState = await NetInfo.fetch();
-        netInfoOffline = !(netState.isConnected === true && netState.isInternetReachable === true);
+        // No iOS, verificar tanto isConnected quanto isInternetReachable
+        const isReallyOnline = netState.isConnected === true && netState.isInternetReachable === true;
+        netInfoOffline = !isReallyOnline;
       } catch (netError) {
         // Se NetInfo falhar, assumir offline para segurança
         netInfoOffline = true;
       }
       
-      // 2. Verificar hook
+      // 2. Verificar hook (useOnlineStatus)
       const hookOffline = !isOnline;
       
       // 3. Verificar navigator.onLine (se disponível)
@@ -471,8 +472,14 @@ export const RegisterScreen: React.FC = () => {
       isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
       
       // 5. Se houver QUALQUER dúvida, SEMPRE assumir offline no iOS
-      // Isso garante que registros nunca sejam perdidos
+      // Isso garante que registros nunca sejam perdidos em nenhum modelo de iPhone
       if (hookOffline || netInfoOffline) {
+        isOfflineNow = true;
+      }
+      
+      // 6. Verificação adicional: se NetInfo não está disponível ou falhou, assumir offline
+      // Isso cobre casos edge em modelos mais antigos
+      if (netInfoOffline) {
         isOfflineNow = true;
       }
     } else if (Platform.OS === 'android') {
