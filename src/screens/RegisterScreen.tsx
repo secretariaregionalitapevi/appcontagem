@@ -442,44 +442,48 @@ export const RegisterScreen: React.FC = () => {
 
     setLoading(true);
 
-    // 🚨 CRÍTICO iOS: Verificação robusta e múltipla para garantir funcionamento em todos os modelos
-    // iPhone 8 até 17 - cobertura ampla com múltiplas verificações
+    // 🚨 CRÍTICO iOS: No iOS, SEMPRE salvar na fila primeiro (mais seguro)
+    // iPhone 8 até 17 - estratégia conservadora para garantir que registros nunca sejam perdidos
     let isOfflineNow = false;
+    let forceSaveToQueue = false; // Flag para forçar salvamento na fila no iOS
     
     if (Platform.OS === 'ios') {
-      // 🚨 iOS: Múltiplas verificações para máxima confiabilidade (iPhone 8 até 17)
-      // 1. Verificar NetInfo diretamente (mais confiável no iOS)
+      // 🚨 iOS: Estratégia ULTRA-CONSERVADORA - sempre salvar na fila primeiro
+      // No iOS, a detecção de conexão é inconsistente, então melhor sempre salvar na fila
+      console.log('🍎 [iOS] Verificando status de conexão...');
+      
+      // 1. Verificar NetInfo diretamente
       let netInfoOffline = false;
+      let netInfoAvailable = false;
       try {
         const netState = await NetInfo.fetch();
-        // No iOS, verificar tanto isConnected quanto isInternetReachable
+        netInfoAvailable = true;
         const isReallyOnline = netState.isConnected === true && netState.isInternetReachable === true;
         netInfoOffline = !isReallyOnline;
+        console.log('🍎 [iOS] NetInfo:', { isConnected: netState.isConnected, isInternetReachable: netState.isInternetReachable, isReallyOnline });
       } catch (netError) {
-        // Se NetInfo falhar, assumir offline para segurança
+        console.warn('🍎 [iOS] NetInfo falhou, assumindo offline:', netError);
         netInfoOffline = true;
       }
       
       // 2. Verificar hook (useOnlineStatus)
       const hookOffline = !isOnline;
+      console.log('🍎 [iOS] Hook isOnline:', isOnline);
       
       // 3. Verificar navigator.onLine (se disponível)
       const navigatorOffline = typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
+      console.log('🍎 [iOS] navigator.onLine:', typeof navigator !== 'undefined' && 'onLine' in navigator ? navigator.onLine : 'N/A');
       
-      // 4. Se QUALQUER verificação indicar offline, assumir offline
-      // No iOS, ser EXTREMAMENTE conservador - melhor salvar na fila do que perder registro
-      isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-      
-      // 5. Se houver QUALQUER dúvida, SEMPRE assumir offline no iOS
-      // Isso garante que registros nunca sejam perdidos em nenhum modelo de iPhone
-      if (hookOffline || netInfoOffline) {
+      // 🚨 ESTRATÉGIA CRÍTICA: No iOS, se QUALQUER verificação indicar offline OU se NetInfo não estiver disponível, FORÇAR salvamento na fila
+      // Isso garante que registros nunca sejam perdidos mesmo com detecção inconsistente
+      if (!netInfoAvailable || netInfoOffline || hookOffline || navigatorOffline) {
         isOfflineNow = true;
-      }
-      
-      // 6. Verificação adicional: se NetInfo não está disponível ou falhou, assumir offline
-      // Isso cobre casos edge em modelos mais antigos
-      if (netInfoOffline) {
-        isOfflineNow = true;
+        forceSaveToQueue = true; // Forçar salvamento na fila
+        console.log('🍎 [iOS] FORÇANDO salvamento na fila (offline detectado ou NetInfo indisponível)');
+      } else {
+        // Mesmo se todas as verificações indicarem online, no iOS ainda pode haver problemas
+        // Então vamos tentar enviar online, mas se falhar, salvar na fila
+        console.log('🍎 [iOS] Todas as verificações indicam online, mas vamos tentar enviar online primeiro');
       }
     } else if (Platform.OS === 'android') {
       // Android: Verificar hook primeiro
@@ -497,9 +501,9 @@ export const RegisterScreen: React.FC = () => {
       isOfflineNow = !isOnline;
     }
     
-    // Se estiver offline, salvar IMEDIATAMENTE na fila (como BACKUPCONT)
-    // 🚨 CRÍTICO iOS: No iOS, se QUALQUER verificação indicar offline, SEMPRE salvar na fila
-    if (isOfflineNow || (Platform.OS === 'ios' && !isOnline)) {
+    // Se estiver offline OU se for iOS com forceSaveToQueue, salvar IMEDIATAMENTE na fila
+    // 🚨 CRÍTICO iOS: No iOS, se forceSaveToQueue for true, SEMPRE salvar na fila (pular tentativa online)
+    if (isOfflineNow || forceSaveToQueue || (Platform.OS === 'ios' && !isOnline)) {
       try {
         
         // Preparar registro para salvar na fila
