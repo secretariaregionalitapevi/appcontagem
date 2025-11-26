@@ -1275,30 +1275,28 @@ export const RegisterScreen: React.FC = () => {
       // formatRegistradoPor extrai primeiro e último nome, separa palavras juntas e converte para maiúscula
       const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
 
-      // Buscar cargo e instrumento para obter nomes
-      // No modal de novo registro, data.cargo pode ser o nome do cargo (string) ou ID
-      // Tentar buscar por ID primeiro, depois por nome
-      let cargoObj = cargos.find(c => c.id === data.cargo);
+      // 🚨 CRÍTICO: Buscar cargo e garantir que usamos o ID, não o nome
+      // No modal de novo registro, data.cargo é o NOME do cargo (ex: "Instrutora")
+      // Precisamos encontrar o ID correspondente
+      let cargoObj = cargos.find(c => c.nome === data.cargo);
       if (!cargoObj) {
-        // Se não encontrou por ID, tentar buscar por nome (caso do modal de novo registro)
-        cargoObj = cargos.find(c => c.nome === data.cargo);
+        // Tentar buscar por ID também (caso já venha como ID)
+        cargoObj = cargos.find(c => c.id === data.cargo);
       }
       
-      // Se ainda não encontrou, criar um objeto temporário com o nome do cargo
       if (!cargoObj) {
-        cargoObj = {
-          id: `temp_${data.cargo.replace(/\s+/g, '_').toLowerCase()}`,
-          nome: data.cargo,
-        } as any;
+        Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
+        return;
       }
       
       const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
 
       // Criar registro com dados do modal
+      // 🚨 CRÍTICO: Usar cargoObj.id (ID do cargo), não data.cargo (nome)
       const registro: RegistroPresenca & { cidade?: string } = {
         pessoa_id: `manual_${data.nome.toUpperCase()}`,
         comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`, // ID temporário
-        cargo_id: data.cargo,
+        cargo_id: cargoObj.id, // 🚨 USAR ID DO CARGO, NÃO O NOME
         instrumento_id: data.instrumento || undefined,
         classe_organista: data.classe || undefined,
         local_ensaio: localEnsaio || 'Não definido',

@@ -1468,7 +1468,16 @@ export const supabaseDataService = {
     const isExternalRegistro = registro.comum_id.startsWith('external_');
     
     let comum: any = null;
+    // 🚨 CRÍTICO: Tentar buscar cargo por ID primeiro, depois por nome (fallback)
     let cargoSelecionado = cargos.find(c => c.id === registro.cargo_id);
+    if (!cargoSelecionado) {
+      // Se não encontrou por ID, pode ser que cargo_id seja o nome (caso antigo)
+      // Tentar buscar por nome como fallback
+      cargoSelecionado = cargos.find(c => c.nome === registro.cargo_id);
+      if (cargoSelecionado) {
+        console.warn('⚠️ Cargo encontrado por nome, mas deveria ser por ID:', registro.cargo_id);
+      }
+    }
     
     if (isExternalRegistro) {
       // Para registros externos, extrair nome da comum do ID
@@ -1491,6 +1500,7 @@ export const supabaseDataService = {
         cargos_count: cargos.length,
         comuns_ids: comuns.map(c => c.id).slice(0, 5),
         cargos_ids: cargos.map(c => c.id).slice(0, 5),
+        cargos_nomes: cargos.map(c => c.nome).slice(0, 5),
       });
       throw new Error('Dados incompletos: comum ou cargo não encontrados');
     }
