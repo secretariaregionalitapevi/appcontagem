@@ -772,16 +772,65 @@ export const RegisterScreen: React.FC = () => {
       status_sincronizacao: 'pending',
     };
 
-    // Se chegou aqui, está online - tentar enviar online primeiro
+    // Se chegou aqui, está online - preparar registro e tentar enviar online
+    // Preparar registro antes do try para estar disponível no catch
+    const localEnsaio = await localStorageService.getLocalEnsaio();
+    
+    // Usar nome do usuário ao invés do ID
+    let nomeCompletoUsuario = user.nome;
+    if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
+      const emailSemDominio = user.email?.split('@')[0] || '';
+      nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
+    }
+    const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
+    
+    // Buscar classe da organista do banco de dados se for Organista
+    let classeOrganistaDB: string | undefined = undefined;
+    if (isOrganista && !isNomeManual) {
+      const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+      if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+        classeOrganistaDB = pessoaSelecionada.classe_organista;
+      } else {
+        classeOrganistaDB = 'OFICIALIZADA';
+      }
+    }
+
+    // Para Candidatos: buscar instrumento da pessoa selecionada
+    let instrumentoCandidato: string | null = null;
+    if (isCandidato && !isNomeManual) {
+      const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+      if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
+        instrumentoCandidato = pessoaSelecionada.instrumento_id;
+      }
+    }
+
+    const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
+
+    const registro: RegistroPresenca = {
+      pessoa_id: pessoaIdFinal,
+      comum_id: selectedComum,
+      cargo_id: selectedCargo,
+      instrumento_id: isCandidato 
+        ? instrumentoCandidato 
+        : (showInstrumento && selectedInstrumento) 
+          ? selectedInstrumento 
+          : null,
+      classe_organista: classeOrganistaDB,
+      local_ensaio: localEnsaio || 'Não definido',
+      data_hora_registro: getCurrentDateTimeISO(),
+      usuario_responsavel: nomeUsuario,
+      status_sincronizacao: 'pending',
+    };
+    
     console.log('🚀 [ONLINE] Iniciando envio de registro online...', {
-        isOnline,
-        isOfflineNow,
-        pessoa_id: registro.pessoa_id,
-        comum_id: registro.comum_id,
-        cargo_id: registro.cargo_id,
-      });
-      
-      const result = await (offlineSyncService as any).createRegistro(registro);
+      isOnline,
+      isOfflineNow,
+      pessoa_id: registro.pessoa_id,
+      comum_id: registro.comum_id,
+      cargo_id: registro.cargo_id,
+    });
+    
+    const result = await (offlineSyncService as any).createRegistro(registro);
       
       console.log('📋 Resultado do createRegistro:', result);
       console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
