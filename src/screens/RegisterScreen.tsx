@@ -447,18 +447,16 @@ export const RegisterScreen: React.FC = () => {
     // Esta é a verificação mais confiável e funciona tanto na web quanto no mobile
     let isOfflineNow = false;
     
-    // 🚨 CRÍTICO iOS: No iOS, sempre verificar múltiplas fontes e ser mais conservador
+    // 🚨 CRÍTICO: No iOS, SEMPRE tentar salvar na fila primeiro se houver qualquer dúvida
+    // iOS tem problemas de detecção de conexão, então ser mais conservador
     if (Platform.OS === 'ios') {
-      // iOS: Verificar hook primeiro, depois navigator
-      isOfflineNow = !isOnline;
+      // iOS: Se hook diz offline OU navigator diz offline, assumir offline
+      const hookOffline = !isOnline;
+      const navigatorOffline = typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
+      isOfflineNow = hookOffline || navigatorOffline;
       
-      // Se navigator.onLine existir e for false, confiar nele
-      if (typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false) {
-        isOfflineNow = true;
-      }
-      
-      // Se houver qualquer dúvida, assumir offline para garantir salvamento na fila
-      if (!isOnline) {
+      // Se houver qualquer dúvida, SEMPRE assumir offline no iOS
+      if (hookOffline) {
         isOfflineNow = true;
       }
     } else if (Platform.OS === 'android') {
@@ -478,7 +476,7 @@ export const RegisterScreen: React.FC = () => {
     }
     
     // Se estiver offline, salvar IMEDIATAMENTE na fila (como BACKUPCONT)
-    // 🚨 CRÍTICO iOS: Se houver qualquer dúvida no iOS, salvar na fila
+    // 🚨 CRÍTICO iOS: No iOS, se hook diz offline, SEMPRE salvar na fila
     if (isOfflineNow || (Platform.OS === 'ios' && !isOnline)) {
       try {
         

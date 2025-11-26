@@ -161,18 +161,40 @@ export const offlineSyncService = {
           continue;
         }
 
+        // 🚨 VERIFICAÇÃO CRÍTICA: Verificar duplicata ANTES de enviar
+        // Isso previne duplicação quando registros vêm da fila
+        try {
+          const duplicataCheck = await supabaseDataService.createRegistroPresenca(registro, false);
+          if (!duplicataCheck) {
+            // Duplicata detectada - remover da fila sem enviar
+            console.warn(`🚨 [DUPLICATA] Registro ${registro.id} já existe, removendo da fila`);
+            if (registro.id) {
+              await supabaseDataService.deleteRegistroFromLocal(registro.id);
+              successCount++; // Contar como processado
+            }
+            continue; // Pular para próximo registro
+          }
+        } catch (duplicataError: any) {
+          const errorMsg = duplicataError instanceof Error ? duplicataError.message : String(duplicataError);
+          if (errorMsg.includes('DUPLICATA') || errorMsg.includes('duplicat') || errorMsg.includes('já foi cadastrado')) {
+            // Duplicata detectada - remover da fila
+            console.warn(`🚨 [DUPLICATA] Registro ${registro.id} duplicado, removendo da fila`);
+            if (registro.id) {
+              await supabaseDataService.deleteRegistroFromLocal(registro.id);
+              successCount++; // Contar como processado
+            }
+            continue; // Pular para próximo registro
+          }
+          // Se não for erro de duplicata, continuar com envio para Google Sheets
+        }
+
         // 🚀 FLUXO: Google Sheets PRIMEIRO (como ContPedras)
         const sheetsResult = await googleSheetsService.sendRegistroToSheet(registro);
         
         if (sheetsResult.success) {
-          // Enviar para Supabase em background (não bloquear)
-          supabaseDataService.createRegistroPresenca(registro, false).catch(() => {
-            // Erro no Supabase não é crítico se Google Sheets OK
-          });
-          
-          // Marcar como sincronizado
+          // Google Sheets OK - remover da fila imediatamente
           if (registro.id) {
-            await supabaseDataService.updateRegistroStatus(registro.id, 'synced');
+            await supabaseDataService.deleteRegistroFromLocal(registro.id);
             successCount++;
           }
         } else {
@@ -189,11 +211,12 @@ export const offlineSyncService = {
             sheetsResult.error?.includes('AbortError');
 
           if (!isNetworkError) {
-            // Tentar Supabase como fallback
+            // Tentar Supabase como fallback (já verificou duplicata antes)
             try {
-              const createdRegistro = await supabaseDataService.createRegistroPresenca(registro, false);
+              const createdRegistro = await supabaseDataService.createRegistroPresenca(registro, true); // skipDuplicateCheck = true (já verificou)
               if (createdRegistro && registro.id) {
-                await supabaseDataService.updateRegistroStatus(registro.id, 'synced');
+                // Supabase OK - remover da fila
+                await supabaseDataService.deleteRegistroFromLocal(registro.id);
                 successCount++;
               }
             } catch (supabaseError: any) {
