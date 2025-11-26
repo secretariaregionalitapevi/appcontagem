@@ -250,7 +250,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                   Comum <Text style={styles.required}>*</Text>
                 </Text>
                 <TextInput
-                  style={[styles.input, errors.comum && styles.inputError]}
+                  style={[styles.input, errors.comum ? styles.inputError : undefined]}
                   value={comum}
                   onChangeText={(text) => {
                     setComum(text);
@@ -270,7 +270,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                   Cidade <Text style={styles.required}>*</Text>
                 </Text>
                 <TextInput
-                  style={[styles.input, errors.cidade && styles.inputError]}
+                  style={[styles.input, errors.cidade ? styles.inputError : undefined]}
                   value={cidade}
                   onChangeText={(text) => {
                     setCidade(text);
@@ -383,7 +383,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                   <TextInput
                     style={[
                       styles.input,
-                      errors.nome && styles.inputError,
+                      errors.nome ? styles.inputError : undefined,
                     ]}
                     value={nome}
                     onChangeText={(text) => {
@@ -470,9 +470,8 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    zIndex: 999999,
     ...(Platform.OS === 'web' ? {
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       zIndex: 999999,
       // @ts-ignore
       position: 'fixed',
@@ -486,7 +485,9 @@ const styles = StyleSheet.create({
       bottom: 0,
       // @ts-ignore
       isolation: 'isolate',
-    } : {}),
+    } : {
+      zIndex: 999999,
+    }),
   },
   overlay: {
     flex: 1,
@@ -530,12 +531,12 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     maxHeight: '90%',
     overflow: 'hidden',
-    zIndex: 999999,
     ...(Platform.OS === 'web'
       ? {
+          // @ts-ignore - Propriedades CSS apenas para web
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
           // @ts-ignore - Propriedades CSS apenas para web
-          backgroundColor: '#ffffff',
+          zIndex: 999999,
           // @ts-ignore - Propriedades CSS apenas para web
           opacity: 1,
           // @ts-ignore
@@ -687,8 +688,6 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? {
       // @ts-ignore - Propriedades CSS apenas para web
       flexShrink: 1,
-      // @ts-ignore
-      minWidth: 'fit-content',
     } : {}),
   },
 });
