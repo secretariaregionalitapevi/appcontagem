@@ -1306,39 +1306,22 @@ export const RegisterScreen: React.FC = () => {
         cidade: data.cidade, // Adicionar cidade ao registro
       };
 
-      // Preparar dados para Google Sheets
-      const naipeInstrumento = instrumentoObj
-        ? getNaipeByInstrumento(instrumentoObj.nome).toUpperCase()
-        : data.classe
-          ? 'TECLADO'
-          : '';
-
-      const instrumentoFinal = instrumentoObj?.nome.toUpperCase() || (data.classe ? 'ÓRGÃO' : '');
-
-      const sheetRow = {
-        UUID: registro.id || generateExternalUUID(),
-        'NOME COMPLETO': data.nome.trim().toUpperCase(),
-        COMUM: data.comum.toUpperCase(),
-        CIDADE: data.cidade.toUpperCase(),
-        CARGO: cargoObj.nome.toUpperCase(),
-        INSTRUMENTO: instrumentoFinal,
-        NAIPE_INSTRUMENTO: naipeInstrumento,
-        CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
-        LOCAL_ENSAIO: (localEnsaio || 'Não definido').toUpperCase(),
-        DATA_ENSAIO: new Date().toLocaleString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        REGISTRADO_POR: nomeUsuario, // Já está em maiúscula da função formatRegistradoPor
-        ANOTACOES: 'Cadastro fora da Regional',
-      };
-
-      // 🚨 CORREÇÃO CRÍTICA: Usar o mesmo fluxo do handleSubmit
-      // Enviar primeiro para Google Sheets, depois para Supabase
-      const result = await (offlineSyncService as any).createRegistro(registro);
+      // 🚨 CRÍTICO: Para registros externos (modal de novo registro), enviar DIRETAMENTE para Google Sheets
+      // NÃO usar createRegistro que tenta validar contra listas locais
+      // Seguir o mesmo padrão do backupcont: enviar direto para Google Sheets, NÃO para Supabase
+      console.log('📤 [MODAL] Enviando registro externo diretamente para Google Sheets (sem validação local)');
+      
+      const result = await googleSheetsService.sendExternalRegistroToSheet({
+        nome: data.nome,
+        comum: data.comum,
+        cidade: data.cidade,
+        cargo: cargoObj.nome, // Usar nome do cargo encontrado
+        instrumento: instrumentoObj?.nome,
+        classe: data.classe,
+        localEnsaio: localEnsaio || 'Não definido',
+        registradoPor: nomeUsuario,
+        userId: user.id,
+      });
       
       if (result.success) {
         showToast.success(

@@ -17,6 +17,113 @@ export interface SheetsResponse {
 }
 
 export const googleSheetsService = {
+  // 🚨 FUNÇÃO ESPECÍFICA PARA REGISTROS EXTERNOS (MODAL DE NOVO REGISTRO)
+  // Envia diretamente para Google Sheets sem validar contra listas locais
+  async sendExternalRegistroToSheet(data: {
+    nome: string;
+    comum: string;
+    cidade: string;
+    cargo: string;
+    instrumento?: string;
+    classe?: string;
+    localEnsaio: string;
+    registradoPor: string;
+    userId?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log('📤 [EXTERNAL] Enviando registro externo diretamente para Google Sheets:', data);
+
+      // Gerar UUID
+      const uuid = generateExternalUUID();
+
+      // Determinar instrumento e naipe
+      let instrumentoFinal = '';
+      let naipeFinal = '';
+      
+      if (data.classe) {
+        // Se tem classe, é organista ou cargo com classe oficializada
+        instrumentoFinal = 'ÓRGÃO';
+        naipeFinal = 'TECLADO';
+      } else if (data.instrumento) {
+        instrumentoFinal = data.instrumento.toUpperCase();
+        naipeFinal = getNaipeByInstrumento(data.instrumento).toUpperCase();
+      }
+
+      // Formato esperado pelo Google Apps Script (igual ao backupcont)
+      const sheetRow = {
+        UUID: uuid,
+        'NOME COMPLETO': data.nome.trim().toUpperCase(),
+        COMUM: data.comum.trim().toUpperCase(),
+        CIDADE: data.cidade.trim().toUpperCase(),
+        CARGO: data.cargo.trim().toUpperCase(),
+        INSTRUMENTO: instrumentoFinal,
+        NAIPE_INSTRUMENTO: naipeFinal,
+        CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
+        LOCAL_ENSAIO: (data.localEnsaio || 'Não definido').toUpperCase(),
+        DATA_ENSAIO: new Date().toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }),
+        HORÁRIO: new Date().toLocaleTimeString('pt-BR', {
+          timeZone: 'America/Sao_Paulo',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }),
+        REGISTRADO_POR: data.registradoPor.toUpperCase(),
+        USER_ID: data.userId || '',
+        ANOTACOES: 'Cadastro fora da Regional', // 🚨 SEMPRE usar esta anotação para registros externos
+        SYNC_STATUS: 'ATUALIZADO',
+      };
+
+      console.log('📤 [EXTERNAL] Dados formatados para Google Sheets:', sheetRow);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(GOOGLE_SHEETS_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify({
+          op: 'append',
+          sheet: SHEET_NAME,
+          data: sheetRow,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.type === 'opaque') {
+        console.log('✅ [EXTERNAL] Google Sheets: Dados enviados (no-cors)');
+        return { success: true };
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ [EXTERNAL] Google Sheets: Resposta:', result);
+
+      if (result.success) {
+        return { success: true };
+      } else {
+        throw new Error(result.message || 'Erro desconhecido ao enviar para Google Sheets');
+      }
+    } catch (error: any) {
+      console.error('❌ [EXTERNAL] Erro ao enviar registro externo para Google Sheets:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  },
+
   async sendRegistroToSheet(
     registro: RegistroPresenca
   ): Promise<{ success: boolean; error?: string }> {
