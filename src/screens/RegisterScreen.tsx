@@ -1707,6 +1707,8 @@ const styles = StyleSheet.create({
           overflow: 'visible' as const,
           paddingHorizontal: theme.spacing.md, // Menos padding horizontal no mobile
           paddingTop: theme.spacing.md, // Menos padding top no mobile
+          // Garantir que há espaço suficiente para pull-to-refresh funcionar
+          minHeight: '100%',
         }),
   },
   loadingContainer: {
