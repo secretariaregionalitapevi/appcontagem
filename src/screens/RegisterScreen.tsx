@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { useAuthContext } from '../context/AuthContext';
 import { SimpleSelectField } from '../components/SimpleSelectField';
 import { AutocompleteField } from '../components/AutocompleteField';
@@ -442,21 +443,36 @@ export const RegisterScreen: React.FC = () => {
 
     setLoading(true);
 
-    // 🚨 CORREÇÃO CRÍTICA: Verificar offline PRIMEIRO, antes de qualquer outra coisa
-    // Seguindo EXATAMENTE a lógica do BACKUPCONT - usar navigator.onLine diretamente
-    // Esta é a verificação mais confiável e funciona tanto na web quanto no mobile
+    // 🚨 CRÍTICO iOS: Verificação robusta e múltipla para garantir funcionamento em todos os modelos
+    // iPhone 8 até 17 - cobertura ampla com múltiplas verificações
     let isOfflineNow = false;
     
-    // 🚨 CRÍTICO: No iOS, SEMPRE tentar salvar na fila primeiro se houver qualquer dúvida
-    // iOS tem problemas de detecção de conexão, então ser mais conservador
     if (Platform.OS === 'ios') {
-      // iOS: Se hook diz offline OU navigator diz offline, assumir offline
-      const hookOffline = !isOnline;
-      const navigatorOffline = typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
-      isOfflineNow = hookOffline || navigatorOffline;
+      // iOS: Múltiplas verificações para máxima confiabilidade
+      // 1. Verificar NetInfo diretamente (mais confiável no iOS)
+      let netInfoOffline = false;
+      try {
+        const NetInfo = require('@react-native-community/netinfo').default;
+        const netState = await NetInfo.fetch();
+        netInfoOffline = !(netState.isConnected === true && netState.isInternetReachable === true);
+      } catch (netError) {
+        // Se NetInfo falhar, assumir offline para segurança
+        netInfoOffline = true;
+      }
       
-      // Se houver qualquer dúvida, SEMPRE assumir offline no iOS
-      if (hookOffline) {
+      // 2. Verificar hook
+      const hookOffline = !isOnline;
+      
+      // 3. Verificar navigator.onLine (se disponível)
+      const navigatorOffline = typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
+      
+      // 4. Se QUALQUER verificação indicar offline, assumir offline
+      // No iOS, ser EXTREMAMENTE conservador - melhor salvar na fila do que perder registro
+      isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
+      
+      // 5. Se houver QUALQUER dúvida, SEMPRE assumir offline no iOS
+      // Isso garante que registros nunca sejam perdidos
+      if (hookOffline || netInfoOffline) {
         isOfflineNow = true;
       }
     } else if (Platform.OS === 'android') {
@@ -476,7 +492,7 @@ export const RegisterScreen: React.FC = () => {
     }
     
     // Se estiver offline, salvar IMEDIATAMENTE na fila (como BACKUPCONT)
-    // 🚨 CRÍTICO iOS: No iOS, se hook diz offline, SEMPRE salvar na fila
+    // 🚨 CRÍTICO iOS: No iOS, se QUALQUER verificação indicar offline, SEMPRE salvar na fila
     if (isOfflineNow || (Platform.OS === 'ios' && !isOnline)) {
       try {
         
