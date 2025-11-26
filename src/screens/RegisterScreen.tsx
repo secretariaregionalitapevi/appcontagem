@@ -1568,8 +1568,23 @@ export const RegisterScreen: React.FC = () => {
 
               <PrimaryButton
                 title="ENVIAR REGISTRO"
-                onPress={handleSubmit}
+                onPress={() => {
+                  console.log('🔘 [BUTTON] Botão ENVIAR REGISTRO pressionado');
+                  console.log('📊 [BUTTON] Estado atual:', {
+                    loading,
+                    selectedComum: !!selectedComum,
+                    selectedCargo: !!selectedCargo,
+                    selectedPessoa: !!selectedPessoa,
+                    isOnline,
+                  });
+                  handleSubmit().catch(error => {
+                    console.error('❌ [BUTTON] Erro não tratado no handleSubmit:', error);
+                    setLoading(false);
+                    showToast.error('Erro', 'Erro ao processar registro. Tente novamente.');
+                  });
+                }}
                 loading={loading}
+                disabled={loading}
                 style={styles.submitButton}
               />
             </View>
