@@ -385,9 +385,17 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
       </KeyboardAvoidingView>
   );
 
+  // 🚨 CRÍTICO: NUNCA renderizar modal quando offline (não faz sentido)
+  // Verificar se está online antes de renderizar
+  const isOnline = typeof navigator !== 'undefined' && navigator.onLine !== false;
+  if (!isOnline) {
+    console.log('🚨 [NewRegistrationModal] Offline detectado - NÃO renderizando modal');
+    return null;
+  }
+  
   if (Platform.OS === 'web') {
     // No web, renderizar diretamente usando View fixo para evitar problemas com Modal
-    return visible ? (
+    return visible && isOnline ? (
       <View
         style={{
           position: 'fixed' as any,
@@ -409,7 +417,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && isOnline}
       transparent
       animationType="fade"
       onRequestClose={onClose}
