@@ -1276,13 +1276,23 @@ export const RegisterScreen: React.FC = () => {
       const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
 
       // Buscar cargo e instrumento para obter nomes
-      const cargoObj = cargos.find(c => c.id === data.cargo);
-      const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
-
+      // No modal de novo registro, data.cargo pode ser o nome do cargo (string) ou ID
+      // Tentar buscar por ID primeiro, depois por nome
+      let cargoObj = cargos.find(c => c.id === data.cargo);
       if (!cargoObj) {
-        Alert.alert('Erro', 'Cargo não encontrado');
-        return;
+        // Se não encontrou por ID, tentar buscar por nome (caso do modal de novo registro)
+        cargoObj = cargos.find(c => c.nome === data.cargo);
       }
+      
+      // Se ainda não encontrou, criar um objeto temporário com o nome do cargo
+      if (!cargoObj) {
+        cargoObj = {
+          id: `temp_${data.cargo.replace(/\s+/g, '_').toLowerCase()}`,
+          nome: data.cargo,
+        } as any;
+      }
+      
+      const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
 
       // Criar registro com dados do modal
       const registro: RegistroPresenca & { cidade?: string } = {
