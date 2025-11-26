@@ -75,6 +75,14 @@ export const RegisterScreen: React.FC = () => {
   } | null>(null);
   const [pendingRegistro, setPendingRegistro] = useState<RegistroPresenca | null>(null);
   const [newRegistrationModalVisible, setNewRegistrationModalVisible] = useState(false);
+  
+  // 🚨 CRÍTICO: Fechar modal automaticamente quando ficar offline
+  useEffect(() => {
+    if (!isOnline && newRegistrationModalVisible) {
+      console.log('🚨 [AUTO-CLOSE] Fechando modal automaticamente - modo offline detectado');
+      setNewRegistrationModalVisible(false);
+    }
+  }, [isOnline, newRegistrationModalVisible]);
 
   // Mostrar campo de instrumento apenas para Músico
   // Organista NÃO mostra campo de instrumento (sempre toca órgão)
@@ -1582,12 +1590,19 @@ export const RegisterScreen: React.FC = () => {
                     newRegistrationModalVisible,
                   });
                   
-                  // 🚨 CRÍTICO: Fechar modal se estiver aberto antes de processar
+                  // 🚨 CRÍTICO: SEMPRE fechar modal antes de processar (mesmo que não esteja visível)
                   if (newRegistrationModalVisible) {
-                    console.log('🚨 [BUTTON] Modal aberto detectado - fechando antes de processar...');
+                    console.log('🚨 [BUTTON] Modal aberto detectado - fechando forçadamente...');
                     setNewRegistrationModalVisible(false);
-                    // Aguardar um pouco para garantir que o modal fechou
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    // Aguardar mais tempo para garantir que o modal fechou completamente
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                  }
+                  
+                  // 🚨 CRÍTICO: Verificar novamente se modal foi fechado
+                  if (newRegistrationModalVisible) {
+                    console.warn('⚠️ [BUTTON] Modal ainda aberto após tentativa de fechar - forçando fechamento...');
+                    setNewRegistrationModalVisible(false);
+                    await new Promise(resolve => setTimeout(resolve, 200));
                   }
                   
                   try {
@@ -1599,7 +1614,7 @@ export const RegisterScreen: React.FC = () => {
                   }
                 }}
                 loading={loading}
-                disabled={loading || newRegistrationModalVisible}
+                disabled={loading}
                 style={styles.submitButton}
               />
             </View>
@@ -1731,12 +1746,16 @@ export const RegisterScreen: React.FC = () => {
 
       {/* Modal de Novo Registro (para visitas de outras cidades) */}
       {/* 🚨 CRÍTICO: NÃO mostrar modal quando offline - não faz sentido já que precisa digitar manualmente */}
-      {isOnline && (
+      {/* Forçar fechamento se estiver offline */}
+      {isOnline && newRegistrationModalVisible && (
         <NewRegistrationModal
-          visible={newRegistrationModalVisible}
+          visible={newRegistrationModalVisible && isOnline}
           cargos={cargos}
           instrumentos={instrumentos}
-          onClose={() => setNewRegistrationModalVisible(false)}
+          onClose={() => {
+            console.log('🚨 [MODAL] Fechando modal manualmente');
+            setNewRegistrationModalVisible(false);
+          }}
           onSave={handleSaveNewRegistration}
         />
       )}
