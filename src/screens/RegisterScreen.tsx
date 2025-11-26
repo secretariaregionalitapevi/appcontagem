@@ -1342,7 +1342,7 @@ export const RegisterScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled"
           collapsable={false}
           nestedScrollEnabled={true}
-          showsVerticalScrollIndicator={Platform.OS !== 'web'}
+          showsVerticalScrollIndicator={true}
           scrollEnabled={true}
           bounces={Platform.OS === 'ios'}
           alwaysBounceVertical={Platform.OS === 'ios'}
@@ -1351,26 +1351,27 @@ export const RegisterScreen: React.FC = () => {
           style={Platform.OS === 'web' 
             ? { 
                 position: 'relative' as const, 
-                overflow: 'visible' as const,
+                overflow: 'auto' as const,
                 zIndex: 1,
+                // @ts-ignore
+                WebkitOverflowScrolling: 'touch',
               } 
             : { 
                 flex: 1,
                 backgroundColor: theme.colors.background,
               }}
           refreshControl={
-            Platform.OS !== 'web' ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={[theme.colors.primary]}
-                tintColor={theme.colors.primary}
-                progressViewOffset={Platform.OS === 'android' ? 20 : 0}
-                title="Puxe para atualizar"
-                titleColor={theme.colors.textSecondary}
-                progressBackgroundColor={theme.colors.surface}
-              />
-            ) : undefined
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+              progressViewOffset={Platform.OS === 'android' ? 20 : 0}
+              title="Puxe para atualizar"
+              titleColor={theme.colors.textSecondary}
+              progressBackgroundColor={theme.colors.surface}
+              enabled={true}
+            />
           }
         >
           <View style={styles.card}>
