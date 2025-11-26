@@ -468,6 +468,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 };
 
 const styles = StyleSheet.create({
+  // @ts-ignore - container usa propriedades CSS específicas do web
   container: {
     flex: 1,
     ...(Platform.OS === 'web' ? {
