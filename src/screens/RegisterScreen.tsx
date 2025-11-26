@@ -78,11 +78,26 @@ export const RegisterScreen: React.FC = () => {
   
   // 🚨 CRÍTICO: Fechar modal automaticamente quando ficar offline
   useEffect(() => {
-    if (!isOnline && newRegistrationModalVisible) {
-      console.log('🚨 [AUTO-CLOSE] Fechando modal automaticamente - modo offline detectado');
-      setNewRegistrationModalVisible(false);
+    if (!isOnline) {
+      if (newRegistrationModalVisible) {
+        console.log('🚨 [AUTO-CLOSE] Fechando modal automaticamente - modo offline detectado');
+        setNewRegistrationModalVisible(false);
+      }
+      // Garantir que modal nunca fique aberto quando offline
+      if (newRegistrationModalVisible) {
+        console.warn('⚠️ [AUTO-CLOSE] Modal ainda aberto após tentativa - forçando fechamento...');
+        setNewRegistrationModalVisible(false);
+      }
     }
   }, [isOnline, newRegistrationModalVisible]);
+  
+  // 🚨 CRÍTICO: Monitorar mudanças de isOnline e fechar modal imediatamente
+  useEffect(() => {
+    if (!isOnline) {
+      console.log('📴 [OFFLINE-DETECT] Offline detectado - garantindo que modal está fechado');
+      setNewRegistrationModalVisible(false);
+    }
+  }, [isOnline]);
 
   // Mostrar campo de instrumento apenas para Músico
   // Organista NÃO mostra campo de instrumento (sempre toca órgão)
