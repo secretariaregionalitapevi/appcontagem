@@ -490,6 +490,7 @@ const styles = StyleSheet.create({
       zIndex: 999999,
     }),
   },
+  // @ts-ignore - overlay usa propriedades CSS específicas do web
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
