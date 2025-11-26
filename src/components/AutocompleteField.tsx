@@ -336,7 +336,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
             Platform.OS === 'web'
               ? {
                   position: 'relative' as ViewStyle['position'],
-                  outline: 'none',
+                  // @ts-ignore - Propriedades CSS apenas para web
                   outlineStyle: 'none',
                   outlineWidth: 0,
                 }
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
       opacity: 1,
-      outline: 'none',
+      // @ts-ignore - Propriedades CSS apenas para web
       outlineStyle: 'none',
       outlineWidth: 0,
     } : {}),

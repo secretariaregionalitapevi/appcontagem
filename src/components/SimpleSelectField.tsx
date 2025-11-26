@@ -229,7 +229,7 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
               ? {
                   position: 'relative' as ViewStyle['position'],
                   zIndex: 1,
-                  outline: 'none',
+                  // @ts-ignore - Propriedades CSS apenas para web
                   outlineStyle: 'none',
                   outlineWidth: 0,
                 }
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     ...(Platform.OS === 'web' ? {
-      outline: 'none',
+      // @ts-ignore - Propriedades CSS apenas para web
       outlineStyle: 'none',
       outlineWidth: 0,
     } : {}),

@@ -459,13 +459,11 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
           backdropFilter: 'blur(4px)',
-          // @ts-ignore
+          // @ts-ignore - Propriedades CSS apenas para web
           backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          // @ts-ignore
-          background: 'rgba(0, 0, 0, 0.6)',
-          // @ts-ignore
+          // @ts-ignore - Propriedades CSS apenas para web
           opacity: 1,
-          // @ts-ignore
+          // @ts-ignore - Propriedades CSS apenas para web
           zIndex: 999999,
           // @ts-ignore
           position: 'fixed',
@@ -497,11 +495,9 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          // @ts-ignore
+          // @ts-ignore - Propriedades CSS apenas para web
           backgroundColor: '#ffffff',
-          // @ts-ignore
-          background: '#ffffff',
-          // @ts-ignore
+          // @ts-ignore - Propriedades CSS apenas para web
           opacity: 1,
           // @ts-ignore
           zIndex: 1000000,
@@ -525,11 +521,9 @@ const styles = StyleSheet.create({
     borderBottomColor: theme.colors.border,
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web' ? {
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       backgroundColor: '#ffffff',
-      // @ts-ignore
-      background: '#ffffff',
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       opacity: 1,
     } : {}),
   },
@@ -551,11 +545,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web' ? {
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       backgroundColor: '#ffffff',
-      // @ts-ignore
-      background: '#ffffff',
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       opacity: 1,
     } : {}),
   },
@@ -563,11 +555,9 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web' ? {
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       backgroundColor: '#ffffff',
-      // @ts-ignore
-      background: '#ffffff',
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       opacity: 1,
     } : {}),
   },
@@ -599,12 +589,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
+          // @ts-ignore - Propriedades CSS apenas para web
           outlineStyle: 'none',
-          // @ts-ignore
+          outlineWidth: 0,
+          // @ts-ignore - Propriedades CSS apenas para web
           backgroundColor: '#ffffff',
-          // @ts-ignore
-          background: '#ffffff',
-          // @ts-ignore
+          // @ts-ignore - Propriedades CSS apenas para web
           opacity: 1,
         }
       : {}),
@@ -627,11 +617,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     gap: theme.spacing.sm,
     ...(Platform.OS === 'web' ? {
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       backgroundColor: '#ffffff',
-      // @ts-ignore
-      background: '#ffffff',
-      // @ts-ignore
+      // @ts-ignore - Propriedades CSS apenas para web
       opacity: 1,
     } : {}),
   },

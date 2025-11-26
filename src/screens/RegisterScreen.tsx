@@ -1966,7 +1966,9 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
     minHeight: 48,
-    outline: 'none',
+    // @ts-ignore - Propriedades CSS apenas para web
+    outlineStyle: 'none',
+    outlineWidth: 0,
     cursor: 'pointer',
     ...(Platform.OS === 'web' ? {
       WebkitAppearance: 'none' as any,
