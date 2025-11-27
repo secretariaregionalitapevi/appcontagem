@@ -4,9 +4,7 @@ import { Usuario } from '../types/models';
 export interface UserProfile {
   id: string;
   email: string;
-  name?: string; // Campo principal na tabela profiles
-  first_name?: string; // Primeiro nome
-  last_name?: string; // Último nome
+  name?: string; // Campo principal na tabela profiles (nome completo)
   role?: string;
   created_at?: string;
   updated_at?: string;
@@ -76,10 +74,10 @@ export const userProfileService = {
     }
 
     try {
-      // 🚨 CORREÇÃO: Buscar campos corretos da tabela profiles (name, first_name, last_name, role)
+      // 🚨 CORREÇÃO: Buscar campos corretos da tabela profiles (name, role)
       const result = await supabase
         .from('profiles')
-        .select('id, email, name, first_name, last_name, role, created_at, updated_at')
+        .select('id, email, name, role, created_at, updated_at')
         .eq('id', userId)
         .single();
 
@@ -94,20 +92,10 @@ export const userProfileService = {
       }
 
       if (result.data) {
-        // Combinar first_name e last_name se disponíveis
-        let fullName = result.data.name;
-        if (!fullName && result.data.first_name) {
-          fullName = result.data.last_name 
-            ? `${result.data.first_name} ${result.data.last_name}`.trim()
-            : result.data.first_name;
-        }
-
         console.log('✅ Perfil encontrado:', {
           id: result.data.id,
           email: result.data.email,
-          name: fullName || 'não definido',
-          first_name: result.data.first_name,
-          last_name: result.data.last_name,
+          name: result.data.name || 'não definido',
           role: result.data.role || 'não definido',
         });
       }
@@ -121,26 +109,13 @@ export const userProfileService = {
 
   /**
    * Converter UserProfile para Usuario
-   * Combina first_name e last_name se disponíveis, senão usa name
+   * Usa name da tabela profiles (nome completo)
    */
   profileToUsuario(profile: UserProfile | null): Usuario | null {
     if (!profile) return null;
 
-    // 🚨 CORREÇÃO: Combinar first_name e last_name se disponíveis
-    let nome: string | undefined;
-    
-    if (profile.first_name) {
-      // Se tem first_name, combinar com last_name se disponível
-      nome = profile.last_name 
-        ? `${profile.first_name} ${profile.last_name}`.trim()
-        : profile.first_name;
-    } else if (profile.name) {
-      // Se não tem first_name, usar name
-      nome = profile.name;
-    } else if (profile.nome) {
-      // Fallback para campo legado
-      nome = profile.nome;
-    }
+    // 🚨 CORREÇÃO: Usar name da tabela profiles (nome completo)
+    const nome = profile.name || profile.nome || undefined;
 
     // Normalizar role: converter para lowercase e garantir que seja string
     let role = profile.role;
@@ -154,8 +129,6 @@ export const userProfileService = {
       id: profile.id,
       email: profile.email,
       name: profile.name,
-      first_name: profile.first_name,
-      last_name: profile.last_name,
       nome: nome,
       roleOriginal: profile.role,
       roleNormalizado: role,
