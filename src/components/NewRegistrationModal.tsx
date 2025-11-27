@@ -188,10 +188,11 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         setNome('');
         setErrors({});
         
+        // Toast de sucesso já foi exibido no handleSaveNewRegistration
         // Fechar modal após sucesso (aguardar um pouco para toast aparecer)
         setTimeout(() => {
           onClose();
-        }, 500);
+        }, 800);
       } catch (error) {
         // Erro já foi tratado no handleSaveNewRegistration
         // Não fechar modal se houver erro
