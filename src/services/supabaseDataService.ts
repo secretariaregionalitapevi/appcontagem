@@ -917,13 +917,150 @@ export const supabaseDataService = {
         }
 
         // Construir query base com filtro de comum (incluindo cidade e nivel - que é a classe da organista)
-        // 🚨 CORREÇÃO: Usar nome normalizado (sem acentos) para busca mais flexível
+        // 🚨 CORREÇÃO CRÍTICA: Fazer múltiplas buscas para garantir que encontre mesmo com acentos diferentes
+        // O Supabase ilike não normaliza acentos automaticamente, então precisamos buscar:
+        // 1. Nome normalizado (sem acentos): "JARDIM LAVAPES DAS GRACAS"
+        // 2. Nome original (com acentos): "JARDIM LAVAPÉS DAS GRAÇAS"  
+        // 3. Nome completo (com código): "BR-22-1804 - JARDIM LAVAPÉS DAS GRAÇAS"
         console.log('🔍 [fetchPessoasFromCadastro] Construindo query com:', {
           comumBuscaNormalizado: comumBusca,
           comumNomeOriginal: comumNome,
           tableName: table,
         });
         
+        // Extrair nome sem código do nome original também (caso tenha acentos)
+        let comumNomeSemCodigo = comumNome.trim();
+        if (comumNomeSemCodigo.includes(' - ') || comumNomeSemCodigo.includes(' -')) {
+          const partes = comumNomeSemCodigo.split(/ - ?/);
+          if (partes.length > 1) {
+            comumNomeSemCodigo = partes.slice(1).join(' - ').trim();
+          }
+        }
+        
+        // 🚨 CORREÇÃO: Fazer múltiplas queries e combinar resultados (mais confiável que OR)
+        // Similar ao que foi feito para SAXOFONE SOPRANO
+        const queriesComum = [
+          supabase
+            .from(table)
+            .select('nome, comum, cargo, instrumento, cidade, nivel')
+            .ilike('comum', `%${comumBusca}%`) // Nome normalizado (sem acentos)
+            .order('nome', { ascending: true })
+            .range(from, to),
+          supabase
+            .from(table)
+            .select('nome, comum, cargo, instrumento, cidade, nivel')
+            .ilike('comum', `%${comumNomeSemCodigo.toUpperCase()}%`) // Nome original (com acentos)
+            .order('nome', { ascending: true })
+            .range(from, to),
+          supabase
+            .from(table)
+            .select('nome, comum, cargo, instrumento, cidade, nivel')
+            .ilike('comum', `%${comumNome.trim()}%`) // Nome completo (com código)
+            .order('nome', { ascending: true })
+            .range(from, to),
+        ];
+        
+        // Executar todas as queries em paralelo
+        const resultsComum = await Promise.all(queriesComum);
+        
+        // Combinar resultados removendo duplicatas
+        const combinedDataComum: any[] = [];
+        const seenNames = new Set<string>();
+        
+        resultsComum.forEach((result, idx) => {
+          if (result.data && !result.error) {
+            result.data.forEach((item: any) => {
+              const key = `${item.nome}_${item.comum}`.toUpperCase();
+              if (!seenNames.has(key)) {
+                seenNames.add(key);
+                combinedDataComum.push(item);
+              }
+            });
+          } else if (result.error) {
+            console.warn(`⚠️ Erro na query ${idx + 1} para comum:`, result.error);
+          }
+        });
+        
+        // Se encontrou resultados, aplicar filtros de cargo e instrumento
+        console.log(`🔍 [fetchPessoasFromCadastro] ${combinedDataComum.length} resultados encontrados após buscar comum`);
+        
+        if (combinedDataComum.length > 0) {
+          let filteredData = combinedDataComum;
+          
+          console.log('🔍 [fetchPessoasFromCadastro] Aplicando filtros de cargo e instrumento:', {
+            cargoBusca,
+            instrumentoBusca,
+            totalAntesFiltro: filteredData.length,
+          });
+          
+          // Aplicar filtros de cargo e instrumento
+          if (cargoBusca === 'ORGANISTA') {
+            filteredData = filteredData.filter(item => 
+              (item.instrumento || '').toUpperCase().includes('ÓRGÃO')
+            );
+          } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
+            if (instrumentoBusca) {
+              const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
+              console.log('🔍 [fetchPessoasFromCadastro] Variações de busca para instrumento:', {
+                instrumentoOriginal: instrumentoNome,
+                instrumentoNormalizado: instrumentoBusca,
+                variacoesBusca,
+              });
+              
+              filteredData = filteredData.filter(item => {
+                const itemInstrumento = (item.instrumento || '').toUpperCase();
+                const matches = variacoesBusca.some(v => itemInstrumento.includes(v));
+                if (!matches && itemInstrumento) {
+                  console.log(`⚠️ [fetchPessoasFromCadastro] Instrumento não corresponde: "${itemInstrumento}" vs variações:`, variacoesBusca);
+                }
+                return matches;
+              });
+            } else {
+              filteredData = filteredData.filter(item => {
+                const itemCargo = (item.cargo || '').toUpperCase();
+                return itemCargo.includes('MÚSICO') && !itemCargo.includes('SECRETÁRIO');
+              });
+            }
+          } else {
+            filteredData = filteredData.filter(item => 
+              (item.cargo || '').toUpperCase().includes(cargoBusca)
+            );
+          }
+          
+          console.log(`✅ [fetchPessoasFromCadastro] ${filteredData.length} resultados após aplicar filtros (de ${combinedDataComum.length} iniciais)`);
+          
+          // Log de amostra dos resultados encontrados
+          if (filteredData.length > 0) {
+            console.log('📋 [fetchPessoasFromCadastro] Amostra dos resultados encontrados:', 
+              filteredData.slice(0, 3).map(item => ({
+                nome: item.nome,
+                comum: item.comum,
+                cargo: item.cargo,
+                instrumento: item.instrumento,
+              }))
+            );
+          } else {
+            console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado após aplicar filtros!');
+            console.log('🔍 [fetchPessoasFromCadastro] Amostra dos resultados ANTES do filtro:', 
+              combinedDataComum.slice(0, 5).map(item => ({
+                nome: item.nome,
+                comum: item.comum,
+                cargo: item.cargo,
+                instrumento: item.instrumento,
+              }))
+            );
+          }
+          
+          return {
+            data: filteredData,
+            error: null,
+            hasMore: combinedDataComum.length === pageSize,
+          };
+        }
+        
+        console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado encontrado nas queries de comum');
+        
+        // Se não encontrou com múltiplas queries, tentar query única como fallback
         let query = supabase
           .from(table)
           .select('nome, comum, cargo, instrumento, cidade, nivel')
