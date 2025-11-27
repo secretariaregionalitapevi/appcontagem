@@ -842,7 +842,7 @@ export const supabaseDataService = {
       // Normalizar o nome da comum (remover acentos, normalizar espaços)
       // 🚨 CORREÇÃO: Normalizar espaços ANTES de converter para maiúscula para evitar problemas
       comumBusca = comumBusca.replace(/\s+/g, ' ').trim(); // Normalizar espaços primeiro
-      comumBusca = normalizeString(comumBusca.toUpperCase());
+      comumBusca = normalizeString(comumBusca.toUpperCase()).replace(/\s+/g, ' ').trim(); // Garantir que não há espaços extras
       
       console.log('🔍 [fetchPessoasFromCadastro] Nome da comum normalizado:', {
         comumNomeOriginal: comumNome,
@@ -1149,16 +1149,49 @@ export const supabaseDataService = {
           // 🚨 CORREÇÃO: Se encontrou resultados, usar o nome EXATO do banco para buscar
           if (testResult.data && testResult.data.length > 0) {
             // Encontrar a comum que corresponde (pode ter código ou não, com ou sem acentos)
+            // Normalizar ambos os lados para comparação robusta
+            const comumBuscaNormalizado = normalizeString(comumBusca.toUpperCase());
+            const comumNomeNormalizado = normalizeString(comumNome.toUpperCase());
+            
             const comumEncontrada = amostraComuns.find((c: string) => {
-              const cUpper = c.toUpperCase().trim();
-              const buscaUpper = comumBusca.toUpperCase().trim();
-              const comumNomeUpper = comumNome.trim().toUpperCase();
+              if (!c) return false;
               
-              // Verificar se contém o nome buscado (com ou sem código)
-              return cUpper.includes(buscaUpper) || 
-                     buscaUpper.includes(cUpper.replace(/[^A-Z0-9\s]/g, '')) ||
-                     cUpper.includes(comumNomeUpper) ||
-                     comumNomeUpper.includes(cUpper);
+              const cUpper = c.toUpperCase().trim();
+              const cNormalizado = normalizeString(cUpper);
+              
+              // Extrair apenas o nome da comum (sem código) para comparação
+              let cNomeSemCodigo = cUpper;
+              if (cNomeSemCodigo.includes(' - ')) {
+                const partes = cNomeSemCodigo.split(' - ');
+                if (partes.length > 1) {
+                  cNomeSemCodigo = partes.slice(1).join(' - ').trim();
+                }
+              } else if (/^BR-\d+-\d+\s/.test(cNomeSemCodigo)) {
+                cNomeSemCodigo = cNomeSemCodigo.replace(/^BR-\d+-\d+\s+/, '').trim();
+              }
+              const cNomeSemCodigoNormalizado = normalizeString(cNomeSemCodigo);
+              
+              // Comparar de múltiplas formas:
+              // 1. Nome normalizado sem código
+              if (cNomeSemCodigoNormalizado === comumBuscaNormalizado) return true;
+              if (cNomeSemCodigoNormalizado.includes(comumBuscaNormalizado)) return true;
+              if (comumBuscaNormalizado.includes(cNomeSemCodigoNormalizado)) return true;
+              
+              // 2. Nome completo normalizado
+              if (cNormalizado.includes(comumNomeNormalizado)) return true;
+              if (comumNomeNormalizado.includes(cNormalizado)) return true;
+              
+              // 3. Comparação direta (case-insensitive)
+              if (cUpper.includes(comumBusca.toUpperCase())) return true;
+              if (cUpper.includes(comumNome.toUpperCase())) return true;
+              
+              return false;
+            });
+            
+            console.log('🔍 [fetchPessoasFromCadastro] Tentando encontrar comum na amostra:', {
+              comumBuscaNormalizado,
+              comumNomeNormalizado,
+              amostraComuns: amostraComuns.slice(0, 3),
             });
             
             if (comumEncontrada) {
