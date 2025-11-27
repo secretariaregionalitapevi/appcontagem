@@ -806,8 +806,27 @@ export const supabaseDataService = {
         instrumentoNome,
       });
 
-      // Normalizar valores para busca
-      const comumBusca = comumNome.trim();
+      // 🚨 CORREÇÃO: Extrair apenas o nome da comum (sem código) e normalizar
+      // O nome da comum pode vir como "BR-22-1804 - JARDIM LAVAPES DAS GRACAS"
+      // mas no banco pode estar apenas como "JARDIM LAVAPES DAS GRACAS" ou com acentos
+      let comumBusca = comumNome.trim();
+      
+      // Extrair apenas o nome sem o código (usando a função extrairNomeComum)
+      if (comumBusca.includes(' - ') || comumBusca.includes(' -')) {
+        const partes = comumBusca.split(/ - ?/);
+        if (partes.length > 1) {
+          comumBusca = partes.slice(1).join(' - ').trim();
+        }
+      }
+      
+      // Normalizar o nome da comum (remover acentos, normalizar espaços)
+      comumBusca = normalizeString(comumBusca.toUpperCase());
+      
+      console.log('🔍 [fetchPessoasFromCadastro] Nome da comum normalizado:', {
+        comumNomeOriginal: comumNome,
+        comumBuscaNormalizado: comumBusca,
+      });
+      
       const cargoBusca = cargoNome.trim().toUpperCase();
       // 🚨 CORREÇÃO: Normalizar instrumento expandindo abreviações (ex: "RET" → "RETO")
       const instrumentoBusca = instrumentoNome 
@@ -898,6 +917,13 @@ export const supabaseDataService = {
         }
 
         // Construir query base com filtro de comum (incluindo cidade e nivel - que é a classe da organista)
+        // 🚨 CORREÇÃO: Usar nome normalizado (sem acentos) para busca mais flexível
+        console.log('🔍 [fetchPessoasFromCadastro] Construindo query com:', {
+          comumBuscaNormalizado: comumBusca,
+          comumNomeOriginal: comumNome,
+          tableName: table,
+        });
+        
         let query = supabase
           .from(table)
           .select('nome, comum, cargo, instrumento, cidade, nivel')
@@ -1341,11 +1367,36 @@ export const supabaseDataService = {
 
     // Buscar pessoas da tabela cadastro (para outros cargos)
     try {
+      console.log('🔍 [getPessoasFromLocal] Chamando fetchPessoasFromCadastro com:', {
+        comumId,
+        comumNome,
+        cargoId,
+        cargoNome,
+        instrumentoId,
+        instrumentoNome,
+      });
+      
+      if (!comumNome) {
+        console.error('❌ [getPessoasFromLocal] comumNome está vazio!');
+        return [];
+      }
+      
+      if (!cargoNome) {
+        console.error('❌ [getPessoasFromLocal] cargoNome está vazio!');
+        return [];
+      }
+      
       const pessoasData = await this.fetchPessoasFromCadastro(
         comumNome,
         cargoNome,
         instrumentoNome
       );
+
+      console.log(`✅ [getPessoasFromLocal] ${pessoasData.length} pessoas retornadas de fetchPessoasFromCadastro`);
+      
+      if (pessoasData.length === 0) {
+        console.warn('⚠️ [getPessoasFromLocal] Nenhuma pessoa encontrada - verificar logs de fetchPessoasFromCadastro');
+      }
 
       // Converter para formato Pessoa[]
       const pessoas: Pessoa[] = pessoasData.map((p, index) => {
