@@ -252,13 +252,11 @@ export const offlineSyncService = {
     // 🚨 OTIMIZAÇÃO: Medir tempo de processamento
     const inicioTempo = performance.now();
     
-    // Verificar status online com tratamento de erro robusto
+    // 🚀 OTIMIZAÇÃO: Verificar status online de forma rápida (sem logs desnecessários)
     let isOnline = false;
     try {
       isOnline = await this.isOnline();
-      console.log('🔍 Status de conexão verificado:', isOnline ? 'Online' : 'Offline');
     } catch (error) {
-      console.warn('⚠️ Erro ao verificar status online, assumindo offline:', error);
       // Se houver erro na verificação, assumir offline para garantir que salve localmente
       isOnline = false;
     }
@@ -268,22 +266,21 @@ export const offlineSyncService = {
     // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
     if (isOnline && !skipDuplicateCheck) {
       try {
-        // Buscar dados necessários para verificação
-        const [comuns, cargos] = await Promise.all([
+        // 🚀 OTIMIZAÇÃO: Buscar dados em paralelo (comuns, cargos e pessoas juntos)
+        const [comuns, cargos, pessoas] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
           supabaseDataService.getCargosFromLocal(),
+          supabaseDataService.getPessoasFromLocal(
+            registro.comum_id,
+            registro.cargo_id,
+            registro.instrumento_id || undefined
+          ),
         ]);
 
         const comum = comuns.find(c => c.id === registro.comum_id);
         const cargo = cargos.find(c => c.id === registro.cargo_id);
 
         if (comum && cargo) {
-          // Buscar pessoa para obter nome completo
-          const pessoas = await supabaseDataService.getPessoasFromLocal(
-            registro.comum_id,
-            registro.cargo_id,
-            registro.instrumento_id || undefined
-          );
 
           let nomeCompleto = '';
           let cargoReal = cargo.nome; // Usar cargo selecionado como padrão
@@ -364,97 +361,73 @@ export const offlineSyncService = {
     }
 
     // 🛡️ VERIFICAÇÃO DE DUPLICADOS LOCAL: Verificar se já existe registro no mesmo dia
-    // Baseado na lógica do backupcont/app.js
+    // 🚀 OTIMIZAÇÃO: Verificação rápida usando apenas IDs e datas (sem buscar pessoas)
     // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
     if (!skipDuplicateCheck) {
-    try {
-      const registrosLocais = await supabaseDataService.getRegistrosPendentesFromLocal();
-
-      // Buscar dados da pessoa, comum e cargo para comparação
-      const [comuns, cargos, pessoas] = await Promise.all([
-        supabaseDataService.getComunsFromLocal(),
-        supabaseDataService.getCargosFromLocal(),
-        supabaseDataService.getPessoasFromLocal(
-          registro.comum_id,
-          registro.cargo_id,
-          registro.instrumento_id || undefined
-        ),
-      ]);
-
-      const comum = comuns.find(c => c.id === registro.comum_id);
-      const cargo = cargos.find(c => c.id === registro.cargo_id);
-      const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
-
-      if (comum && cargo && pessoa) {
-        const nomeBusca = `${pessoa.nome} ${pessoa.sobrenome}`.trim().toUpperCase();
-        const comumBusca = comum.nome.toUpperCase();
-        const cargoBusca = cargo.nome.toUpperCase();
-
+      try {
+        const registrosLocais = await supabaseDataService.getRegistrosPendentesFromLocal();
+        
         // Extrair apenas a data (sem hora) para comparação
         const dataRegistro = new Date(registro.data_hora_registro);
         const dataRegistroStr = dataRegistro.toISOString().split('T')[0]; // YYYY-MM-DD
 
-        // Verificar duplicatas nos registros locais pendentes
-        for (const r of registrosLocais) {
-          const rComum = comuns.find(c => c.id === r.comum_id);
-          const rCargo = cargos.find(c => c.id === r.cargo_id);
+        // 🚀 OTIMIZAÇÃO: Verificação rápida por IDs e data (evita buscar pessoas)
+        const duplicataLocal = registrosLocais.find(r => {
+          const rData = new Date(r.data_hora_registro);
+          const rDataStr = rData.toISOString().split('T')[0];
+          
+          // Comparar por IDs e data (muito mais rápido)
+          return (
+            r.pessoa_id === registro.pessoa_id &&
+            r.comum_id === registro.comum_id &&
+            r.cargo_id === registro.cargo_id &&
+            rDataStr === dataRegistroStr &&
+            r.status_sincronizacao === 'pending'
+          );
+        });
 
-          if (rComum && rCargo) {
-            const rData = new Date(r.data_hora_registro);
-            const rDataStr = rData.toISOString().split('T')[0];
+        if (duplicataLocal) {
+          // Se encontrou duplicata por IDs, buscar dados completos apenas uma vez
+          const [comuns, cargos, pessoas] = await Promise.all([
+            supabaseDataService.getComunsFromLocal(),
+            supabaseDataService.getCargosFromLocal(),
+            supabaseDataService.getPessoasFromLocal(
+              registro.comum_id,
+              registro.cargo_id,
+              registro.instrumento_id || undefined
+            ),
+          ]);
 
-            // Buscar pessoa do registro para comparação
-            const rPessoas = await supabaseDataService.getPessoasFromLocal(
-              r.comum_id,
-              r.cargo_id,
-              r.instrumento_id || undefined
-            );
-            const rPessoa = rPessoas.find(p => p.id === r.pessoa_id);
+          const comum = comuns.find(c => c.id === registro.comum_id);
+          const cargo = cargos.find(c => c.id === registro.cargo_id);
+          const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
 
-            if (rPessoa) {
-              const rNome = `${rPessoa.nome} ${rPessoa.sobrenome}`.trim().toUpperCase();
-              const rComumBusca = rComum.nome.toUpperCase();
-              const rCargoBusca = rCargo.nome.toUpperCase();
+          if (comum && cargo && pessoa) {
+            const nomeBusca = `${pessoa.nome} ${pessoa.sobrenome}`.trim().toUpperCase();
+            const comumBusca = comum.nome.toUpperCase();
+            const cargoBusca = cargo.nome.toUpperCase();
 
-              if (
-                rNome === nomeBusca &&
-                rComumBusca === comumBusca &&
-                rCargoBusca === cargoBusca &&
-                rDataStr === dataRegistroStr
-              ) {
-                console.error('🚨🚨🚨 DUPLICATA DETECTADA LOCALMENTE - BLOQUEANDO 🚨🚨🚨', {
-                  nome: nomeBusca,
-                  comum: comumBusca,
-                  cargo: cargoBusca,
-                  data: dataRegistroStr,
-                  registroExistente: r.id,
-                });
+            const rData = new Date(duplicataLocal.data_hora_registro);
+            const dataFormatada = rData.toLocaleDateString('pt-BR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            });
+            const horarioFormatado = rData.toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            });
 
-                // Formatar data e horário do registro existente
-                const rData = new Date(r.data_hora_registro);
-                const dataFormatada = rData.toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                });
-                const horarioFormatado = rData.toLocaleTimeString('pt-BR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false,
-                });
-
-                return {
-                  success: false,
-                  error: `DUPLICATA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`,
-                };
-              }
-            }
+            return {
+              success: false,
+              error: `DUPLICATA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`,
+            };
           }
         }
-      }
-    } catch (error) {
-      console.warn('⚠️ Erro ao verificar duplicatas locais (continuando...):', error);
-      // Continuar mesmo com erro na verificação local
+      } catch (error) {
+        console.warn('⚠️ Erro ao verificar duplicatas locais (continuando...):', error);
+        // Continuar mesmo com erro na verificação local
       }
     }
 
@@ -466,55 +439,34 @@ export const offlineSyncService = {
 
     if (isOnline) {
       try {
-        // 🚀 FLUXO OTIMIZADO: Google Sheets PRIMEIRO (como backupcont)
-        // 1. Enviar para Google Sheets PRIMEIRO (mais rápido e confiável)
-        console.log('📤 Enviando para Google Sheets primeiro...');
-        const sheetsResult = await googleSheetsService.sendRegistroToSheet({
+        // 🚀 OTIMIZAÇÃO: Enviar para Google Sheets e Supabase EM PARALELO (mais rápido)
+        // Google Sheets é mais rápido, mas Supabase pode ser feito em paralelo sem bloquear
+        
+        const registroComId = {
           ...registro,
           id: uuidFinal,
-        });
+        };
+        
+        // Enviar ambos em paralelo - Google Sheets é crítico, Supabase é secundário
+        const [sheetsResult, supabaseResult] = await Promise.allSettled([
+          googleSheetsService.sendRegistroToSheet(registroComId),
+          // Supabase em paralelo (não bloqueia se falhar)
+          supabaseDataService.createRegistroPresenca(registroComId, skipDuplicateCheck).catch(err => {
+            console.warn('⚠️ Erro ao enviar para Supabase (não crítico):', err.message);
+            return null; // Não falhar se Supabase der erro
+          })
+        ]);
 
-        if (sheetsResult.success) {
-          console.log('✅ Registro enviado para Google Sheets com sucesso');
-          
-          // 🚨 CORREÇÃO CRÍTICA: Enviar para Supabase APÓS confirmação do Google Sheets
-          // Não usar setTimeout - enviar imediatamente após confirmação
-          try {
-            console.log('📤 Enviando para Supabase após confirmação do Google Sheets...');
-            // O método createRegistroPresenca já trata UUID local automaticamente
-            const createdRegistro = await supabaseDataService.createRegistroPresenca(
-              {
-                ...registro,
-                id: uuidFinal, // Pode ser local, será convertido para válido dentro do método
-              },
-              skipDuplicateCheck
-            );
-            if (createdRegistro) {
-              console.log('✅✅✅ Registro também enviado para Supabase com sucesso ✅✅✅');
-            } else {
-              console.error('❌❌❌ Registro NÃO foi criado no Supabase (mas Google Sheets OK) ❌❌❌');
-              // 🚨 CRÍTICO: Não silenciar erro - logar como erro crítico
-            }
-          } catch (supabaseError) {
-            // 🚨 CRÍTICO: Logar erro detalhado ao invés de apenas warning
-            console.error('❌❌❌ ERRO CRÍTICO ao enviar para Supabase ❌❌❌', {
-              error: supabaseError,
-              message: supabaseError instanceof Error ? supabaseError.message : String(supabaseError),
-              stack: supabaseError instanceof Error ? supabaseError.stack : undefined,
-              registro: {
-                id: uuidFinal,
-                pessoa_id: registro.pessoa_id,
-                comum_id: registro.comum_id,
-                cargo_id: registro.cargo_id,
-              },
-            });
-            // Continuar mesmo com erro no Supabase - Google Sheets já salvou
-            // Mas logar como erro crítico para debug
-          }
+        const sheetsSuccess = sheetsResult.status === 'fulfilled' && sheetsResult.value.success;
+        const supabaseSuccess = supabaseResult.status === 'fulfilled' && supabaseResult.value !== null;
 
-          // Sucesso - retornar após tentar Supabase
+        if (sheetsSuccess) {
+          // Sucesso - retornar imediatamente (logs reduzidos para performance)
           const tempoTotal = performance.now() - inicioTempo;
-          console.log(`⏱️ Registro processado em ${tempoTotal.toFixed(2)}ms`);
+          if (tempoTotal > 2000) {
+            // Logar apenas se demorar mais de 2s
+            console.log(`⏱️ Registro processado em ${tempoTotal.toFixed(2)}ms`);
+          }
           return { success: true };
         } else {
           // Google Sheets falhou - verificar se é erro de conectividade
