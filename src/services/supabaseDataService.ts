@@ -811,21 +811,10 @@ export const supabaseDataService = {
         });
       }
 
-      console.log('📚 Buscando pessoas da tabela cadastro:', {
-        comumNome,
-        cargoNome,
-        instrumentoNome,
-      });
-
       // 🚨 CORREÇÃO: Extrair apenas o nome da comum (sem código) e normalizar
       // O nome da comum pode vir como "BR-22-1804 - JARDIM LAVAPES DAS GRACAS" ou "BR-22-1804 JARDIM LAVAPES DAS GRACAS"
       // mas no banco pode estar apenas como "JARDIM LAVAPES DAS GRACAS" ou com acentos
       let comumBusca = comumNome.trim();
-      
-      console.log('🔍 [fetchPessoasFromCadastro] Processando nome da comum:', {
-        comumNomeOriginal: comumNome,
-        comumBuscaAntes: comumBusca,
-      });
       
       // Extrair apenas o nome sem o código (usando a função extrairNomeComum)
       // Tentar múltiplos formatos: "BR-XX-XXXX - NOME", "BR-XX-XXXX NOME", etc.
@@ -843,11 +832,6 @@ export const supabaseDataService = {
       // 🚨 CORREÇÃO: Normalizar espaços ANTES de converter para maiúscula para evitar problemas
       comumBusca = comumBusca.replace(/\s+/g, ' ').trim(); // Normalizar espaços primeiro
       comumBusca = normalizeString(comumBusca.toUpperCase()).replace(/\s+/g, ' ').trim(); // Garantir que não há espaços extras
-      
-      console.log('🔍 [fetchPessoasFromCadastro] Nome da comum normalizado:', {
-        comumNomeOriginal: comumNome,
-        comumBuscaNormalizado: comumBusca,
-      });
       
       const cargoBusca = cargoNome.trim().toUpperCase();
       // 🚨 CORREÇÃO: Normalizar instrumento expandindo abreviações (ex: "RET" → "RETO")
@@ -986,7 +970,6 @@ export const supabaseDataService = {
         ];
         
         // Executar todas as queries em paralelo
-        console.log('🔍 [fetchPessoasFromCadastro] Executando 3 queries paralelas para comum...');
         const resultsComum = await Promise.all(queriesComum);
         
         // Combinar resultados removendo duplicatas
@@ -994,34 +977,7 @@ export const supabaseDataService = {
         const seenNames = new Set<string>();
         
         resultsComum.forEach((result, idx) => {
-          const queryType = idx === 0 ? 'normalizado (sem acentos)' : idx === 1 ? 'original (com acentos)' : 'completo (com código)';
-          
-          console.log(`📊 [fetchPessoasFromCadastro] Resultado query ${idx + 1} (${queryType}):`, {
-            temData: !!result.data,
-            temError: !!result.error,
-            quantidade: result.data?.length || 0,
-            error: result.error ? {
-              message: result.error.message,
-              code: result.error.code,
-              details: result.error.details,
-              hint: result.error.hint,
-            } : null,
-          });
-          
           if (result.data && !result.error) {
-            if (result.data.length > 0) {
-              console.log(`✅ [fetchPessoasFromCadastro] Query ${idx + 1} retornou ${result.data.length} resultados`);
-              // Log de amostra dos primeiros resultados
-              console.log(`📋 [fetchPessoasFromCadastro] Amostra query ${idx + 1}:`, 
-                result.data.slice(0, 3).map((item: any) => ({
-                  nome: item.nome,
-                  comum: item.comum,
-                  cargo: item.cargo,
-                  instrumento: item.instrumento,
-                }))
-              );
-            }
-            
             result.data.forEach((item: any) => {
               const key = `${item.nome}_${item.comum}`.toUpperCase();
               if (!seenNames.has(key)) {
@@ -1030,29 +986,14 @@ export const supabaseDataService = {
               }
             });
           } else if (result.error) {
-            console.error(`❌ [fetchPessoasFromCadastro] Erro na query ${idx + 1} (${queryType}):`, {
-              error: result.error,
-              message: result.error.message,
-              code: result.error.code,
-              details: result.error.details,
-              hint: result.error.hint,
-            });
-          } else if (!result.data) {
-            console.warn(`⚠️ [fetchPessoasFromCadastro] Query ${idx + 1} (${queryType}) retornou data vazio/null`);
+            // Logar apenas erros críticos
+            console.error(`❌ [fetchPessoasFromCadastro] Erro na query ${idx + 1}:`, result.error.message);
           }
         });
         
         // Se encontrou resultados, aplicar filtros de cargo e instrumento
-        console.log(`🔍 [fetchPessoasFromCadastro] ${combinedDataComum.length} resultados encontrados após buscar comum`);
-        
         if (combinedDataComum.length > 0) {
           let filteredData = combinedDataComum;
-          
-          console.log('🔍 [fetchPessoasFromCadastro] Aplicando filtros de cargo e instrumento:', {
-            cargoBusca,
-            instrumentoBusca,
-            totalAntesFiltro: filteredData.length,
-          });
           
           // Aplicar filtros de cargo e instrumento
           if (cargoBusca === 'ORGANISTA') {
@@ -1062,19 +1003,10 @@ export const supabaseDataService = {
           } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
             if (instrumentoBusca) {
               const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
-              console.log('🔍 [fetchPessoasFromCadastro] Variações de busca para instrumento:', {
-                instrumentoOriginal: instrumentoNome,
-                instrumentoNormalizado: instrumentoBusca,
-                variacoesBusca,
-              });
               
               filteredData = filteredData.filter(item => {
                 const itemInstrumento = (item.instrumento || '').toUpperCase();
-                const matches = variacoesBusca.some(v => itemInstrumento.includes(v));
-                if (!matches && itemInstrumento) {
-                  console.log(`⚠️ [fetchPessoasFromCadastro] Instrumento não corresponde: "${itemInstrumento}" vs variações:`, variacoesBusca);
-                }
-                return matches;
+                return variacoesBusca.some(v => itemInstrumento.includes(v));
               });
             } else {
               filteredData = filteredData.filter(item => {
@@ -1088,28 +1020,9 @@ export const supabaseDataService = {
             );
           }
           
-          console.log(`✅ [fetchPessoasFromCadastro] ${filteredData.length} resultados após aplicar filtros (de ${combinedDataComum.length} iniciais)`);
-          
-          // Log de amostra dos resultados encontrados
-          if (filteredData.length > 0) {
-            console.log('📋 [fetchPessoasFromCadastro] Amostra dos resultados encontrados:', 
-              filteredData.slice(0, 3).map(item => ({
-                nome: item.nome,
-                comum: item.comum,
-                cargo: item.cargo,
-                instrumento: item.instrumento,
-              }))
-            );
-          } else {
-            console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado após aplicar filtros!');
-            console.log('🔍 [fetchPessoasFromCadastro] Amostra dos resultados ANTES do filtro:', 
-              combinedDataComum.slice(0, 5).map(item => ({
-                nome: item.nome,
-                comum: item.comum,
-                cargo: item.cargo,
-                instrumento: item.instrumento,
-              }))
-            );
+          // Log apenas se não encontrou resultados (para debug)
+          if (filteredData.length === 0 && combinedDataComum.length > 0) {
+            console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado após aplicar filtros');
           }
           
           return {
@@ -1119,10 +1032,7 @@ export const supabaseDataService = {
           };
         }
         
-        console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado encontrado nas queries de comum');
-        
         // 🚨 DEBUG: Fazer uma busca mais ampla para verificar se a comum existe no banco
-        console.log('🔍 [fetchPessoasFromCadastro] Fazendo busca de teste ampla para diagnosticar...');
         try {
           const testQuery = supabase
             .from(table)
@@ -1132,19 +1042,6 @@ export const supabaseDataService = {
           
           const testResult = await testQuery;
           const amostraComuns = testResult.data?.slice(0, 10).map((item: any) => item.comum) || [];
-          
-          console.log('🔍 [fetchPessoasFromCadastro] Resultado busca teste (qualquer comum com "LAVAP"):', {
-            temData: !!testResult.data,
-            temError: !!testResult.error,
-            quantidade: testResult.data?.length || 0,
-            amostraComuns: amostraComuns,
-            error: testResult.error,
-          });
-          
-          // Log detalhado dos nomes encontrados
-          if (amostraComuns.length > 0) {
-            console.log('📋 [fetchPessoasFromCadastro] Nomes exatos encontrados no banco:', amostraComuns);
-          }
           
           // 🚨 CORREÇÃO: Se encontrou resultados, usar o nome EXATO do banco para buscar
           if (testResult.data && testResult.data.length > 0) {
@@ -1188,14 +1085,7 @@ export const supabaseDataService = {
               return false;
             });
             
-            console.log('🔍 [fetchPessoasFromCadastro] Tentando encontrar comum na amostra:', {
-              comumBuscaNormalizado,
-              comumNomeNormalizado,
-              amostraComuns: amostraComuns.slice(0, 3),
-            });
-            
             if (comumEncontrada) {
-              console.log('✅ [fetchPessoasFromCadastro] Comum encontrada no banco! Usando nome exato:', comumEncontrada);
               
               // Fazer busca com o nome EXATO do banco (sem normalizar)
               const queryExata = supabase
@@ -1227,22 +1117,13 @@ export const supabaseDataService = {
               
               const resultExato = await queryFinal;
               
-              console.log(`🔍 [fetchPessoasFromCadastro] Busca com nome exato retornou:`, {
-                quantidade: resultExato.data?.length || 0,
-                temError: !!resultExato.error,
-                error: resultExato.error,
-              });
-              
               if (resultExato.data && resultExato.data.length > 0) {
-                console.log(`✅ [fetchPessoasFromCadastro] ${resultExato.data.length} resultados encontrados com nome exato!`);
                 return {
                   data: resultExato.data || [],
                   error: resultExato.error,
                   hasMore: (resultExato.data?.length || 0) === pageSize,
                 };
               }
-            } else {
-              console.warn('⚠️ [fetchPessoasFromCadastro] Comum não encontrada na amostra. Amostra completa:', amostraComuns);
             }
           }
         } catch (testError) {
