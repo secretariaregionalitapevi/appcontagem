@@ -94,10 +94,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       return [];
     }
 
-    // Se não há opções, mostrar apenas a opção manual no dropdown
-    // Usuário deve SELECIONAR a opção manual para entrar em modo manual
+    // Se não há opções, não mostrar dropdown (já está em modo manual automaticamente)
     if (!options || options.length === 0) {
-      return optionsWithManual.slice(-1); // Mostrar apenas a opção manual
+      return []; // Não mostrar dropdown - modo manual será ativado automaticamente
     }
 
     // Verificar se já há um nome selecionado válido (que está na lista de opções)
@@ -147,11 +146,28 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     return optionsWithManual.slice(-1);
   }, [searchText, options, optionsWithManual, isManualMode, value]);
 
-  // 🚨 CRÍTICO: NUNCA entrar em modo manual automaticamente
-  // Modo manual só quando usuário SELECIONAR a opção "Adicionar novo nome manualmente"
+  // 🚨 CRÍTICO: Quando não há opções, entrar automaticamente em modo manual
+  // Quando há opções, modo manual só quando usuário SELECIONAR a opção manual
   useEffect(() => {
+    // Se não há opções, entrar automaticamente em modo manual
+    if (!options || options.length === 0) {
+      if (!isManualMode) {
+        setIsManualMode(true);
+        // Se há um valor manual anterior, manter
+        if (value && typeof value === 'string' && value.startsWith('manual_')) {
+          const manualValue = value.replace('manual_', '');
+          setSearchText(manualValue);
+        } else if (value) {
+          setSearchText(value);
+        } else {
+          setSearchText('');
+        }
+      }
+      return;
+    }
+
     // Se há opções e está em modo manual, verificar se foi escolha do usuário
-    if (options && options.length > 0 && isManualMode) {
+    if (isManualMode) {
       // Se o valor é manual (começa com manual_), manter modo manual (usuário escolheu)
       if (value && typeof value === 'string' && value.startsWith('manual_')) {
         // Usuário escolheu manualmente, manter modo manual
@@ -169,8 +185,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         setIsManualMode(false);
       }
     }
-    // Se não há opções, NÃO entrar em modo manual automaticamente
-    // Apenas mostrar a opção manual no dropdown
   }, [options, isManualMode, value]);
 
   // Sincronizar searchText com value quando muda externamente
@@ -241,9 +255,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       return;
     }
 
-    // Se não há opções, abrir dropdown mostrando a opção manual
+    // Se não há opções, não abrir dropdown (já está em modo manual automaticamente)
     if (!options || options.length === 0) {
-      setShowList(true);
+      setShowList(false);
       return;
     }
 
