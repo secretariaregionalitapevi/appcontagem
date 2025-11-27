@@ -946,50 +946,61 @@ export const supabaseDataService = {
           comumNomeSemCodigo = comumNomeSemCodigo.replace(/^BR-\d+-\d+\s+/, '').trim();
         }
         
-        // 🚨 CORREÇÃO: Fazer múltiplas queries e combinar resultados (mais confiável que OR)
-        // Similar ao que foi feito para SAXOFONE SOPRANO
-        const queriesComum = [
-          supabase
-            .from(table)
-            .select('nome, comum, cargo, instrumento, cidade, nivel')
-            .ilike('comum', `%${comumBusca}%`) // Nome normalizado (sem acentos)
-            .order('nome', { ascending: true })
-            .range(from, to),
-          supabase
-            .from(table)
-            .select('nome, comum, cargo, instrumento, cidade, nivel')
-            .ilike('comum', `%${comumNomeSemCodigo.toUpperCase()}%`) // Nome original (com acentos)
-            .order('nome', { ascending: true })
-            .range(from, to),
-          supabase
-            .from(table)
-            .select('nome, comum, cargo, instrumento, cidade, nivel')
-            .ilike('comum', `%${comumNome.trim()}%`) // Nome completo (com código)
-            .order('nome', { ascending: true })
-            .range(from, to),
-        ];
-        
-        // Executar todas as queries em paralelo
-        const resultsComum = await Promise.all(queriesComum);
-        
-        // Combinar resultados removendo duplicatas
-        const combinedDataComum: any[] = [];
+        // 🚀 OTIMIZAÇÃO: Tentar apenas 1 query primeiro (mais rápida)
+        // Se não encontrar, tentar as outras variações
+        let combinedDataComum: any[] = [];
         const seenNames = new Set<string>();
         
-        resultsComum.forEach((result, idx) => {
-          if (result.data && !result.error) {
-            result.data.forEach((item: any) => {
-              const key = `${item.nome}_${item.comum}`.toUpperCase();
-              if (!seenNames.has(key)) {
-                seenNames.add(key);
-                combinedDataComum.push(item);
-              }
-            });
-          } else if (result.error) {
-            // Logar apenas erros críticos
-            console.error(`❌ [fetchPessoasFromCadastro] Erro na query ${idx + 1}:`, result.error.message);
-          }
-        });
+        // Query 1: Nome normalizado (sem acentos) - mais comum
+        const query1 = supabase
+          .from(table)
+          .select('nome, comum, cargo, instrumento, cidade, nivel')
+          .ilike('comum', `%${comumBusca}%`)
+          .order('nome', { ascending: true })
+          .range(from, to);
+        
+        const result1 = await query1;
+        
+        if (result1.data && !result1.error && result1.data.length > 0) {
+          // Se encontrou resultados na primeira query, usar apenas ela (mais rápido)
+          result1.data.forEach((item: any) => {
+            const key = `${item.nome}_${item.comum}`.toUpperCase();
+            if (!seenNames.has(key)) {
+              seenNames.add(key);
+              combinedDataComum.push(item);
+            }
+          });
+        } else {
+          // Se não encontrou, tentar outras variações em paralelo
+          const queriesComum = [
+            supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', `%${comumNomeSemCodigo.toUpperCase()}%`) // Nome original (com acentos)
+              .order('nome', { ascending: true })
+              .range(from, to),
+            supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', `%${comumNome.trim()}%`) // Nome completo (com código)
+              .order('nome', { ascending: true })
+              .range(from, to),
+          ];
+          
+          const resultsComum = await Promise.all(queriesComum);
+          
+          resultsComum.forEach((result) => {
+            if (result.data && !result.error) {
+              result.data.forEach((item: any) => {
+                const key = `${item.nome}_${item.comum}`.toUpperCase();
+                if (!seenNames.has(key)) {
+                  seenNames.add(key);
+                  combinedDataComum.push(item);
+                }
+              });
+            }
+          });
+        }
         
         // Se encontrou resultados, aplicar filtros de cargo e instrumento
         if (combinedDataComum.length > 0) {
@@ -1032,16 +1043,18 @@ export const supabaseDataService = {
           };
         }
         
-        // 🚨 DEBUG: Fazer uma busca mais ampla para verificar se a comum existe no banco
+        // 🚨 DEBUG: Fazer uma busca mais ampla apenas se realmente não encontrou nada
+        // 🚀 OTIMIZAÇÃO: Só fazer busca de teste se realmente necessário (evita query extra)
         try {
+          // Busca rápida com parte do nome (mais eficiente que buscar tudo)
           const testQuery = supabase
             .from(table)
-            .select('nome, comum, cargo, instrumento, cidade, nivel')
-            .ilike('comum', '%LAVAP%')
-            .limit(10);
+            .select('comum')
+            .ilike('comum', `%${comumBusca.slice(0, 10)}%`) // Primeiros 10 caracteres
+            .limit(5); // Apenas 5 resultados para verificar
           
           const testResult = await testQuery;
-          const amostraComuns = testResult.data?.slice(0, 10).map((item: any) => item.comum) || [];
+          const amostraComuns = testResult.data?.map((item: any) => item.comum) || [];
           
           // 🚨 CORREÇÃO: Se encontrou resultados, usar o nome EXATO do banco para buscar
           if (testResult.data && testResult.data.length > 0) {
@@ -1127,7 +1140,7 @@ export const supabaseDataService = {
             }
           }
         } catch (testError) {
-          console.error('❌ [fetchPessoasFromCadastro] Erro na busca de teste:', testError);
+          // Ignorar erro na busca de teste (não crítico)
         }
         
         // Se não encontrou com múltiplas queries, tentar query única como fallback
@@ -1455,21 +1468,24 @@ export const supabaseDataService = {
     let cargoNome: string | undefined;
     let instrumentoNome: string | undefined;
 
-    // Buscar nomes dos IDs
+    // 🚀 OTIMIZAÇÃO: Buscar nomes dos IDs em paralelo
+    const [comuns, cargos, instrumentos] = await Promise.all([
+      comumId ? this.getComunsFromLocal() : Promise.resolve([]),
+      cargoId ? this.getCargosFromLocal() : Promise.resolve([]),
+      instrumentoId ? this.getInstrumentosFromLocal() : Promise.resolve([]),
+    ]);
+
     if (comumId) {
-      const comuns = await this.getComunsFromLocal();
       const comum = comuns.find(c => c.id === comumId);
       comumNome = comum?.nome;
     }
 
     if (cargoId) {
-      const cargos = await this.getCargosFromLocal();
       const cargo = cargos.find(c => c.id === cargoId);
       cargoNome = cargo?.nome;
     }
 
     if (instrumentoId) {
-      const instrumentos = await this.getInstrumentosFromLocal();
       const instrumento = instrumentos.find(i => i.id === instrumentoId);
       instrumentoNome = instrumento?.nome;
     }

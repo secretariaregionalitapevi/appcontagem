@@ -266,36 +266,38 @@ export const offlineSyncService = {
     // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
     if (isOnline && !skipDuplicateCheck) {
       try {
-        // 🚀 OTIMIZAÇÃO: Buscar dados em paralelo (comuns, cargos e pessoas juntos)
-        const [comuns, cargos, pessoas] = await Promise.all([
+        // 🚀 OTIMIZAÇÃO: Buscar apenas o necessário (evitar buscar pessoas se nome manual)
+        const isNomeManual = registro.pessoa_id.startsWith('manual_');
+        
+        // Buscar comuns e cargos sempre (são rápidos do cache)
+        const [comuns, cargos] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
           supabaseDataService.getCargosFromLocal(),
-          supabaseDataService.getPessoasFromLocal(
-            registro.comum_id,
-            registro.cargo_id,
-            registro.instrumento_id || undefined
-          ),
         ]);
 
         const comum = comuns.find(c => c.id === registro.comum_id);
         const cargo = cargos.find(c => c.id === registro.cargo_id);
 
         if (comum && cargo) {
-
           let nomeCompleto = '';
           let cargoReal = cargo.nome; // Usar cargo selecionado como padrão
 
-          if (registro.pessoa_id.startsWith('manual_')) {
+          if (isNomeManual) {
+            // 🚀 OTIMIZAÇÃO: Não buscar pessoas se nome manual
             nomeCompleto = registro.pessoa_id.replace(/^manual_/, '').toUpperCase();
-            // Para nomes manuais, usar cargo selecionado
             cargoReal = cargo.nome;
           } else {
+            // Buscar pessoas apenas se necessário
+            const pessoas = await supabaseDataService.getPessoasFromLocal(
+              registro.comum_id,
+              registro.cargo_id,
+              registro.instrumento_id || undefined
+            );
             const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
             if (pessoa) {
               nomeCompleto = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`)
                 .trim()
                 .toUpperCase();
-              // Usar cargo real da pessoa se disponível, senão usar cargo selecionado
               cargoReal = pessoa.cargo_real || cargo.nome;
             }
           }

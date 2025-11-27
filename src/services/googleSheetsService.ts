@@ -156,23 +156,13 @@ export const googleSheetsService = {
     registro: RegistroPresenca
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      // Buscar nomes a partir dos IDs
-      let [comuns, cargos, instrumentos] = await Promise.all([
+      // 🚀 OTIMIZAÇÃO: Buscar nomes a partir dos IDs (cache rápido)
+      // Não recarregar se vazio - pode ser cache temporário, continuar mesmo assim
+      const [comuns, cargos, instrumentos] = await Promise.all([
         supabaseDataService.getComunsFromLocal(),
         supabaseDataService.getCargosFromLocal(),
         supabaseDataService.getInstrumentosFromLocal(),
       ]);
-
-      // Se as listas estiverem vazias, tentar recarregar
-      if (comuns.length === 0 || cargos.length === 0) {
-        console.warn('⚠️ Listas vazias detectadas, recarregando dados...');
-        await supabaseDataService.syncData();
-        [comuns, cargos, instrumentos] = await Promise.all([
-          supabaseDataService.getComunsFromLocal(),
-          supabaseDataService.getCargosFromLocal(),
-          supabaseDataService.getInstrumentosFromLocal(),
-        ]);
-      }
 
       // Verificar se é registro externo (do modal de novo registro)
       const isExternalRegistro = registro.comum_id.startsWith('external_');
@@ -215,7 +205,7 @@ export const googleSheetsService = {
         throw new Error('Dados incompletos: comum ou cargo não encontrados');
       }
 
-      // Verificar se é nome manual (pessoa_id começa com "manual_")
+      // 🚀 OTIMIZAÇÃO: Verificar se é nome manual (evitar buscar pessoas se não necessário)
       const isNomeManual = registro.pessoa_id.startsWith('manual_');
       let nomeCompleto = '';
       let cargoReal = cargoSelecionado.nome;
@@ -224,10 +214,9 @@ export const googleSheetsService = {
       if (isNomeManual) {
         // Extrair nome do pessoa_id (remove prefixo "manual_")
         nomeCompleto = registro.pessoa_id.replace(/^manual_/, '');
-        // Para nomes manuais, usar cargo selecionado diretamente
         cargoReal = cargoSelecionado.nome;
       } else {
-        // Buscar pessoa para obter cargo real
+        // 🚀 OTIMIZAÇÃO: Buscar pessoa apenas se necessário (não é nome manual)
         const pessoas = await supabaseDataService.getPessoasFromLocal(
           registro.comum_id,
           registro.cargo_id,
@@ -239,7 +228,6 @@ export const googleSheetsService = {
           throw new Error('Pessoa não encontrada');
         }
 
-        // Usar cargo real da pessoa se disponível, senão usar o cargo selecionado
         cargoReal = pessoa.cargo_real || cargoSelecionado.nome;
         nomeCompleto = pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`;
       }

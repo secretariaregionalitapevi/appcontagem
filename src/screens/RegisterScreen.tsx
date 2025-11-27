@@ -448,20 +448,12 @@ export const RegisterScreen: React.FC = () => {
 
   const loadPessoas = async () => {
     try {
-      console.log('📚 Carregando pessoas:', { 
-        selectedComum, 
-        selectedCargo, 
-        selectedInstrumento,
-        showInstrumento,
-      });
-      
       const pessoasData = await (supabaseDataService as any).getPessoasFromLocal(
         selectedComum,
         selectedCargo,
         showInstrumento ? selectedInstrumento : undefined
       );
       
-      console.log(`✅ ${pessoasData.length} pessoas carregadas`);
       setPessoas(pessoasData);
     } catch (error) {
       console.error('❌ Erro ao carregar pessoas:', error);
