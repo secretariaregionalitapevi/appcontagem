@@ -147,16 +147,38 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     return optionsWithManual.slice(-1);
   }, [searchText, options, optionsWithManual, isManualMode, value]);
 
-  // 🚨 CRÍTICO: Converter automaticamente para modo manual quando não há opções
-  // Isso permite digitação direta quando não há lista (ex: Irmandade sem pessoas cadastradas)
+  // 🚨 CRÍTICO: Converter automaticamente para modo manual APENAS quando não há opções
+  // Se há opções, NUNCA entrar em modo manual automaticamente
   useEffect(() => {
-    if (isManualMode) {
-      return; // Já está em modo manual
+    // Se há opções, garantir que NÃO está em modo manual (a menos que o usuário escolheu manualmente)
+    if (options && options.length > 0) {
+      // Se está em modo manual mas agora há opções, verificar se foi escolha do usuário
+      if (isManualMode) {
+        // Se o valor é manual (começa com manual_), manter modo manual (usuário escolheu)
+        if (value && typeof value === 'string' && value.startsWith('manual_')) {
+          // Usuário escolheu manualmente, manter modo manual
+          return;
+        }
+        // Se o valor não é manual, verificar se corresponde a uma opção da lista
+        if (value) {
+          const matchesOption = options.some(opt => opt.id === value || opt.value === value);
+          if (matchesOption) {
+            // Valor corresponde a uma opção, sair do modo manual
+            setIsManualMode(false);
+          }
+        } else {
+          // Não há valor, sair do modo manual para mostrar lista
+          setIsManualMode(false);
+        }
+      }
+      return; // Não fazer nada mais se há opções
     }
 
     // Se não há opções, converter automaticamente para modo manual
     if (!options || options.length === 0) {
-      setIsManualMode(true);
+      if (!isManualMode) {
+        setIsManualMode(true);
+      }
       // Se há um valor manual anterior, manter
       if (value && typeof value === 'string' && value.startsWith('manual_')) {
         const manualValue = value.replace('manual_', '');
