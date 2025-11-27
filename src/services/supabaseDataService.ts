@@ -798,7 +798,18 @@ export const supabaseDataService = {
 
     try {
       // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de buscar (RLS requer autenticação)
-      await ensureSessionRestored();
+      const sessionRestored = await ensureSessionRestored();
+      console.log('🔐 [fetchPessoasFromCadastro] Sessão restaurada:', sessionRestored);
+      
+      // Verificar autenticação
+      if (isSupabaseConfigured() && supabase) {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        console.log('🔐 [fetchPessoasFromCadastro] Verificação de autenticação:', {
+          temUser: !!user,
+          userId: user?.id,
+          authError: authError?.message,
+        });
+      }
 
       console.log('📚 Buscando pessoas da tabela cadastro:', {
         comumNome,
@@ -807,16 +818,25 @@ export const supabaseDataService = {
       });
 
       // 🚨 CORREÇÃO: Extrair apenas o nome da comum (sem código) e normalizar
-      // O nome da comum pode vir como "BR-22-1804 - JARDIM LAVAPES DAS GRACAS"
+      // O nome da comum pode vir como "BR-22-1804 - JARDIM LAVAPES DAS GRACAS" ou "BR-22-1804 JARDIM LAVAPES DAS GRACAS"
       // mas no banco pode estar apenas como "JARDIM LAVAPES DAS GRACAS" ou com acentos
       let comumBusca = comumNome.trim();
       
+      console.log('🔍 [fetchPessoasFromCadastro] Processando nome da comum:', {
+        comumNomeOriginal: comumNome,
+        comumBuscaAntes: comumBusca,
+      });
+      
       // Extrair apenas o nome sem o código (usando a função extrairNomeComum)
+      // Tentar múltiplos formatos: "BR-XX-XXXX - NOME", "BR-XX-XXXX NOME", etc.
       if (comumBusca.includes(' - ') || comumBusca.includes(' -')) {
         const partes = comumBusca.split(/ - ?/);
         if (partes.length > 1) {
           comumBusca = partes.slice(1).join(' - ').trim();
         }
+      } else if (/^BR-\d+-\d+\s/.test(comumBusca)) {
+        // Formato: "BR-22-1804 JARDIM LAVAPES DAS GRACAS" (sem " - ")
+        comumBusca = comumBusca.replace(/^BR-\d+-\d+\s+/, '').trim();
       }
       
       // Normalizar o nome da comum (remover acentos, normalizar espaços)
@@ -935,6 +955,9 @@ export const supabaseDataService = {
           if (partes.length > 1) {
             comumNomeSemCodigo = partes.slice(1).join(' - ').trim();
           }
+        } else if (/^BR-\d+-\d+\s/.test(comumNomeSemCodigo)) {
+          // Formato: "BR-22-1804 JARDIM LAVAPES DAS GRACAS" (sem " - ")
+          comumNomeSemCodigo = comumNomeSemCodigo.replace(/^BR-\d+-\d+\s+/, '').trim();
         }
         
         // 🚨 CORREÇÃO: Fazer múltiplas queries e combinar resultados (mais confiável que OR)
@@ -961,6 +984,7 @@ export const supabaseDataService = {
         ];
         
         // Executar todas as queries em paralelo
+        console.log('🔍 [fetchPessoasFromCadastro] Executando 3 queries paralelas para comum...');
         const resultsComum = await Promise.all(queriesComum);
         
         // Combinar resultados removendo duplicatas
@@ -968,7 +992,34 @@ export const supabaseDataService = {
         const seenNames = new Set<string>();
         
         resultsComum.forEach((result, idx) => {
+          const queryType = idx === 0 ? 'normalizado (sem acentos)' : idx === 1 ? 'original (com acentos)' : 'completo (com código)';
+          
+          console.log(`📊 [fetchPessoasFromCadastro] Resultado query ${idx + 1} (${queryType}):`, {
+            temData: !!result.data,
+            temError: !!result.error,
+            quantidade: result.data?.length || 0,
+            error: result.error ? {
+              message: result.error.message,
+              code: result.error.code,
+              details: result.error.details,
+              hint: result.error.hint,
+            } : null,
+          });
+          
           if (result.data && !result.error) {
+            if (result.data.length > 0) {
+              console.log(`✅ [fetchPessoasFromCadastro] Query ${idx + 1} retornou ${result.data.length} resultados`);
+              // Log de amostra dos primeiros resultados
+              console.log(`📋 [fetchPessoasFromCadastro] Amostra query ${idx + 1}:`, 
+                result.data.slice(0, 3).map((item: any) => ({
+                  nome: item.nome,
+                  comum: item.comum,
+                  cargo: item.cargo,
+                  instrumento: item.instrumento,
+                }))
+              );
+            }
+            
             result.data.forEach((item: any) => {
               const key = `${item.nome}_${item.comum}`.toUpperCase();
               if (!seenNames.has(key)) {
@@ -977,7 +1028,15 @@ export const supabaseDataService = {
               }
             });
           } else if (result.error) {
-            console.warn(`⚠️ Erro na query ${idx + 1} para comum:`, result.error);
+            console.error(`❌ [fetchPessoasFromCadastro] Erro na query ${idx + 1} (${queryType}):`, {
+              error: result.error,
+              message: result.error.message,
+              code: result.error.code,
+              details: result.error.details,
+              hint: result.error.hint,
+            });
+          } else if (!result.data) {
+            console.warn(`⚠️ [fetchPessoasFromCadastro] Query ${idx + 1} (${queryType}) retornou data vazio/null`);
           }
         });
         
@@ -1059,6 +1118,27 @@ export const supabaseDataService = {
         }
         
         console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado encontrado nas queries de comum');
+        
+        // 🚨 DEBUG: Fazer uma busca mais ampla para verificar se a comum existe no banco
+        console.log('🔍 [fetchPessoasFromCadastro] Fazendo busca de teste ampla para diagnosticar...');
+        try {
+          const testQuery = supabase
+            .from(table)
+            .select('nome, comum, cargo, instrumento, cidade, nivel')
+            .ilike('comum', '%LAVAP%')
+            .limit(10);
+          
+          const testResult = await testQuery;
+          console.log('🔍 [fetchPessoasFromCadastro] Resultado busca teste (qualquer comum com "LAVAP"):', {
+            temData: !!testResult.data,
+            temError: !!testResult.error,
+            quantidade: testResult.data?.length || 0,
+            amostraComuns: testResult.data?.slice(0, 5).map((item: any) => item.comum) || [],
+            error: testResult.error,
+          });
+        } catch (testError) {
+          console.error('❌ [fetchPessoasFromCadastro] Erro na busca de teste:', testError);
+        }
         
         // Se não encontrou com múltiplas queries, tentar query única como fallback
         let query = supabase
