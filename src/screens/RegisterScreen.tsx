@@ -1323,6 +1323,7 @@ export const RegisterScreen: React.FC = () => {
         userId: user.id,
       });
       
+      console.log('🔄 [MODAL] Chamando sendExternalRegistroToSheet...');
       const result = await googleSheetsService.sendExternalRegistroToSheet({
         nome: data.nome,
         comum: data.comum,
@@ -1336,6 +1337,8 @@ export const RegisterScreen: React.FC = () => {
       });
       
       console.log('📥 [MODAL] Resultado do envio:', result);
+      console.log('📥 [MODAL] result.success:', result.success);
+      console.log('📥 [MODAL] result.error:', result.error);
       
       if (result.success) {
         console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');

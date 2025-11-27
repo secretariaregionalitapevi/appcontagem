@@ -151,9 +151,22 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   };
 
   const handleSave = async () => {
+    console.log('🔘 [MODAL] Botão Salvar clicado');
+    
     if (!validate()) {
+      console.warn('⚠️ [MODAL] Validação falhou');
       return;
     }
+
+    console.log('✅ [MODAL] Validação passou, iniciando salvamento...');
+    console.log('📋 [MODAL] Dados do formulário:', {
+      comum: comum.trim(),
+      cidade: cidade.trim(),
+      cargo: selectedCargo,
+      instrumento: showInstrumento ? selectedInstrumento : undefined,
+      classe: showClasse ? selectedClasse : undefined,
+      nome: nome.trim(),
+    });
 
     setLoading(true);
     try {
@@ -168,6 +181,15 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         classeFinal = selectedClasse || 'Oficializada';
       }
 
+      console.log('📤 [MODAL] Chamando onSave com dados:', {
+        comum: comum.trim(),
+        cidade: cidade.trim(),
+        cargo: selectedCargo,
+        instrumento: showInstrumento ? selectedInstrumento : undefined,
+        classe: classeFinal,
+        nome: nome.trim(),
+      });
+
       // 🚨 CRÍTICO: Aguardar resultado do onSave e tratar erros
       try {
         await onSave({
@@ -178,6 +200,8 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
           classe: classeFinal,
           nome: nome.trim(),
         });
+
+        console.log('✅ [MODAL] onSave concluído com sucesso');
 
         // Limpar campos após salvar (só se não houver erro)
         setComum('');
@@ -191,16 +215,19 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         // Toast de sucesso já foi exibido no handleSaveNewRegistration
         // Fechar modal após sucesso (aguardar um pouco para toast aparecer)
         setTimeout(() => {
+          console.log('🚪 [MODAL] Fechando modal após sucesso');
           onClose();
-        }, 800);
+        }, 1500);
       } catch (error) {
         // Erro já foi tratado no handleSaveNewRegistration
         // Não fechar modal se houver erro
-        console.error('❌ [MODAL] Erro ao salvar:', error);
+        console.error('❌ [MODAL] Erro ao salvar (catch interno):', error);
         throw error; // Re-lançar para o catch externo tratar
       }
     } catch (error) {
-      console.error('Erro ao salvar novo registro:', error);
+      console.error('❌ [MODAL] Erro ao salvar novo registro (catch externo):', error);
+      // Não fazer nada aqui - o erro já foi tratado no handleSaveNewRegistration
+      // Mas garantir que o loading seja desativado
     } finally {
       setLoading(false);
     }

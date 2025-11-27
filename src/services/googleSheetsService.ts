@@ -30,6 +30,9 @@ export const googleSheetsService = {
     registradoPor: string;
     userId?: string;
   }): Promise<{ success: boolean; error?: string }> {
+    console.log('🚀 [EXTERNAL] sendExternalRegistroToSheet chamado');
+    console.log('📋 [EXTERNAL] Dados recebidos:', data);
+    
     try {
       console.log('📤 [EXTERNAL] Enviando registro externo diretamente para Google Sheets:', data);
 
@@ -93,6 +96,8 @@ export const googleSheetsService = {
 
       console.log('📤 [EXTERNAL] Corpo da requisição:', requestBody);
 
+      console.log('🌐 [EXTERNAL] Fazendo fetch para:', GOOGLE_SHEETS_API_URL);
+      
       try {
         const response = await fetch(GOOGLE_SHEETS_API_URL, {
           method: 'POST',
@@ -103,6 +108,8 @@ export const googleSheetsService = {
           signal: controller.signal,
           mode: 'cors', // Usar CORS para poder ler a resposta
         });
+
+        console.log('📥 [EXTERNAL] Fetch concluído, status:', response.status);
 
         clearTimeout(timeoutId);
 
