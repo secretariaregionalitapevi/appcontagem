@@ -226,7 +226,8 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   const modalContent = (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : Platform.OS === 'android' ? 20 : 0}
     >
       <TouchableOpacity
         style={styles.overlay}
@@ -242,7 +243,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
             <View style={styles.header}>
               <FontAwesome5
                 name="laptop"
-                size={64}
+                size={Platform.OS === 'web' ? 48 : 40}
                 color="#e2e3e3"
                 style={styles.headerIcon}
               />
@@ -255,6 +256,8 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
               style={styles.body}
               contentContainerStyle={styles.bodyContent}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
             >
               {/* Comum */}
               <View style={styles.field}>
@@ -414,17 +417,8 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 
             {/* Footer */}
             <View style={styles.footer}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={onClose}
-                activeOpacity={0.7}
-              >
-                <FontAwesome5 name="times" size={14} color="#676a6c" />
-                <Text style={styles.cancelButtonText}>Fechar</Text>
-              </TouchableOpacity>
-
               <PrimaryButton
-                title="Salvar registro"
+                title="Salvar"
                 onPress={handleSave}
                 loading={loading}
                 style={styles.saveButton}
@@ -542,8 +536,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     width: '100%',
-    maxWidth: 500,
-    maxHeight: '90%',
+    maxWidth: Platform.OS === 'web' ? 500 : '95%',
+    maxHeight: Platform.OS === 'web' ? '90%' : '85%',
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
@@ -570,7 +564,8 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: theme.spacing.xl,
+    padding: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.lg,
+    paddingTop: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: '#ffffff',
@@ -606,7 +601,8 @@ const styles = StyleSheet.create({
     } : {}),
   },
   bodyContent: {
-    padding: theme.spacing.lg,
+    padding: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.md,
+    paddingBottom: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.xl,
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web' ? {
       // @ts-ignore - Propriedades CSS apenas para web
@@ -616,7 +612,7 @@ const styles = StyleSheet.create({
     } : {}),
   },
   field: {
-    marginBottom: theme.spacing.md,
+    marginBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
     ...(Platform.OS === 'web' ? {
       // @ts-ignore
       position: 'relative',
@@ -637,10 +633,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    padding: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
+    paddingVertical: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
     backgroundColor: '#ffffff',
+    minHeight: Platform.OS === 'web' ? 44 : 48,
     ...(Platform.OS === 'web'
       ? {
           // @ts-ignore - Propriedades CSS apenas para web
@@ -663,9 +661,10 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.md,
+    padding: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
+    paddingVertical: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     backgroundColor: '#ffffff',
@@ -697,11 +696,12 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   saveButton: {
-    flex: 1,
-    minWidth: 0, // Permite que o botão encolha se necessário
+    flex: Platform.OS === 'web' ? 0 : 1,
+    minWidth: Platform.OS === 'web' ? 200 : 0,
+    maxWidth: Platform.OS === 'web' ? 300 : '100%',
     ...(Platform.OS === 'web' ? {
       // @ts-ignore - Propriedades CSS apenas para web
-      flexShrink: 1,
+      flexShrink: 0,
     } : {}),
   },
 });

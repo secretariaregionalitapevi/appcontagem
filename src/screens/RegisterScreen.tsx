@@ -1325,6 +1325,7 @@ export const RegisterScreen: React.FC = () => {
       });
       
       if (result.success) {
+        console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
         showToast.success(
           'Registro salvo!',
           'Registro de visita salvo com sucesso.'
@@ -1334,7 +1335,7 @@ export const RegisterScreen: React.FC = () => {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           setTimeout(() => {
             window.location.reload();
-          }, 1000);
+          }, 1500);
         }
       } else {
         // Verificar se é erro de duplicata
