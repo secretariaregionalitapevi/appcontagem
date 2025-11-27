@@ -671,7 +671,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
             )}
               </>
             )}
-            </>
+          </>
           )}
         </>
       </View>
