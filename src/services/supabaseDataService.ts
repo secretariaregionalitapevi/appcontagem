@@ -840,6 +840,8 @@ export const supabaseDataService = {
       }
       
       // Normalizar o nome da comum (remover acentos, normalizar espaços)
+      // 🚨 CORREÇÃO: Normalizar espaços ANTES de converter para maiúscula para evitar problemas
+      comumBusca = comumBusca.replace(/\s+/g, ' ').trim(); // Normalizar espaços primeiro
       comumBusca = normalizeString(comumBusca.toUpperCase());
       
       console.log('🔍 [fetchPessoasFromCadastro] Nome da comum normalizado:', {
@@ -1129,13 +1131,87 @@ export const supabaseDataService = {
             .limit(10);
           
           const testResult = await testQuery;
+          const amostraComuns = testResult.data?.slice(0, 10).map((item: any) => item.comum) || [];
+          
           console.log('🔍 [fetchPessoasFromCadastro] Resultado busca teste (qualquer comum com "LAVAP"):', {
             temData: !!testResult.data,
             temError: !!testResult.error,
             quantidade: testResult.data?.length || 0,
-            amostraComuns: testResult.data?.slice(0, 5).map((item: any) => item.comum) || [],
+            amostraComuns: amostraComuns,
             error: testResult.error,
           });
+          
+          // Log detalhado dos nomes encontrados
+          if (amostraComuns.length > 0) {
+            console.log('📋 [fetchPessoasFromCadastro] Nomes exatos encontrados no banco:', amostraComuns);
+          }
+          
+          // 🚨 CORREÇÃO: Se encontrou resultados, usar o nome EXATO do banco para buscar
+          if (testResult.data && testResult.data.length > 0) {
+            // Encontrar a comum que corresponde (pode ter código ou não, com ou sem acentos)
+            const comumEncontrada = amostraComuns.find((c: string) => {
+              const cUpper = c.toUpperCase().trim();
+              const buscaUpper = comumBusca.toUpperCase().trim();
+              const comumNomeUpper = comumNome.trim().toUpperCase();
+              
+              // Verificar se contém o nome buscado (com ou sem código)
+              return cUpper.includes(buscaUpper) || 
+                     buscaUpper.includes(cUpper.replace(/[^A-Z0-9\s]/g, '')) ||
+                     cUpper.includes(comumNomeUpper) ||
+                     comumNomeUpper.includes(cUpper);
+            });
+            
+            if (comumEncontrada) {
+              console.log('✅ [fetchPessoasFromCadastro] Comum encontrada no banco! Usando nome exato:', comumEncontrada);
+              
+              // Fazer busca com o nome EXATO do banco (sem normalizar)
+              const queryExata = supabase
+                .from(table)
+                .select('nome, comum, cargo, instrumento, cidade, nivel')
+                .ilike('comum', `%${comumEncontrada}%`)
+                .order('nome', { ascending: true })
+                .range(from, to);
+              
+              // Aplicar filtros de cargo e instrumento
+              let queryFinal = queryExata;
+              if (cargoBusca === 'ORGANISTA') {
+                queryFinal = queryFinal.ilike('instrumento', '%ÓRGÃO%');
+              } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
+                if (instrumentoBusca) {
+                  const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
+                  if (variacoesBusca.length > 1) {
+                    const conditions = variacoesBusca.map(v => `instrumento.ilike.%${v}%`).join(',');
+                    queryFinal = queryFinal.or(conditions);
+                  } else {
+                    queryFinal = queryFinal.ilike('instrumento', `%${instrumentoBusca}%`);
+                  }
+                } else {
+                  queryFinal = queryFinal.ilike('cargo', '%MÚSICO%').not('cargo', 'ilike', '%SECRETÁRIO%');
+                }
+              } else {
+                queryFinal = queryFinal.ilike('cargo', `%${cargoBusca}%`);
+              }
+              
+              const resultExato = await queryFinal;
+              
+              console.log(`🔍 [fetchPessoasFromCadastro] Busca com nome exato retornou:`, {
+                quantidade: resultExato.data?.length || 0,
+                temError: !!resultExato.error,
+                error: resultExato.error,
+              });
+              
+              if (resultExato.data && resultExato.data.length > 0) {
+                console.log(`✅ [fetchPessoasFromCadastro] ${resultExato.data.length} resultados encontrados com nome exato!`);
+                return {
+                  data: resultExato.data || [],
+                  error: resultExato.error,
+                  hasMore: (resultExato.data?.length || 0) === pageSize,
+                };
+              }
+            } else {
+              console.warn('⚠️ [fetchPessoasFromCadastro] Comum não encontrada na amostra. Amostra completa:', amostraComuns);
+            }
+          }
         } catch (testError) {
           console.error('❌ [fetchPessoasFromCadastro] Erro na busca de teste:', testError);
         }
