@@ -327,10 +327,21 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     }
 
     // Seleção normal da lista
+    console.log('✅ [NameSelectField] Nome selecionado:', {
+      id: option.id,
+      label: option.label,
+      value: option.value,
+    });
     setSearchText(option.label);
     setShowList(false);
     setSelectedIndex(-1);
-    onSelect(option);
+    // 🚨 CRÍTICO: Garantir que o valor está sendo passado corretamente
+    // Passar option.value (ID) como valor, não o label
+    onSelect({
+      id: option.id,
+      label: option.label,
+      value: option.value || option.id, // Usar value se disponível, senão usar id
+    });
 
     // Blur do input após seleção
     setTimeout(() => {
@@ -770,9 +781,7 @@ const styles = StyleSheet.create({
     } : {}),
   },
   manualInput: {
-    backgroundColor: '#e8f5e8',
-    borderColor: '#28a745',
-    color: '#155724',
+    // Removido estilo de cor - campo deve ter aparência normal mesmo em modo manual
   },
   inputError: {
     borderColor: theme.colors.error,

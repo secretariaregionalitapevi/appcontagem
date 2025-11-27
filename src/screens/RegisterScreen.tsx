@@ -1582,11 +1582,20 @@ export const RegisterScreen: React.FC = () => {
             value={selectedPessoa}
             options={pessoasOptions}
             onSelect={(option: any) => {
+              console.log('📝 [RegisterScreen] onSelect chamado:', {
+                id: option.id,
+                label: option.label,
+                value: option.value,
+                isManual: option.id === 'manual',
+              });
               if (option.id === 'manual') {
                 setSelectedPessoa(option.value);
                 setIsNomeManual(true);
               } else {
-                setSelectedPessoa(option.value);
+                // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
+                const pessoaId = option.value || option.id;
+                console.log('✅ [RegisterScreen] Definindo selectedPessoa:', pessoaId);
+                setSelectedPessoa(pessoaId);
                 setIsNomeManual(false);
               }
             }}
