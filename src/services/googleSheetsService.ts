@@ -32,6 +32,9 @@ export const googleSheetsService = {
   }): Promise<{ success: boolean; error?: string }> {
     console.log('🚀 [EXTERNAL] sendExternalRegistroToSheet chamado');
     console.log('📋 [EXTERNAL] Dados recebidos:', data);
+    console.log('📋 [EXTERNAL] Cargo:', data.cargo);
+    console.log('📋 [EXTERNAL] Instrumento:', data.instrumento);
+    console.log('📋 [EXTERNAL] Classe:', data.classe);
     
     try {
       console.log('📤 [EXTERNAL] Enviando registro externo diretamente para Google Sheets:', data);

@@ -1422,8 +1422,13 @@ export const RegisterScreen: React.FC = () => {
       console.log('📥 [MODAL] Resultado do envio:', result);
       console.log('📥 [MODAL] result.success:', result?.success);
       console.log('📥 [MODAL] result.error:', result?.error);
+      console.log('📥 [MODAL] Tipo de result.success:', typeof result?.success);
+      console.log('📥 [MODAL] result.success === true?', result?.success === true);
+      console.log('📥 [MODAL] result.success === false?', result?.success === false);
       
-      if (result.success) {
+      // 🚨 CORREÇÃO CRÍTICA: Verificar explicitamente se result.success é true
+      // Não confiar apenas em truthy/falsy
+      if (result && result.success === true) {
         console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
         // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
         showToast.success('Registro de visita salvo com sucesso');
@@ -1435,6 +1440,11 @@ export const RegisterScreen: React.FC = () => {
           }, 2000); // Aumentado de 1500ms para 2000ms para dar tempo do toast aparecer
         }
       } else {
+        // 🚨 CORREÇÃO: Se result.success não é true, tratar como erro
+        console.error('❌ [MODAL] Registro NÃO foi enviado com sucesso!');
+        console.error('❌ [MODAL] result:', result);
+        console.error('❌ [MODAL] result.success:', result?.success);
+        console.error('❌ [MODAL] result.error:', result?.error);
         // Verificar se é erro de duplicata
         if (result.error && result.error.includes('DUPLICATA:')) {
           // Tratar duplicata (mesmo fluxo do handleSubmit)
