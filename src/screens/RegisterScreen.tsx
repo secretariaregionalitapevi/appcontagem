@@ -1311,44 +1311,31 @@ export const RegisterScreen: React.FC = () => {
       console.log('🌐 [MODAL] Status de conexão:', isOfflineNow ? 'OFFLINE' : 'ONLINE');
       
       if (isOfflineNow) {
-        // 🚨 CORREÇÃO CRÍTICA: Se offline, salvar na fila local (igual backupcont)
-        console.log('📴 [MODAL] Modo offline detectado - salvando na fila local');
+        // 🚨 CORREÇÃO CRÍTICA: Se offline, salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
+        console.log('📴 [MODAL] Modo offline detectado - salvando usando saveRegistroToLocal');
         
-        // Criar dados no formato esperado pela fila
-        const dadosModal = {
-          UUID: generateExternalUUID(),
-          'NOME COMPLETO': data.nome.trim().toUpperCase(),
-          COMUM: data.comum.trim().toUpperCase(),
-          CIDADE: data.cidade.trim().toUpperCase(),
-          CARGO: cargoObj.nome.trim().toUpperCase(),
-          INSTRUMENTO: instrumentoObj?.nome ? instrumentoObj.nome.toUpperCase() : '',
-          NAIPE_INSTRUMENTO: instrumentoObj?.nome ? getNaipeByInstrumento(instrumentoObj.nome).toUpperCase() : '',
-          CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
-          LOCAL_ENSAIO: (localEnsaio || 'Não definido').toUpperCase(),
-          DATA_ENSAIO: new Date().toLocaleDateString('pt-BR'),
-          HORÁRIO: new Date().toLocaleTimeString('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          }),
-          REGISTRADO_POR: nomeUsuario.toUpperCase(),
-          USER_ID: user.id,
-          ANOTACOES: 'Cadastro fora da Regional',
-          SYNC_STATUS: 'PENDING',
-        };
-        
-        // Salvar na fila usando o mesmo método do backupcont
         try {
-          const fila = JSON.parse(localStorage.getItem('fila_envio') || '[]');
-          fila.push(dadosModal);
-          localStorage.setItem('fila_envio', JSON.stringify(fila));
-          console.log('✅ [MODAL] Registro salvo na fila offline:', dadosModal);
+          // Usar o mesmo formato de registro que o sistema principal usa
+          const registroOffline: RegistroPresenca = {
+            pessoa_id: `manual_${data.nome.toUpperCase()}`,
+            comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
+            cargo_id: cargoObj.id,
+            instrumento_id: data.instrumento || undefined,
+            classe_organista: data.classe || undefined,
+            local_ensaio: localEnsaio || 'Não definido',
+            data_hora_registro: getCurrentDateTimeISO(),
+            usuario_responsavel: nomeUsuario,
+            status_sincronizacao: 'pending',
+            cidade: data.cidade,
+          };
+          
+          // Salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
+          await supabaseDataService.saveRegistroToLocal(registroOffline);
+          console.log('✅ [MODAL] Registro salvo offline com sucesso');
           
           showToast.success('Salvo offline', 'Registro será enviado quando voltar online');
           
-          // Recarregar página após salvar
+          // Recarregar página após salvar (apenas web)
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             setTimeout(() => {
               window.location.reload();
@@ -1356,7 +1343,7 @@ export const RegisterScreen: React.FC = () => {
           }
           return;
         } catch (filaError) {
-          console.error('❌ [MODAL] Erro ao salvar na fila:', filaError);
+          console.error('❌ [MODAL] Erro ao salvar offline:', filaError);
           showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
           throw filaError;
         }
@@ -1395,41 +1382,43 @@ export const RegisterScreen: React.FC = () => {
         console.log('📥 [MODAL] Resultado do envio recebido:', result);
       } catch (sendError: any) {
         console.error('❌ [MODAL] Erro ao chamar sendExternalRegistroToSheet:', sendError);
-        // Se falhou, tentar salvar na fila como fallback
-        console.log('🔄 [MODAL] Tentando salvar na fila como fallback...');
-        const dadosModal = {
-          UUID: generateExternalUUID(),
-          'NOME COMPLETO': data.nome.trim().toUpperCase(),
-          COMUM: data.comum.trim().toUpperCase(),
-          CIDADE: data.cidade.trim().toUpperCase(),
-          CARGO: cargoObj.nome.trim().toUpperCase(),
-          INSTRUMENTO: instrumentoObj?.nome ? instrumentoObj.nome.toUpperCase() : '',
-          NAIPE_INSTRUMENTO: instrumentoObj?.nome ? getNaipeByInstrumento(instrumentoObj.nome).toUpperCase() : '',
-          CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
-          LOCAL_ENSAIO: (localEnsaio || 'Não definido').toUpperCase(),
-          DATA_ENSAIO: new Date().toLocaleDateString('pt-BR'),
-          HORÁRIO: new Date().toLocaleTimeString('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false,
-          }),
-          REGISTRADO_POR: nomeUsuario.toUpperCase(),
-          USER_ID: user.id,
-          ANOTACOES: 'Cadastro fora da Regional',
-          SYNC_STATUS: 'PENDING',
-        };
-        const fila = JSON.parse(localStorage.getItem('fila_envio') || '[]');
-        fila.push(dadosModal);
-        localStorage.setItem('fila_envio', JSON.stringify(fila));
-        showToast.warning('Salvo na fila', 'Erro ao enviar. Registro será enviado quando possível.');
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
+        console.error('❌ [MODAL] Detalhes do erro:', {
+          message: sendError.message,
+          name: sendError.name,
+          stack: sendError.stack,
+        });
+        
+        // Se falhou, tentar salvar usando saveRegistroToLocal como fallback (funciona em Android/iOS/Web)
+        console.log('🔄 [MODAL] Tentando salvar usando saveRegistroToLocal como fallback...');
+        try {
+          const registroFallback: RegistroPresenca = {
+            pessoa_id: `manual_${data.nome.toUpperCase()}`,
+            comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
+            cargo_id: cargoObj.id,
+            instrumento_id: data.instrumento || undefined,
+            classe_organista: data.classe || undefined,
+            local_ensaio: localEnsaio || 'Não definido',
+            data_hora_registro: getCurrentDateTimeISO(),
+            usuario_responsavel: nomeUsuario,
+            status_sincronizacao: 'pending',
+            cidade: data.cidade,
+          };
+          
+          await supabaseDataService.saveRegistroToLocal(registroFallback);
+          console.log('✅ [MODAL] Registro salvo como fallback');
+          showToast.warning('Salvo na fila', 'Erro ao enviar. Registro será enviado quando possível.');
+          
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          }
+          return;
+        } catch (fallbackError) {
+          console.error('❌ [MODAL] Erro crítico ao salvar fallback:', fallbackError);
+          showToast.error('Erro', 'Erro ao salvar registro. Tente novamente.');
+          throw sendError; // Re-lançar erro original
         }
-        return;
       }
       
       console.log('📥 [MODAL] Resultado do envio:', result);
