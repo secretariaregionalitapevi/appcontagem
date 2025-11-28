@@ -1341,16 +1341,14 @@ export const RegisterScreen: React.FC = () => {
       
       if (result.success) {
         console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
-        showToast.success(
-          'Registro salvo!',
-          'Registro de visita salvo com sucesso.'
-        );
+        // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
+        showToast.success('Registro de visita salvo com sucesso');
 
-        // Recarregar página após salvar (igual ao backupcont)
+        // Recarregar página após salvar (aguardar mais tempo para toast aparecer)
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           setTimeout(() => {
             window.location.reload();
-          }, 1500);
+          }, 2000); // Aumentado de 1500ms para 2000ms para dar tempo do toast aparecer
         }
       } else {
         // Verificar se é erro de duplicata

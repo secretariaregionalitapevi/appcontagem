@@ -14,6 +14,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { SimpleSelectField } from './SimpleSelectField';
 import { PrimaryButton } from './PrimaryButton';
+import { showToast } from '../utils/toast';
 
 interface NewRegistrationModalProps {
   visible: boolean;
@@ -212,12 +213,14 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         setNome('');
         setErrors({});
         
-        // Toast de sucesso já foi exibido no handleSaveNewRegistration
+        // 🚀 MELHORIA: Exibir toast de sucesso no modal também (garantir feedback visual)
+        showToast.success('Registro salvo com sucesso');
+        
         // Fechar modal após sucesso (aguardar um pouco para toast aparecer)
         setTimeout(() => {
           console.log('🚪 [MODAL] Fechando modal após sucesso');
           onClose();
-        }, 1500);
+        }, 2000); // Aumentado de 1500ms para 2000ms para dar tempo do toast aparecer
       } catch (error) {
         // Erro já foi tratado no handleSaveNewRegistration
         // Não fechar modal se houver erro
