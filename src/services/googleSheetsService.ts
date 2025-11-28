@@ -146,7 +146,7 @@ export const googleSheetsService = {
         }
 
         // Se não está OK e não é opaque, tentar ler erro
-        // 🚨 CORREÇÃO: Se já leu o corpo acima, não ler novamente
+        // 🚨 CORREÇÃO: Se já leu o corpo acima, usar ele. Senão, ler agora
         if (!responseBody) {
           try {
             responseBody = await response.text();
@@ -161,10 +161,12 @@ export const googleSheetsService = {
             }
             throw new Error(`HTTP ${response.status}: Erro ao processar resposta`);
           }
+        } else {
+          // Já temos o corpo da resposta, apenas logar o erro
+          console.error('❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:', response.status, responseBody);
         }
         
         // Se chegou aqui, response não está OK e temos o corpo da resposta
-        console.error('❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:', response.status, responseBody);
         throw new Error(`HTTP ${response.status}: ${responseBody || 'Erro desconhecido'}`);
       } catch (fetchError: any) {
         // 🚨 CORREÇÃO: Verificar se é timeout
