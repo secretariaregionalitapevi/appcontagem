@@ -1425,11 +1425,21 @@ export const RegisterScreen: React.FC = () => {
       console.log('📥 [MODAL] Tipo de result.success:', typeof result?.success);
       console.log('📥 [MODAL] result.success === true?', result?.success === true);
       console.log('📥 [MODAL] result.success === false?', result?.success === false);
+      console.log('📥 [MODAL] Cargo enviado:', cargoObj.nome);
+      console.log('📥 [MODAL] Dados completos enviados:', JSON.stringify({
+        nome: data.nome,
+        comum: data.comum,
+        cidade: data.cidade,
+        cargo: cargoObj.nome,
+        instrumento: instrumentoObj?.nome,
+        classe: data.classe,
+      }, null, 2));
       
       // 🚨 CORREÇÃO CRÍTICA: Verificar explicitamente se result.success é true
       // Não confiar apenas em truthy/falsy
       if (result && result.success === true) {
         console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
+        console.log('✅ [MODAL] Cargo que foi salvo:', cargoObj.nome);
         // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
         showToast.success('Registro de visita salvo com sucesso');
 
@@ -1442,9 +1452,18 @@ export const RegisterScreen: React.FC = () => {
       } else {
         // 🚨 CORREÇÃO: Se result.success não é true, tratar como erro
         console.error('❌ [MODAL] Registro NÃO foi enviado com sucesso!');
+        console.error('❌ [MODAL] Cargo que falhou:', cargoObj.nome);
         console.error('❌ [MODAL] result:', result);
         console.error('❌ [MODAL] result.success:', result?.success);
         console.error('❌ [MODAL] result.error:', result?.error);
+        console.error('❌ [MODAL] Dados que falharam:', JSON.stringify({
+          nome: data.nome,
+          comum: data.comum,
+          cidade: data.cidade,
+          cargo: cargoObj.nome,
+          instrumento: instrumentoObj?.nome,
+          classe: data.classe,
+        }, null, 2));
         
         // 🚨 CORREÇÃO CRÍTICA: Se não foi enviado, tentar salvar na fila como fallback
         console.log('🔄 [MODAL] Tentando salvar na fila como fallback (envio falhou)...');

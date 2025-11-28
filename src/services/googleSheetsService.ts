@@ -86,9 +86,13 @@ export const googleSheetsService = {
 
       console.log('📤 [EXTERNAL] Dados formatados para Google Sheets:', sheetRow);
       console.log('📤 [EXTERNAL] UUID gerado:', uuid);
-      console.log('📤 [EXTERNAL] Cargo:', data.cargo);
+      console.log('📤 [EXTERNAL] Cargo recebido:', data.cargo);
+      console.log('📤 [EXTERNAL] Cargo no sheetRow:', sheetRow.CARGO);
+      console.log('📤 [EXTERNAL] Instrumento recebido:', data.instrumento);
+      console.log('📤 [EXTERNAL] Classe recebida:', data.classe);
       console.log('📤 [EXTERNAL] Instrumento final:', instrumentoFinal);
       console.log('📤 [EXTERNAL] Naipe final:', naipeFinal);
+      console.log('📤 [EXTERNAL] CLASSE_ORGANISTA no sheetRow:', sheetRow.CLASSE_ORGANISTA);
       console.log('📤 [EXTERNAL] URL da API:', GOOGLE_SHEETS_API_URL);
       console.log('📤 [EXTERNAL] Nome da planilha:', SHEET_NAME);
 
