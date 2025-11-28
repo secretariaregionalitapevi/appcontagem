@@ -232,9 +232,10 @@ export const offlineSyncService = {
           }
         }
         
-        // Pausa entre envios para evitar sobrecarga (como ContPedras)
+        // 🚀 OTIMIZAÇÃO: Pausa reduzida entre envios (500ms ao invés de 1000ms)
+        // Mantém rate limiting mas aumenta throughput
         if (i < registros.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       } catch (error) {
         // Logar erro mas continuar com próximo registro

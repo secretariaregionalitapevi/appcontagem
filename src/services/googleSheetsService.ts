@@ -86,7 +86,7 @@ export const googleSheetsService = {
       console.log('📤 [EXTERNAL] Nome da planilha:', SHEET_NAME);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 segundos (otimizado)
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 🚀 OTIMIZAÇÃO: 8 segundos (reduzido de 12s)
 
       const requestBody = JSON.stringify({
         op: 'append',
@@ -364,7 +364,7 @@ export const googleSheetsService = {
       console.log('📤 Enviando para Google Sheets:', sheetRow);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout (otimizado para ser mais rápido)
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 🚀 OTIMIZAÇÃO: 8 segundos (reduzido de 10s)
 
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
