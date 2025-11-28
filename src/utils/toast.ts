@@ -55,47 +55,96 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
     fontStyle.rel = 'stylesheet';
     document.head.appendChild(fontStyle);
 
-    // Adicionar estilos customizados para SweetAlert2
+    // 🚀 MELHORIA: Estilos customizados mais compactos e elegantes
     const customStyle = document.createElement('style');
     customStyle.id = 'sweetalert2-custom-styles';
     customStyle.textContent = `
-      .swal2-popup {
+      /* Toast (modo compacto) */
+      .swal2-toast {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        font-size: 16px !important;
-        border-radius: 12px !important;
-        padding: 2rem !important;
+        border-radius: 10px !important;
+        padding: 0.75rem 1rem !important;
+        min-width: 280px !important;
+        max-width: 400px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
       }
-      .swal2-title {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        font-size: 24px !important;
+      .swal2-toast .swal2-title {
+        font-size: 14px !important;
         font-weight: 600 !important;
-        color: #212121 !important;
+        color: #1f2937 !important;
         line-height: 1.4 !important;
-        margin-bottom: 1rem !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
-      .swal2-content {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        font-size: 16px !important;
+      .swal2-toast .swal2-content {
+        font-size: 13px !important;
         font-weight: 400 !important;
-        color: #4a5568 !important;
-        line-height: 1.6 !important;
-        margin-top: 0.5rem !important;
+        color: #6b7280 !important;
+        line-height: 1.5 !important;
+        margin: 0.25rem 0 0 0 !important;
+        padding: 0 !important;
       }
-      .swal2-confirm {
+      .swal2-toast .swal2-icon {
+        width: 32px !important;
+        height: 32px !important;
+        margin: 0 0.75rem 0 0 !important;
+      }
+      .swal2-toast .swal2-icon.swal2-success {
+        border-color: #10b981 !important;
+      }
+      .swal2-toast .swal2-icon.swal2-error {
+        border-color: #ef4444 !important;
+      }
+      .swal2-toast .swal2-icon.swal2-info {
+        border-color: #3b82f6 !important;
+      }
+      .swal2-toast .swal2-icon.swal2-warning {
+        border-color: #f59e0b !important;
+      }
+      
+      /* Modal (para erros importantes) */
+      .swal2-popup:not(.swal2-toast) {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
         font-size: 15px !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        max-width: 420px !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+      }
+      .swal2-popup:not(.swal2-toast) .swal2-title {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        color: #111827 !important;
+        line-height: 1.4 !important;
+        margin-bottom: 0.75rem !important;
+        padding: 0 !important;
+      }
+      .swal2-popup:not(.swal2-toast) .swal2-content {
+        font-size: 14px !important;
+        font-weight: 400 !important;
+        color: #4b5563 !important;
+        line-height: 1.6 !important;
+        margin-top: 0 !important;
+        padding: 0 !important;
+      }
+      .swal2-popup:not(.swal2-toast) .swal2-icon {
+        width: 48px !important;
+        height: 48px !important;
+        margin-bottom: 1rem !important;
+      }
+      .swal2-popup:not(.swal2-toast) .swal2-confirm {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+        font-size: 14px !important;
         font-weight: 500 !important;
-        padding: 0.75rem 2rem !important;
+        padding: 0.625rem 1.5rem !important;
         border-radius: 8px !important;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
         transition: all 0.2s ease !important;
+        margin-top: 1rem !important;
       }
-      .swal2-confirm:hover {
+      .swal2-popup:not(.swal2-toast) .swal2-confirm:hover {
         transform: translateY(-1px) !important;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
-      }
-      .swal2-icon {
-        margin-bottom: 1.5rem !important;
       }
     `;
     document.head.appendChild(customStyle);
@@ -109,20 +158,20 @@ export const showToast = {
     const finalTitle = message ? title : '';
     
     if (Platform.OS === 'web') {
-      // 🚀 MELHORIA: Toast de sucesso mais rápido e elegante
+      // 🚀 MELHORIA: Toast de sucesso compacto e elegante
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'success',
           title: finalTitle || finalMessage,
           text: finalTitle ? finalMessage : '',
-          timer: 1500, // Reduzido de 2000 para 1500ms (mais rápido)
+          timer: 1500,
           timerProgressBar: false,
           showConfirmButton: false,
           toast: true,
           position: 'top-end',
           width: 'auto',
-          padding: '1rem',
+          padding: '0.75rem 1rem',
           customClass: {
             popup: 'swal2-toast',
             title: 'swal2-toast-title',
@@ -133,19 +182,25 @@ export const showToast = {
         console.log(`✅ ${finalMessage}`);
       }
     } else if (Toast) {
-      // No mobile, usar apenas text1 se não houver message (igual ao contpedras)
-      // Garantir que funcione no iOS e Android
+      // 🚀 MELHORIA: Toast mobile mais compacto
       try {
         Toast.show({
           type: 'success',
           text1: finalTitle || finalMessage,
           text2: finalTitle ? finalMessage : undefined,
           position: 'top',
-          visibilityTime: 1500, // Reduzido de 2000 para 1500ms (mais rápido)
+          visibilityTime: 1500,
           autoHide: true,
           topOffset: Platform.OS === 'ios' ? 60 : 50,
-          text1Style: { fontSize: 14, fontWeight: '600' },
-          text2Style: { fontSize: 12 },
+          text1Style: { 
+            fontSize: 14, 
+            fontWeight: '600',
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+          },
+          text2Style: { 
+            fontSize: 12,
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+          },
         });
       } catch (toastError) {
         // Fallback se Toast falhar
@@ -163,20 +218,27 @@ export const showToast = {
 
   error: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
-      // 🚀 MELHORIA: Toast de erro mais elegante e informativo
+      // 🚀 MELHORIA: Modal de erro compacto e elegante
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'error',
           title: title,
           text: message || '',
-          timer: 4000, // Reduzido de 5000 para 4000ms (mais rápido)
+          timer: 4000,
           timerProgressBar: true,
           showConfirmButton: true,
           confirmButtonText: 'OK',
           confirmButtonColor: '#ef4444',
           toast: false, // Modal para erros importantes
           position: 'center',
+          padding: '1.5rem',
+          customClass: {
+            popup: 'swal2-popup-compact',
+            title: 'swal2-title-compact',
+            content: 'swal2-content-compact',
+            confirmButton: 'swal2-confirm-compact',
+          },
         });
       } else {
         // Fallback para alert nativo
@@ -186,16 +248,24 @@ export const showToast = {
         }
       }
     } else if (Toast) {
+      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
         type: 'error',
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 3500, // Reduzido de 4000 para 3500ms (mais rápido)
+        visibilityTime: 3500,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 50 : 40,
-        text1Style: { fontSize: 14, fontWeight: '600' },
-        text2Style: { fontSize: 12 },
+        text1Style: { 
+          fontSize: 14, 
+          fontWeight: '600',
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
+        text2Style: { 
+          fontSize: 12,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
       });
     } else {
       Alert.alert(title, message || '');
@@ -204,26 +274,32 @@ export const showToast = {
 
   info: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
-      // Usar SweetAlert2 na web - modo toast (igual ao ContPedras)
+      // 🚀 MELHORIA: Toast de info compacto
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'info',
           title: title,
           text: message || '',
-          timer: 3000, // 3 segundos
+          timer: 3000,
           timerProgressBar: false,
           showConfirmButton: false,
-          toast: true, // Modo toast (menor e mais elegante)
+          toast: true,
           position: 'top-end',
           width: 'auto',
-          padding: '1rem',
+          padding: '0.75rem 1rem',
+          customClass: {
+            popup: 'swal2-toast',
+            title: 'swal2-toast-title',
+            content: 'swal2-toast-content',
+          },
         });
       } else {
         // Fallback para console
         console.info(`ℹ️ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
+      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
         type: 'info',
         text1: title,
@@ -232,8 +308,15 @@ export const showToast = {
         visibilityTime: 3000,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 50 : 40,
-        text1Style: { fontSize: 14, fontWeight: '600' },
-        text2Style: { fontSize: 12 },
+        text1Style: { 
+          fontSize: 14, 
+          fontWeight: '600',
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
+        text2Style: { 
+          fontSize: 12,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
       });
     } else {
       Alert.alert(title, message || '');
@@ -242,18 +325,27 @@ export const showToast = {
 
   warning: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
-      // Usar SweetAlert2 na web
+      // 🚀 MELHORIA: Toast de warning compacto
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'warning',
           title: title,
           text: message || '',
-          timer: 5000,
+          timer: 4000,
           timerProgressBar: true,
           showConfirmButton: true,
           confirmButtonText: 'OK',
           confirmButtonColor: '#f59e0b',
+          toast: false, // Modal para warnings importantes
+          position: 'center',
+          padding: '1.5rem',
+          customClass: {
+            popup: 'swal2-popup-compact',
+            title: 'swal2-title-compact',
+            content: 'swal2-content-compact',
+            confirmButton: 'swal2-confirm-compact',
+          },
         });
       } else {
         // Fallback para console
@@ -263,6 +355,7 @@ export const showToast = {
         }
       }
     } else if (Toast) {
+      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
         type: 'info',
         text1: title,
@@ -271,15 +364,22 @@ export const showToast = {
         visibilityTime: 4000,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 50 : 40,
-        text1Style: { fontSize: 14, fontWeight: '600' },
-        text2Style: { fontSize: 12 },
+        text1Style: { 
+          fontSize: 14, 
+          fontWeight: '600',
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
+        text2Style: { 
+          fontSize: 12,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
       });
     } else {
       Alert.alert(title, message || '');
     }
   },
 
-  // 🚀 NOVO: Toast de progresso para envio de registros
+  // 🚀 NOVO: Toast de progresso compacto para envio de registros
   progress: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
@@ -288,31 +388,44 @@ export const showToast = {
           icon: 'info',
           title: title,
           text: message || 'Aguarde...',
-          timer: 15000, // 15 segundos (tempo máximo esperado)
+          timer: 15000,
           timerProgressBar: true,
           showConfirmButton: false,
           toast: true,
           position: 'top-end',
           width: 'auto',
-          padding: '1rem',
+          padding: '0.75rem 1rem',
           allowOutsideClick: false,
           allowEscapeKey: false,
+          customClass: {
+            popup: 'swal2-toast',
+            title: 'swal2-toast-title',
+            content: 'swal2-toast-content',
+          },
           didOpen: () => {
             Swal.showLoading();
           },
         });
       }
     } else if (Toast) {
+      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
         type: 'info',
         text1: title,
         text2: message || 'Aguarde...',
         position: 'top',
         visibilityTime: 15000,
-        autoHide: false, // Não fechar automaticamente
+        autoHide: false,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
-        text1Style: { fontSize: 14, fontWeight: '600' },
-        text2Style: { fontSize: 12 },
+        text1Style: { 
+          fontSize: 14, 
+          fontWeight: '600',
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
+        text2Style: { 
+          fontSize: 12,
+          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        },
       });
     }
   },
