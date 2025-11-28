@@ -153,13 +153,23 @@ export const googleSheetsService = {
             responseBody.toLowerCase().includes('falha') ||
             responseBody.toLowerCase().includes('rejeitado') ||
             responseBody.toLowerCase().includes('invalid') ||
-            responseBody.toLowerCase().includes('inválido')
+            responseBody.toLowerCase().includes('inválido') ||
+            responseBody.toLowerCase().includes('rejected') ||
+            responseBody.toLowerCase().includes('denied')
           )) {
             console.error('❌ [EXTERNAL] Resposta OK mas contém erro no corpo:', responseBody);
+            console.error('❌ [EXTERNAL] Dados que causaram erro:', sheetRow);
             throw new Error(`Google Sheets retornou erro: ${responseBody}`);
           }
           
+          // 🚨 VERIFICAÇÃO ADICIONAL: Verificar se a resposta está vazia ou muito curta
+          // Pode indicar que o Google Apps Script não processou corretamente
+          if (responseBody && responseBody.trim().length < 10) {
+            console.warn('⚠️ [EXTERNAL] Resposta muito curta, pode indicar problema:', responseBody);
+          }
+          
           console.log('✅ [EXTERNAL] Google Sheets: Dados enviados com sucesso (status OK)');
+          console.log('✅ [EXTERNAL] Corpo da resposta confirmado:', responseBody.substring(0, 100));
           console.log('✅ [EXTERNAL] Retornando { success: true }');
           return { success: true };
         }
