@@ -830,10 +830,6 @@ export const RegisterScreen: React.FC = () => {
     // Se estiver offline, já foi tratado acima - não chegará aqui
     // Se chegou aqui, está online - tentar enviar online
     try {
-      // 🚀 OTIMIZAÇÃO: Mostrar toast de progresso IMEDIATAMENTE (antes do envio)
-      // Isso dá feedback visual instantâneo ao usuário
-      showToast.progress('Enviando registro...', 'Aguarde enquanto processamos');
-      
       console.log('🚀 [ONLINE] Iniciando envio de registro online...', {
         isOnline,
         isOfflineNow,
@@ -843,9 +839,6 @@ export const RegisterScreen: React.FC = () => {
       });
       
       const result = await (offlineSyncService as any).createRegistro(registroOnline);
-      
-      // 🚀 OTIMIZAÇÃO: Fechar toast de progresso antes de mostrar resultado
-      showToast.hide();
 
       console.log('📋 Resultado do createRegistro:', result);
       console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
@@ -864,8 +857,8 @@ export const RegisterScreen: React.FC = () => {
         const foiEnviado = !result.error || !result.error.includes('salvo localmente');
         
         if (foiEnviado) {
-          // 🚀 MELHORIA: Toast de sucesso mais elegante e rápido
-          showToast.success('Registro enviado!', 'Salvo com sucesso');
+          // 🚀 MELHORIA: Toast de sucesso compacto (tudo em uma linha)
+          showToast.success('Registro enviado com sucesso');
           // Limpar formulário
           setSelectedComum('');
           setSelectedCargo('');
@@ -887,9 +880,6 @@ export const RegisterScreen: React.FC = () => {
           // Não limpar formulário se foi salvo localmente (usuário pode querer tentar novamente)
         }
       } else {
-        // 🚀 MELHORIA: Fechar toast de progresso em caso de erro também
-        showToast.hide();
-        
         // Verificar se é erro de duplicata
         const isDuplicateError = result.error && (
           result.error.includes('DUPLICATA') ||
@@ -1150,9 +1140,6 @@ export const RegisterScreen: React.FC = () => {
         }
       }
     } catch (error) {
-      // 🚀 MELHORIA: Fechar toast de progresso em caso de erro crítico
-      showToast.hide();
-      
       console.error('❌ ERRO CRÍTICO ao processar registro:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       

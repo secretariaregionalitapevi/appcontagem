@@ -59,35 +59,42 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
     const customStyle = document.createElement('style');
     customStyle.id = 'sweetalert2-custom-styles';
     customStyle.textContent = `
-      /* Toast (modo compacto) */
+      /* Toast (modo ultra-compacto e elegante) */
       .swal2-toast {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        border-radius: 10px !important;
-        padding: 0.75rem 1rem !important;
-        min-width: 280px !important;
-        max-width: 400px !important;
+        border-radius: 8px !important;
+        padding: 0.625rem 0.875rem !important;
+        min-width: 240px !important;
+        max-width: 320px !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        display: flex !important;
+        align-items: center !important;
       }
       .swal2-toast .swal2-title {
-        font-size: 14px !important;
+        font-size: 13px !important;
         font-weight: 600 !important;
         color: #1f2937 !important;
-        line-height: 1.4 !important;
+        line-height: 1.3 !important;
         margin: 0 !important;
         padding: 0 !important;
+        flex: 1 !important;
       }
       .swal2-toast .swal2-content {
-        font-size: 13px !important;
-        font-weight: 400 !important;
-        color: #6b7280 !important;
-        line-height: 1.5 !important;
-        margin: 0.25rem 0 0 0 !important;
-        padding: 0 !important;
+        display: none !important; /* Ocultar conteúdo extra para manter compacto */
       }
       .swal2-toast .swal2-icon {
-        width: 32px !important;
-        height: 32px !important;
-        margin: 0 0.75rem 0 0 !important;
+        width: 28px !important;
+        height: 28px !important;
+        margin: 0 0.625rem 0 0 !important;
+        flex-shrink: 0 !important;
+      }
+      .swal2-toast .swal2-icon .swal2-success-ring {
+        width: 28px !important;
+        height: 28px !important;
+      }
+      .swal2-toast .swal2-icon .swal2-success-line-tip,
+      .swal2-toast .swal2-icon .swal2-success-line-long {
+        height: 2px !important;
       }
       .swal2-toast .swal2-icon.swal2-success {
         border-color: #10b981 !important;
@@ -153,25 +160,25 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 
 export const showToast = {
   success: (title: string, message?: string) => {
-    // Se message não foi fornecido, usar title como mensagem única (igual ao contpedras)
-    const finalMessage = message || title;
-    const finalTitle = message ? title : '';
+    // 🚀 MELHORIA: Sempre usar title como mensagem única (ultra-compacto)
+    // Se message foi fornecido, combinar em uma linha
+    const finalMessage = message ? `${title} ${message}` : title;
     
     if (Platform.OS === 'web') {
-      // 🚀 MELHORIA: Toast de sucesso compacto e elegante
+      // 🚀 MELHORIA: Toast de sucesso ultra-compacto (uma linha)
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'success',
-          title: finalTitle || finalMessage,
-          text: finalTitle ? finalMessage : '',
+          title: finalMessage,
+          text: '', // Sempre vazio para manter compacto
           timer: 1500,
           timerProgressBar: false,
           showConfirmButton: false,
           toast: true,
           position: 'top-end',
           width: 'auto',
-          padding: '0.75rem 1rem',
+          padding: '0.625rem 0.875rem',
           customClass: {
             popup: 'swal2-toast',
             title: 'swal2-toast-title',
@@ -182,23 +189,19 @@ export const showToast = {
         console.log(`✅ ${finalMessage}`);
       }
     } else if (Toast) {
-      // 🚀 MELHORIA: Toast mobile mais compacto
+      // 🚀 MELHORIA: Toast mobile ultra-compacto (uma linha)
       try {
         Toast.show({
           type: 'success',
-          text1: finalTitle || finalMessage,
-          text2: finalTitle ? finalMessage : undefined,
+          text1: finalMessage,
+          text2: undefined, // Sempre undefined para manter compacto
           position: 'top',
           visibilityTime: 1500,
           autoHide: true,
           topOffset: Platform.OS === 'ios' ? 60 : 50,
           text1Style: { 
-            fontSize: 14, 
+            fontSize: 13, 
             fontWeight: '600',
-            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-          },
-          text2Style: { 
-            fontSize: 12,
             fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
           },
         });
