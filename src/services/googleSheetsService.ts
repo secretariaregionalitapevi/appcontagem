@@ -46,12 +46,21 @@ export const googleSheetsService = {
       // Cargos relacionados a organistas (Examinadora, Instrutora, Organista, Secretária da Música)
       // sempre devem ter instrumento "ÓRGÃO" e naipe "TECLADO", independente de ter classe ou não
       const cargoUpper = data.cargo.trim().toUpperCase();
+      console.log('🔍 [EXTERNAL] Verificando cargo:', cargoUpper);
+      
       const isOrganista = cargoUpper === 'ORGANISTA';
       const isExaminadora = cargoUpper === 'EXAMINADORA';
       const isInstrutora = cargoUpper === 'INSTRUTORA' || cargoUpper === 'INSTRUTOR';
       const isSecretariaMusica = (cargoUpper.includes('SECRETÁRI') || cargoUpper.includes('SECRETARI')) && 
                                   (cargoUpper.includes('MÚSICA') || cargoUpper.includes('MUSICA'));
       const isOrganistaOuRelacionado = isOrganista || isExaminadora || isInstrutora || isSecretariaMusica;
+      
+      console.log('🔍 [EXTERNAL] Verificações de cargo:');
+      console.log('  - isOrganista:', isOrganista);
+      console.log('  - isExaminadora:', isExaminadora);
+      console.log('  - isInstrutora:', isInstrutora);
+      console.log('  - isSecretariaMusica:', isSecretariaMusica);
+      console.log('  - isOrganistaOuRelacionado:', isOrganistaOuRelacionado);
       
       let instrumentoFinal = '';
       let naipeFinal = '';
@@ -60,10 +69,14 @@ export const googleSheetsService = {
         // 🚨 CRÍTICO: Cargos relacionados a organistas sempre têm instrumento "ÓRGÃO"
         instrumentoFinal = 'ÓRGÃO';
         naipeFinal = 'TECLADO';
+        console.log('✅ [EXTERNAL] Cargo relacionado a organista detectado - definindo instrumento como ÓRGÃO');
       } else if (data.instrumento) {
         // Para outros cargos (ex: Músico), usar o instrumento fornecido
         instrumentoFinal = data.instrumento.toUpperCase();
         naipeFinal = getNaipeByInstrumento(data.instrumento).toUpperCase();
+        console.log('✅ [EXTERNAL] Usando instrumento fornecido:', instrumentoFinal);
+      } else {
+        console.log('ℹ️ [EXTERNAL] Cargo sem instrumento (ex: Encarregado Local, Ancião) - deixando vazio');
       }
       // Se não é organista/relacionado e não tem instrumento, deixa vazio (ex: Encarregado Local, Ancião)
 

@@ -1365,6 +1365,17 @@ export const RegisterScreen: React.FC = () => {
       });
       
       console.log('🔄 [MODAL] Chamando sendExternalRegistroToSheet...');
+      console.log('🔄 [MODAL] Parâmetros que serão enviados:', {
+        nome: data.nome,
+        comum: data.comum,
+        cidade: data.cidade,
+        cargo: cargoObj.nome,
+        instrumento: instrumentoObj?.nome,
+        classe: data.classe,
+        localEnsaio: localEnsaio || 'Não definido',
+        registradoPor: nomeUsuario,
+        userId: user.id,
+      });
       let result;
       try {
         result = await googleSheetsService.sendExternalRegistroToSheet({
