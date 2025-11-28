@@ -3,7 +3,7 @@ import { supabaseDataService } from './supabaseDataService';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { normalizarRegistroCargoFeminino, isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
 import { formatRegistradoPor } from '../utils/userNameUtils';
-import { generateExternalUUID } from '../utils/uuid';
+import { uuidv4 } from '../utils/uuid';
 import { normalizarNivel } from '../utils/normalizeNivel';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
@@ -39,8 +39,8 @@ export const googleSheetsService = {
     try {
       console.log('📤 [EXTERNAL] Enviando registro externo diretamente para Google Sheets:', data);
 
-      // Gerar UUID
-      const uuid = generateExternalUUID();
+      // 🚨 CORREÇÃO: Usar UUID v4 válido (igual sistema normal), não external_
+      const uuid = uuidv4();
 
       // Determinar instrumento e naipe
       let instrumentoFinal = '';
@@ -85,6 +85,10 @@ export const googleSheetsService = {
       };
 
       console.log('📤 [EXTERNAL] Dados formatados para Google Sheets:', sheetRow);
+      console.log('📤 [EXTERNAL] UUID gerado:', uuid);
+      console.log('📤 [EXTERNAL] Cargo:', data.cargo);
+      console.log('📤 [EXTERNAL] Instrumento final:', instrumentoFinal);
+      console.log('📤 [EXTERNAL] Naipe final:', naipeFinal);
       console.log('📤 [EXTERNAL] URL da API:', GOOGLE_SHEETS_API_URL);
       console.log('📤 [EXTERNAL] Nome da planilha:', SHEET_NAME);
 
