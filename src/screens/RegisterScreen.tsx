@@ -1622,10 +1622,12 @@ export const RegisterScreen: React.FC = () => {
           style={Platform.OS === 'web' 
             ? { 
                 position: 'relative' as const, 
-                overflow: 'scroll' as const,
+                overflow: 'visible' as const,
                 zIndex: 1,
                 // @ts-ignore
                 WebkitOverflowScrolling: 'touch',
+                // @ts-ignore - Permitir que dropdowns apareçam acima (propriedade CSS apenas para web)
+                overflowY: 'auto',
               } 
             : { 
                 flex: 1,
@@ -1735,46 +1737,25 @@ export const RegisterScreen: React.FC = () => {
               </View>
 
                   {showInstrumento && (
-                    <View style={[styles.field, Platform.OS === 'web' ? { position: 'relative' as const, zIndex: 1004, overflow: 'visible' as const } : {}]}>
+                    <View style={[styles.field, Platform.OS === 'web' ? { 
+                      position: 'relative' as const, 
+                      zIndex: 999999, 
+                      overflow: 'visible' as const,
+                      // @ts-ignore
+                      isolation: 'isolate',
+                    } : {}]}>
                       <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
-                      {Platform.OS === 'web' ? (
-                        <select
-                          style={{
-                            ...styles.selectWeb,
-                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
-                            backgroundRepeat: 'no-repeat',
-                            backgroundPosition: 'right 10px center',
-                            backgroundSize: '10px 10px',
-                            paddingRight: '35px',
-                          } as any}
-                          value={selectedInstrumento}
-                          onChange={(e) => {
-                            setSelectedInstrumento(e.target.value);
-                            setSelectedPessoa('');
-                            setIsNomeManual(false);
-                          }}
-                          required
-                        >
-                          <option value="">Selecione o instrumento...</option>
-                          {instrumentos.map(instrumento => (
-                            <option key={instrumento.id} value={instrumento.id}>
-                              {instrumento.nome}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <SimpleSelectField
-                          label=""
-                          value={selectedInstrumento}
-                          options={instrumentosOptions}
-                          onSelect={(option: any) => {
-                            setSelectedInstrumento(String(option.value));
-                            setSelectedPessoa('');
-                            setIsNomeManual(false);
-                          }}
-                          placeholder="Selecione o instrumento..."
-                        />
-                      )}
+                      <SimpleSelectField
+                        label=""
+                        value={selectedInstrumento}
+                        options={instrumentosOptions}
+                        onSelect={(option: any) => {
+                          setSelectedInstrumento(String(option.value));
+                          setSelectedPessoa('');
+                          setIsNomeManual(false);
+                        }}
+                        placeholder="Selecione o instrumento..."
+                      />
                     </View>
                   )}
 
@@ -2023,6 +2004,8 @@ const styles = StyleSheet.create({
       ? {
           overflow: 'visible' as const,
           minHeight: '100%',
+          // @ts-ignore
+          position: 'relative' as const,
         }
       : {
           overflow: 'visible' as const,
