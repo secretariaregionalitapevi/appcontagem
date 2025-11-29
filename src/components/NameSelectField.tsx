@@ -230,18 +230,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       return;
     }
 
-    if (Platform.OS === 'android') {
-      if (options.length > 0) {
-        setShowList(true);
-      } else {
-        setShowList(false);
-      }
+    // 🚨 CRÍTICO: Sempre mostrar lista se há opções disponíveis (mesmo com texto vazio)
+    // Isso garante que ao apagar as letras, a lista continue aparecendo
+    if (options && options.length > 0) {
+      setShowList(true);
     } else {
-      if (text.trim().length > 0 || options.length > 0) {
-        setShowList(true);
-      } else {
-        setShowList(false);
-      }
+      setShowList(false);
     }
   };
 
@@ -295,10 +289,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       }
     }
     
-    // Delay maior no web para permitir clique com mouse
-    // No mobile, delay menor mas ainda suficiente para permitir toque no item
-    // O toque no mobile precisa de menos tempo porque onPressIn cancela o blur
-    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 200 : 150;
+    // 🚨 CRÍTICO: Delay maior no mobile para garantir que o toque seja registrado
+    // Aumentado significativamente para evitar que o blur feche a lista antes do toque
+    const delay = Platform.OS === 'web' ? 500 : 400; // Aumentado de 150/200 para 400ms no mobile
     blurTimeoutRef.current = setTimeout(() => {
       setShowList(false);
       blurTimeoutRef.current = null;
@@ -556,10 +549,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                 animationType="fade"
                 onRequestClose={() => setShowList(false)}
                 statusBarTranslucent={true}
+                // 🚨 CRÍTICO: Permitir que o scroll da página funcione mesmo com o modal aberto
+                presentationStyle="overFullScreen"
               >
                 <TouchableOpacity
                   style={styles.modalOverlay}
-                  activeOpacity={1}
+                  activeOpacity={0.01}
                   onPress={() => setShowList(false)}
                 >
                   <View
@@ -572,6 +567,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                         data={filtered}
                         keyExtractor={item => item.id}
                         keyboardDismissMode="none"
+                        // 🚨 CRÍTICO: Garantir que os toques sejam sempre capturados
+                        keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled={true}
                         renderItem={({ item, index }) => {
                           const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
                           return (
@@ -582,7 +580,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 value === item.id && !isManualOption && styles.itemSelected,
                                 isManualOption && styles.itemManual,
                               ]}
-                              onPress={() => {
+                              onPress={(e) => {
+                                // 🚨 CRÍTICO: Prevenir propagação para o overlay
+                                e.stopPropagation();
                                 // Cancelar blur pendente ao clicar
                                 if (blurTimeoutRef.current) {
                                   clearTimeout(blurTimeoutRef.current);
@@ -591,15 +591,21 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 // Selecionar o item
                                 handleSelect(item);
                               }}
-                              onPressIn={() => {
+                              onPressIn={(e) => {
+                                // 🚨 CRÍTICO: Prevenir propagação e cancelar blur imediatamente
+                                e.stopPropagation();
                                 // Cancelar blur imediatamente ao tocar (melhor para mobile)
                                 if (blurTimeoutRef.current) {
                                   clearTimeout(blurTimeoutRef.current);
                                   blurTimeoutRef.current = null;
                                 }
+                                // Marcar que está selecionando ANTES do blur
+                                isSelectingRef.current = true;
                               }}
                               activeOpacity={0.7}
-                              hitSlop={{ top: 20, bottom: 20, left: 15, right: 15 }}
+                              hitSlop={{ top: 25, bottom: 25, left: 20, right: 20 }}
+                              // 🚨 CRÍTICO: Garantir que o toque seja capturado
+                              delayPressIn={0}
                             >
                               <Text
                                 style={[
@@ -623,7 +629,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                           );
                         }}
                         style={styles.list}
-                        keyboardShouldPersistTaps="handled"
                         initialNumToRender={10}
                         maxToRenderPerBatch={10}
                         windowSize={5}
