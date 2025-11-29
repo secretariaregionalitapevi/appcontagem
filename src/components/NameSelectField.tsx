@@ -271,6 +271,15 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       return;
     }
 
+    // 🚨 CRÍTICO: Se há itens filtrados na lista, NÃO fechar a lista no blur
+    // Isso permite que o usuário clique nos itens mesmo após o blur do input
+    if (filtered.length > 0 && !isManualMode) {
+      console.log('📋 [NameSelectField] Blur ignorado - há itens na lista, mantendo lista aberta');
+      // Não fechar a lista, apenas marcar como não focado
+      setIsFocused(false);
+      return;
+    }
+
     setIsFocused(false);
     
     // 🚨 CORREÇÃO CRÍTICA: Se há texto digitado que não corresponde a nenhuma opção, tratar como manual
@@ -289,11 +298,13 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       }
     }
     
-    // 🚨 CRÍTICO: Delay maior no mobile para garantir que o toque seja registrado
-    // Aumentado significativamente para evitar que o blur feche a lista antes do toque
-    const delay = Platform.OS === 'web' ? 500 : 400; // Aumentado de 150/200 para 400ms no mobile
+    // Só fechar lista se não há itens filtrados
+    const delay = Platform.OS === 'web' ? 500 : 300;
     blurTimeoutRef.current = setTimeout(() => {
-      setShowList(false);
+      // Verificar novamente se não há itens antes de fechar
+      if (filtered.length === 0) {
+        setShowList(false);
+      }
       blurTimeoutRef.current = null;
     }, delay);
   };
@@ -541,26 +552,27 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
           {/* Dropdown - só mostrar se não estiver em modo manual E houver opções */}
           {!isManualMode && (
             <>
-              {/* Dropdown - Modal no mobile nativo, inline no Web */}
+              {/* Dropdown - Usar dropdown inline mesmo no mobile para não bloquear scroll */}
               {Platform.OS !== 'web' ? (
-              <Modal
-                visible={showList && filtered.length > 0}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowList(false)}
-                statusBarTranslucent={true}
-                // 🚨 CRÍTICO: Permitir que o scroll da página funcione mesmo com o modal aberto
-                presentationStyle="overFullScreen"
-              >
-                <TouchableOpacity
-                  style={styles.modalOverlay}
-                  activeOpacity={0.01}
-                  onPress={() => setShowList(false)}
-                >
-                  <View
-                    style={styles.modalContent}
-                    onStartShouldSetResponder={() => false}
-                  >
+              <>
+                {showList && filtered.length > 0 && (
+                  <>
+                    {/* Overlay transparente para fechar ao clicar fora */}
+                    <TouchableOpacity
+                      style={styles.mobileOverlay}
+                      activeOpacity={1}
+                      onPress={() => {
+                        // Só fechar se não está selecionando
+                        if (!isSelectingRef.current) {
+                          setShowList(false);
+                        }
+                      }}
+                    />
+                    <View style={styles.mobileDropdownContainer}>
+                      <View
+                        style={styles.mobileDropdownContent}
+                        onStartShouldSetResponder={() => false}
+                      >
                     {filtered.length > 0 ? (
                       <FlatList
                         ref={flatListRef}
@@ -583,6 +595,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                               onPress={(e) => {
                                 // 🚨 CRÍTICO: Prevenir propagação para o overlay
                                 e.stopPropagation();
+                                // Marcar que está selecionando ANTES de tudo
+                                isSelectingRef.current = true;
                                 // Cancelar blur pendente ao clicar
                                 if (blurTimeoutRef.current) {
                                   clearTimeout(blurTimeoutRef.current);
@@ -639,9 +653,11 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                         <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
                       </View>
                     )}
-                  </View>
-                </TouchableOpacity>
-              </Modal>
+                      </View>
+                    </View>
+                  </>
+                )}
+              </>
             ) : (
               <>
             {showList && filtered.length > 0 && (
@@ -990,6 +1006,37 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
+  },
+  mobileOverlay: {
+    position: 'absolute' as any,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: -1000, // Estender para baixo para capturar cliques
+    zIndex: 999998,
+    backgroundColor: 'transparent',
+  },
+  mobileDropdownContainer: {
+    position: 'absolute' as any,
+    top: '100%',
+    left: 0,
+    right: 0,
+    zIndex: 999999,
+    marginTop: 4,
+    elevation: 999999,
+  },
+  mobileDropdownContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: theme.borderRadius.md,
+    maxHeight: 400,
+    borderWidth: 1.5,
+    borderColor: theme.colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 15,
+    overflow: 'hidden',
   },
   modalOverlay: {
     flex: 1,
