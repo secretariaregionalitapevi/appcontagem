@@ -561,15 +561,10 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                   style={styles.modalOverlay}
                   activeOpacity={1}
                   onPress={() => setShowList(false)}
-                  delayPressIn={0}
                 >
-                  <TouchableOpacity
+                  <View
                     style={styles.modalContent}
-                    activeOpacity={1}
-                    onPress={(e) => {
-                      // Prevenir que o clique no conteúdo feche o modal
-                      e.stopPropagation();
-                    }}
+                    onStartShouldSetResponder={() => false}
                   >
                     {filtered.length > 0 ? (
                       <FlatList
@@ -587,9 +582,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 value === item.id && !isManualOption && styles.itemSelected,
                                 isManualOption && styles.itemManual,
                               ]}
-                              onPress={(e) => {
-                                // Prevenir propagação para o overlay
-                                e.stopPropagation();
+                              onPress={() => {
                                 // Cancelar blur pendente ao clicar
                                 if (blurTimeoutRef.current) {
                                   clearTimeout(blurTimeoutRef.current);
@@ -598,18 +591,15 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 // Selecionar o item
                                 handleSelect(item);
                               }}
-                              onPressIn={(e) => {
-                                // Prevenir propagação
-                                e.stopPropagation();
+                              onPressIn={() => {
                                 // Cancelar blur imediatamente ao tocar (melhor para mobile)
                                 if (blurTimeoutRef.current) {
                                   clearTimeout(blurTimeoutRef.current);
                                   blurTimeoutRef.current = null;
                                 }
                               }}
-                              activeOpacity={0.5}
-                              hitSlop={{ top: 10, bottom: 10, left: 0, right: 0 }}
-                              delayPressIn={0}
+                              activeOpacity={0.7}
+                              hitSlop={{ top: 20, bottom: 20, left: 15, right: 15 }}
                             >
                               <Text
                                 style={[
@@ -633,7 +623,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                           );
                         }}
                         style={styles.list}
-                        keyboardShouldPersistTaps="always"
+                        keyboardShouldPersistTaps="handled"
                         initialNumToRender={10}
                         maxToRenderPerBatch={10}
                         windowSize={5}
@@ -644,7 +634,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                         <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
                       </View>
                     )}
-                  </TouchableOpacity>
+                  </View>
                 </TouchableOpacity>
               </Modal>
             ) : (
@@ -915,13 +905,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-    minHeight: Platform.OS === 'web' ? 48 : 60, // Aumentado no mobile para área de toque maior (mínimo 44px recomendado)
+    minHeight: Platform.OS === 'web' ? 48 : 64, // Aumentado no mobile para área de toque maior (mínimo 44px recomendado)
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
       // @ts-ignore
       opacity: 1,
       // @ts-ignore
@@ -930,7 +919,11 @@ const styles = StyleSheet.create({
       zIndex: 999999,
       // @ts-ignore
       willChange: 'transform',
-    } : {}),
+    } : {
+      // No mobile, garantir que o item seja totalmente clicável
+      // @ts-ignore
+      touchAction: 'manipulation',
+    }),
   },
   itemHighlighted: {
     backgroundColor: theme.colors.primary + '15',
