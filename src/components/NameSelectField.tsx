@@ -65,6 +65,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   const inputRef = useRef<TextInput>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const isSelectingRef = useRef<boolean>(false); // Flag para evitar interferência do blur durante seleção
 
   // Normalizar texto (remove acentos, converte para minúscula)
   const normalize = (text: string) => {
@@ -270,6 +271,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
   // Quando o campo perde foco
   const handleBlur = () => {
+    // Se está selecionando um item, ignorar o blur completamente
+    if (isSelectingRef.current) {
+      console.log('⏸️ [NameSelectField] Blur ignorado - seleção em andamento');
+      return;
+    }
+
     setIsFocused(false);
     
     // 🚨 CORREÇÃO CRÍTICA: Se há texto digitado que não corresponde a nenhuma opção, tratar como manual
@@ -300,19 +307,31 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
   // Quando seleciona um item
   const handleSelect = (option: SelectOption) => {
-    // Cancelar blur pendente
+    console.log('🖱️ [NameSelectField] handleSelect chamado:', {
+      id: option.id,
+      label: option.label,
+      value: option.value,
+    });
+
+    // Marcar que está selecionando para evitar interferência do blur
+    isSelectingRef.current = true;
+
+    // Cancelar blur pendente IMEDIATAMENTE
     if (blurTimeoutRef.current) {
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
 
+    // Fechar lista ANTES de atualizar o valor para evitar conflitos
+    setShowList(false);
+    setSelectedIndex(-1);
+
     // Se selecionou opção manual, ativar modo manual
     if (option.id === MANUAL_INPUT_OPTION_ID || option.value === MANUAL_INPUT_OPTION_ID) {
       setIsManualMode(true);
       setSearchText('');
-      setShowList(false);
-      setSelectedIndex(-1);
       onSelect({ id: 'manual', label: '', value: '' });
+      isSelectingRef.current = false;
       // Focar no input após um pequeno delay
       setTimeout(() => {
         if (inputRef.current) {
@@ -322,25 +341,27 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       return;
     }
 
-    // Seleção normal da lista
-    console.log('✅ [NameSelectField] Nome selecionado:', {
+    // Seleção normal da lista - ATUALIZAR TUDO IMEDIATAMENTE
+    const selectedValue = option.value || option.id;
+    console.log('✅ [NameSelectField] Selecionando nome:', {
       id: option.id,
       label: option.label,
-      value: option.value,
+      value: selectedValue,
     });
+
+    // Atualizar o texto do input PRIMEIRO
     setSearchText(option.label);
-    setShowList(false);
-    setSelectedIndex(-1);
-    // 🚨 CRÍTICO: Garantir que o valor está sendo passado corretamente
-    // Passar option.value (ID) como valor, não o label
+    
+    // Chamar onSelect IMEDIATAMENTE com o valor correto
     onSelect({
       id: option.id,
       label: option.label,
-      value: option.value || option.id, // Usar value se disponível, senão usar id
+      value: selectedValue,
     });
 
-    // Blur do input após seleção
+    // Resetar flag após um pequeno delay
     setTimeout(() => {
+      isSelectingRef.current = false;
       if (inputRef.current) {
         inputRef.current.blur();
       }
@@ -542,7 +563,14 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                   onPress={() => setShowList(false)}
                   delayPressIn={0}
                 >
-                  <View style={styles.modalContent} pointerEvents="box-none">
+                  <TouchableOpacity
+                    style={styles.modalContent}
+                    activeOpacity={1}
+                    onPress={(e) => {
+                      // Prevenir que o clique no conteúdo feche o modal
+                      e.stopPropagation();
+                    }}
+                  >
                     {filtered.length > 0 ? (
                       <FlatList
                         ref={flatListRef}
@@ -559,15 +587,20 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 value === item.id && !isManualOption && styles.itemSelected,
                                 isManualOption && styles.itemManual,
                               ]}
-                              onPress={() => {
+                              onPress={(e) => {
+                                // Prevenir propagação para o overlay
+                                e.stopPropagation();
                                 // Cancelar blur pendente ao clicar
                                 if (blurTimeoutRef.current) {
                                   clearTimeout(blurTimeoutRef.current);
                                   blurTimeoutRef.current = null;
                                 }
+                                // Selecionar o item
                                 handleSelect(item);
                               }}
-                              onPressIn={() => {
+                              onPressIn={(e) => {
+                                // Prevenir propagação
+                                e.stopPropagation();
                                 // Cancelar blur imediatamente ao tocar (melhor para mobile)
                                 if (blurTimeoutRef.current) {
                                   clearTimeout(blurTimeoutRef.current);
@@ -611,7 +644,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                         <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
                       </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 </TouchableOpacity>
               </Modal>
             ) : (
