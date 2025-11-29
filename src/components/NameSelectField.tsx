@@ -288,9 +288,10 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       }
     }
     
-    // Delay muito maior no web para permitir clique com mouse
-    // O mouse precisa de mais tempo porque o blur acontece antes do click
-    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 500 : 300;
+    // Delay maior no web para permitir clique com mouse
+    // No mobile, delay menor mas ainda suficiente para permitir toque no item
+    // O toque no mobile precisa de menos tempo porque onPressIn cancela o blur
+    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 200 : 150;
     blurTimeoutRef.current = setTimeout(() => {
       setShowList(false);
       blurTimeoutRef.current = null;
@@ -441,12 +442,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
               ref={inputRef}
               style={[
                 styles.input,
-                error && styles.inputError,
+                error ? styles.inputError : undefined,
                 Platform.OS === 'web'
                   ? {
                       position: 'relative' as ViewStyle['position'],
                     }
-                  : {},
+                  : undefined,
               ]}
               value={searchText}
               onChangeText={handleChange}
@@ -533,18 +534,21 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                 transparent
                 animationType="fade"
                 onRequestClose={() => setShowList(false)}
+                statusBarTranslucent={true}
               >
                 <TouchableOpacity
                   style={styles.modalOverlay}
                   activeOpacity={1}
                   onPress={() => setShowList(false)}
+                  delayPressIn={0}
                 >
-                  <View style={styles.modalContent}>
+                  <View style={styles.modalContent} pointerEvents="box-none">
                     {filtered.length > 0 ? (
                       <FlatList
                         ref={flatListRef}
                         data={filtered}
                         keyExtractor={item => item.id}
+                        keyboardDismissMode="none"
                         renderItem={({ item, index }) => {
                           const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
                           return (
@@ -563,7 +567,16 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 }
                                 handleSelect(item);
                               }}
-                              activeOpacity={0.7}
+                              onPressIn={() => {
+                                // Cancelar blur imediatamente ao tocar (melhor para mobile)
+                                if (blurTimeoutRef.current) {
+                                  clearTimeout(blurTimeoutRef.current);
+                                  blurTimeoutRef.current = null;
+                                }
+                              }}
+                              activeOpacity={0.5}
+                              hitSlop={{ top: 10, bottom: 10, left: 0, right: 0 }}
+                              delayPressIn={0}
                             >
                               <Text
                                 style={[
@@ -587,10 +600,11 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                           );
                         }}
                         style={styles.list}
-                        keyboardShouldPersistTaps="handled"
+                        keyboardShouldPersistTaps="always"
                         initialNumToRender={10}
                         maxToRenderPerBatch={10}
                         windowSize={5}
+                        removeClippedSubviews={false}
                       />
                     ) : (
                       <View style={styles.emptyContainer}>
@@ -643,7 +657,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                   ref={flatListRef}
                   data={filtered}
                   keyExtractor={item => item.id}
-                  style={styles.list}
                   renderItem={({ item, index }) => {
                     const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
                     return (
@@ -662,7 +675,16 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                               }
                               handleSelect(item);
                             }}
-                        activeOpacity={0.7}
+                            onPressIn={() => {
+                              // Cancelar blur imediatamente ao tocar (melhor para mobile)
+                              if (blurTimeoutRef.current) {
+                                clearTimeout(blurTimeoutRef.current);
+                                blurTimeoutRef.current = null;
+                              }
+                            }}
+                        activeOpacity={Platform.OS === 'web' ? 0.7 : 0.5}
+                        hitSlop={Platform.OS === 'web' ? undefined : { top: 10, bottom: 10, left: 0, right: 0 }}
+                        delayPressIn={0}
                         {...(Platform.OS === 'web'
                           ? {
                               onMouseEnter: () => setSelectedIndex(index),
@@ -693,10 +715,11 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                   }}
                   style={styles.list}
                   nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
+                  keyboardShouldPersistTaps="always"
                   initialNumToRender={10}
                   maxToRenderPerBatch={10}
                   windowSize={5}
+                  removeClippedSubviews={false}
                 />
               </View>
             </View>
@@ -802,20 +825,17 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     marginTop: 4,
     ...(Platform.OS === 'web' ? {
-      // @ts-ignore
+      // @ts-ignore - propriedades CSS específicas do web
       display: 'block',
       // @ts-ignore
       visibility: 'visible',
-      opacity: 1,
-      // @ts-ignore
-      zIndex: 999999,
       // @ts-ignore
       pointerEvents: 'auto',
       // @ts-ignore
       isolation: 'isolate',
       // @ts-ignore
       willChange: 'transform',
-    } : {}),
+    } as any : {}),
   },
   dropdown: {
     backgroundColor: '#ffffff',
@@ -830,25 +850,22 @@ const styles = StyleSheet.create({
     elevation: 999999,
     overflow: 'hidden',
     ...(Platform.OS === 'web' ? {
+      // @ts-ignore - propriedades CSS específicas do web
       boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
       backgroundColor: '#ffffff',
       // @ts-ignore
       display: 'block',
       // @ts-ignore
       visibility: 'visible',
-      opacity: 1,
-      // @ts-ignore
       // @ts-ignore
       backgroundImage: 'none',
       // @ts-ignore
       isolation: 'isolate',
       // @ts-ignore
-      zIndex: 999999,
-      // @ts-ignore
       position: 'relative',
       // @ts-ignore
       willChange: 'transform',
-    } : {}),
+    } as any : {}),
   },
   list: {
     maxHeight: 300,
@@ -861,11 +878,11 @@ const styles = StyleSheet.create({
     } : {}),
   },
   item: {
-    paddingVertical: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.lg, // Mais padding no mobile
+    paddingVertical: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.xl, // Mais padding no mobile para melhor toque
     paddingHorizontal: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-    minHeight: Platform.OS === 'web' ? 48 : 52, // Aumentado no mobile
+    minHeight: Platform.OS === 'web' ? 48 : 60, // Aumentado no mobile para área de toque maior (mínimo 44px recomendado)
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -926,6 +943,23 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     fontStyle: 'italic',
   },
+  loadingContainer: {
+    position: 'absolute',
+    right: theme.spacing.md,
+    top: '50%',
+    transform: [{ translateY: -10 }],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  loadingSpinner: {
+    // @ts-ignore - animação de rotação
+    animation: 'spin 1s linear infinite',
+  },
+  loadingText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -944,5 +978,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 15,
+    overflow: 'hidden',
   },
 });
