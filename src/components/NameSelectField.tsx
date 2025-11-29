@@ -299,7 +299,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     }
     
     // Só fechar lista se não há itens filtrados
-    const delay = Platform.OS === 'web' ? 500 : 300;
+    // 🚨 CRÍTICO: Android precisa de delay maior para capturar toques
+    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 600 : 300;
     blurTimeoutRef.current = setTimeout(() => {
       // Verificar novamente se não há itens antes de fechar
       if (filtered.length === 0) {
@@ -364,12 +365,14 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     });
 
     // Resetar flag após um pequeno delay
+    // 🚨 CRÍTICO: Android precisa de delay maior para garantir que a seleção seja processada
+    const resetDelay = Platform.OS === 'android' ? 200 : 100;
     setTimeout(() => {
       isSelectingRef.current = false;
       if (inputRef.current) {
         inputRef.current.blur();
       }
-    }, 100);
+    }, resetDelay);
   };
 
   // Handler para Enter/Submit
@@ -567,8 +570,13 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                           setShowList(false);
                         }
                       }}
+                      // 🚨 CRÍTICO: No Android, garantir que não interfira com toques nos itens
+                      delayPressIn={Platform.OS === 'android' ? 200 : 0}
+                      delayPressOut={Platform.OS === 'android' ? 100 : 0}
                     />
-                    <View style={styles.mobileDropdownContainer}>
+                    <View 
+                      style={styles.mobileDropdownContainer}
+                    >
                       <View
                         style={styles.mobileDropdownContent}
                         onStartShouldSetResponder={() => false}
@@ -582,6 +590,10 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                         // 🚨 CRÍTICO: Garantir que os toques sejam sempre capturados
                         keyboardShouldPersistTaps="handled"
                         nestedScrollEnabled={true}
+                        // 🚨 CRÍTICO: Android precisa de configurações específicas
+                        scrollEnabled={true}
+                        bounces={false}
+                        overScrollMode={Platform.OS === 'android' ? 'never' : undefined}
                         renderItem={({ item, index }) => {
                           const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
                           return (
@@ -616,10 +628,28 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 // Marcar que está selecionando ANTES do blur
                                 isSelectingRef.current = true;
                               }}
+                              onPressOut={(e) => {
+                                // 🚨 CRÍTICO: No Android, garantir que o evento seja capturado
+                                e.stopPropagation();
+                              }}
+                              onLongPress={() => {
+                                // 🚨 CRÍTICO: No Android, usar onLongPress como fallback se onPress não funcionar
+                                if (Platform.OS === 'android' && !isSelectingRef.current) {
+                                  isSelectingRef.current = true;
+                                  if (blurTimeoutRef.current) {
+                                    clearTimeout(blurTimeoutRef.current);
+                                    blurTimeoutRef.current = null;
+                                  }
+                                }
+                              }}
                               activeOpacity={0.7}
-                              hitSlop={{ top: 25, bottom: 25, left: 20, right: 20 }}
-                              // 🚨 CRÍTICO: Garantir que o toque seja capturado
+                              hitSlop={Platform.OS === 'android' 
+                                ? { top: 30, bottom: 30, left: 25, right: 25 } 
+                                : { top: 25, bottom: 25, left: 20, right: 20 }}
+                              // 🚨 CRÍTICO: Android precisa de delay menor para melhor responsividade
                               delayPressIn={0}
+                              delayPressOut={Platform.OS === 'android' ? 100 : 0}
+                              delayLongPress={Platform.OS === 'android' ? 200 : 500}
                             >
                               <Text
                                 style={[
@@ -1015,6 +1045,10 @@ const styles = StyleSheet.create({
     bottom: -1000, // Estender para baixo para capturar cliques
     zIndex: 999998,
     backgroundColor: 'transparent',
+    // 🚨 CRÍTICO: Android precisa de configurações específicas
+    ...(Platform.OS === 'android' ? {
+      elevation: 0, // Não elevar o overlay para não bloquear toques
+    } : {}),
   },
   mobileDropdownContainer: {
     position: 'absolute' as any,

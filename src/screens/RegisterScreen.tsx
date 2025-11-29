@@ -1573,8 +1573,8 @@ export const RegisterScreen: React.FC = () => {
                 titleColor={theme.colors.textSecondary}
                 progressBackgroundColor={theme.colors.surface}
                 enabled={true}
-                // 🚨 CRÍTICO: Garantir que funcione mesmo com scroll
-                style={{ flex: 1 }}
+                // 🚨 CRÍTICO: Android precisa de configurações específicas
+                size={Platform.OS === 'android' ? 'default' : undefined}
               />
             ) : undefined
           }
