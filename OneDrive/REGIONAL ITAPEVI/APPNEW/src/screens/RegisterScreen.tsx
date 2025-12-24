@@ -1339,6 +1339,12 @@ export const RegisterScreen: React.FC = () => {
       // 🚨 CRÍTICO: Buscar cargo e garantir que usamos o ID, não o nome
       // No modal de novo registro, data.cargo é o NOME do cargo (ex: "Instrutora")
       // Precisamos encontrar o ID correspondente
+      console.log('🔍 [MODAL] Buscando cargo:', {
+        cargoNome: data.cargo,
+        totalCargos: cargos.length,
+        cargosDisponiveis: cargos.map(c => c.nome),
+      });
+      
       let cargoObj = cargos.find(c => c.nome === data.cargo);
       if (!cargoObj) {
         // Tentar buscar por ID também (caso já venha como ID)
@@ -1346,9 +1352,18 @@ export const RegisterScreen: React.FC = () => {
       }
       
       if (!cargoObj) {
+        console.error('❌ [MODAL] Cargo não encontrado:', {
+          cargoProcurado: data.cargo,
+          cargosDisponiveis: cargos.map(c => ({ id: c.id, nome: c.nome })),
+        });
         Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
         return;
       }
+      
+      console.log('✅ [MODAL] Cargo encontrado:', {
+        id: cargoObj.id,
+        nome: cargoObj.nome,
+      });
       
       const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
 
@@ -1537,12 +1552,31 @@ export const RegisterScreen: React.FC = () => {
       
       // 🚨 CORREÇÃO: Salvar também no Supabase após envio bem-sucedido para Google Sheets
       console.log('💾 [MODAL] Salvando registro no Supabase...');
+      console.log('💾 [MODAL] Dados do registro que será salvo no Supabase:', {
+        pessoa_id: registro.pessoa_id,
+        comum_id: registro.comum_id,
+        cargo_id: registro.cargo_id,
+        cargo_nome: cargoObj.nome,
+        instrumento_id: registro.instrumento_id,
+        classe_organista: registro.classe_organista,
+        cidade: registro.cidade,
+      });
       try {
         await supabaseDataService.createRegistroPresenca(registro, true);
         console.log('✅ [MODAL] Registro salvo no Supabase com sucesso');
+        console.log('✅ [MODAL] Cargo "Instrutora" foi salvo corretamente:', {
+          cargo_id: registro.cargo_id,
+          cargo_nome: cargoObj.nome,
+        });
       } catch (supabaseError) {
         // Não bloquear se Supabase falhar - Google Sheets já foi salvo
-        console.warn('⚠️ [MODAL] Erro ao salvar no Supabase (não crítico):', supabaseError);
+        console.error('❌ [MODAL] Erro ao salvar no Supabase:', supabaseError);
+        console.error('❌ [MODAL] Detalhes do erro Supabase:', {
+          error: supabaseError,
+          cargo_id: registro.cargo_id,
+          cargo_nome: cargoObj.nome,
+          registro_completo: registro,
+        });
         // Salvar na fila local para tentar novamente depois
         try {
           await supabaseDataService.saveRegistroToLocal(registro);
