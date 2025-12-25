@@ -45,26 +45,25 @@ class CacheManager {
     }
 
     // 2. Tentar localStorage (web) ou AsyncStorage (mobile)
-    if (Platform.OS === 'web') {
-      try {
-        const cached = await robustGetItem(`cache_${key}`);
-        if (cached) {
-          const entry: CacheEntry<T> = JSON.parse(cached);
-          const now = Date.now();
-          const age = now - entry.timestamp;
-          
-          if (age < entry.ttl) {
-            // Cache válido, também salvar em memória
-            this.memoryCache.set(key, entry);
-            return entry.data;
-          } else {
-            // Cache expirado, remover
-            await robustSetItem(`cache_${key}`, null);
-          }
+    // 🚀 OTIMIZAÇÃO: Suportar mobile também (AsyncStorage via robustGetItem)
+    try {
+      const cached = await robustGetItem(`cache_${key}`);
+      if (cached) {
+        const entry: CacheEntry<T> = JSON.parse(cached);
+        const now = Date.now();
+        const age = now - entry.timestamp;
+        
+        if (age < entry.ttl) {
+          // Cache válido, também salvar em memória
+          this.memoryCache.set(key, entry);
+          return entry.data;
+        } else {
+          // Cache expirado, remover
+          await robustSetItem(`cache_${key}`, null);
         }
-      } catch (error) {
-        console.warn(`⚠️ Erro ao ler cache ${key}:`, error);
       }
+    } catch (error) {
+      console.warn(`⚠️ Erro ao ler cache ${key}:`, error);
     }
 
     return null;
@@ -85,12 +84,11 @@ class CacheManager {
     this.memoryCache.set(key, entry);
 
     // Salvar em localStorage/AsyncStorage (persistente)
-    if (Platform.OS === 'web') {
-      try {
-        await robustSetItem(`cache_${key}`, JSON.stringify(entry));
-      } catch (error) {
-        console.warn(`⚠️ Erro ao salvar cache ${key}:`, error);
-      }
+    // 🚀 OTIMIZAÇÃO: Suportar mobile também (AsyncStorage via robustSetItem)
+    try {
+      await robustSetItem(`cache_${key}`, JSON.stringify(entry));
+    } catch (error) {
+      console.warn(`⚠️ Erro ao salvar cache ${key}:`, error);
     }
   }
 
@@ -99,12 +97,11 @@ class CacheManager {
    */
   async invalidate(key: string): Promise<void> {
     this.memoryCache.delete(key);
-    if (Platform.OS === 'web') {
-      try {
-        await robustSetItem(`cache_${key}`, null);
-      } catch (error) {
-        console.warn(`⚠️ Erro ao invalidar cache ${key}:`, error);
-      }
+    // 🚀 OTIMIZAÇÃO: Suportar mobile também
+    try {
+      await robustSetItem(`cache_${key}`, null);
+    } catch (error) {
+      console.warn(`⚠️ Erro ao invalidar cache ${key}:`, error);
     }
   }
 

@@ -30,7 +30,7 @@ import { googleSheetsService } from '../services/googleSheetsService';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { Comum, Cargo, Instrumento, Pessoa, RegistroPresenca } from '../types/models';
-import { getCurrentDateTimeISO } from '../utils/dateUtils';
+import { getCurrentDateTimeISO, formatDate, formatTime } from '../utils/dateUtils';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
@@ -318,7 +318,15 @@ export const RegisterScreen: React.FC = () => {
     };
   }, [isOnline, syncing]);
 
+  // 🚀 OTIMIZAÇÃO: Adicionar debounce para evitar múltiplas chamadas
+  const loadPessoasTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
+    // Limpar timeout anterior se existir
+    if (loadPessoasTimeoutRef.current) {
+      clearTimeout(loadPessoasTimeoutRef.current);
+    }
+    
     // Verificar se precisa de instrumento obrigatório (apenas Músico)
     // Organista e Candidato(a) não precisam de instrumento obrigatório, mas podem ter
     const selectedCargoObj = cargos.find(c => c.id === selectedCargo);
@@ -333,12 +341,21 @@ export const RegisterScreen: React.FC = () => {
         setSelectedPessoa('');
         return;
       }
-      // Tem todos os campos necessários, carregar pessoas
-      loadPessoas();
+      // 🚀 OTIMIZAÇÃO: Debounce de 300ms para evitar múltiplas chamadas quando usuário está mudando campos rapidamente
+      loadPessoasTimeoutRef.current = setTimeout(() => {
+        loadPessoas();
+      }, 300);
     } else {
       setPessoas([]);
       setSelectedPessoa('');
     }
+    
+    // Cleanup: limpar timeout ao desmontar ou quando dependências mudarem
+    return () => {
+      if (loadPessoasTimeoutRef.current) {
+        clearTimeout(loadPessoasTimeoutRef.current);
+      }
+    };
   }, [selectedComum, selectedCargo, selectedInstrumento, cargos]);
 
   const loadInitialData = async () => {
@@ -478,6 +495,15 @@ export const RegisterScreen: React.FC = () => {
 
   const handleSubmit = async () => {
     console.log('🔘 [SUBMIT] Botão ENVIAR REGISTRO clicado');
+    console.log('🔍 [SUBMIT] Estado atual:', {
+      selectedComum,
+      selectedCargo,
+      selectedPessoa,
+      isNomeManual,
+      selectedPessoaType: typeof selectedPessoa,
+      selectedPessoaLength: selectedPessoa?.length,
+      selectedPessoaTrimmed: selectedPessoa?.trim(),
+    });
     
     // Validar campos obrigatórios (permitir nome manual para candidatos também)
     if (!selectedComum || !selectedCargo) {
@@ -486,9 +512,18 @@ export const RegisterScreen: React.FC = () => {
       return;
     }
     
-    // Validar nome: pode ser selecionado da lista OU digitado manualmente
+    // 🚨 CORREÇÃO CRÍTICA: Se selectedPessoa está vazio mas há pessoas carregadas,
+    // verificar se o texto digitado no campo corresponde a alguma opção
+    // Se não corresponder, tratar como nome manual
     if (!selectedPessoa || selectedPessoa.trim() === '') {
-      console.warn('⚠️ [SUBMIT] Nome não selecionado');
+      // Tentar buscar o texto do campo NameSelectField através do ref ou estado
+      // Por enquanto, apenas mostrar erro - o handleBlur deve ter tratado isso
+      console.warn('⚠️ [SUBMIT] Nome não selecionado', {
+        selectedPessoa,
+        isNomeManual,
+        selectedPessoaTrimmed: selectedPessoa?.trim(),
+        pessoasCount: pessoas.length,
+      });
       Alert.alert('Erro', 'Selecione um nome da lista ou digite manualmente');
       return;
     }
@@ -951,17 +986,8 @@ export const RegisterScreen: React.FC = () => {
 
           // Se não conseguiu extrair data/horário, usar data/horário atual
           if (!dataFormatada || !horarioFormatado) {
-            const agora = new Date();
-            dataFormatada = agora.toLocaleDateString('pt-BR', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric',
-            });
-            horarioFormatado = agora.toLocaleTimeString('pt-BR', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false,
-            });
+            dataFormatada = formatDate();
+            horarioFormatado = formatTime();
           }
           
           console.log('📋 Informações extraídas:', { nome, comumNome, dataFormatada, horarioFormatado });
@@ -1215,8 +1241,27 @@ export const RegisterScreen: React.FC = () => {
   }, [comuns]);
 
   // MEMOIZAR cargosOptions para evitar recriação constante
+  // 🚨 FILTRO: Excluir cargos que só devem aparecer no modal (fora da regional)
+  // Na página principal, apenas mostrar cargos da regional:
+  // - Músico, Organista (cargos musicais - usarão cargo real do banco)
+  // - Irmandade, Ancião, Diácono, Cooperador do Ofício, Cooperador de Jovens
+  // - Porteiro (a), Bombeiro (a), Médico (a), Enfermeiro (a)
   const cargosOptions = useMemo(() => {
-    return cargos.map(c => ({
+    // Cargos que NÃO devem aparecer na página principal (só no modal)
+    const cargosExcluidos = [
+      'Candidato (a)',
+      'Instrutor',
+      'Instrutora',
+      'Examinadora',
+      'Encarregado Local',
+      'Encarregado Regional',
+      'Secretário da Música',
+      'Secretária da Música',
+    ];
+    
+    return cargos
+      .filter(c => !cargosExcluidos.includes(c.nome))
+      .map(c => ({
       id: c.id,
       label: c.nome,
       value: c.id,
@@ -1311,6 +1356,12 @@ export const RegisterScreen: React.FC = () => {
       // 🚨 CRÍTICO: Buscar cargo e garantir que usamos o ID, não o nome
       // No modal de novo registro, data.cargo é o NOME do cargo (ex: "Instrutora")
       // Precisamos encontrar o ID correspondente
+      console.log('🔍 [MODAL] Buscando cargo:', {
+        cargoNome: data.cargo,
+        totalCargos: cargos.length,
+        cargosDisponiveis: cargos.map(c => c.nome),
+      });
+      
       let cargoObj = cargos.find(c => c.nome === data.cargo);
       if (!cargoObj) {
         // Tentar buscar por ID também (caso já venha como ID)
@@ -1318,9 +1369,18 @@ export const RegisterScreen: React.FC = () => {
       }
       
       if (!cargoObj) {
+        console.error('❌ [MODAL] Cargo não encontrado:', {
+          cargoProcurado: data.cargo,
+          cargosDisponiveis: cargos.map(c => ({ id: c.id, nome: c.nome })),
+        });
         Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
         return;
       }
+      
+      console.log('✅ [MODAL] Cargo encontrado:', {
+        id: cargoObj.id,
+        nome: cargoObj.nome,
+      });
       
       const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
 
@@ -1349,7 +1409,7 @@ export const RegisterScreen: React.FC = () => {
         
         try {
           // Usar o mesmo formato de registro que o sistema principal usa
-          const registroOffline: RegistroPresenca = {
+          const registroOffline: RegistroPresenca & { cidade?: string } = {
             pessoa_id: `manual_${data.nome.toUpperCase()}`,
             comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
             cargo_id: cargoObj.id,
@@ -1359,6 +1419,7 @@ export const RegisterScreen: React.FC = () => {
             data_hora_registro: getCurrentDateTimeISO(),
             usuario_responsavel: nomeUsuario,
             status_sincronizacao: 'pending',
+            cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro offline
           };
           
           // Salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
@@ -1470,7 +1531,7 @@ export const RegisterScreen: React.FC = () => {
         // Se falhou, tentar salvar usando saveRegistroToLocal como fallback (funciona em Android/iOS/Web)
         console.log('🔄 [MODAL] Tentando salvar usando saveRegistroToLocal como fallback...');
         try {
-          const registroFallback: RegistroPresenca = {
+          const registroFallback: RegistroPresenca & { cidade?: string } = {
             pessoa_id: `manual_${data.nome.toUpperCase()}`,
             comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
             cargo_id: cargoObj.id,
@@ -1480,6 +1541,7 @@ export const RegisterScreen: React.FC = () => {
             data_hora_registro: getCurrentDateTimeISO(),
             usuario_responsavel: nomeUsuario,
             status_sincronizacao: 'pending',
+            cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro fallback
           };
           
           await supabaseDataService.saveRegistroToLocal(registroFallback);
@@ -1504,6 +1566,42 @@ export const RegisterScreen: React.FC = () => {
       console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
       console.log('✅ [MODAL] Cargo que foi salvo:', cargoObj.nome);
       console.log('✅ [MODAL] Resultado completo:', result);
+      
+      // 🚨 CORREÇÃO: Salvar também no Supabase após envio bem-sucedido para Google Sheets
+      console.log('💾 [MODAL] Salvando registro no Supabase...');
+      console.log('💾 [MODAL] Dados do registro que será salvo no Supabase:', {
+        pessoa_id: registro.pessoa_id,
+        comum_id: registro.comum_id,
+        cargo_id: registro.cargo_id,
+        cargo_nome: cargoObj.nome,
+        instrumento_id: registro.instrumento_id,
+        classe_organista: registro.classe_organista,
+        cidade: registro.cidade,
+      });
+      try {
+        await supabaseDataService.createRegistroPresenca(registro, true);
+        console.log('✅ [MODAL] Registro salvo no Supabase com sucesso');
+        console.log('✅ [MODAL] Cargo "Instrutora" foi salvo corretamente:', {
+          cargo_id: registro.cargo_id,
+          cargo_nome: cargoObj.nome,
+        });
+      } catch (supabaseError) {
+        // Não bloquear se Supabase falhar - Google Sheets já foi salvo
+        console.error('❌ [MODAL] Erro ao salvar no Supabase:', supabaseError);
+        console.error('❌ [MODAL] Detalhes do erro Supabase:', {
+          error: supabaseError,
+          cargo_id: registro.cargo_id,
+          cargo_nome: cargoObj.nome,
+          registro_completo: registro,
+        });
+        // Salvar na fila local para tentar novamente depois
+        try {
+          await supabaseDataService.saveRegistroToLocal(registro);
+          console.log('✅ [MODAL] Registro salvo na fila local para sincronização posterior');
+        } catch (filaError) {
+          console.error('❌ [MODAL] Erro ao salvar na fila local:', filaError);
+        }
+      }
       
       // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
       showToast.success('Registro de visita salvo com sucesso');
@@ -1540,16 +1638,18 @@ export const RegisterScreen: React.FC = () => {
           showsVerticalScrollIndicator={true}
           scrollEnabled={true}
           // 🚨 CRÍTICO: Habilitar bounces para permitir pull-to-refresh no mobile
-          bounces={Platform.OS === 'ios' || Platform.OS === 'android'}
+          bounces={Platform.OS !== 'web'}
           alwaysBounceVertical={Platform.OS === 'ios'}
           // 🚨 CRÍTICO: Garantir que o scroll funcione corretamente no mobile
           scrollEventThrottle={16}
-          removeClippedSubviews={Platform.OS === 'android'}
+          removeClippedSubviews={false}
           // 🚨 CRÍTICO: Permitir scroll mesmo quando há elementos com z-index alto
           overScrollMode={Platform.OS === 'android' ? 'always' : undefined}
           // 🚨 CRÍTICO: Garantir que o conteúdo possa ser puxado para cima (pull-to-refresh)
           contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
-          automaticallyAdjustContentInsets={Platform.OS === 'ios' ? true : undefined}
+          automaticallyAdjustContentInsets={false}
+          // 🚨 CRÍTICO: Permitir que o scroll comece do topo
+          contentOffset={Platform.OS !== 'web' ? { x: 0, y: 0 } : undefined}
           style={Platform.OS === 'web' 
             ? { 
                 position: 'relative' as const, 
@@ -1573,9 +1673,9 @@ export const RegisterScreen: React.FC = () => {
                 colors={Platform.OS === 'android' ? [theme.colors.primary] : undefined}
                 tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
                 // 🚨 CRÍTICO: Android precisa de offset para não sobrepor o header
-                progressViewOffset={Platform.OS === 'android' ? 20 : 0}
+                progressViewOffset={Platform.OS === 'android' ? 0 : 0}
                 // 🚨 CRÍTICO: Título apenas no Android (iOS não mostra)
-                title={Platform.OS === 'android' ? 'Puxe para atualizar e limpar campos' : undefined}
+                title={Platform.OS === 'android' ? 'Puxe para atualizar' : undefined}
                 titleColor={Platform.OS === 'android' ? theme.colors.textSecondary : undefined}
                 progressBackgroundColor={Platform.OS === 'android' ? theme.colors.surface : undefined}
                 enabled={true}
@@ -1650,9 +1750,9 @@ export const RegisterScreen: React.FC = () => {
                     required
                   >
                     <option value="">Selecione o cargo...</option>
-                    {cargos.map(cargo => (
-                      <option key={cargo.id} value={cargo.id}>
-                        {cargo.nome}
+                    {cargosOptions.map(cargo => (
+                      <option key={cargo.id} value={cargo.value}>
+                        {cargo.label}
                       </option>
                     ))}
                   </select>
@@ -1712,10 +1812,25 @@ export const RegisterScreen: React.FC = () => {
                 label: option.label,
                 value: option.value,
                 isManual: option.id === 'manual',
+                selectedPessoaAntes: selectedPessoa,
               });
               if (option.id === 'manual') {
-                setSelectedPessoa(option.value);
+                // 🚨 CORREÇÃO: Só atualizar selectedPessoa se houver valor (não vazio)
+                if (option.value && option.value.trim()) {
+                  const novoValor = option.value.trim();
+                  console.log('✏️ [RegisterScreen] Definindo nome manual:', {
+                    valorAntes: selectedPessoa,
+                    valorNovo: novoValor,
+                  });
+                  setSelectedPessoa(novoValor);
                 setIsNomeManual(true);
+                  // Log após um pequeno delay para verificar se foi atualizado
+                  setTimeout(() => {
+                    console.log('✅ [RegisterScreen] selectedPessoa após atualização:', selectedPessoa);
+                  }, 100);
+                } else {
+                  console.log('⚠️ [RegisterScreen] onSelect chamado com valor vazio em modo manual - ignorando');
+                }
               } else {
                 // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
                 const pessoaId = option.value || option.id;
@@ -1934,23 +2049,24 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    padding: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl * 2,
     ...(Platform.OS === 'web'
       ? {
+          padding: theme.spacing.lg,
+          paddingBottom: theme.spacing.xl * 2,
           overflow: 'visible' as const,
           minHeight: '100%',
           // @ts-ignore
           position: 'relative' as const,
         }
       : {
-          overflow: 'visible' as const,
-          paddingHorizontal: theme.spacing.md, // Menos padding horizontal no mobile
-          // 🚨 CRÍTICO: Não usar paddingTop no contentContainerStyle para permitir pull-to-refresh
-          // O padding será aplicado no primeiro elemento filho (card) em vez disso
+          // 🚨 CRÍTICO: Para mobile, NÃO usar padding no contentContainerStyle
+          // Isso permite que o pull-to-refresh funcione corretamente
+          // O padding será aplicado no card em vez disso
+          paddingHorizontal: theme.spacing.md,
+          paddingTop: 0, // CRÍTICO: Sem paddingTop para permitir pull-to-refresh
           paddingBottom: theme.spacing.xl * 2,
-          // Garantir que há espaço suficiente para pull-to-refresh funcionar
           minHeight: '100%',
+          overflow: 'visible' as const,
         }),
   },
   loadingContainer: {
@@ -1968,10 +2084,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.lg,
-    // 🚨 CRÍTICO: Adicionar marginTop no mobile para compensar remoção do paddingTop do scrollContent
+    // 🚨 CRÍTICO: Adicionar marginTop e paddingTop no mobile para compensar remoção do paddingTop do scrollContent
     // Isso permite que o pull-to-refresh funcione corretamente
     ...(Platform.OS !== 'web' ? {
-      marginTop: theme.spacing.md,
+      marginTop: theme.spacing.lg,
+      paddingTop: theme.spacing.md,
     } : {}),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

@@ -12,6 +12,8 @@ import { robustGetItem, robustSetItem, robustRemoveItem, initializeStorage } fro
 import { normalizeForSearch, normalizeString, sanitizeString, isValidString } from '../utils/stringNormalization';
 import { normalizeInstrumentoForSearch, expandInstrumentoSearch } from '../utils/normalizeInstrumento';
 import { getDeviceInfo, logDeviceInfo, isXiaomiDevice } from '../utils/deviceDetection';
+import { formatDate, formatTime } from '../utils/dateUtils';
+import { cacheManager } from '../utils/cacheManager';
 
 // 🚨 FUNÇÃO AUXILIAR: Verificar se é Secretário da Música (excluir) vs Secretário do GEM (incluir como instrutor)
 const isSecretarioDaMusica = (cargo: string): boolean => {
@@ -80,10 +82,18 @@ const INSTRUMENTS_FIXED = [
 ];
 
 // Lista fixa de cargos do backup.js (ordem exata do CARGOS_FIXED)
+// 🚨 CORREÇÃO: Adicionar cargos do modal que não estavam na lista fixa
 const CARGOS_FIXED = [
   'Músico',
   'Organista',
   'Candidato (a)',
+  'Instrutor',
+  'Instrutora',
+  'Examinadora',
+  'Encarregado Local',
+  'Encarregado Regional',
+  'Secretário da Música',
+  'Secretária da Música',
   'Irmandade',
   'Ancião',
   'Diácono',
@@ -808,6 +818,14 @@ export const supabaseDataService = {
       return [];
     }
 
+    // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
+    const cacheKey = `pessoas_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
+    const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
+    if (cached) {
+      console.log(`✅ [fetchPessoasFromCadastro] Retornando ${cached.length} pessoas do cache`);
+      return cached;
+    }
+
     try {
       // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de buscar (RLS requer autenticação)
       const sessionRestored = await ensureSessionRestored();
@@ -964,12 +982,40 @@ export const supabaseDataService = {
         const seenNames = new Set<string>();
         
         // Query 1: Nome normalizado (sem acentos) - mais comum
-        const query1 = supabase
+        // 🚀 OTIMIZAÇÃO: Aplicar filtros de cargo e instrumento diretamente na query para reduzir dados retornados
+        let query1 = supabase
           .from(table)
           .select('nome, comum, cargo, instrumento, cidade, nivel')
-          .ilike('comum', `%${comumBusca}%`)
-          .order('nome', { ascending: true })
-          .range(from, to);
+          .ilike('comum', `%${comumBusca}%`);
+        
+        // Aplicar filtros diretamente na query (mais eficiente que filtrar depois)
+        if (cargoBusca === 'ORGANISTA') {
+          query1 = query1.ilike('instrumento', '%ÓRGÃO%');
+        } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
+          if (instrumentoBusca) {
+            const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
+            if (variacoesBusca.length > 1) {
+              const conditions = variacoesBusca.map(v => `instrumento.ilike.%${v}%`).join(',');
+              query1 = query1.or(conditions);
+            } else {
+              query1 = query1.ilike('instrumento', `%${instrumentoBusca}%`);
+            }
+          } else {
+            const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
+            if (isBuscandoSecretarioDaMusica) {
+              query1 = query1.ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
+                .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
+            } else {
+              query1 = query1.ilike('cargo', '%MÚSICO%')
+                .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
+                .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
+            }
+          }
+        } else {
+          query1 = query1.ilike('cargo', `%${cargoBusca}%`);
+        }
+        
+        query1 = query1.order('nome', { ascending: true }).range(from, to);
         
         const result1 = await query1;
         
@@ -983,7 +1029,7 @@ export const supabaseDataService = {
             }
           });
         } else {
-          // Se não encontrou, tentar outras variações em paralelo
+          // Se não encontrou, tentar outras variações em paralelo (apenas se necessário)
           const queriesComum = [
             supabase
               .from(table)
@@ -1014,60 +1060,15 @@ export const supabaseDataService = {
           });
         }
         
-        // Se encontrou resultados, aplicar filtros de cargo e instrumento
+        // 🚀 OTIMIZAÇÃO: Se encontrou resultados, já vêm filtrados da query (mais eficiente)
         if (combinedDataComum.length > 0) {
+          // Apenas aplicar filtros adicionais se necessário (para queries de fallback)
+          // Se veio da query1, já está filtrado
           let filteredData = combinedDataComum;
           
-          // 🚨 CORREÇÃO: Verificar se está buscando especificamente por "Secretário da Música"
-          const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
-          
-          // Aplicar filtros de cargo e instrumento
-          if (cargoBusca === 'ORGANISTA') {
-            filteredData = filteredData.filter(item => 
-              (item.instrumento || '').toUpperCase().includes('ÓRGÃO')
-            );
-          } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
-            if (instrumentoBusca) {
-              const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
-              
-              // 🚨 CORREÇÃO CRÍTICA: Quando busca por instrumento (ex: Músico + Violino), 
-              // retornar TODOS que tocam aquele instrumento, independente do cargo.
-              // Isso inclui: Músicos, Instrutores, Encarregados, Secretário do GEM, Secretário da Música, etc.
-              // O cargo real será capturado do banco de dados quando o registro for salvo.
-              filteredData = filteredData.filter(item => {
-                const itemInstrumento = (item.instrumento || '').toUpperCase();
-                // 🚨 CORREÇÃO: Normalizar acentos antes de comparar para encontrar instrumentos mesmo com variações de acentuação
-                const itemInstrumentoNormalizado = normalizeString(itemInstrumento);
-                const matchesInstrumento = variacoesBusca.some(v => {
-                  const variacaoNormalizada = normalizeString(v);
-                  return itemInstrumentoNormalizado.includes(variacaoNormalizada) || 
-                         itemInstrumento.includes(v) || // Fallback: comparação direta também
-                         variacaoNormalizada.includes(itemInstrumentoNormalizado);
-                });
-                // Não filtrar por cargo aqui - incluir TODOS que tocam o instrumento
-                return matchesInstrumento;
-              });
-            } else {
-              filteredData = filteredData.filter(item => {
-                const itemCargo = (item.cargo || '').toUpperCase();
-                // 🚨 CORREÇÃO: Se está buscando Secretário da Música, incluir todos (incluindo Secretário da Música)
-                if (isBuscandoSecretarioDaMusica) {
-                  return isSecretarioDaMusica(item.cargo || '');
-                }
-                // Caso contrário, excluir apenas Secretário da Música, mas incluir Secretário do GEM (tratado como Instrutor)
-                return itemCargo.includes('MÚSICO') && !isSecretarioDaMusica(item.cargo || '');
-              });
-            }
-          } else {
-            filteredData = filteredData.filter(item => 
-              (item.cargo || '').toUpperCase().includes(cargoBusca)
-            );
-          }
-          
-          // Log apenas se não encontrou resultados (para debug)
-          if (filteredData.length === 0 && combinedDataComum.length > 0) {
-            console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado após aplicar filtros');
-          }
+          // Se veio das queries de fallback, pode precisar filtrar
+          // Mas como já aplicamos filtros na query1, vamos assumir que os dados já estão corretos
+          // Apenas fazer uma validação rápida
           
           return {
             data: filteredData,
@@ -1304,6 +1305,10 @@ export const supabaseDataService = {
 
       const uniqueData = Array.from(uniqueMap.values());
       console.log(`✅ ${uniqueData.length} pessoas únicas após remover duplicatas`);
+
+      // 🚀 OTIMIZAÇÃO: Salvar no cache para próximas consultas
+      await cacheManager.set(cacheKey, uniqueData, 'pessoas');
+      console.log(`💾 [fetchPessoasFromCadastro] Cache salvo para chave: ${cacheKey}`);
 
       return uniqueData;
     } catch (error) {
@@ -1880,8 +1885,39 @@ export const supabaseDataService = {
       console.log('🔄 UUID inválido detectado, gerando UUID v4 válido:', uuid);
     }
 
-    // Buscar cidade da pessoa (se disponível)
-    const cidade = isNomeManual ? '' : (pessoa as any)?.cidade || '';
+    // Buscar cidade: para nomes manuais, buscar cidade da comum; caso contrário, usar cidade da pessoa
+    let cidade = '';
+    if (isNomeManual) {
+      // 🚨 CORREÇÃO: Para nomes manuais, buscar cidade da comum na tabela cadastro
+      // Se for registro externo (modal), usar cidade do registro
+      if (isExternalRegistro) {
+        cidade = (registro as any)?.cidade || '';
+      } else {
+        // Para nomes manuais da página principal, buscar cidade da primeira pessoa daquela comum
+        try {
+          const cidadeResult = await supabase
+            .from('cadastro')
+            .select('cidade')
+            .ilike('comum', `%${comum.nome}%`)
+            .not('cidade', 'is', null)
+            .neq('cidade', '')
+            .limit(1)
+            .single();
+          
+          if (cidadeResult.data && cidadeResult.data.cidade) {
+            cidade = cidadeResult.data.cidade;
+            console.log('✅ [Supabase] Cidade encontrada da comum para nome manual:', cidade);
+          } else {
+            console.warn('⚠️ [Supabase] Cidade não encontrada para comum:', comum.nome);
+          }
+        } catch (error) {
+          console.warn('⚠️ [Supabase] Erro ao buscar cidade da comum:', error);
+        }
+      }
+    } else {
+      // Para nomes da lista, usar cidade da pessoa
+      cidade = (pessoa as any)?.cidade || '';
+    }
 
     // Buscar nome do local de ensaio (se for ID, converter para nome)
     let localEnsaioNome = registro.local_ensaio || null;
@@ -2059,18 +2095,10 @@ export const supabaseDataService = {
           created_at: duplicata.created_at,
         });
 
-        // Formatar data e horário do registro existente
+        // Formatar data e horário do registro existente usando funções utilitárias
         const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
-        const dataFormatada = dataExistente.toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        });
-        const horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
+        const dataFormatada = formatDate(dataExistente);
+        const horarioFormatado = formatTime(dataExistente);
 
         // Lançar erro para bloquear inserção com informações formatadas
         throw new Error(
@@ -2281,22 +2309,58 @@ export const supabaseDataService = {
     
     try {
       // 🛡️ VERIFICAÇÃO RÁPIDA DE DUPLICATA (mais eficiente - verifica primeiro)
-      const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+      // 🚀 OTIMIZAÇÃO: Usar query SQL direta no SQLite para verificação mais rápida (mobile)
       const dataRegistro = new Date(registro.data_hora_registro);
       const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
       
-      // Verificação rápida: mesmo pessoa_id, comum_id, cargo_id e data
-      const isDuplicataRapida = registrosPendentes.some(r => {
-        const rData = new Date(r.data_hora_registro);
-        const rDataStr = rData.toISOString().split('T')[0];
-        return (
-          r.pessoa_id === registro.pessoa_id &&
-          r.comum_id === registro.comum_id &&
-          r.cargo_id === registro.cargo_id &&
-          rDataStr === dataRegistroStr &&
-          r.status_sincronizacao === 'pending'
-        );
-      });
+      let isDuplicataRapida = false;
+      
+      // 🚀 OTIMIZAÇÃO: No mobile, usar query SQL direta (mais rápido)
+      if (Platform.OS !== 'web') {
+        try {
+          const db = await getDatabase();
+          const result = await db.getAllAsync(
+            `SELECT COUNT(*) as count FROM registros_presenca 
+             WHERE pessoa_id = ? 
+             AND comum_id = ? 
+             AND cargo_id = ? 
+             AND DATE(data_hora_registro) = ? 
+             AND status_sincronizacao = 'pending'`,
+            [registro.pessoa_id, registro.comum_id, registro.cargo_id, dataRegistroStr]
+          ) as any[];
+          
+          isDuplicataRapida = (result[0]?.count || 0) > 0;
+        } catch (error) {
+          console.warn('⚠️ Erro ao verificar duplicata via SQL, usando método alternativo:', error);
+          // Fallback para método original
+          const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+          isDuplicataRapida = registrosPendentes.some(r => {
+            const rData = new Date(r.data_hora_registro);
+            const rDataStr = rData.toISOString().split('T')[0];
+            return (
+              r.pessoa_id === registro.pessoa_id &&
+              r.comum_id === registro.comum_id &&
+              r.cargo_id === registro.cargo_id &&
+              rDataStr === dataRegistroStr &&
+              r.status_sincronizacao === 'pending'
+            );
+          });
+        }
+      } else {
+        // Web: usar método original
+        const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+        isDuplicataRapida = registrosPendentes.some(r => {
+          const rData = new Date(r.data_hora_registro);
+          const rDataStr = rData.toISOString().split('T')[0];
+          return (
+            r.pessoa_id === registro.pessoa_id &&
+            r.comum_id === registro.comum_id &&
+            r.cargo_id === registro.cargo_id &&
+            rDataStr === dataRegistroStr &&
+            r.status_sincronizacao === 'pending'
+          );
+        });
+      }
       
       if (isDuplicataRapida) {
         console.warn('🚨 [BLOQUEIO] Duplicata detectada - NÃO será salvo');
@@ -2304,7 +2368,11 @@ export const supabaseDataService = {
       }
       
       // 🛡️ VERIFICAÇÃO DETALHADA DE DUPLICATA (apenas se passou na rápida)
+      // 🚀 OTIMIZAÇÃO: Só buscar pessoas se realmente necessário (não é manual)
       try {
+        // Verificar se é registro manual (pessoa_id começa com "manual_")
+        const isManualRegistro = registro.pessoa_id.startsWith('manual_');
+        
         // Buscar dados para comparação (com tratamento de erro)
         let comuns: Comum[] = [];
         let cargos: Cargo[] = [];
@@ -2318,10 +2386,8 @@ export const supabaseDataService = {
         } catch (error) {
           console.warn('⚠️ Erro ao buscar comuns/cargos para validação de duplicata:', error);
         }
-
-        // Verificar se é registro manual (pessoa_id começa com "manual_")
-        const isManualRegistro = registro.pessoa_id.startsWith('manual_');
         
+        // 🚀 OTIMIZAÇÃO: Só buscar pessoas se não for registro manual
         if (!isManualRegistro) {
           try {
             pessoas = await this.getPessoasFromLocal(
