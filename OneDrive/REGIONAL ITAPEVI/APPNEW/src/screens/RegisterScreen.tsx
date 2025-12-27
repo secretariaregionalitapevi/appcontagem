@@ -707,6 +707,9 @@ export const RegisterScreen: React.FC = () => {
     
     // 🚨 CRÍTICO: Se estiver offline, salvar IMEDIATAMENTE na fila (SEM tentar online)
     if (isOfflineNow) {
+      // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar alerta quando fica offline
+      showToast.warning('Modo offline', 'Registros serão salvos na fila');
+      
       console.log(`📴 [${Platform.OS}] Modo offline detectado - salvando diretamente na fila`);
       console.log(`📊 [${Platform.OS}] Dados do registro:`, {
         pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,

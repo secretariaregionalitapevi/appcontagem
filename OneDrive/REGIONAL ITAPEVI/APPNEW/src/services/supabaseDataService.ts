@@ -2704,6 +2704,14 @@ export const supabaseDataService = {
       } catch (error) {
         // Se houver erro na validação de duplicata, logar mas continuar com o salvamento
         console.warn('⚠️ Erro na validação de duplicata, continuando com salvamento:', error);
+        // Garantir que registrosPendentes está definida mesmo em caso de erro
+        if (typeof registrosPendentes === 'undefined') {
+          try {
+            registrosPendentes = await this.getRegistrosPendentesFromLocal();
+          } catch (e) {
+            registrosPendentes = [];
+          }
+        }
       }
 
       // Sempre usar UUID v4 válido
@@ -2711,11 +2719,13 @@ export const supabaseDataService = {
         ? registro.id
         : uuidv4();
       
-      // 🚨 VERIFICAÇÃO CRÍTICA: Verificar se UUID já existe na fila (reutilizar variável já declarada)
-      const existeComMesmoId = registrosPendentes.find(r => r.id === id);
-      if (existeComMesmoId) {
-        console.warn('🚨 [BLOQUEIO] Registro com mesmo UUID já existe na fila');
-        return;
+      // 🚨 VERIFICAÇÃO CRÍTICA: Verificar se UUID já existe na fila (garantir que registrosPendentes está definida)
+      if (registrosPendentes && Array.isArray(registrosPendentes)) {
+        const existeComMesmoId = registrosPendentes.find(r => r.id === id);
+        if (existeComMesmoId) {
+          console.warn('🚨 [BLOQUEIO] Registro com mesmo UUID já existe na fila');
+          return;
+        }
       }
       const now = new Date().toISOString();
       // 🚨 CORREÇÃO: Definir registroCompleto no escopo do try para estar disponível no catch
