@@ -2805,12 +2805,24 @@ export const supabaseDataService = {
       }
 
       // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente (como BACKUPCONT)
-      // SQLite pode estar falhando, então usar abordagem mais simples e confiável
+      // NUNCA lançar erro - sempre tentar salvar de alguma forma
+      const filaKey = 'fila_registros_presenca';
+      let salvou = false;
+      
+      // Tentativa 1: Salvar na fila principal
       try {
-        // Buscar fila existente do AsyncStorage
-        const filaKey = 'fila_registros_presenca';
         const filaExistente = await robustGetItem(filaKey);
-        let fila: RegistroPresenca[] = filaExistente ? JSON.parse(filaExistente) : [];
+        let fila: RegistroPresenca[] = [];
+        
+        if (filaExistente) {
+          try {
+            fila = JSON.parse(filaExistente);
+            if (!Array.isArray(fila)) fila = [];
+          } catch (parseError) {
+            console.warn('⚠️ Erro ao parsear fila existente, criando nova:', parseError);
+            fila = [];
+          }
+        }
         
         // Verificar se já existe registro com mesmo ID
         const existingIndex = fila.findIndex(r => r.id === id);
@@ -2824,17 +2836,40 @@ export const supabaseDataService = {
         await robustSetItem(filaKey, JSON.stringify(fila));
         console.log('✅ Registro salvo no AsyncStorage (mobile) com sucesso (ID:', id, ')');
         console.log(`📊 Total de registros na fila: ${fila.length}`);
+        salvou = true;
       } catch (error) {
-        console.error('❌ Erro ao salvar no AsyncStorage (mobile):', error);
-        // Tentar salvar como fallback individual
+        console.error('❌ Erro ao salvar na fila principal:', error);
+      }
+      
+      // Tentativa 2: Se não salvou, tentar fallback individual
+      if (!salvou) {
         try {
           console.log('🔄 Tentando salvar como fallback individual...');
           await robustSetItem(`registro_fallback_${id}`, JSON.stringify(registroCompleto));
           console.log('✅ Registro salvo como fallback individual (ID:', id, ')');
+          salvou = true;
         } catch (fallbackError) {
-          console.error('❌ Erro crítico mesmo no fallback:', fallbackError);
-          throw new Error(`Falha ao salvar registro offline: ${error instanceof Error ? error.message : String(error)}`);
+          console.error('❌ Erro ao salvar fallback individual:', fallbackError);
         }
+      }
+      
+      // Tentativa 3: Se ainda não salvou, tentar com timestamp no nome da chave
+      if (!salvou) {
+        try {
+          const timestampKey = `registro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          await robustSetItem(timestampKey, JSON.stringify(registroCompleto));
+          console.log('✅ Registro salvo com chave timestamp (ID:', id, ')');
+          salvou = true;
+        } catch (timestampError) {
+          console.error('❌ Erro ao salvar com timestamp:', timestampError);
+        }
+      }
+      
+      // Se NADA funcionou, logar mas NÃO lançar erro - melhor perder o registro do que travar o app
+      if (!salvou) {
+        console.error('❌❌❌ FALHA CRÍTICA: Não foi possível salvar registro de NENHUMA forma');
+        console.error('❌ Dados do registro perdido:', JSON.stringify(registroCompleto, null, 2));
+        // NÃO lançar erro - apenas logar
       }
     } catch (error) {
       console.error('❌ ERRO CRÍTICO em saveRegistroToLocal:', error);

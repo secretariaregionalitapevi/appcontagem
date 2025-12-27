@@ -230,13 +230,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingLeft: 0, // Alinhar com o início do headerLeftSection
+    paddingLeft: 0,
+    marginTop: 4, // Espaçamento adicional
   },
   headerSecondRowContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    // Alinhar com o título: logo width (28) + gap (8) = 36px
-    marginLeft: 36,
+    // Alinhar com o título: logo width (25 em small, 30 normal) + gap (5 em small, 8 normal)
+    marginLeft: IS_SMALL_SCREEN ? 30 : 38,
   },
   headerLeftSection: {
     flexDirection: 'row',
