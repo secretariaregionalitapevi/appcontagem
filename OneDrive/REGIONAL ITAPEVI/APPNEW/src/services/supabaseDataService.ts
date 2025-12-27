@@ -2507,10 +2507,19 @@ export const supabaseDataService = {
     lastSaveTimestamp = now;
     lastSaveKey = saveKey;
     
+    // 🚨 CORREÇÃO CRÍTICA: Declarar registrosPendentes FORA do try e buscar ANTES de usar
+    let registrosPendentes: RegistroPresenca[] = [];
     try {
-      // 🚨 SIMPLIFICAÇÃO TOTAL: Remover validação complexa de duplicata
-      // No BACKUPCONT não há validação de duplicata antes de salvar - apenas salva
-      // A validação de duplicata é feita no Supabase quando tenta enviar
+      registrosPendentes = await this.getRegistrosPendentesFromLocal();
+    } catch (error) {
+      console.warn('⚠️ Erro ao buscar registros pendentes, continuando sem validação de duplicata:', error);
+      registrosPendentes = []; // Garantir que está definida
+    }
+    
+    try {
+      // 🛡️ VERIFICAÇÃO RÁPIDA DE DUPLICATA (mais eficiente - verifica primeiro)
+      const dataRegistro = new Date(registro.data_hora_registro);
+      const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
       
       let isDuplicataRapida = false;
       
