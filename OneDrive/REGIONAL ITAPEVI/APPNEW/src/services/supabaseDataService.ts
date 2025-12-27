@@ -2507,6 +2507,9 @@ export const supabaseDataService = {
     lastSaveTimestamp = now;
     lastSaveKey = saveKey;
     
+    // 🚨 CORREÇÃO CRÍTICA: Declarar registrosPendentes FORA do try para estar disponível em todo o escopo
+    let registrosPendentes: RegistroPresenca[] = [];
+    
     try {
       // 🛡️ VERIFICAÇÃO RÁPIDA DE DUPLICATA (mais eficiente - verifica primeiro)
       // 🚀 OTIMIZAÇÃO: Usar query SQL direta no SQLite para verificação mais rápida (mobile)
@@ -2514,12 +2517,12 @@ export const supabaseDataService = {
       const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
       
       // 🚨 CORREÇÃO CRÍTICA: Buscar registros pendentes uma vez no início para usar em todo o escopo
-      let registrosPendentes: RegistroPresenca[] = [];
       try {
         registrosPendentes = await this.getRegistrosPendentesFromLocal();
       } catch (error) {
         console.warn('⚠️ Erro ao buscar registros pendentes, continuando sem validação de duplicata:', error);
         // Continuar mesmo com erro - melhor salvar do que perder o registro
+        registrosPendentes = []; // Garantir que está definida
       }
       
       let isDuplicataRapida = false;
