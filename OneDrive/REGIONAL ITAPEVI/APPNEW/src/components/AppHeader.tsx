@@ -236,8 +236,8 @@ const styles = StyleSheet.create({
   headerSecondRowContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    // Alinhar com o título: logo width (25 em small, 30 normal) + gap (5 em small, 8 normal)
-    marginLeft: IS_SMALL_SCREEN ? 30 : 38,
+    // Alinhar com o título: logo width (28 em small, 35 normal) + gap (8 em small, 12 normal)
+    marginLeft: IS_SMALL_SCREEN ? 36 : 47,
   },
   headerLeftSection: {
     flexDirection: 'row',

@@ -2371,68 +2371,18 @@ export const supabaseDataService = {
       return registros;
     }
 
-    // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente (como BACKUPCONT)
+    // 🚨 SIMPLIFICAÇÃO TOTAL: Copiar EXATAMENTE o que funciona no BACKUPCONT
+    // No BACKUPCONT: JSON.parse(localStorage.getItem('fila_envio') || '[]')
     try {
-      // Buscar da fila principal
       const filaKey = 'fila_registros_presenca';
       const filaData = await robustGetItem(filaKey);
-      let registros: RegistroPresenca[] = filaData ? JSON.parse(filaData) : [];
+      const fila: RegistroPresenca[] = filaData ? JSON.parse(filaData) : [];
       
-      // Filtrar apenas pendentes
-      registros = registros.filter(r => r.status_sincronizacao === 'pending');
-      
-      // 🚨 CORREÇÃO: Também buscar registros salvos como fallback individual
-      try {
-        const allKeys = await robustGetAllKeys();
-        const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
-        for (const key of fallbackKeys) {
-          try {
-            const data = await robustGetItem(key);
-            if (data) {
-              const registro = JSON.parse(data);
-              // Remover _fallback do objeto antes de adicionar
-              const { _fallback, ...registroLimpo } = registro;
-              if (registro.status_sincronizacao === 'pending' && !registros.find(r => r.id === registro.id)) {
-                registros.push(registroLimpo as RegistroPresenca);
-              }
-            }
-          } catch (parseError) {
-            console.warn('⚠️ Erro ao parsear registro fallback:', key, parseError);
-          }
-        }
-      } catch (fallbackError) {
-        console.warn('⚠️ Erro ao buscar registros fallback:', fallbackError);
-      }
-      
-      return registros;
+      // Filtrar apenas pendentes (status !== 'success' no BACKUPCONT)
+      return fila.filter(r => r.status_sincronizacao === 'pending' || !r.status_sincronizacao);
     } catch (error) {
-      console.warn('⚠️ Erro ao buscar registros pendentes do AsyncStorage, tentando fallback:', error);
-      // Fallback: tentar buscar apenas fallbacks individuais
-      try {
-        const allKeys = await robustGetAllKeys();
-        const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
-        const fallbackRegistros: RegistroPresenca[] = [];
-        
-        for (const key of fallbackKeys) {
-          try {
-            const data = await robustGetItem(key);
-            if (data) {
-              const registro = JSON.parse(data);
-              const { _fallback, ...registroLimpo } = registro;
-              if (registro.status_sincronizacao === 'pending') {
-                fallbackRegistros.push(registroLimpo as RegistroPresenca);
-              }
-            }
-          } catch (parseError) {
-            console.warn('⚠️ Erro ao parsear registro fallback:', key, parseError);
-          }
-        }
-        
-        return fallbackRegistros;
-      } catch (fallbackError) {
-        console.warn('⚠️ Erro no fallback de registros pendentes:', fallbackError);
-        return []; // Retornar array vazio em vez de lançar erro
-      }
+      console.warn('⚠️ Erro ao buscar registros pendentes:', error);
+      return [];
     }
   },
 
@@ -2804,72 +2754,34 @@ export const supabaseDataService = {
         return;
       }
 
-      // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente (como BACKUPCONT)
-      // NUNCA lançar erro - sempre tentar salvar de alguma forma
+      // 🚨 SIMPLIFICAÇÃO TOTAL: Copiar EXATAMENTE o que funciona no BACKUPCONT
+      // No BACKUPCONT: localStorage.getItem('fila_envio') || '[]', parse, push, setItem
       const filaKey = 'fila_registros_presenca';
-      let salvou = false;
       
-      // Tentativa 1: Salvar na fila principal
       try {
+        // Buscar fila existente (exatamente como BACKUPCONT)
         const filaExistente = await robustGetItem(filaKey);
-        let fila: RegistroPresenca[] = [];
+        const fila: RegistroPresenca[] = filaExistente ? JSON.parse(filaExistente) : [];
         
-        if (filaExistente) {
-          try {
-            fila = JSON.parse(filaExistente);
-            if (!Array.isArray(fila)) fila = [];
-          } catch (parseError) {
-            console.warn('⚠️ Erro ao parsear fila existente, criando nova:', parseError);
-            fila = [];
-          }
-        }
+        // Adicionar registro à fila (exatamente como BACKUPCONT)
+        // Garantir que status_sincronizacao seja 'pending'
+        fila.push({
+          ...registroCompleto,
+          status_sincronizacao: 'pending', // Garantir que seja pending
+          timestamp: new Date().toISOString(),
+          tentativas: 0
+        });
         
-        // Verificar se já existe registro com mesmo ID
-        const existingIndex = fila.findIndex(r => r.id === id);
-        if (existingIndex >= 0) {
-          fila[existingIndex] = registroCompleto;
-        } else {
-          fila.push(registroCompleto);
-        }
-        
-        // Salvar fila atualizada
+        // Salvar fila atualizada (exatamente como BACKUPCONT)
         await robustSetItem(filaKey, JSON.stringify(fila));
-        console.log('✅ Registro salvo no AsyncStorage (mobile) com sucesso (ID:', id, ')');
-        console.log(`📊 Total de registros na fila: ${fila.length}`);
-        salvou = true;
+        
+        console.log('✅ Registro salvo na fila (mobile):', { 
+          totalItens: fila.length, 
+          ultimoItem: registroCompleto.pessoa_id 
+        });
       } catch (error) {
-        console.error('❌ Erro ao salvar na fila principal:', error);
-      }
-      
-      // Tentativa 2: Se não salvou, tentar fallback individual
-      if (!salvou) {
-        try {
-          console.log('🔄 Tentando salvar como fallback individual...');
-          await robustSetItem(`registro_fallback_${id}`, JSON.stringify(registroCompleto));
-          console.log('✅ Registro salvo como fallback individual (ID:', id, ')');
-          salvou = true;
-        } catch (fallbackError) {
-          console.error('❌ Erro ao salvar fallback individual:', fallbackError);
-        }
-      }
-      
-      // Tentativa 3: Se ainda não salvou, tentar com timestamp no nome da chave
-      if (!salvou) {
-        try {
-          const timestampKey = `registro_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          await robustSetItem(timestampKey, JSON.stringify(registroCompleto));
-          console.log('✅ Registro salvo com chave timestamp (ID:', id, ')');
-          salvou = true;
-        } catch (timestampError) {
-          console.error('❌ Erro ao salvar com timestamp:', timestampError);
-        }
-      }
-      
-      // Se NADA funcionou, logar mas NÃO lançar erro - melhor perder o registro do que travar o app
-      if (!salvou) {
-        console.error('❌❌❌ FALHA CRÍTICA: Não foi possível salvar registro de NENHUMA forma');
-        console.error('❌ Dados do registro perdido:', JSON.stringify(registroCompleto, null, 2));
-        // NÃO lançar erro - apenas logar
+        console.error('❌ Erro ao salvar na fila:', error);
+        // NÃO lançar erro - apenas logar (como BACKUPCONT faz)
       }
     } catch (error) {
       console.error('❌ ERRO CRÍTICO em saveRegistroToLocal:', error);
