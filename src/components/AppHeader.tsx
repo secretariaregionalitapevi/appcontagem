@@ -1,21 +1,31 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Image, Dimensions } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
 import { LocalEnsaio } from '../types/models';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IS_SMALL_SCREEN = SCREEN_WIDTH < 400;
+const IS_MEDIUM_SCREEN = SCREEN_WIDTH >= 400 && SCREEN_WIDTH < 768;
+
 interface AppHeaderProps {
   onSettingsPress?: () => void;
   onLogoutPress?: () => void;
   onEditRegistrosPress?: () => void;
+  onOrganistasEnsaioPress?: () => void;
+  onBackPress?: () => void;
+  title?: string;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   onSettingsPress,
   onLogoutPress,
   onEditRegistrosPress,
+  onOrganistasEnsaioPress,
+  onBackPress,
+  title,
 }) => {
   const { user, signOut } = useAuthContext();
   const [localEnsaio, setLocalEnsaio] = React.useState<string>('');
@@ -24,20 +34,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     loadLocalEnsaio();
   }, []);
 
-  // Debug: log do usuário quando mudar
-  React.useEffect(() => {
-    if (user) {
-      console.log('👤 Usuário no AppHeader:', {
-        id: user.id,
-        email: user.email,
-        nome: user.nome,
-        role: user.role,
-        hasNome: !!user.nome,
-      });
-    } else {
-      console.log('👤 Usuário não está logado');
-    }
-  }, [user]);
 
   const loadLocalEnsaio = async () => {
     try {
@@ -118,25 +114,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const userName = getUserDisplayName();
 
-  // Debug: log do role
-  React.useEffect(() => {
-    if (user) {
-      console.log('👑 Verificação de role master:', {
-        roleOriginal: user.role,
-        roleNormalizado: userRole,
-        isMaster: isMaster,
-        userRoleText: userRoleText,
-      });
-    }
-  }, [user, userRole, isMaster, userRoleText]);
 
   return (
     <View style={styles.header}>
-      <View style={styles.headerContent}>
-        {/* Left Section - Logo e Título */}
-        <View style={styles.headerLeft}>
+      {/* Primeira linha: Logo, Título e Botões */}
+      <View style={styles.headerTopRow}>
+        <View style={styles.headerLeftSection}>
           <View style={styles.brandSection}>
-            <View style={styles.brandLogo}>
+            <View style={[styles.brandLogo, IS_SMALL_SCREEN && styles.brandLogoSmall]}>
               <Image 
                 source={require('../img/ccb.png')} 
                 style={styles.brandLogoImage}
@@ -144,61 +129,77 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               />
             </View>
             <View style={styles.brandText}>
-              <Text style={styles.brandTitle}>Registro de Presença</Text>
-              <View style={styles.brandSubtitleContainer}>
-                <FontAwesome5 name="map-marker-alt" size={11} color="#ff6b6b" />
-                <Text style={styles.brandSubtitle}>{localEnsaio}</Text>
-              </View>
+              <Text style={[styles.brandTitle, IS_SMALL_SCREEN && styles.brandTitleSmall]} numberOfLines={1}>
+                {title || 'Registro de Presença'}
+              </Text>
+              {!IS_SMALL_SCREEN && (
+                <View style={styles.brandSubtitleContainer}>
+                  <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
+                  <Text style={styles.brandSubtitle} numberOfLines={1}>{localEnsaio}</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
 
-        {/* Right Section - User Info e Actions */}
-        <View style={styles.headerRight}>
-          {/* User Info */}
-          <View style={styles.userInfo}>
-            <View style={styles.userProfile}>
-              <View style={styles.userAvatar}>
-                <FontAwesome5 name="user" size={14} color="#ffffff" />
-              </View>
-              <View style={styles.userDetails}>
-                <Text style={styles.userName} numberOfLines={1}>
-                  {userName}
-                </Text>
-                <Text style={styles.userRole} numberOfLines={1}>
-                  {userRoleText}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Actions */}
-          <View style={styles.headerActions}>
-            {/* Botão Editar Registros - apenas para master */}
-            {isMaster && onEditRegistrosPress && (
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={onEditRegistrosPress}
-                activeOpacity={0.7}
-              >
-                <FontAwesome5 name="edit" size={14} color="#a7b1c2" />
-              </TouchableOpacity>
-            )}
-            {onSettingsPress && (
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={onSettingsPress}
-                activeOpacity={0.7}
-              >
-                <FontAwesome5 name="cog" size={14} color="#a7b1c2" />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.actionBtn} onPress={handleLogout} activeOpacity={0.6} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <FontAwesome5 name="sign-out-alt" size={14} color="#a7b1c2" />
+        {/* Botões de ação - sempre na direita */}
+        <View style={[styles.headerActions, IS_SMALL_SCREEN && styles.headerActionsSmall]}>
+          {onBackPress && (
+            <TouchableOpacity
+              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={onBackPress}
+              activeOpacity={0.7}
+            >
+              <FontAwesome5 name="arrow-left" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
             </TouchableOpacity>
-          </View>
+          )}
+          {onOrganistasEnsaioPress && (
+            <TouchableOpacity
+              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={onOrganistasEnsaioPress}
+              activeOpacity={0.7}
+            >
+              <FontAwesome5 name="music" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+            </TouchableOpacity>
+          )}
+          {isMaster && onEditRegistrosPress && (
+            <TouchableOpacity
+              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={onEditRegistrosPress}
+              activeOpacity={0.7}
+            >
+              <FontAwesome5 name="edit" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+            </TouchableOpacity>
+          )}
+          {onSettingsPress && (
+            <TouchableOpacity
+              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={onSettingsPress}
+              activeOpacity={0.7}
+            >
+              <FontAwesome5 name="cog" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]} 
+            onPress={handleLogout} 
+            activeOpacity={0.6}
+          >
+            <FontAwesome5 name="sign-out-alt" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+          </TouchableOpacity>
         </View>
       </View>
+
+      {/* Segunda linha (apenas em telas pequenas): Local */}
+      {IS_SMALL_SCREEN && (
+        <View style={styles.headerSecondRow}>
+          <View style={styles.brandSubtitleContainer}>
+            <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
+            <Text style={styles.brandSubtitle} numberOfLines={1}>{localEnsaio}</Text>
+          </View>
+        </View>
+      )}
+
     </View>
   );
 };
@@ -207,8 +208,8 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#2f4050',
     paddingTop: Platform.OS === 'ios' ? 40 : 8,
-    paddingBottom: 8,
-    paddingHorizontal: 16,
+    paddingBottom: IS_SMALL_SCREEN ? 6 : 8,
+    paddingHorizontal: IS_SMALL_SCREEN ? 12 : 16,
     borderBottomWidth: 1,
     borderBottomColor: '#293846',
     shadowColor: '#000',
@@ -217,20 +218,29 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  headerContent: {
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    marginBottom: 6,
   },
-  headerLeft: {
+  headerSecondRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
     minWidth: 0,
   },
   brandSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: IS_SMALL_SCREEN ? 8 : 12,
+    flex: 1,
+    minWidth: 0,
   },
   brandLogo: {
     width: 35,
@@ -240,6 +250,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    flexShrink: 0,
+  },
+  brandLogoSmall: {
+    width: 28,
+    height: 28,
   },
   brandLogoImage: {
     width: '100%',
@@ -248,6 +263,8 @@ const styles = StyleSheet.create({
   brandText: {
     flexDirection: 'column',
     gap: 2,
+    flex: 1,
+    minWidth: 0,
   },
   brandTitle: {
     fontSize: 18,
@@ -255,43 +272,35 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     lineHeight: 20,
   },
+  brandTitleSmall: {
+    fontSize: 14,
+    lineHeight: 16,
+  },
   brandSubtitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   brandSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '400',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flexShrink: 0,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     flexShrink: 1,
-    minWidth: 0,
   },
-  userProfile: {
+  userInfoBelowTitle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexShrink: 1,
-    minWidth: 0,
+    flexShrink: 0,
   },
   userAvatar: {
-    width: 30,
-    height: 30,
-    backgroundColor: '#033d60', // Azul da Congregação Cristã no Brasil
-    borderRadius: 15,
+    width: IS_SMALL_SCREEN ? 24 : 30,
+    height: IS_SMALL_SCREEN ? 24 : 30,
+    backgroundColor: '#033d60',
+    borderRadius: IS_SMALL_SCREEN ? 12 : 15,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
   userDetails: {
     flexDirection: 'column',
@@ -304,28 +313,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     lineHeight: 14,
-    maxWidth: 100,
+    maxWidth: IS_MEDIUM_SCREEN ? 80 : 100,
+  },
+  userNameSmall: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#ffffff',
+    lineHeight: 13,
+    maxWidth: 80,
   },
   userRole: {
     fontSize: 10,
     color: '#a7b1c2',
     lineHeight: 12,
-    maxWidth: 100,
+    maxWidth: IS_MEDIUM_SCREEN ? 80 : 100,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: IS_SMALL_SCREEN ? 4 : 6,
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+  },
+  headerActionsSmall: {
+    gap: 4,
   },
   actionBtn: {
-    width: 44, // Aumentado de 32 para 44px (mínimo recomendado)
-    height: 44, // Aumentado de 32 para 44px (mínimo recomendado)
-    borderRadius: 8, // Aumentado para melhor visual
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 44, // Garantir área mínima
-    minHeight: 44, // Garantir área mínima
-    padding: 8, // Padding interno para melhor área de toque
+    minWidth: 44,
+    minHeight: 44,
+  },
+  actionBtnSmall: {
+    width: 36,
+    height: 36,
+    minWidth: 36,
+    minHeight: 36,
+    borderRadius: 6,
   },
 });
