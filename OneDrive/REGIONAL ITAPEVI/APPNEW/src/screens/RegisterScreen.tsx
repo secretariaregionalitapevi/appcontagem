@@ -273,7 +273,7 @@ export const RegisterScreen: React.FC = () => {
     }
   }, [isOnline, syncing, syncData]);
 
-  // Sincronização automática periódica da fila offline (igual ao backupcont)
+  // 🚨 SISTEMA EXATO DO BACKUPCONT: Processamento periódico da fila (a cada 30s)
   useEffect(() => {
     // Limpar intervalo anterior se existir
     if (syncIntervalRef.current) {
@@ -281,36 +281,29 @@ export const RegisterScreen: React.FC = () => {
       syncIntervalRef.current = null;
     }
 
-    // 🚨 CORREÇÃO: Sempre iniciar sincronização periódica (mesmo se isOnline for false inicialmente)
-    // Isso garante que quando a conexão voltar, a sincronização já estará ativa
-    console.log('🔄 Iniciando sincronização automática periódica da fila offline (a cada 10s)');
+    console.log('🔄 Iniciando processamento periódico da fila (a cada 30s) - como BACKUPCONT');
     
     syncIntervalRef.current = setInterval(async () => {
-      if (!syncing) {
-        try {
-          // Verificar conectividade real antes de processar
-          const reallyOnline = await offlineSyncService.isOnline();
-          if (!reallyOnline) {
-            // Não logar se estiver offline (evitar spam de logs)
-            return;
-          }
-
-          // 🚨 CORREÇÃO: Verificar fila mesmo se isOnline for false (pode ter mudado)
-          const queue = await supabaseDataService.getRegistrosPendentesFromLocal();
-          const pendingItems = queue.filter((item: any) => !item.status_sincronizacao || item.status_sincronizacao === 'pending');
+      try {
+        // Verificar se há itens na fila (como BACKUPCONT)
+        const fila = await supabaseDataService.getRegistrosPendentesFromLocal();
+        
+        if (fila.length > 0) {
+          console.log('🔄 Processamento periódico da fila...');
           
-          if (pendingItems.length > 0) {
-            console.log(`🔄 [PERIÓDICO] ${pendingItems.length} item(ns) pendente(s) encontrado(s) - iniciando sincronização...`);
-            // Processar assincronamente sem bloquear
-            syncData().catch(error => {
-              console.error('❌ [PERIÓDICO] Erro no processamento automático:', error);
-            });
+          // Verifica conectividade real antes de processar (como BACKUPCONT)
+          const isOnline = await offlineSyncService.isOnline();
+          if (isOnline) {
+            // Usar processarFilaLocal que é exatamente como BACKUPCONT
+            await offlineSyncService.processarFilaLocal();
+          } else {
+            console.log('📵 Sem conectividade real - mantendo fila');
           }
-        } catch (error) {
-          console.error('❌ [PERIÓDICO] Erro ao verificar fila offline:', error);
         }
+      } catch (error) {
+        console.error('❌ Erro no processamento periódico:', error);
       }
-    }, 10000); // A cada 10 segundos (reduzido de 5s para evitar sobrecarga)
+    }, 30000); // A cada 30 segundos (exatamente como BACKUPCONT)
 
     // Cleanup: limpar intervalo quando componente desmontar
     return () => {
@@ -319,7 +312,7 @@ export const RegisterScreen: React.FC = () => {
         syncIntervalRef.current = null;
       }
     };
-  }, [syncing, syncData]); // 🚨 CORREÇÃO: Remover isOnline das dependências para sempre executar
+  }, []); // Sem dependências - sempre executar
 
   // 🚀 OTIMIZAÇÃO: Carregar imediatamente quando comum e cargo são selecionados
   // Removido debounce para resposta instantânea
