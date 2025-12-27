@@ -269,25 +269,44 @@ export const RegisterScreen: React.FC = () => {
     
     // Para React Native, usar NetInfo listener
     if (Platform.OS !== 'web') {
+      let lastStatus: boolean | null = null;
+      
       const unsubscribe = NetInfo.addEventListener(state => {
-        if (state.isConnected && state.isInternetReachable) {
-          // Aguardar 3s como BACKUPCONT
-          setTimeout(async () => {
-            try {
-              const isReallyOnline = await offlineSyncService.isOnline();
-              if (isReallyOnline) {
-                console.log('✅ Conectividade real confirmada - processando fila');
-                // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando volta online
-                showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
-                offlineSyncService.processarFilaLocal();
+        const isConnectedNow = state.isConnected === true && state.isInternetReachable === true;
+        
+        // 🚨 CRÍTICO: Só mostrar alerta quando status MUDAR (não na primeira verificação)
+        if (lastStatus !== null && lastStatus !== isConnectedNow) {
+          if (isConnectedNow) {
+            // Voltou online
+            console.log('✅ Conectividade restaurada - verificando...');
+            setTimeout(async () => {
+              try {
+                const isReallyOnline = await offlineSyncService.isOnline();
+                if (isReallyOnline) {
+                  console.log('✅ Conectividade real confirmada - processando fila');
+                  showToast.success('Conexão restaurada', 'Enviando registros pendentes...', 3000);
+                  await offlineSyncService.processarFilaLocal();
+                }
+              } catch (e) {
+                console.error('❌ Erro ao verificar conectividade:', e);
               }
-            } catch (e) {
-              console.error('❌ Erro ao verificar conectividade:', e);
-            }
-          }, 3000);
-        } else {
-          // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando fica offline
-          handleOffline();
+            }, 3000);
+          } else {
+            // Ficou offline
+            console.log('📵 Conexão perdida - modo offline ativado');
+            showToast.warning('Modo offline', 'Registros serão salvos na fila', 3000);
+          }
+        }
+        
+        lastStatus = isConnectedNow;
+      });
+      
+      // Verificar status inicial
+      NetInfo.fetch().then(state => {
+        const initialStatus = state.isConnected === true && state.isInternetReachable === true;
+        lastStatus = initialStatus;
+        if (!initialStatus) {
+          console.log('📵 Status inicial: offline');
         }
       });
       

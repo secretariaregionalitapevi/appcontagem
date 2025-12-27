@@ -2767,30 +2767,60 @@ export const supabaseDataService = {
       // No BACKUPCONT: localStorage.getItem('fila_envio') || '[]', parse, push, setItem
       const filaKey = 'fila_registros_presenca';
       
+      // 🚨 CRÍTICO: Garantir que o salvamento funcione MESMO se houver erro na validação
       try {
         // Buscar fila existente (exatamente como BACKUPCONT)
         const filaExistente = await robustGetItem(filaKey);
-        const fila: RegistroPresenca[] = filaExistente ? JSON.parse(filaExistente) : [];
+        let fila: RegistroPresenca[] = [];
+        
+        if (filaExistente) {
+          try {
+            fila = JSON.parse(filaExistente);
+            if (!Array.isArray(fila)) {
+              console.warn('⚠️ Fila não é array, resetando...');
+              fila = [];
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Erro ao fazer parse da fila, resetando...', parseError);
+            fila = [];
+          }
+        }
         
         // Adicionar registro à fila (exatamente como BACKUPCONT)
         // Garantir que status_sincronizacao seja 'pending'
-        fila.push({
+        const registroParaFila = {
           ...registroCompleto,
           status_sincronizacao: 'pending', // Garantir que seja pending
           timestamp: new Date().toISOString(),
           tentativas: 0
-        });
+        };
+        
+        fila.push(registroParaFila);
         
         // Salvar fila atualizada (exatamente como BACKUPCONT)
         await robustSetItem(filaKey, JSON.stringify(fila));
         
         console.log('✅ Registro salvo na fila (mobile):', { 
           totalItens: fila.length, 
-          ultimoItem: registroCompleto.pessoa_id 
+          ultimoItem: registroCompleto.pessoa_id,
+          filaKey
         });
       } catch (error) {
         console.error('❌ Erro ao salvar na fila:', error);
-        // NÃO lançar erro - apenas logar (como BACKUPCONT faz)
+        // 🚨 CRÍTICO: Tentar salvar novamente com fallback
+        try {
+          const filaFallback: RegistroPresenca[] = [{
+            ...registroCompleto,
+            status_sincronizacao: 'pending',
+            timestamp: new Date().toISOString(),
+            tentativas: 0
+          }];
+          await robustSetItem(filaKey, JSON.stringify(filaFallback));
+          console.log('✅ Registro salvo na fila (fallback):', registroCompleto.pessoa_id);
+        } catch (fallbackError) {
+          console.error('❌ Erro crítico ao salvar na fila (fallback):', fallbackError);
+          // NÃO lançar erro - apenas logar (como BACKUPCONT faz)
+        }
       }
     } catch (error) {
       console.error('❌ ERRO CRÍTICO em saveRegistroToLocal:', error);
