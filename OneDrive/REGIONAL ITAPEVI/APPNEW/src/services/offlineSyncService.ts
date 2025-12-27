@@ -161,8 +161,10 @@ export const offlineSyncService = {
       
       console.log(`✅ Fila processada: ${itensProcessados.length} enviados, ${itensComErro.length} com erro`);
       
+      // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando processa fila
       if (itensProcessados.length > 0) {
-        // Atualizar contador (será feito pelo refreshCount)
+        const { showToast } = await import('../utils/toast');
+        showToast.success('Fila processada', `${itensProcessados.length} registro(s) enviado(s) com sucesso!`);
         console.log(`✅ ${itensProcessados.length} registro(s) enviado(s) com sucesso!`);
       }
       

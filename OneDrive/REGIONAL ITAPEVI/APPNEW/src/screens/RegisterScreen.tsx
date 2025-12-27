@@ -237,6 +237,8 @@ export const RegisterScreen: React.FC = () => {
           const isReallyOnline = await offlineSyncService.isOnline();
           if (isReallyOnline) {
             console.log('✅ Conectividade real confirmada - processando fila');
+            // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando volta online
+            showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
             // Usar processarFilaLocal que é exatamente como BACKUPCONT
             await offlineSyncService.processarFilaLocal();
             console.log('✅ Fila processada automaticamente');
@@ -249,11 +251,19 @@ export const RegisterScreen: React.FC = () => {
       }, 3000); // 3 segundos (exatamente como BACKUPCONT)
     };
 
+    const handleOffline = () => {
+      console.log('📵 Conexão perdida - modo offline ativado');
+      // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando fica offline
+      showToast.warning('Modo offline', 'Registros serão salvos na fila');
+    };
+
     // Adicionar listener apenas na web (React Native usa NetInfo)
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
       return () => {
         window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
       };
     }
     
@@ -267,12 +277,17 @@ export const RegisterScreen: React.FC = () => {
               const isReallyOnline = await offlineSyncService.isOnline();
               if (isReallyOnline) {
                 console.log('✅ Conectividade real confirmada - processando fila');
+                // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando volta online
+                showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
                 offlineSyncService.processarFilaLocal();
               }
             } catch (e) {
               console.error('❌ Erro ao verificar conectividade:', e);
             }
           }, 3000);
+        } else {
+          // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando fica offline
+          handleOffline();
         }
       });
       
