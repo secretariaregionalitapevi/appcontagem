@@ -2371,18 +2371,17 @@ export const supabaseDataService = {
       return registros;
     }
 
-    // Para mobile, usar SQLite
+    // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente (como BACKUPCONT)
     try {
-      const db = await getDatabase();
-      const result = (await db.getAllAsync(
-        "SELECT * FROM registros_presenca WHERE status_sincronizacao = 'pending' ORDER BY created_at"
-      )) as RegistroPresenca[];
-      const registros = result.map(r => ({
-        ...r,
-        status_sincronizacao: r.status_sincronizacao as 'pending' | 'synced',
-      }));
+      // Buscar da fila principal
+      const filaKey = 'fila_registros_presenca';
+      const filaData = await robustGetItem(filaKey);
+      let registros: RegistroPresenca[] = filaData ? JSON.parse(filaData) : [];
       
-      // 🚨 CORREÇÃO: Também buscar registros salvos como fallback em AsyncStorage
+      // Filtrar apenas pendentes
+      registros = registros.filter(r => r.status_sincronizacao === 'pending');
+      
+      // 🚨 CORREÇÃO: Também buscar registros salvos como fallback individual
       try {
         const allKeys = await robustGetAllKeys();
         const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
@@ -2391,8 +2390,10 @@ export const supabaseDataService = {
             const data = await robustGetItem(key);
             if (data) {
               const registro = JSON.parse(data);
+              // Remover _fallback do objeto antes de adicionar
+              const { _fallback, ...registroLimpo } = registro;
               if (registro.status_sincronizacao === 'pending' && !registros.find(r => r.id === registro.id)) {
-                registros.push(registro);
+                registros.push(registroLimpo as RegistroPresenca);
               }
             }
           } catch (parseError) {
@@ -2405,8 +2406,8 @@ export const supabaseDataService = {
       
       return registros;
     } catch (error) {
-      console.warn('⚠️ Erro ao buscar registros pendentes do SQLite, tentando fallback:', error);
-      // Fallback: tentar buscar de AsyncStorage se houver registros salvos como fallback
+      console.warn('⚠️ Erro ao buscar registros pendentes do AsyncStorage, tentando fallback:', error);
+      // Fallback: tentar buscar apenas fallbacks individuais
       try {
         const allKeys = await robustGetAllKeys();
         const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
@@ -2417,8 +2418,9 @@ export const supabaseDataService = {
             const data = await robustGetItem(key);
             if (data) {
               const registro = JSON.parse(data);
+              const { _fallback, ...registroLimpo } = registro;
               if (registro.status_sincronizacao === 'pending') {
-                fallbackRegistros.push(registro);
+                fallbackRegistros.push(registroLimpo as RegistroPresenca);
               }
             }
           } catch (parseError) {
@@ -2457,15 +2459,42 @@ export const supabaseDataService = {
       return [];
     }
 
-    // Para mobile, usar SQLite
-    const db = await getDatabase();
-    const result = (await db.getAllAsync(
-      'SELECT * FROM registros_presenca ORDER BY created_at'
-    )) as RegistroPresenca[];
-    return result.map(r => ({
-      ...r,
-      status_sincronizacao: r.status_sincronizacao as 'pending' | 'synced',
-    }));
+    // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente
+    try {
+      const filaKey = 'fila_registros_presenca';
+      const filaData = await robustGetItem(filaKey);
+      let registros: RegistroPresenca[] = filaData ? JSON.parse(filaData) : [];
+      
+      // Também buscar fallbacks individuais
+      try {
+        const allKeys = await robustGetAllKeys();
+        const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
+        for (const key of fallbackKeys) {
+          try {
+            const data = await robustGetItem(key);
+            if (data) {
+              const registro = JSON.parse(data);
+              const { _fallback, ...registroLimpo } = registro;
+              if (!registros.find(r => r.id === registro.id)) {
+                registros.push(registroLimpo as RegistroPresenca);
+              }
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Erro ao parsear registro fallback:', key, parseError);
+          }
+        }
+      } catch (fallbackError) {
+        console.warn('⚠️ Erro ao buscar registros fallback:', fallbackError);
+      }
+      
+      return registros.map(r => ({
+        ...r,
+        status_sincronizacao: r.status_sincronizacao as 'pending' | 'synced',
+      }));
+    } catch (error) {
+      console.warn('⚠️ Erro ao buscar todos os registros do AsyncStorage:', error);
+      return [];
+    }
   },
 
   async deleteRegistroFromLocal(id: string): Promise<void> {
@@ -2480,9 +2509,26 @@ export const supabaseDataService = {
       return;
     }
 
-    // Para mobile, usar SQLite
-    const db = await getDatabase();
-    await db.runAsync('DELETE FROM registros_presenca WHERE id = ?', [id]);
+    // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente
+    try {
+      // Buscar fila existente
+      const filaKey = 'fila_registros_presenca';
+      const filaData = await robustGetItem(filaKey);
+      if (filaData) {
+        let fila: RegistroPresenca[] = JSON.parse(filaData);
+        fila = fila.filter(r => r.id !== id);
+        await robustSetItem(filaKey, JSON.stringify(fila));
+      }
+      
+      // Também remover fallback individual se existir
+      try {
+        await robustRemoveItem(`registro_fallback_${id}`);
+      } catch (e) {
+        // Ignorar erro se não existir
+      }
+    } catch (error) {
+      console.warn('⚠️ Erro ao remover registro do AsyncStorage:', error);
+    }
   },
 
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
@@ -2528,50 +2574,19 @@ export const supabaseDataService = {
       
       let isDuplicataRapida = false;
       
-      // 🚀 OTIMIZAÇÃO: No mobile, usar query SQL direta (mais rápido)
-      if (Platform.OS !== 'web') {
-        try {
-          const db = await getDatabase();
-          const result = await db.getAllAsync(
-            `SELECT COUNT(*) as count FROM registros_presenca 
-             WHERE pessoa_id = ? 
-             AND comum_id = ? 
-             AND cargo_id = ? 
-             AND DATE(data_hora_registro) = ? 
-             AND status_sincronizacao = 'pending'`,
-            [registro.pessoa_id, registro.comum_id, registro.cargo_id, dataRegistroStr]
-          ) as any[];
-          
-          isDuplicataRapida = (result[0]?.count || 0) > 0;
-        } catch (error) {
-          console.warn('⚠️ Erro ao verificar duplicata via SQL, usando método alternativo:', error);
-          // Fallback para método original usando registrosPendentes já carregados
-          isDuplicataRapida = registrosPendentes.some(r => {
-            const rData = new Date(r.data_hora_registro);
-            const rDataStr = rData.toISOString().split('T')[0];
-            return (
-              r.pessoa_id === registro.pessoa_id &&
-              r.comum_id === registro.comum_id &&
-              r.cargo_id === registro.cargo_id &&
-              rDataStr === dataRegistroStr &&
-              r.status_sincronizacao === 'pending'
-            );
-          });
-        }
-      } else {
-        // Web: usar método original com registrosPendentes já carregados
-        isDuplicataRapida = registrosPendentes.some(r => {
-          const rData = new Date(r.data_hora_registro);
-          const rDataStr = rData.toISOString().split('T')[0];
-          return (
-            r.pessoa_id === registro.pessoa_id &&
-            r.comum_id === registro.comum_id &&
-            r.cargo_id === registro.cargo_id &&
-            rDataStr === dataRegistroStr &&
-            r.status_sincronizacao === 'pending'
-          );
-        });
-      }
+      // 🚨 CORREÇÃO: Usar registrosPendentes já carregados (funciona para web e mobile)
+      // Não usar SQLite no mobile - usar AsyncStorage diretamente
+      isDuplicataRapida = registrosPendentes.some(r => {
+        const rData = new Date(r.data_hora_registro);
+        const rDataStr = rData.toISOString().split('T')[0];
+        return (
+          r.pessoa_id === registro.pessoa_id &&
+          r.comum_id === registro.comum_id &&
+          r.cargo_id === registro.cargo_id &&
+          rDataStr === dataRegistroStr &&
+          r.status_sincronizacao === 'pending'
+        );
+      });
       
       if (isDuplicataRapida) {
         console.warn('🚨 [BLOQUEIO] Duplicata detectada na verificação rápida - verificando novamente...');
@@ -2789,114 +2804,36 @@ export const supabaseDataService = {
         return;
       }
 
-      // Para mobile, usar SQLite
+      // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente (como BACKUPCONT)
+      // SQLite pode estar falhando, então usar abordagem mais simples e confiável
       try {
-        const db = await getDatabase();
+        // Buscar fila existente do AsyncStorage
+        const filaKey = 'fila_registros_presenca';
+        const filaExistente = await robustGetItem(filaKey);
+        let fila: RegistroPresenca[] = filaExistente ? JSON.parse(filaExistente) : [];
         
-        // 🚨 CORREÇÃO: Garantir que a tabela existe antes de inserir
-        try {
-          await db.execAsync(`
-            CREATE TABLE IF NOT EXISTS registros_presenca (
-              id TEXT PRIMARY KEY,
-              pessoa_id TEXT NOT NULL,
-              comum_id TEXT NOT NULL,
-              cargo_id TEXT NOT NULL,
-              instrumento_id TEXT,
-              local_ensaio TEXT,
-              data_hora_registro TEXT NOT NULL,
-              usuario_responsavel TEXT,
-              status_sincronizacao TEXT NOT NULL DEFAULT 'pending',
-              created_at TEXT,
-              updated_at TEXT
-            )
-          `);
-        } catch (tableError) {
-          console.warn('⚠️ Erro ao criar/verificar tabela (pode já existir):', tableError);
+        // Verificar se já existe registro com mesmo ID
+        const existingIndex = fila.findIndex(r => r.id === id);
+        if (existingIndex >= 0) {
+          fila[existingIndex] = registroCompleto;
+        } else {
+          fila.push(registroCompleto);
         }
         
-        await db.runAsync(
-          `INSERT OR REPLACE INTO registros_presenca 
-           (id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            id,
-            registro.pessoa_id,
-            registro.comum_id,
-            registro.cargo_id,
-            registro.instrumento_id || null,
-            registro.local_ensaio || null,
-            registro.data_hora_registro,
-            registro.usuario_responsavel || null,
-            registro.status_sincronizacao || 'pending',
-            registro.created_at || now,
-            registro.updated_at || now,
-          ]
-        );
-        console.log('✅ Registro salvo no SQLite com sucesso (ID:', id, ')');
+        // Salvar fila atualizada
+        await robustSetItem(filaKey, JSON.stringify(fila));
+        console.log('✅ Registro salvo no AsyncStorage (mobile) com sucesso (ID:', id, ')');
+        console.log(`📊 Total de registros na fila: ${fila.length}`);
       } catch (error) {
-        console.error('❌ Erro ao salvar no SQLite:', error);
-        // Tentar novamente com nova conexão
+        console.error('❌ Erro ao salvar no AsyncStorage (mobile):', error);
+        // Tentar salvar como fallback individual
         try {
-          // Tentar reinicializar o banco
-          const db = await getDatabase();
-          
-          // Garantir que a tabela existe
-          try {
-            await db.execAsync(`
-              CREATE TABLE IF NOT EXISTS registros_presenca (
-                id TEXT PRIMARY KEY,
-                pessoa_id TEXT NOT NULL,
-                comum_id TEXT NOT NULL,
-                cargo_id TEXT NOT NULL,
-                instrumento_id TEXT,
-                local_ensaio TEXT,
-                data_hora_registro TEXT NOT NULL,
-                usuario_responsavel TEXT,
-                status_sincronizacao TEXT NOT NULL DEFAULT 'pending',
-                created_at TEXT,
-                updated_at TEXT
-              )
-            `);
-          } catch (tableError) {
-            console.warn('⚠️ Erro ao criar/verificar tabela na segunda tentativa:', tableError);
-          }
-          
-          await db.runAsync(
-            `INSERT OR REPLACE INTO registros_presenca 
-             (id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              id,
-              registro.pessoa_id,
-              registro.comum_id,
-              registro.cargo_id,
-              registro.instrumento_id || null,
-              registro.local_ensaio || null,
-              registro.data_hora_registro,
-              registro.usuario_responsavel || null,
-              registro.status_sincronizacao || 'pending',
-              registro.created_at || now,
-              registro.updated_at || now,
-            ]
-          );
-          console.log('✅ Registro salvo no SQLite na segunda tentativa (ID:', id, ')');
-        } catch (retryError) {
-          console.error('❌ Erro crítico ao salvar mesmo na segunda tentativa:', retryError);
-          // 🚨 CORREÇÃO CRÍTICA: Em vez de lançar erro, tentar salvar em AsyncStorage como fallback
-          try {
-            console.log('🔄 Tentando salvar em AsyncStorage como fallback...');
-            const fallbackData = {
-              id,
-              ...registroCompleto,
-              _fallback: true, // Marcar como fallback para sincronizar depois
-            };
-            await robustSetItem(`registro_fallback_${id}`, JSON.stringify(fallbackData));
-            console.log('✅ Registro salvo em AsyncStorage como fallback (ID:', id, ')');
-            // Não lançar erro - o registro foi salvo no fallback
-          } catch (fallbackError) {
-            console.error('❌ Erro crítico mesmo no fallback:', fallbackError);
-            throw new Error(`Falha ao salvar registro offline: ${retryError instanceof Error ? retryError.message : String(retryError)}`);
-          }
+          console.log('🔄 Tentando salvar como fallback individual...');
+          await robustSetItem(`registro_fallback_${id}`, JSON.stringify(registroCompleto));
+          console.log('✅ Registro salvo como fallback individual (ID:', id, ')');
+        } catch (fallbackError) {
+          console.error('❌ Erro crítico mesmo no fallback:', fallbackError);
+          throw new Error(`Falha ao salvar registro offline: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
     } catch (error) {
@@ -2949,12 +2886,25 @@ export const supabaseDataService = {
       return;
     }
 
-    // Para mobile, usar SQLite
-    const db = await getDatabase();
-    await db.runAsync(
-      `UPDATE registros_presenca SET status_sincronizacao = ?, updated_at = ? WHERE id = ?`,
-      [status, new Date().toISOString(), id]
-    );
+    // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente
+    try {
+      const filaKey = 'fila_registros_presenca';
+      const filaData = await robustGetItem(filaKey);
+      if (filaData) {
+        let fila: RegistroPresenca[] = JSON.parse(filaData);
+        const index = fila.findIndex(r => r.id === id);
+        if (index >= 0) {
+          fila[index] = {
+            ...fila[index],
+            status_sincronizacao: status,
+            updated_at: new Date().toISOString(),
+          };
+          await robustSetItem(filaKey, JSON.stringify(fila));
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Erro ao atualizar status do registro no AsyncStorage:', error);
+    }
   },
 
   async countRegistrosPendentes(): Promise<number> {
@@ -2980,15 +2930,12 @@ export const supabaseDataService = {
       return 0;
     }
 
-    // Para mobile, usar SQLite
+    // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente
     try {
-      const db = await getDatabase();
-      const result = (await db.getFirstAsync(
-        "SELECT COUNT(*) as count FROM registros_presenca WHERE status_sincronizacao = 'pending'"
-      )) as { count: number } | null;
-      return result?.count || 0;
+      const registros = await this.getRegistrosPendentesFromLocal();
+      return registros.length;
     } catch (error) {
-      console.error('❌ Erro ao contar registros pendentes:', error);
+      console.warn('⚠️ Erro ao contar registros pendentes do AsyncStorage:', error);
       return 0;
     }
   },
