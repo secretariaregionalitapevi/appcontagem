@@ -226,52 +226,61 @@ export const RegisterScreen: React.FC = () => {
     });
   }, [setOnStatusChange, syncing, syncData]);
 
-  // Sincronização automática quando voltar online
+  // 🚨 SISTEMA EXATO DO BACKUPCONT: Listener para evento online
   useEffect(() => {
-    if (isOnline && !syncing) {
-      console.log('🌐 [AUTO-SYNC] Online detectado - verificando registros pendentes...');
+    const handleOnline = async () => {
+      console.log('🌐 Evento online detectado - verificando conectividade real');
       
-      // Aguardar um pouco para garantir que a conexão está estável
-      const syncTimeout = setTimeout(async () => {
-        // Verificar novamente se ainda está online
+      // Aguardar um pouco para garantir que a conexão está estável (como BACKUPCONT)
+      setTimeout(async () => {
         try {
-          const netState = await NetInfo.fetch();
-          const isReallyOnline = netState.isConnected === true && netState.isInternetReachable === true;
-          
-          if (!isReallyOnline || syncing) {
-            console.log('⏸️ [AUTO-SYNC] Não está realmente online ou já sincronizando, pulando...');
-            return;
-          }
-          
-          // Verificar se há registros pendentes
-          const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
-          
-          if (registros.length > 0) {
-            console.log(`🔄 [AUTO-SYNC] ${registros.length} registro(s) pendente(s) encontrado(s) - iniciando sincronização automática...`);
-            await syncData();
+          const isReallyOnline = await offlineSyncService.isOnline();
+          if (isReallyOnline) {
+            console.log('✅ Conectividade real confirmada - processando fila');
+            // Usar processarFilaLocal que é exatamente como BACKUPCONT
+            await offlineSyncService.processarFilaLocal();
+            console.log('✅ Fila processada automaticamente');
           } else {
-            console.log('📭 [AUTO-SYNC] Nenhum registro pendente para sincronizar');
+            console.log('⚠️ Evento online falso - mantendo modo offline');
           }
-        } catch (error) {
-          console.error('❌ [AUTO-SYNC] Erro ao verificar/sincronizar:', error);
-          // Tentar sincronizar mesmo assim
-          try {
-            await syncData();
-          } catch (syncError) {
-            console.error('❌ [AUTO-SYNC] Erro na sincronização:', syncError);
-          }
+        } catch (e) {
+          console.error('❌ Erro ao verificar conectividade:', e);
         }
-      }, 3000); // Aumentado para 3 segundos para garantir conexão estável
-      
-      return () => clearTimeout(syncTimeout);
-    } else {
-      if (!isOnline) {
-        console.log('📴 [AUTO-SYNC] Offline - não sincronizando');
-      } else if (syncing) {
-        console.log('⏳ [AUTO-SYNC] Já sincronizando - aguardando...');
-      }
+      }, 3000); // 3 segundos (exatamente como BACKUPCONT)
+    };
+
+    // Adicionar listener apenas na web (React Native usa NetInfo)
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.addEventListener('online', handleOnline);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+      };
     }
-  }, [isOnline, syncing, syncData]);
+    
+    // Para React Native, usar NetInfo listener
+    if (Platform.OS !== 'web') {
+      const unsubscribe = NetInfo.addEventListener(state => {
+        if (state.isConnected && state.isInternetReachable) {
+          // Aguardar 3s como BACKUPCONT
+          setTimeout(async () => {
+            try {
+              const isReallyOnline = await offlineSyncService.isOnline();
+              if (isReallyOnline) {
+                console.log('✅ Conectividade real confirmada - processando fila');
+                offlineSyncService.processarFilaLocal();
+              }
+            } catch (e) {
+              console.error('❌ Erro ao verificar conectividade:', e);
+            }
+          }, 3000);
+        }
+      });
+      
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, []);
 
   // 🚨 SISTEMA EXATO DO BACKUPCONT: Processamento periódico da fila (a cada 30s)
   useEffect(() => {
