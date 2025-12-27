@@ -155,11 +155,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           {onOrganistasEnsaioPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall, styles.organistaBtn]}
               onPress={onOrganistasEnsaioPress}
               activeOpacity={0.7}
             >
-              <FontAwesome5 name="music" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+              <FontAwesome5 name="music" size={IS_SMALL_SCREEN ? 16 : 18} color="#ffffff" />
             </TouchableOpacity>
           )}
           {isMaster && onEditRegistrosPress && (
@@ -364,5 +364,10 @@ const styles = StyleSheet.create({
     minWidth: 36,
     minHeight: 36,
     borderRadius: 6,
+  },
+  organistaBtn: {
+    backgroundColor: 'rgba(255, 107, 107, 0.2)', // Cor destacada para organistas
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.4)',
   },
 });
