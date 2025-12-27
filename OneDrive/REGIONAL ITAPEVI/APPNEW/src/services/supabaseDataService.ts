@@ -8,11 +8,12 @@ import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { normalizarRegistroCargoFeminino, isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
 import { extractFirstAndLastName } from '../utils/userNameUtils';
 import { normalizarNivel } from '../utils/normalizeNivel';
-import { robustGetItem, robustSetItem, robustRemoveItem, initializeStorage } from '../utils/robustStorage';
+import { robustGetItem, robustSetItem, robustRemoveItem, initializeStorage, robustGetAllKeys } from '../utils/robustStorage';
 import { normalizeForSearch, normalizeString, sanitizeString, isValidString } from '../utils/stringNormalization';
 import { normalizeInstrumentoForSearch, expandInstrumentoSearch } from '../utils/normalizeInstrumento';
 import { getDeviceInfo, logDeviceInfo, isXiaomiDevice } from '../utils/deviceDetection';
 import { formatDate, formatTime } from '../utils/dateUtils';
+import { cacheManager } from '../utils/cacheManager';
 
 // 🚨 FUNÇÃO AUXILIAR: Verificar se é Secretário da Música (excluir) vs Secretário do GEM (incluir como instrutor)
 const isSecretarioDaMusica = (cargo: string): boolean => {
@@ -817,20 +818,56 @@ export const supabaseDataService = {
       return [];
     }
 
-    try {
-      // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de buscar (RLS requer autenticação)
-      const sessionRestored = await ensureSessionRestored();
-      console.log('🔐 [fetchPessoasFromCadastro] Sessão restaurada:', sessionRestored);
+    // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
+    // 🚨 CORREÇÃO: Adicionar versão ao cache key para invalidar caches antigos quando a lógica mudar
+    const CACHE_VERSION = 'v2'; // Incrementar quando mudar lógica de filtro
+    const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
+    const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
+    if (cached) {
+      console.log(`✅ [fetchPessoasFromCadastro] Retornando ${cached.length} pessoas do cache`);
       
-      // Verificar autenticação
-      if (isSupabaseConfigured() && supabase) {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        console.log('🔐 [fetchPessoasFromCadastro] Verificação de autenticação:', {
-          temUser: !!user,
-          userId: user?.id,
-          authError: authError?.message,
+      // 🚨 CORREÇÃO CRÍTICA: Aplicar filtro de cargo também nos dados do cache
+      // Isso garante que mesmo dados em cache sejam filtrados corretamente
+      const cargoBusca = cargoNome.trim().toUpperCase();
+      if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+        const cargoBuscaNormalizado = normalizeString(cargoBusca.toUpperCase());
+        const filteredCached = cached.filter((item: any) => {
+          if (!item.cargo) return false;
+          const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
+          
+          // Verificar se o cargo do item corresponde exatamente ou contém o cargo buscado
+          // Mas garantir que não seja substring de outro cargo
+          if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
+          if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
+            // Verificar se não é substring de outro cargo conhecido
+            const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
+            const isSubstring = cargosConhecidos.some(c => 
+              c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+            );
+            return !isSubstring;
+          }
+          return false;
         });
+        
+        console.log(`🔍 [fetchPessoasFromCadastro] Filtro aplicado no cache: ${cached.length} → ${filteredCached.length} resultados`);
+        return filteredCached;
       }
+      
+      return cached;
+    }
+
+    try {
+      // 🚀 OTIMIZAÇÃO: Restaurar sessão de forma rápida e não-bloqueante
+      // Aguardar apenas o mínimo necessário (timeout de 2s)
+      const sessionPromise = Promise.race([
+        ensureSessionRestored(),
+        new Promise(resolve => setTimeout(resolve, 2000)) // Timeout de 2s
+      ]).catch(() => {
+        // Se falhar, continuar mesmo assim
+      });
+      
+      // Aguardar sessão rapidamente (com timeout) antes de fazer query
+      await sessionPromise;
 
       // 🚨 CORREÇÃO: Extrair apenas o nome da comum (sem código) e normalizar
       // O nome da comum pode vir como "BR-22-1804 - JARDIM LAVAPES DAS GRACAS" ou "BR-22-1804 JARDIM LAVAPES DAS GRACAS"
@@ -952,6 +989,8 @@ export const supabaseDataService = {
         console.log('🔍 [fetchPessoasFromCadastro] Construindo query com:', {
           comumBuscaNormalizado: comumBusca,
           comumNomeOriginal: comumNome,
+          cargoBusca: cargoBusca,
+          cargoNome: cargoNome,
           tableName: table,
         });
         
@@ -973,12 +1012,43 @@ export const supabaseDataService = {
         const seenNames = new Set<string>();
         
         // Query 1: Nome normalizado (sem acentos) - mais comum
-        const query1 = supabase
+        // 🚀 OTIMIZAÇÃO: Aplicar filtros de cargo e instrumento diretamente na query para reduzir dados retornados
+        let query1 = supabase
           .from(table)
           .select('nome, comum, cargo, instrumento, cidade, nivel')
-          .ilike('comum', `%${comumBusca}%`)
-          .order('nome', { ascending: true })
-          .range(from, to);
+          .ilike('comum', `%${comumBusca}%`);
+        
+        // Aplicar filtros diretamente na query (mais eficiente que filtrar depois)
+        if (cargoBusca === 'ORGANISTA') {
+          query1 = query1.ilike('instrumento', '%ÓRGÃO%');
+        } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
+          if (instrumentoBusca) {
+            const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
+            if (variacoesBusca.length > 1) {
+              const conditions = variacoesBusca.map(v => `instrumento.ilike.%${v}%`).join(',');
+              query1 = query1.or(conditions);
+            } else {
+              query1 = query1.ilike('instrumento', `%${instrumentoBusca}%`);
+            }
+          } else {
+            const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
+            if (isBuscandoSecretarioDaMusica) {
+              query1 = query1.ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
+                .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
+            } else {
+              query1 = query1.ilike('cargo', '%MÚSICO%')
+                .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
+                .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
+            }
+          }
+        } else {
+          // 🚨 CORREÇÃO CRÍTICA: Para cargos específicos (Ancião, Diácono, etc), aplicar filtro de cargo
+          query1 = query1.ilike('cargo', `%${cargoBusca}%`);
+          console.log(`🔍 [fetchPessoasFromCadastro] Aplicando filtro de cargo: ${cargoBusca}`);
+        }
+        
+        query1 = query1.order('nome', { ascending: true }).range(from, to);
+        console.log(`🔍 [fetchPessoasFromCadastro] Query1 construída com filtro de cargo: ${cargoBusca}`);
         
         const result1 = await query1;
         
@@ -992,20 +1062,48 @@ export const supabaseDataService = {
             }
           });
         } else {
-          // Se não encontrou, tentar outras variações em paralelo
+          // Se não encontrou, tentar outras variações em paralelo (apenas se necessário)
+          // 🚨 CORREÇÃO CRÍTICA: Aplicar filtro de cargo também nas queries de fallback
+          const buildFallbackQuery = (comumFilter: string) => {
+            let q = supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', comumFilter);
+            
+            // Aplicar o mesmo filtro de cargo da query principal
+            if (cargoBusca === 'ORGANISTA') {
+              q = q.ilike('instrumento', '%ÓRGÃO%');
+            } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
+              if (instrumentoBusca) {
+                const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
+                if (variacoesBusca.length > 1) {
+                  const conditions = variacoesBusca.map(v => `instrumento.ilike.%${v}%`).join(',');
+                  q = q.or(conditions);
+                } else {
+                  q = q.ilike('instrumento', `%${instrumentoBusca}%`);
+                }
+              } else {
+                const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
+                if (isBuscandoSecretarioDaMusica) {
+                  q = q.ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
+                    .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
+                } else {
+                  q = q.ilike('cargo', '%MÚSICO%')
+                    .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
+                    .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
+                }
+              }
+            } else {
+              // Para outros cargos (Ancião, Diácono, etc), aplicar filtro de cargo
+              q = q.ilike('cargo', `%${cargoBusca}%`);
+            }
+            
+            return q.order('nome', { ascending: true }).range(from, to);
+          };
+          
           const queriesComum = [
-            supabase
-              .from(table)
-              .select('nome, comum, cargo, instrumento, cidade, nivel')
-              .ilike('comum', `%${comumNomeSemCodigo.toUpperCase()}%`) // Nome original (com acentos)
-              .order('nome', { ascending: true })
-              .range(from, to),
-            supabase
-              .from(table)
-              .select('nome, comum, cargo, instrumento, cidade, nivel')
-              .ilike('comum', `%${comumNome.trim()}%`) // Nome completo (com código)
-              .order('nome', { ascending: true })
-              .range(from, to),
+            buildFallbackQuery(`%${comumNomeSemCodigo.toUpperCase()}%`), // Nome original (com acentos)
+            buildFallbackQuery(`%${comumNome.trim()}%`), // Nome completo (com código)
           ];
           
           const resultsComum = await Promise.all(queriesComum);
@@ -1023,59 +1121,35 @@ export const supabaseDataService = {
           });
         }
         
-        // Se encontrou resultados, aplicar filtros de cargo e instrumento
+        // 🚀 OTIMIZAÇÃO: Se encontrou resultados, já vêm filtrados da query (mais eficiente)
         if (combinedDataComum.length > 0) {
+          // 🚨 CORREÇÃO CRÍTICA: Filtrar resultados para garantir que apenas pessoas com o cargo correto sejam retornadas
+          // Isso evita problemas como "ANCIÃO" aparecendo em "ORGANISTA"
           let filteredData = combinedDataComum;
           
-          // 🚨 CORREÇÃO: Verificar se está buscando especificamente por "Secretário da Música"
-          const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
-          
-          // Aplicar filtros de cargo e instrumento
-          if (cargoBusca === 'ORGANISTA') {
-            filteredData = filteredData.filter(item => 
-              (item.instrumento || '').toUpperCase().includes('ÓRGÃO')
-            );
-          } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
-            if (instrumentoBusca) {
-              const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
+          // Se não é ORGANISTA nem MÚSICO, fazer filtro adicional mais rigoroso
+          if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+            const cargoBuscaNormalizado = normalizeString(cargoBusca.toUpperCase());
+            filteredData = combinedDataComum.filter((item: any) => {
+              if (!item.cargo) return false;
+              const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
               
-              // 🚨 CORREÇÃO CRÍTICA: Quando busca por instrumento (ex: Músico + Violino), 
-              // retornar TODOS que tocam aquele instrumento, independente do cargo.
-              // Isso inclui: Músicos, Instrutores, Encarregados, Secretário do GEM, Secretário da Música, etc.
-              // O cargo real será capturado do banco de dados quando o registro for salvo.
-              filteredData = filteredData.filter(item => {
-                const itemInstrumento = (item.instrumento || '').toUpperCase();
-                // 🚨 CORREÇÃO: Normalizar acentos antes de comparar para encontrar instrumentos mesmo com variações de acentuação
-                const itemInstrumentoNormalizado = normalizeString(itemInstrumento);
-                const matchesInstrumento = variacoesBusca.some(v => {
-                  const variacaoNormalizada = normalizeString(v);
-                  return itemInstrumentoNormalizado.includes(variacaoNormalizada) || 
-                         itemInstrumento.includes(v) || // Fallback: comparação direta também
-                         variacaoNormalizada.includes(itemInstrumentoNormalizado);
-                });
-                // Não filtrar por cargo aqui - incluir TODOS que tocam o instrumento
-                return matchesInstrumento;
-              });
-            } else {
-              filteredData = filteredData.filter(item => {
-                const itemCargo = (item.cargo || '').toUpperCase();
-                // 🚨 CORREÇÃO: Se está buscando Secretário da Música, incluir todos (incluindo Secretário da Música)
-                if (isBuscandoSecretarioDaMusica) {
-                  return isSecretarioDaMusica(item.cargo || '');
-                }
-                // Caso contrário, excluir apenas Secretário da Música, mas incluir Secretário do GEM (tratado como Instrutor)
-                return itemCargo.includes('MÚSICO') && !isSecretarioDaMusica(item.cargo || '');
-              });
-            }
-          } else {
-            filteredData = filteredData.filter(item => 
-              (item.cargo || '').toUpperCase().includes(cargoBusca)
-            );
-          }
-          
-          // Log apenas se não encontrou resultados (para debug)
-          if (filteredData.length === 0 && combinedDataComum.length > 0) {
-            console.warn('⚠️ [fetchPessoasFromCadastro] Nenhum resultado após aplicar filtros');
+              // Verificar se o cargo do item corresponde exatamente ou contém o cargo buscado
+              // Mas garantir que não seja substring de outro cargo
+              // Ex: "ANCIÃO" não deve aparecer em "ORGANISTA"
+              if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
+              if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
+                // Verificar se não é substring de outro cargo conhecido
+                const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
+                const isSubstring = cargosConhecidos.some(c => 
+                  c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+                );
+                return !isSubstring;
+              }
+              return false;
+            });
+            
+            console.log(`🔍 [fetchPessoasFromCadastro] Filtro adicional aplicado: ${combinedDataComum.length} → ${filteredData.length} resultados`);
           }
           
           return {
@@ -1143,13 +1217,12 @@ export const supabaseDataService = {
             if (comumEncontrada) {
               
               // Fazer busca com o nome EXATO do banco (sem normalizar)
-              const queryExata = supabase
+              let queryExata = supabase
                 .from(table)
                 .select('nome, comum, cargo, instrumento, cidade, nivel')
-                .ilike('comum', `%${comumEncontrada}%`)
-                .order('nome', { ascending: true })
-                .range(from, to);
+                .ilike('comum', `%${comumEncontrada}%`);
               
+              // 🚨 CORREÇÃO CRÍTICA: Aplicar filtro de cargo ANTES de order e range
               // 🚨 CORREÇÃO: Verificar se está buscando especificamente por "Secretário da Música"
               const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
               
@@ -1185,8 +1258,12 @@ export const supabaseDataService = {
                   }
                 }
               } else {
+                // 🚨 CORREÇÃO CRÍTICA: Para cargos específicos (Ancião, Diácono, etc), aplicar filtro de cargo
                 queryFinal = queryFinal.ilike('cargo', `%${cargoBusca}%`);
               }
+              
+              // Aplicar order e range após os filtros
+              queryFinal = queryFinal.order('nome', { ascending: true }).range(from, to);
               
               const resultExato = await queryFinal;
               
@@ -1251,11 +1328,12 @@ export const supabaseDataService = {
             }
           }
         } else {
-          // Para outros cargos, filtrar apenas por cargo
+          // 🚨 CORREÇÃO CRÍTICA: Para outros cargos (Ancião, Diácono, etc), filtrar por cargo
           query = query.ilike('cargo', `%${cargoBusca}%`);
         }
 
-        // Aplicar range para paginação
+        // Aplicar order e range para paginação
+        query = query.order('nome', { ascending: true });
         const result = await query.range(from, to);
 
         return {
@@ -1299,10 +1377,35 @@ export const supabaseDataService = {
 
       console.log(`✅ Total de ${allData.length} registros encontrados na tabela ${tableName}`);
 
-      // Os dados já vêm filtrados da query do Supabase, então apenas remover duplicatas
+      // 🚨 CORREÇÃO CRÍTICA: Filtrar por cargo de forma mais precisa antes de remover duplicatas
+      // Isso evita problemas como "ANCIÃO" aparecendo em "ORGANISTA"
+      let dataFiltrada = allData;
+      if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+        const cargoBuscaNormalizado = normalizeString(cargoBusca.toUpperCase());
+        dataFiltrada = allData.filter((item: any) => {
+          if (!item.cargo) return false;
+          const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
+          
+          // Verificar se o cargo do item corresponde exatamente ou contém o cargo buscado
+          // Mas garantir que não seja substring de outro cargo
+          if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
+          if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
+            // Verificar se não é substring de outro cargo conhecido
+            const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
+            const isSubstring = cargosConhecidos.some(c => 
+              c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+            );
+            return !isSubstring;
+          }
+          return false;
+        });
+        
+        console.log(`🔍 [fetchPessoasFromCadastro] Filtro de cargo aplicado: ${allData.length} → ${dataFiltrada.length} resultados`);
+      }
+
       // Remover duplicatas baseado em nome + comum
       const uniqueMap = new Map<string, any>();
-      allData.forEach(r => {
+      dataFiltrada.forEach(r => {
         const nomeCompleto = (r.nome || '').trim();
         const comum = (r.comum || '').trim();
         const key = `${nomeCompleto}_${comum}`;
@@ -1313,6 +1416,10 @@ export const supabaseDataService = {
 
       const uniqueData = Array.from(uniqueMap.values());
       console.log(`✅ ${uniqueData.length} pessoas únicas após remover duplicatas`);
+
+      // 🚀 OTIMIZAÇÃO: Salvar no cache para próximas consultas
+      await cacheManager.set(cacheKey, uniqueData, 'pessoas');
+      console.log(`💾 [fetchPessoasFromCadastro] Cache salvo para chave: ${cacheKey}`);
 
       return uniqueData;
     } catch (error) {
@@ -2211,35 +2318,120 @@ export const supabaseDataService = {
   async getRegistrosPendentesFromLocal(): Promise<RegistroPresenca[]> {
     if (Platform.OS === 'web') {
       // Para web, usar cache em memória ou AsyncStorage
+      const registros: RegistroPresenca[] = [];
+      
+      // Buscar do cache em memória
       if (memoryCache.registros.length > 0) {
-        return memoryCache.registros.filter(r => r.status_sincronizacao === 'pending');
+        registros.push(...memoryCache.registros.filter(r => r.status_sincronizacao === 'pending'));
       }
+      
+      // Buscar do AsyncStorage
       try {
         const cached = await robustGetItem('cached_registros');
         if (cached) {
-          const registros = JSON.parse(cached);
+          const cachedRegistros = JSON.parse(cached);
           // Validar e sanitizar dados
-          const validRegistros = registros.filter((r: any) => 
+          const validRegistros = cachedRegistros.filter((r: any) => 
             isValidString(r.id) && r.status_sincronizacao
           );
           memoryCache.registros = validRegistros;
-          return validRegistros.filter((r: RegistroPresenca) => r.status_sincronizacao === 'pending');
+          const pendingFromCache = validRegistros.filter((r: RegistroPresenca) => r.status_sincronizacao === 'pending');
+          // Adicionar apenas se não estiverem já na lista
+          for (const r of pendingFromCache) {
+            if (!registros.find(existing => existing.id === r.id)) {
+              registros.push(r);
+            }
+          }
         }
       } catch (error) {
         console.warn('⚠️ Erro ao ler registros do cache robusto:', error);
       }
-      return [];
+      
+      // 🚨 CORREÇÃO: Também buscar registros salvos como fallback em AsyncStorage (web)
+      try {
+        const allKeys = await robustGetAllKeys();
+        const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
+        for (const key of fallbackKeys) {
+          try {
+            const data = await robustGetItem(key);
+            if (data) {
+              const registro = JSON.parse(data);
+              if (registro.status_sincronizacao === 'pending' && !registros.find(r => r.id === registro.id)) {
+                registros.push(registro);
+              }
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Erro ao parsear registro fallback:', key, parseError);
+          }
+        }
+      } catch (fallbackError) {
+        console.warn('⚠️ Erro ao buscar registros fallback (web):', fallbackError);
+      }
+      
+      return registros;
     }
 
     // Para mobile, usar SQLite
-    const db = await getDatabase();
-    const result = (await db.getAllAsync(
-      "SELECT * FROM registros_presenca WHERE status_sincronizacao = 'pending' ORDER BY created_at"
-    )) as RegistroPresenca[];
-    return result.map(r => ({
-      ...r,
-      status_sincronizacao: r.status_sincronizacao as 'pending' | 'synced',
-    }));
+    try {
+      const db = await getDatabase();
+      const result = (await db.getAllAsync(
+        "SELECT * FROM registros_presenca WHERE status_sincronizacao = 'pending' ORDER BY created_at"
+      )) as RegistroPresenca[];
+      const registros = result.map(r => ({
+        ...r,
+        status_sincronizacao: r.status_sincronizacao as 'pending' | 'synced',
+      }));
+      
+      // 🚨 CORREÇÃO: Também buscar registros salvos como fallback em AsyncStorage
+      try {
+        const allKeys = await robustGetAllKeys();
+        const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
+        for (const key of fallbackKeys) {
+          try {
+            const data = await robustGetItem(key);
+            if (data) {
+              const registro = JSON.parse(data);
+              if (registro.status_sincronizacao === 'pending' && !registros.find(r => r.id === registro.id)) {
+                registros.push(registro);
+              }
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Erro ao parsear registro fallback:', key, parseError);
+          }
+        }
+      } catch (fallbackError) {
+        console.warn('⚠️ Erro ao buscar registros fallback:', fallbackError);
+      }
+      
+      return registros;
+    } catch (error) {
+      console.warn('⚠️ Erro ao buscar registros pendentes do SQLite, tentando fallback:', error);
+      // Fallback: tentar buscar de AsyncStorage se houver registros salvos como fallback
+      try {
+        const allKeys = await robustGetAllKeys();
+        const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
+        const fallbackRegistros: RegistroPresenca[] = [];
+        
+        for (const key of fallbackKeys) {
+          try {
+            const data = await robustGetItem(key);
+            if (data) {
+              const registro = JSON.parse(data);
+              if (registro.status_sincronizacao === 'pending') {
+                fallbackRegistros.push(registro);
+              }
+            }
+          } catch (parseError) {
+            console.warn('⚠️ Erro ao parsear registro fallback:', key, parseError);
+          }
+        }
+        
+        return fallbackRegistros;
+      } catch (fallbackError) {
+        console.warn('⚠️ Erro no fallback de registros pendentes:', fallbackError);
+        return []; // Retornar array vazio em vez de lançar erro
+      }
+    }
   },
 
   async getAllRegistrosFromLocal(): Promise<RegistroPresenca[]> {
@@ -2298,12 +2490,20 @@ export const supabaseDataService = {
     const saveKey = `${registro.pessoa_id}_${registro.comum_id}_${registro.cargo_id}_${registro.data_hora_registro}`;
     const now = Date.now();
     
-    // Se está salvando o mesmo registro em menos de 3 segundos, bloquear
+    // 🚨 CORREÇÃO: Ajustar lógica de bloqueio para ser menos restritiva
+    // Bloquear apenas se for EXATAMENTE o mesmo registro sendo salvo simultaneamente
+    // Reduzir tempo de bloqueio de 3s para 1s para não bloquear salvamentos legítimos
     if (savingLock && 
         lastSaveKey === saveKey && 
-        (now - lastSaveTimestamp) < 3000) {
-      console.warn('🚨 [BLOQUEIO] Salvamento duplicado bloqueado');
-      return;
+        (now - lastSaveTimestamp) < 1000) {
+      console.warn('🚨 [BLOQUEIO] Salvamento duplicado bloqueado (mesmo registro em menos de 1s)');
+      // Em vez de retornar silenciosamente, aguardar um pouco e tentar novamente
+      await new Promise(resolve => setTimeout(resolve, 500));
+      // Verificar novamente após aguardar
+      if (savingLock && lastSaveKey === saveKey && (Date.now() - lastSaveTimestamp) < 1000) {
+        console.warn('🚨 [BLOQUEIO] Ainda bloqueado após aguardar - retornando');
+        return;
+      }
     }
     
     // Ativar lock
@@ -2313,30 +2513,98 @@ export const supabaseDataService = {
     
     try {
       // 🛡️ VERIFICAÇÃO RÁPIDA DE DUPLICATA (mais eficiente - verifica primeiro)
-      const registrosPendentes = await this.getRegistrosPendentesFromLocal();
+      // 🚀 OTIMIZAÇÃO: Usar query SQL direta no SQLite para verificação mais rápida (mobile)
       const dataRegistro = new Date(registro.data_hora_registro);
       const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
       
-      // Verificação rápida: mesmo pessoa_id, comum_id, cargo_id e data
-      const isDuplicataRapida = registrosPendentes.some(r => {
-        const rData = new Date(r.data_hora_registro);
-        const rDataStr = rData.toISOString().split('T')[0];
-        return (
-          r.pessoa_id === registro.pessoa_id &&
-          r.comum_id === registro.comum_id &&
-          r.cargo_id === registro.cargo_id &&
-          rDataStr === dataRegistroStr &&
-          r.status_sincronizacao === 'pending'
-        );
-      });
+      // 🚨 CORREÇÃO CRÍTICA: Buscar registros pendentes uma vez no início para usar em todo o escopo
+      let registrosPendentes: RegistroPresenca[] = [];
+      try {
+        registrosPendentes = await this.getRegistrosPendentesFromLocal();
+      } catch (error) {
+        console.warn('⚠️ Erro ao buscar registros pendentes, continuando sem validação de duplicata:', error);
+        // Continuar mesmo com erro - melhor salvar do que perder o registro
+      }
+      
+      let isDuplicataRapida = false;
+      
+      // 🚀 OTIMIZAÇÃO: No mobile, usar query SQL direta (mais rápido)
+      if (Platform.OS !== 'web') {
+        try {
+          const db = await getDatabase();
+          const result = await db.getAllAsync(
+            `SELECT COUNT(*) as count FROM registros_presenca 
+             WHERE pessoa_id = ? 
+             AND comum_id = ? 
+             AND cargo_id = ? 
+             AND DATE(data_hora_registro) = ? 
+             AND status_sincronizacao = 'pending'`,
+            [registro.pessoa_id, registro.comum_id, registro.cargo_id, dataRegistroStr]
+          ) as any[];
+          
+          isDuplicataRapida = (result[0]?.count || 0) > 0;
+        } catch (error) {
+          console.warn('⚠️ Erro ao verificar duplicata via SQL, usando método alternativo:', error);
+          // Fallback para método original usando registrosPendentes já carregados
+          isDuplicataRapida = registrosPendentes.some(r => {
+            const rData = new Date(r.data_hora_registro);
+            const rDataStr = rData.toISOString().split('T')[0];
+            return (
+              r.pessoa_id === registro.pessoa_id &&
+              r.comum_id === registro.comum_id &&
+              r.cargo_id === registro.cargo_id &&
+              rDataStr === dataRegistroStr &&
+              r.status_sincronizacao === 'pending'
+            );
+          });
+        }
+      } else {
+        // Web: usar método original com registrosPendentes já carregados
+        isDuplicataRapida = registrosPendentes.some(r => {
+          const rData = new Date(r.data_hora_registro);
+          const rDataStr = rData.toISOString().split('T')[0];
+          return (
+            r.pessoa_id === registro.pessoa_id &&
+            r.comum_id === registro.comum_id &&
+            r.cargo_id === registro.cargo_id &&
+            rDataStr === dataRegistroStr &&
+            r.status_sincronizacao === 'pending'
+          );
+        });
+      }
       
       if (isDuplicataRapida) {
-        console.warn('🚨 [BLOQUEIO] Duplicata detectada - NÃO será salvo');
-        return;
+        console.warn('🚨 [BLOQUEIO] Duplicata detectada na verificação rápida - verificando novamente...');
+        // 🚨 CORREÇÃO: Em vez de bloquear imediatamente, fazer verificação mais detalhada
+        // Pode ser falso positivo se o registro anterior foi sincronizado
+        const registrosPendentesAtualizados = await this.getRegistrosPendentesFromLocal();
+        const duplicataConfirmada = registrosPendentesAtualizados.some(r => {
+          const rData = new Date(r.data_hora_registro);
+          const rDataStr = rData.toISOString().split('T')[0];
+          return (
+            r.pessoa_id === registro.pessoa_id &&
+            r.comum_id === registro.comum_id &&
+            r.cargo_id === registro.cargo_id &&
+            rDataStr === dataRegistroStr &&
+            r.status_sincronizacao === 'pending' &&
+            r.id !== registro.id // Não é o mesmo registro
+          );
+        });
+        
+        if (duplicataConfirmada) {
+          console.warn('🚨 [BLOQUEIO] Duplicata confirmada - NÃO será salvo');
+          return;
+        } else {
+          console.log('✅ Duplicata não confirmada - continuando com salvamento');
+        }
       }
       
       // 🛡️ VERIFICAÇÃO DETALHADA DE DUPLICATA (apenas se passou na rápida)
+      // 🚀 OTIMIZAÇÃO: Só buscar pessoas se realmente necessário (não é manual)
       try {
+        // Verificar se é registro manual (pessoa_id começa com "manual_")
+        const isManualRegistro = registro.pessoa_id.startsWith('manual_');
+        
         // Buscar dados para comparação (com tratamento de erro)
         let comuns: Comum[] = [];
         let cargos: Cargo[] = [];
@@ -2350,10 +2618,8 @@ export const supabaseDataService = {
         } catch (error) {
           console.warn('⚠️ Erro ao buscar comuns/cargos para validação de duplicata:', error);
         }
-
-        // Verificar se é registro manual (pessoa_id começa com "manual_")
-        const isManualRegistro = registro.pessoa_id.startsWith('manual_');
         
+        // 🚀 OTIMIZAÇÃO: Só buscar pessoas se não for registro manual
         if (!isManualRegistro) {
           try {
             pessoas = await this.getPessoasFromLocal(
@@ -2488,6 +2754,7 @@ export const supabaseDataService = {
         return;
       }
       const now = new Date().toISOString();
+      // 🚨 CORREÇÃO: Definir registroCompleto no escopo do try para estar disponível no catch
       const registroCompleto: RegistroPresenca = {
         ...registro,
         id,
@@ -2525,6 +2792,28 @@ export const supabaseDataService = {
       // Para mobile, usar SQLite
       try {
         const db = await getDatabase();
+        
+        // 🚨 CORREÇÃO: Garantir que a tabela existe antes de inserir
+        try {
+          await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS registros_presenca (
+              id TEXT PRIMARY KEY,
+              pessoa_id TEXT NOT NULL,
+              comum_id TEXT NOT NULL,
+              cargo_id TEXT NOT NULL,
+              instrumento_id TEXT,
+              local_ensaio TEXT,
+              data_hora_registro TEXT NOT NULL,
+              usuario_responsavel TEXT,
+              status_sincronizacao TEXT NOT NULL DEFAULT 'pending',
+              created_at TEXT,
+              updated_at TEXT
+            )
+          `);
+        } catch (tableError) {
+          console.warn('⚠️ Erro ao criar/verificar tabela (pode já existir):', tableError);
+        }
+        
         await db.runAsync(
           `INSERT OR REPLACE INTO registros_presenca 
            (id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at) 
@@ -2535,19 +2824,43 @@ export const supabaseDataService = {
             registro.comum_id,
             registro.cargo_id,
             registro.instrumento_id || null,
-            registro.local_ensaio,
+            registro.local_ensaio || null,
             registro.data_hora_registro,
-            registro.usuario_responsavel,
-            registro.status_sincronizacao,
+            registro.usuario_responsavel || null,
+            registro.status_sincronizacao || 'pending',
             registro.created_at || now,
             registro.updated_at || now,
           ]
         );
+        console.log('✅ Registro salvo no SQLite com sucesso (ID:', id, ')');
       } catch (error) {
         console.error('❌ Erro ao salvar no SQLite:', error);
-        // Tentar novamente
+        // Tentar novamente com nova conexão
         try {
+          // Tentar reinicializar o banco
           const db = await getDatabase();
+          
+          // Garantir que a tabela existe
+          try {
+            await db.execAsync(`
+              CREATE TABLE IF NOT EXISTS registros_presenca (
+                id TEXT PRIMARY KEY,
+                pessoa_id TEXT NOT NULL,
+                comum_id TEXT NOT NULL,
+                cargo_id TEXT NOT NULL,
+                instrumento_id TEXT,
+                local_ensaio TEXT,
+                data_hora_registro TEXT NOT NULL,
+                usuario_responsavel TEXT,
+                status_sincronizacao TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT,
+                updated_at TEXT
+              )
+            `);
+          } catch (tableError) {
+            console.warn('⚠️ Erro ao criar/verificar tabela na segunda tentativa:', tableError);
+          }
+          
           await db.runAsync(
             `INSERT OR REPLACE INTO registros_presenca 
              (id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at) 
@@ -2558,27 +2871,65 @@ export const supabaseDataService = {
               registro.comum_id,
               registro.cargo_id,
               registro.instrumento_id || null,
-              registro.local_ensaio,
+              registro.local_ensaio || null,
               registro.data_hora_registro,
-              registro.usuario_responsavel,
-              registro.status_sincronizacao,
+              registro.usuario_responsavel || null,
+              registro.status_sincronizacao || 'pending',
               registro.created_at || now,
               registro.updated_at || now,
             ]
           );
+          console.log('✅ Registro salvo no SQLite na segunda tentativa (ID:', id, ')');
         } catch (retryError) {
-          console.error('❌ Erro crítico ao salvar:', retryError);
-          throw retryError;
+          console.error('❌ Erro crítico ao salvar mesmo na segunda tentativa:', retryError);
+          // 🚨 CORREÇÃO CRÍTICA: Em vez de lançar erro, tentar salvar em AsyncStorage como fallback
+          try {
+            console.log('🔄 Tentando salvar em AsyncStorage como fallback...');
+            const fallbackData = {
+              id,
+              ...registroCompleto,
+              _fallback: true, // Marcar como fallback para sincronizar depois
+            };
+            await robustSetItem(`registro_fallback_${id}`, JSON.stringify(fallbackData));
+            console.log('✅ Registro salvo em AsyncStorage como fallback (ID:', id, ')');
+            // Não lançar erro - o registro foi salvo no fallback
+          } catch (fallbackError) {
+            console.error('❌ Erro crítico mesmo no fallback:', fallbackError);
+            throw new Error(`Falha ao salvar registro offline: ${retryError instanceof Error ? retryError.message : String(retryError)}`);
+          }
         }
       }
     } catch (error) {
       console.error('❌ ERRO CRÍTICO em saveRegistroToLocal:', error);
-      throw error; // Re-lançar erro para ser tratado no nível superior
+      
+      // 🚨 CORREÇÃO CRÍTICA: Tentar salvar em AsyncStorage como último recurso antes de lançar erro
+      try {
+        console.log('🔄 Tentando salvar em AsyncStorage como último recurso...');
+        // Criar registro completo se não foi criado antes (pode ter falhado antes)
+        const idFinal = registro.id || uuidv4();
+        const nowFinal = new Date().toISOString();
+        const registroCompletoFallback: RegistroPresenca = {
+          ...registro,
+          id: idFinal,
+          created_at: registro.created_at || nowFinal,
+          updated_at: registro.updated_at || nowFinal,
+        };
+        const fallbackData = {
+          ...registroCompletoFallback,
+          _fallback: true, // Marcar como fallback para sincronizar depois
+        };
+        await robustSetItem(`registro_fallback_${idFinal}`, JSON.stringify(fallbackData));
+        console.log('✅ Registro salvo em AsyncStorage como último recurso (ID:', idFinal, ')');
+        // Não lançar erro - o registro foi salvo no fallback
+        return; // Retornar sem erro para não bloquear o usuário
+      } catch (fallbackError) {
+        console.error('❌ Erro crítico mesmo no fallback final:', fallbackError);
+        throw error; // Re-lançar erro original se fallback também falhar
+      }
     } finally {
-      // Liberar lock após 1 segundo (tempo suficiente para evitar duplicatas)
-      setTimeout(() => {
-        savingLock = false;
-      }, 1000);
+      // 🚨 CORREÇÃO: Liberar lock imediatamente após completar (não esperar 1 segundo)
+      // O lock já serviu seu propósito de prevenir salvamentos simultâneos
+      savingLock = false;
     }
   },
 
