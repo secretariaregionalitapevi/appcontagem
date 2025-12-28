@@ -30,6 +30,8 @@ import { googleSheetsService } from '../services/googleSheetsService';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { Comum, Cargo, Instrumento, Pessoa, RegistroPresenca } from '../types/models';
+import { normalizeString } from '../utils/stringNormalization';
+import { cacheManager } from '../utils/cacheManager';
 import { getCurrentDateTimeISO, formatDate, formatTime } from '../utils/dateUtils';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
@@ -62,6 +64,7 @@ export const RegisterScreen: React.FC = () => {
   const [selectedInstrumento, setSelectedInstrumento] = useState<string>('');
   const [selectedPessoa, setSelectedPessoa] = useState<string>('');
   const [isNomeManual, setIsNomeManual] = useState(false);
+  const [nameFieldKey, setNameFieldKey] = useState(0); // Key para forçar remontagem do NameSelectField
 
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -223,54 +226,97 @@ export const RegisterScreen: React.FC = () => {
     });
   }, [setOnStatusChange, syncing, syncData]);
 
-  // Sincronização automática quando voltar online
+  // 🚨 SISTEMA EXATO DO BACKUPCONT: Listener para evento online
   useEffect(() => {
-    if (isOnline && !syncing) {
-      console.log('🌐 [AUTO-SYNC] Online detectado - verificando registros pendentes...');
+    const handleOnline = async () => {
+      console.log('🌐 Evento online detectado - verificando conectividade real');
       
-      // Aguardar um pouco para garantir que a conexão está estável
-      const syncTimeout = setTimeout(async () => {
-        // Verificar novamente se ainda está online
+      // Aguardar um pouco para garantir que a conexão está estável (como BACKUPCONT)
+      setTimeout(async () => {
         try {
-          const netState = await NetInfo.fetch();
-          const isReallyOnline = netState.isConnected === true && netState.isInternetReachable === true;
-          
-          if (!isReallyOnline || syncing) {
-            console.log('⏸️ [AUTO-SYNC] Não está realmente online ou já sincronizando, pulando...');
-            return;
-          }
-          
-          // Verificar se há registros pendentes
-          const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
-          
-          if (registros.length > 0) {
-            console.log(`🔄 [AUTO-SYNC] ${registros.length} registro(s) pendente(s) encontrado(s) - iniciando sincronização automática...`);
-            await syncData();
+          const isReallyOnline = await offlineSyncService.isOnline();
+          if (isReallyOnline) {
+            console.log('✅ Conectividade real confirmada - processando fila');
+            // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando volta online
+            showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
+            // Usar processarFilaLocal que é exatamente como BACKUPCONT
+            await offlineSyncService.processarFilaLocal();
+            console.log('✅ Fila processada automaticamente');
           } else {
-            console.log('📭 [AUTO-SYNC] Nenhum registro pendente para sincronizar');
+            console.log('⚠️ Evento online falso - mantendo modo offline');
           }
-        } catch (error) {
-          console.error('❌ [AUTO-SYNC] Erro ao verificar/sincronizar:', error);
-          // Tentar sincronizar mesmo assim
-          try {
-            await syncData();
-          } catch (syncError) {
-            console.error('❌ [AUTO-SYNC] Erro na sincronização:', syncError);
+        } catch (e) {
+          console.error('❌ Erro ao verificar conectividade:', e);
+        }
+      }, 3000); // 3 segundos (exatamente como BACKUPCONT)
+    };
+
+    const handleOffline = () => {
+      console.log('📵 Conexão perdida - modo offline ativado');
+      // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando fica offline
+      showToast.warning('Modo offline', 'Registros serão salvos na fila');
+    };
+
+    // Adicionar listener apenas na web (React Native usa NetInfo)
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+    
+    // Para React Native, usar NetInfo listener
+    if (Platform.OS !== 'web') {
+      let lastStatus: boolean | null = null;
+      
+      const unsubscribe = NetInfo.addEventListener(state => {
+        const isConnectedNow = state.isConnected === true && state.isInternetReachable === true;
+        
+        // 🚨 CRÍTICO: Só mostrar alerta quando status MUDAR (não na primeira verificação)
+        if (lastStatus !== null && lastStatus !== isConnectedNow) {
+          if (isConnectedNow) {
+            // Voltou online
+            console.log('✅ Conectividade restaurada - verificando...');
+            setTimeout(async () => {
+              try {
+                const isReallyOnline = await offlineSyncService.isOnline();
+                if (isReallyOnline) {
+                  console.log('✅ Conectividade real confirmada - processando fila');
+                  showToast.success('Conexão restaurada', 'Enviando registros pendentes...', 3000);
+                  await offlineSyncService.processarFilaLocal();
+                }
+              } catch (e) {
+                console.error('❌ Erro ao verificar conectividade:', e);
+              }
+            }, 3000);
+          } else {
+            // Ficou offline
+            console.log('📵 Conexão perdida - modo offline ativado');
+            showToast.warning('Modo offline', 'Registros serão salvos na fila', 3000);
           }
         }
-      }, 3000); // Aumentado para 3 segundos para garantir conexão estável
+        
+        lastStatus = isConnectedNow;
+      });
       
-      return () => clearTimeout(syncTimeout);
-    } else {
-      if (!isOnline) {
-        console.log('📴 [AUTO-SYNC] Offline - não sincronizando');
-      } else if (syncing) {
-        console.log('⏳ [AUTO-SYNC] Já sincronizando - aguardando...');
-      }
+      // Verificar status inicial
+      NetInfo.fetch().then(state => {
+        const initialStatus = state.isConnected === true && state.isInternetReachable === true;
+        lastStatus = initialStatus;
+        if (!initialStatus) {
+          console.log('📵 Status inicial: offline');
+        }
+      });
+      
+      return () => {
+        unsubscribe();
+      };
     }
-  }, [isOnline, syncing, syncData]);
+  }, []);
 
-  // Sincronização automática periódica da fila offline (igual ao backupcont)
+  // 🚨 SISTEMA EXATO DO BACKUPCONT: Processamento periódico da fila (a cada 30s)
   useEffect(() => {
     // Limpar intervalo anterior se existir
     if (syncIntervalRef.current) {
@@ -278,46 +324,41 @@ export const RegisterScreen: React.FC = () => {
       syncIntervalRef.current = null;
     }
 
-    // Iniciar sincronização automática a cada 5 segundos quando online
-    if (isOnline) {
-      console.log('🔄 Iniciando sincronização automática da fila offline (a cada 5s)');
-      
-      syncIntervalRef.current = setInterval(async () => {
-        if (!syncing && isOnline) {
-          try {
-            // Verificar conectividade real antes de processar
-            const reallyOnline = await offlineSyncService.isOnline();
-            if (!reallyOnline) {
-              console.log('📴 Sem conexão real - pulando processamento da fila');
-              return;
-            }
-
-            const queue = await supabaseDataService.getRegistrosPendentesFromLocal();
-            const pendingItems = queue.filter((item: any) => !item.status_sincronizacao || item.status_sincronizacao === 'pending');
-            
-            if (pendingItems.length > 0) {
-              console.log(`🔄 Processamento automático: ${pendingItems.length} itens pendentes`);
-              // Processar assincronamente sem bloquear
-              syncData().catch(error => {
-                console.error('❌ Erro no processamento automático:', error);
-              });
-            }
-          } catch (error) {
-            console.error('❌ Erro ao verificar fila offline:', error);
+    console.log('🔄 Iniciando processamento periódico da fila (a cada 30s) - como BACKUPCONT');
+    
+    syncIntervalRef.current = setInterval(async () => {
+      try {
+        // Verificar se há itens na fila (como BACKUPCONT)
+        const fila = await supabaseDataService.getRegistrosPendentesFromLocal();
+        
+        if (fila.length > 0) {
+          console.log('🔄 Processamento periódico da fila...');
+          
+          // Verifica conectividade real antes de processar (como BACKUPCONT)
+          const isOnline = await offlineSyncService.isOnline();
+          if (isOnline) {
+            // Usar processarFilaLocal que é exatamente como BACKUPCONT
+            await offlineSyncService.processarFilaLocal();
+          } else {
+            console.log('📵 Sem conectividade real - mantendo fila');
           }
         }
-      }, 5000); // A cada 5 segundos
-    }
+      } catch (error) {
+        console.error('❌ Erro no processamento periódico:', error);
+      }
+    }, 30000); // A cada 30 segundos (exatamente como BACKUPCONT)
 
-    // Cleanup: limpar intervalo quando componente desmontar ou quando ficar offline
+    // Cleanup: limpar intervalo quando componente desmontar
     return () => {
       if (syncIntervalRef.current) {
         clearInterval(syncIntervalRef.current);
         syncIntervalRef.current = null;
       }
     };
-  }, [isOnline, syncing]);
+  }, []); // Sem dependências - sempre executar
 
+  // 🚀 OTIMIZAÇÃO: Carregar imediatamente quando comum e cargo são selecionados
+  // Removido debounce para resposta instantânea
   useEffect(() => {
     // Verificar se precisa de instrumento obrigatório (apenas Músico)
     // Organista e Candidato(a) não precisam de instrumento obrigatório, mas podem ter
@@ -333,7 +374,7 @@ export const RegisterScreen: React.FC = () => {
         setSelectedPessoa('');
         return;
       }
-      // Tem todos os campos necessários, carregar pessoas
+      // 🚀 CARREGAR IMEDIATAMENTE - sem debounce para resposta instantânea
       loadPessoas();
     } else {
       setPessoas([]);
@@ -404,6 +445,18 @@ export const RegisterScreen: React.FC = () => {
     }
   };
 
+  // Função helper para limpar todos os campos do formulário
+  const clearAllFields = useCallback(() => {
+    console.log('🧹 Limpando todos os campos do formulário');
+    setSelectedComum('');
+    setSelectedCargo('');
+    setSelectedInstrumento('');
+    setSelectedPessoa('');
+    setIsNomeManual(false);
+    // Incrementar key para forçar remontagem do NameSelectField
+    setNameFieldKey(prev => prev + 1);
+  }, []);
+
   // Função para pull-to-refresh (otimizada com useCallback)
   const onRefresh = useCallback(async () => {
     if (refreshing || syncing) {
@@ -417,11 +470,7 @@ export const RegisterScreen: React.FC = () => {
       
       // 🚨 CRÍTICO: Limpar todos os campos do formulário primeiro
       console.log('🧹 Limpando campos do formulário...');
-      setSelectedComum('');
-      setSelectedCargo('');
-      setSelectedInstrumento('');
-      setSelectedPessoa('');
-      setIsNomeManual(false);
+      clearAllFields();
       
       // Mostrar feedback visual imediato
       showToast.info('Atualizando...', 'Recarregando dados');
@@ -456,7 +505,91 @@ export const RegisterScreen: React.FC = () => {
   }, [refreshing, syncing, isOnline, syncData, refreshCount, loadInitialData]);
 
   const loadPessoas = async () => {
-    // 🚀 OTIMIZAÇÃO: Mostrar loading imediatamente
+    // 🚀 OTIMIZAÇÃO: Verificar cache primeiro antes de mostrar loading
+    // Buscar nomes de comum e cargo rapidamente (já estão em memória)
+    const comumObj = comuns.find(c => c.id === selectedComum);
+    const cargoObj = cargos.find(c => c.id === selectedCargo);
+    const instrumentoObj = showInstrumento && selectedInstrumento 
+      ? instrumentos.find(i => i.id === selectedInstrumento) 
+      : undefined;
+    
+    if (!comumObj || !cargoObj) {
+      setPessoas([]);
+      return;
+    }
+    
+    // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
+    const CACHE_VERSION = 'v2';
+    const cacheKey = `pessoas_${CACHE_VERSION}_${comumObj.nome}_${cargoObj.nome}_${instrumentoObj?.nome || ''}`;
+    
+    try {
+      // Tentar buscar do cache primeiro (síncrono/assíncrono rápido)
+      const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
+      
+      if (cached && cached.length > 0) {
+        // 🚀 Cache encontrado - aplicar filtro de cargo e converter
+        console.log(`✅ [loadPessoas] Cache encontrado: ${cached.length} pessoas - aplicando filtros`);
+        
+        // 🚨 CORREÇÃO: Aplicar filtro de cargo também nos dados do cache (mesma lógica do fetchPessoasFromCadastro)
+        let filteredCached = cached;
+        const cargoBusca = cargoObj.nome.trim().toUpperCase();
+        if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+          const cargoBuscaNormalizado = normalizeString(cargoBusca);
+          filteredCached = cached.filter((item: any) => {
+            if (!item.cargo) return false;
+            const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
+            
+            if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
+            if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
+              const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
+              const isSubstring = cargosConhecidos.some(c => 
+                c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+              );
+              return !isSubstring;
+            }
+            return false;
+          });
+          console.log(`🔍 [loadPessoas] Filtro aplicado no cache: ${cached.length} → ${filteredCached.length} resultados`);
+        }
+        
+        // Converter dados do cache para formato Pessoa[]
+        const pessoas: Pessoa[] = filteredCached.map((p, index) => {
+          const nomeCompleto = (p.nome || '').trim();
+          const partesNome = nomeCompleto.split(' ').filter(p => p.trim());
+          const primeiroNome = partesNome[0] || '';
+          const ultimoNome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : '';
+
+          const pessoa: Pessoa = {
+            id: `pessoa_${index}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
+            nome: primeiroNome,
+            sobrenome: ultimoNome,
+            nome_completo: nomeCompleto,
+            comum_id: selectedComum,
+            cargo_id: selectedCargo,
+            cargo_real: (p.cargo || '').toUpperCase().trim(),
+            instrumento_id: showInstrumento ? selectedInstrumento : null,
+            cidade: (p.cidade || '').toUpperCase().trim(),
+            nivel: (p.nivel || '').trim().toUpperCase() || null,
+            ativo: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          if (p.nivel && (p.nivel.toUpperCase().includes('OFICIALIZADA') || p.nivel.toUpperCase().includes('CLASSE'))) {
+            pessoa.classe_organista = p.nivel.toUpperCase().trim();
+          }
+
+          return pessoa;
+        });
+        
+        setPessoas(pessoas);
+        return; // Retornar imediatamente - não precisa buscar do banco
+      }
+    } catch (error) {
+      console.warn('⚠️ [loadPessoas] Erro ao verificar cache, continuando com busca normal:', error);
+    }
+    
+    // Se não encontrou cache, mostrar loading e buscar do banco
     setLoadingPessoas(true);
     setPessoas([]); // Limpar lista imediatamente para feedback visual
     
@@ -486,6 +619,7 @@ export const RegisterScreen: React.FC = () => {
       selectedPessoaType: typeof selectedPessoa,
       selectedPessoaLength: selectedPessoa?.length,
       selectedPessoaTrimmed: selectedPessoa?.trim(),
+      selectedPessoaValue: selectedPessoa,
     });
     
     // Validar campos obrigatórios (permitir nome manual para candidatos também)
@@ -507,7 +641,18 @@ export const RegisterScreen: React.FC = () => {
         selectedPessoaTrimmed: selectedPessoa?.trim(),
         pessoasCount: pessoas.length,
       });
-      Alert.alert('Erro', 'Selecione um nome da lista ou digite manualmente');
+      Alert.alert('Erro', 'Selecione um nome da lista ou clique em "Adicionar manualmente" para usar um nome que não está na lista');
+      return;
+    }
+    
+    // Verificar se é nome manual e se tem valor válido
+    if (isNomeManual && (!selectedPessoa || selectedPessoa.trim().length < 3)) {
+      console.warn('⚠️ [SUBMIT] Nome manual muito curto', {
+        selectedPessoa,
+        isNomeManual,
+        length: selectedPessoa?.trim().length,
+      });
+      Alert.alert('Erro', 'O nome deve ter pelo menos 3 caracteres');
       return;
     }
 
@@ -581,6 +726,9 @@ export const RegisterScreen: React.FC = () => {
     
     // 🚨 CRÍTICO: Se estiver offline, salvar IMEDIATAMENTE na fila (SEM tentar online)
     if (isOfflineNow) {
+      // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar alerta quando fica offline
+      showToast.warning('Modo offline', 'Registros serão salvos na fila');
+      
       console.log(`📴 [${Platform.OS}] Modo offline detectado - salvando diretamente na fila`);
       console.log(`📊 [${Platform.OS}] Dados do registro:`, {
         pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
@@ -722,11 +870,7 @@ export const RegisterScreen: React.FC = () => {
         console.log(`✅ [${Platform.OS}] Toast de sucesso exibido`);
         
         // Limpar formulário
-        setSelectedComum('');
-        setSelectedCargo('');
-        setSelectedInstrumento('');
-        setSelectedPessoa('');
-        setIsNomeManual(false);
+        clearAllFields();
         
         console.log(`✅ [${Platform.OS}] Formulário limpo, finalizando...`);
         setLoading(false);
@@ -885,12 +1029,8 @@ export const RegisterScreen: React.FC = () => {
         if (foiEnviado) {
           // 🚀 MELHORIA: Toast de sucesso compacto (tudo em uma linha)
           showToast.success('Registro enviado com sucesso');
-          // Limpar formulário
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
+          // Limpar formulário usando função helper
+          clearAllFields();
         } else {
           // Registro foi salvo localmente (sem internet ou erro de conectividade)
           if (!isOnline) {
@@ -1061,8 +1201,13 @@ export const RegisterScreen: React.FC = () => {
                 },
               }).then(async (result: any) => {
                 if (!result.isConfirmed) {
-                  // Usuário cancelou - recarrega a página
-                  console.log('❌ Usuário cancelou registro por duplicata - recarregando página...');
+                  // Usuário cancelou - limpar campos e recarregar página
+                  console.log('❌ Usuário cancelou registro por duplicata - limpando campos e recarregando página...');
+                  setSelectedComum('');
+                  setSelectedCargo('');
+                  setSelectedInstrumento('');
+                  setSelectedPessoa('');
+                  setIsNomeManual(false);
                   setTimeout(() => {
                     window.location.reload();
                   }, 100);
@@ -1086,7 +1231,9 @@ export const RegisterScreen: React.FC = () => {
                       'Registro enviado!',
                       'Registro duplicado cadastrado com sucesso!'
                     );
-                    // Recarregar página após sucesso
+                  // Limpar formulário ANTES de recarregar
+                  clearAllFields();
+                  // Recarregar página após sucesso
                     setTimeout(() => {
                       window.location.reload();
                     }, 1000);
@@ -1095,6 +1242,12 @@ export const RegisterScreen: React.FC = () => {
                       'Erro',
                       resultForce.error || 'Erro ao cadastrar registro duplicado'
                     );
+                    // Limpar formulário ANTES de recarregar
+                    setSelectedComum('');
+                    setSelectedCargo('');
+                    setSelectedInstrumento('');
+                    setSelectedPessoa('');
+                    setIsNomeManual(false);
                     // Recarregar página mesmo em caso de erro
                     setTimeout(() => {
                       window.location.reload();
@@ -1103,6 +1256,12 @@ export const RegisterScreen: React.FC = () => {
                   } catch (error) {
                   showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
                     console.error('Erro ao criar registro duplicado:', error);
+                  // Limpar formulário ANTES de recarregar
+                  setSelectedComum('');
+                  setSelectedCargo('');
+                  setSelectedInstrumento('');
+                  setSelectedPessoa('');
+                  setIsNomeManual(false);
                   // Recarregar página mesmo em caso de erro
                   setTimeout(() => {
                     window.location.reload();
@@ -1245,10 +1404,10 @@ export const RegisterScreen: React.FC = () => {
     return cargos
       .filter(c => !cargosExcluidos.includes(c.nome))
       .map(c => ({
-        id: c.id,
-        label: c.nome,
-        value: c.id,
-      }));
+      id: c.id,
+      label: c.nome,
+      value: c.id,
+    }));
   }, [cargos]);
 
   // MEMOIZAR instrumentosOptions para evitar recriação constante
@@ -1269,6 +1428,21 @@ export const RegisterScreen: React.FC = () => {
     }));
   }, [pessoas]);
 
+  const handleEditRegistros = () => {
+    (navigation as any).navigate('EditRegistros');
+  };
+
+  const handleOrganistasEnsaio = () => {
+    console.log('🎹 Navegando para tela de Organistas no Ensaio');
+    try {
+      (navigation as any).navigate('OrganistasEnsaio');
+    } catch (error) {
+      console.error('❌ Erro ao navegar para OrganistasEnsaio:', error);
+      showToast.error('Erro', 'Não foi possível acessar a página de organistas');
+    }
+  };
+
+  // 🚨 CRÍTICO: Early return DEVE estar DEPOIS de todos os hooks
   if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1277,10 +1451,6 @@ export const RegisterScreen: React.FC = () => {
       </View>
     );
   }
-
-  const handleEditRegistros = () => {
-    (navigation as any).navigate('EditRegistros');
-  };
 
   // Função para salvar novo registro do modal (pessoas de outras cidades)
   const handleSaveNewRegistration = async (data: {
@@ -1411,6 +1581,13 @@ export const RegisterScreen: React.FC = () => {
           
           showToast.success('Salvo offline', 'Registro será enviado quando voltar online');
           
+          // Limpar formulário ANTES de recarregar
+          setSelectedComum('');
+          setSelectedCargo('');
+          setSelectedInstrumento('');
+          setSelectedPessoa('');
+          setIsNomeManual(false);
+          
           // Recarregar página após salvar (apenas web)
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             setTimeout(() => {
@@ -1531,6 +1708,13 @@ export const RegisterScreen: React.FC = () => {
           console.log('✅ [MODAL] Registro salvo como fallback');
           showToast.warning('Salvo na fila', 'Erro ao enviar. Registro será enviado quando possível.');
           
+          // Limpar formulário ANTES de recarregar
+          setSelectedComum('');
+          setSelectedCargo('');
+          setSelectedInstrumento('');
+          setSelectedPessoa('');
+          setIsNomeManual(false);
+          
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             setTimeout(() => {
               window.location.reload();
@@ -1589,6 +1773,13 @@ export const RegisterScreen: React.FC = () => {
       // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
       showToast.success('Registro de visita salvo com sucesso');
 
+      // Limpar formulário ANTES de recarregar
+      setSelectedComum('');
+      setSelectedCargo('');
+      setSelectedInstrumento('');
+      setSelectedPessoa('');
+      setIsNomeManual(false);
+
       // Recarregar página após salvar (aguardar mais tempo para toast aparecer)
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         setTimeout(() => {
@@ -1604,9 +1795,15 @@ export const RegisterScreen: React.FC = () => {
     }
   };
 
+  // Debug: verificar se a função está definida (apenas log, sem hook)
+  console.log('🎹 RegisterScreen - handleOrganistasEnsaio definido?', typeof handleOrganistasEnsaio);
+
   return (
     <View style={styles.container}>
-      <AppHeader onEditRegistrosPress={handleEditRegistros} />
+      <AppHeader 
+        onEditRegistrosPress={handleEditRegistros}
+        onOrganistasEnsaioPress={handleOrganistasEnsaio}
+      />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1786,35 +1983,51 @@ export const RegisterScreen: React.FC = () => {
             isolation: 'isolate',
           } : {}}>
           <NameSelectField
+            key={nameFieldKey} // Key para forçar remontagem quando limpar
             label="Nome e Sobrenome *"
             value={selectedPessoa}
             options={pessoasOptions}
             onSelect={(option: any) => {
-              console.log('📝 [RegisterScreen] onSelect chamado:', {
+              console.log('📝📝📝 [RegisterScreen] onSelect CHAMADO:', {
                 id: option.id,
                 label: option.label,
                 value: option.value,
                 isManual: option.id === 'manual',
                 selectedPessoaAntes: selectedPessoa,
+                isNomeManualAntes: isNomeManual,
               });
+              
               if (option.id === 'manual') {
-                // 🚨 CORREÇÃO: Só atualizar selectedPessoa se houver valor (não vazio)
-                if (option.value && option.value.trim()) {
-                  const novoValor = option.value.trim();
-                  console.log('✏️ [RegisterScreen] Definindo nome manual:', {
-                    valorAntes: selectedPessoa,
-                    valorNovo: novoValor,
-                  });
-                  setSelectedPessoa(novoValor);
+                console.log('✏️✏️✏️✏️✏️ [RegisterScreen] OPÇÃO MANUAL DETECTADA!');
+                console.log('✏️✏️✏️✏️✏️ [RegisterScreen] Option recebida:', JSON.stringify(option));
+                // 🚨 CORREÇÃO: Se o valor está vazio, apenas ativar modo manual mas não limpar selectedPessoa
+                // Isso permite que o usuário clique em "Adicionar novo nome manualmente" sem perder o que já digitou
+                if (!option.value || option.value === '' || !option.value.trim()) {
+                  console.log('✏️✏️✏️✏️✏️ [RegisterScreen] Valor vazio - apenas ativando modo manual, mantendo selectedPessoa');
                   setIsNomeManual(true);
-                  // Log após um pequeno delay para verificar se foi atualizado
-                  setTimeout(() => {
-                    console.log('✅ [RegisterScreen] selectedPessoa após atualização:', selectedPessoa);
-                  }, 100);
-                } else {
-                  console.log('⚠️ [RegisterScreen] onSelect chamado com valor vazio em modo manual - ignorando');
+                  // NÃO limpar selectedPessoa aqui - manter o que já foi digitado
+                  return;
                 }
+                // Se há valor, atualizar selectedPessoa
+                const novoValor = option.value.trim();
+                console.log('✏️✏️✏️✏️✏️ [RegisterScreen] DEFININDO NOME MANUAL:', {
+                  valorAntes: selectedPessoa,
+                  valorNovo: novoValor,
+                  optionValue: option.value,
+                  optionLabel: option.label,
+                  optionId: option.id,
+                });
+                // Atualizar ambos os estados IMEDIATAMENTE
+                setSelectedPessoa(novoValor);
+                setIsNomeManual(true);
               } else {
+                // 🚨 CORREÇÃO CRÍTICA: Se o valor está vazio e NÃO é manual, limpar o estado
+                if (!option.value || option.value === '' || (!option.id || option.id === '')) {
+                  console.log('🧹 [RegisterScreen] Valor vazio - limpando selectedPessoa e isNomeManual');
+                  setSelectedPessoa('');
+                  setIsNomeManual(false);
+                  return;
+                }
                 // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
                 const pessoaId = option.value || option.id;
                 console.log('✅ [RegisterScreen] Definindo selectedPessoa:', pessoaId);
@@ -1891,6 +2104,12 @@ export const RegisterScreen: React.FC = () => {
             setDuplicateModalVisible(false);
             setDuplicateInfo(null);
             setPendingRegistro(null);
+            // Limpar formulário ANTES de recarregar
+            setSelectedComum('');
+            setSelectedCargo('');
+            setSelectedInstrumento('');
+            setSelectedPessoa('');
+            setIsNomeManual(false);
             // Recarregar página após cancelar (igual ao backupcont)
             if (Platform.OS === 'web' && typeof window !== 'undefined') {
               setTimeout(() => {
@@ -1913,7 +2132,7 @@ export const RegisterScreen: React.FC = () => {
               const registroForce = { ...pendingRegistro };
               const resultForce = await (offlineSyncService as any).createRegistro(registroForce, true);
               
-              if (resultForce.success) {
+                if (resultForce.success) {
                 if (isOnline && !syncing) {
                   setTimeout(() => {
                     syncData();
@@ -1923,18 +2142,17 @@ export const RegisterScreen: React.FC = () => {
                   'Registro enviado!',
                   'Registro duplicado cadastrado com sucesso!'
                 );
+                // Limpar formulário ANTES de recarregar (sempre, web e mobile)
+                setSelectedComum('');
+                setSelectedCargo('');
+                setSelectedInstrumento('');
+                setSelectedPessoa('');
+                setIsNomeManual(false);
                 // Recarregar página após sucesso (igual ao backupcont)
                 if (Platform.OS === 'web' && typeof window !== 'undefined') {
                   setTimeout(() => {
                     window.location.reload();
                   }, 1000);
-                } else {
-                  // Mobile: limpar formulário
-                  setSelectedComum('');
-                  setSelectedCargo('');
-                  setSelectedInstrumento('');
-                  setSelectedPessoa('');
-                  setIsNomeManual(false);
                 }
               } else {
                 // Se ainda for duplicata, mostrar modal novamente
@@ -1971,6 +2189,12 @@ export const RegisterScreen: React.FC = () => {
                     'Erro',
                     resultForce.error || 'Erro ao cadastrar registro duplicado'
                   );
+                  // Limpar formulário ANTES de recarregar
+                  setSelectedComum('');
+                  setSelectedCargo('');
+                  setSelectedInstrumento('');
+                  setSelectedPessoa('');
+                  setIsNomeManual(false);
                   // Recarregar página mesmo em caso de erro
                   if (Platform.OS === 'web' && typeof window !== 'undefined') {
                     setTimeout(() => {
@@ -1982,6 +2206,12 @@ export const RegisterScreen: React.FC = () => {
             } catch (error) {
               showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
               console.error('Erro ao criar registro duplicado:', error);
+              // Limpar formulário ANTES de recarregar
+              setSelectedComum('');
+              setSelectedCargo('');
+              setSelectedInstrumento('');
+              setSelectedPessoa('');
+              setIsNomeManual(false);
               // Recarregar página mesmo em caso de erro
               if (Platform.OS === 'web' && typeof window !== 'undefined') {
                 setTimeout(() => {
