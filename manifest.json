@@ -1,9 +1,30 @@
 {
-  "name": "Cadastro de Pessoas",
-  "short_name": "Cadastro",
+  "name": "Sistema de Cadastro - CCB",
+  "short_name": "Cadastro CCB",
+  "description": "Sistema de cadastro de presença com suporte offline",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0b1020",
   "theme_color": "#0ea5e9",
-  "icons": []
+  "icons": [
+    {
+      "src": "./assets/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [],
+  "shortcuts": [],
+  "prefer_related_applications": false,
+  "related_applications": []
 }

@@ -5,6 +5,7 @@ import { RegistroPresenca } from '../types/models';
 import { authService } from './authService';
 import { uuidv4 } from '../utils/uuid';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { formatDate, formatTime } from '../utils/dateUtils';
 
 export const offlineSyncService = {
   async isOnline(): Promise<boolean> {
@@ -86,7 +87,188 @@ export const offlineSyncService = {
     }
   },
 
+  // 🚨 FUNÇÃO MELHORADA: processarFilaLocal com retry e validação robusta
+  async processarFilaLocal(): Promise<{ successCount: number; errorCount: number }> {
+    try {
+      // Buscar fila
+      const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
+      
+      if (registros.length === 0) {
+        console.log('📭 Fila vazia, nada para processar');
+        return { successCount: 0, errorCount: 0 };
+      }
+      
+      // Testa conectividade antes de processar (com retry)
+      let conectividadeOK = false;
+      for (let retry = 0; retry < 3; retry++) {
+        conectividadeOK = await this.isOnline();
+        if (conectividadeOK) break;
+        if (retry < 2) {
+          console.log(`⚠️ Tentativa ${retry + 1}/3: Conectividade não estável, aguardando...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      if (!conectividadeOK) {
+        console.log('⚠️ Conectividade não estável após 3 tentativas, mantendo itens na fila');
+        return { successCount: 0, errorCount: 0 };
+      }
+      
+      console.log(`🔄 Processando fila local: ${registros.length} item(s)`);
+      
+      const itensProcessados: RegistroPresenca[] = [];
+      const itensComErro: RegistroPresenca[] = [];
+      
+      for (let i = 0; i < registros.length; i++) {
+        const item = registros[i];
+        
+        // Verificar conectividade antes de cada item
+        const stillOnline = await this.isOnline();
+        if (!stillOnline) {
+          console.log('⚠️ Conexão perdida durante processamento, interrompendo...');
+          // Adicionar itens restantes de volta à fila
+          itensComErro.push(...registros.slice(i));
+          break;
+        }
+        
+        try {
+          console.log(`📤 Processando item ${i + 1}/${registros.length}: ${item.pessoa_id}`);
+          
+          // Validar item antes de processar
+          if (!item.pessoa_id || !item.comum_id || !item.cargo_id) {
+            console.warn(`⚠️ Item ${i + 1}: Dados incompletos, removendo da fila`);
+            itensProcessados.push(item); // Remover da fila
+            continue;
+          }
+          
+          // Tenta enviar para Google Sheets primeiro (mais crítico)
+          const sheetsResult = await googleSheetsService.sendRegistroToSheet(item);
+          if (sheetsResult.success) {
+            console.log(`✅ Item ${i + 1}: Google Sheets OK`);
+            
+            // Tenta enviar para Supabase (secundário, não bloqueia)
+            try {
+              await supabaseDataService.createRegistroPresenca(item, true);
+              console.log(`✅ Item ${i + 1}: Supabase OK`);
+            } catch (e: any) {
+              console.warn(`⚠️ Item ${i + 1}: Erro no Supabase (não crítico):`, e.message);
+              // Continua mesmo se Supabase falhar (Google Sheets já salvou)
+            }
+            
+            itensProcessados.push(item);
+          } else {
+            // Verificar se é erro de rede ou erro de dados
+            const isNetworkError = 
+              sheetsResult.error?.includes('Failed to fetch') ||
+              sheetsResult.error?.includes('Timeout') ||
+              sheetsResult.error?.includes('Network') ||
+              sheetsResult.error?.includes('AbortError');
+            
+            if (isNetworkError) {
+              // Erro de rede - manter na fila
+              throw new Error('Erro de rede ao enviar para Google Sheets');
+            } else {
+              // Erro de dados - tentar Supabase como fallback
+              console.warn(`⚠️ Item ${i + 1}: Erro no Google Sheets, tentando Supabase...`);
+              try {
+                await supabaseDataService.createRegistroPresenca(item, true);
+                console.log(`✅ Item ${i + 1}: Supabase OK (fallback)`);
+                itensProcessados.push(item);
+              } catch (supabaseError: any) {
+                // Ambos falharam - verificar se é duplicata
+                if (supabaseError.message?.includes('DUPLICATA') || supabaseError.message?.includes('duplicat')) {
+                  console.warn(`⚠️ Item ${i + 1}: Duplicata detectada, removendo da fila`);
+                  itensProcessados.push(item); // Remover da fila
+                } else {
+                  throw supabaseError;
+                }
+              }
+            }
+          }
+          
+        } catch (error: any) {
+          console.error(`❌ Item ${i + 1}: Erro:`, error.message);
+          
+          // Incrementa tentativas
+          const tentativas = (item as any).tentativas || 0;
+          (item as any).tentativas = tentativas + 1;
+          
+          // Se já tentou 3 vezes, remove da fila
+          if ((item as any).tentativas >= 3) {
+            console.log(`🗑️ Item ${i + 1}: Removido após 3 tentativas`);
+            itensProcessados.push(item); // Remover da fila
+          } else {
+            itensComErro.push(item); // Manter na fila para retry
+          }
+        }
+        
+        // Pequena pausa entre itens para não sobrecarregar
+        if (i < registros.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+      
+      // Atualiza fila removendo itens processados
+      // Salvar apenas itens com erro de volta na fila
+      if (itensComErro.length > 0) {
+        const filaKey = 'fila_registros_presenca';
+        const { robustSetItem } = await import('../utils/robustStorage');
+        await robustSetItem(filaKey, JSON.stringify(itensComErro));
+      } else {
+        // Se não há erros, limpar fila completamente
+        const filaKey = 'fila_registros_presenca';
+        const { robustRemoveItem } = await import('../utils/robustStorage');
+        await robustRemoveItem(filaKey);
+      }
+      
+      // Remover itens processados do storage local também
+      for (const item of itensProcessados) {
+        if (item.id) {
+          try {
+            await supabaseDataService.deleteRegistroFromLocal(item.id);
+          } catch (error) {
+            console.warn(`⚠️ Erro ao remover item ${item.id} do storage local:`, error);
+          }
+        }
+      }
+      
+      const result = {
+        successCount: itensProcessados.length,
+        errorCount: itensComErro.length,
+      };
+      
+      console.log(`✅ Fila processada: ${result.successCount} enviados, ${result.errorCount} com erro`);
+      
+      // Mostrar toast quando processa fila
+      if (result.successCount > 0) {
+        const { showToast } = await import('../utils/toast');
+        if (result.errorCount > 0) {
+          showToast.success(
+            'Fila processada', 
+            `${result.successCount} enviado(s), ${result.errorCount} pendente(s)`
+          );
+        } else {
+          showToast.success('Fila processada', `${result.successCount} registro(s) enviado(s) com sucesso!`);
+        }
+        console.log(`✅ ${result.successCount} registro(s) enviado(s) com sucesso!`);
+      } else if (result.errorCount > 0) {
+        const { showToast } = await import('../utils/toast');
+        showToast.warning('Fila não processada', `${result.errorCount} registro(s) aguardando conexão estável`);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Erro ao processar fila local:', error);
+      return { successCount: 0, errorCount: 0 };
+    }
+  },
+
   async syncPendingRegistros(): Promise<{ successCount: number; totalCount: number }> {
+    // Usar processarFilaLocal que é mais simples e funciona como BACKUPCONT
+    await this.processarFilaLocal();
+    
+    // Retornar contagem para compatibilidade
     let registros = await supabaseDataService.getRegistrosPendentesFromLocal();
 
     // Limpar registros inválidos antes de sincronizar
@@ -337,18 +519,10 @@ export const offlineSyncService = {
                 dataExistente: duplicata.data_ensaio,
               });
 
-              // Formatar data e horário do registro existente
+              // Formatar data e horário do registro existente usando funções utilitárias
               const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
-              const dataFormatada = dataExistente.toLocaleDateString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              });
-              const horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-              });
+              const dataFormatada = formatDate(dataExistente);
+              const horarioFormatado = formatTime(dataExistente);
 
               return {
                 success: false,
@@ -411,16 +585,8 @@ export const offlineSyncService = {
             const cargoBusca = cargo.nome.toUpperCase();
 
             const rData = new Date(duplicataLocal.data_hora_registro);
-            const dataFormatada = rData.toLocaleDateString('pt-BR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            });
-            const horarioFormatado = rData.toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            });
+            const dataFormatada = formatDate(rData);
+            const horarioFormatado = formatTime(rData);
 
             return {
               success: false,

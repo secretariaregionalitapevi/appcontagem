@@ -266,7 +266,10 @@ export const robustGetAllKeys = async (): Promise<string[]> => {
  * Limpa todo o storage (cuidado!)
  */
 export const robustClear = async (): Promise<void> => {
-  memoryStorage = {};
+  // Limpar memória
+  Object.keys(memoryStorage).forEach(key => {
+    delete memoryStorage[key];
+  });
   
   if (!useMemoryStorage) {
     try {
