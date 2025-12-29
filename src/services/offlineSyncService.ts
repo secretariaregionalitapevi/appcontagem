@@ -389,71 +389,122 @@ export const offlineSyncService = {
       isOnline = false;
     }
 
-    // 🛡️ VERIFICAÇÃO DE DUPLICADOS NO SUPABASE POR UUID (se online)
-    // 🚨 CORREÇÃO: Verificação simples e confiável - se UUID existe, é duplicata
+    // 🛡️ VERIFICAÇÃO DE DUPLICADOS NO SUPABASE PRIMEIRO (se online)
+    // Deve verificar ANTES de salvar em qualquer lugar
+    // Verifica por nome + comum + cargo + data (mais rigoroso que UUID)
     // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
-    if (isOnline && !skipDuplicateCheck && registro.id) {
+    if (isOnline && !skipDuplicateCheck) {
       try {
-        // 🚨 CORREÇÃO: Verificar apenas se UUID já existe na tabela presencas
-        // UUID é único e confiável - muito mais simples que comparar nome/comum/cargo/data
-        if (isSupabaseConfigured() && supabase) {
-          // Verificar se UUID já existe
-          const uuidCheckPromise = supabase
-            .from('presencas')
-            .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
-            .eq('uuid', registro.id)
-            .limit(1);
-          
-          // Timeout de 2 segundos para não bloquear muito tempo
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
+        // 🚀 OTIMIZAÇÃO: Buscar apenas o necessário (evitar buscar pessoas se nome manual)
+        const isNomeManual = registro.pessoa_id.startsWith('manual_');
+        
+        // Buscar comuns e cargos sempre (são rápidos do cache)
+        const [comuns, cargos] = await Promise.all([
+          supabaseDataService.getComunsFromLocal(),
+          supabaseDataService.getCargosFromLocal(),
+        ]);
+
+        const comum = comuns.find(c => c.id === registro.comum_id);
+        const cargo = cargos.find(c => c.id === registro.cargo_id);
+
+        if (comum && cargo) {
+          let nomeCompleto = '';
+          let cargoReal = cargo.nome; // Usar cargo selecionado como padrão
+
+          if (isNomeManual) {
+            // 🚀 OTIMIZAÇÃO: Não buscar pessoas se nome manual
+            nomeCompleto = registro.pessoa_id.replace(/^manual_/, '').toUpperCase();
+            cargoReal = cargo.nome;
+          } else {
+            // Buscar pessoas apenas se necessário
+            const pessoas = await supabaseDataService.getPessoasFromLocal(
+              registro.comum_id,
+              registro.cargo_id,
+              registro.instrumento_id || undefined
+            );
+            const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
+            if (pessoa) {
+              nomeCompleto = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`)
+                .trim()
+                .toUpperCase();
+              cargoReal = pessoa.cargo_real || cargo.nome;
+            }
+          }
+
+          const comumBusca = comum.nome.toUpperCase();
+          const cargoBusca = cargoReal.toUpperCase(); // Usar cargo REAL, não o selecionado
+
+          // Verificar duplicata no Supabase ANTES de salvar
+          const dataRegistro = new Date(registro.data_hora_registro);
+          const dataInicio = new Date(
+            dataRegistro.getFullYear(),
+            dataRegistro.getMonth(),
+            dataRegistro.getDate()
           );
-          
-          const { data: duplicatas, error: duplicataError } = await Promise.race([
-            uuidCheckPromise,
-            timeoutPromise
-          ]) as any;
+          const dataFim = new Date(dataInicio);
+          dataFim.setDate(dataFim.getDate() + 1);
 
-          // Se for timeout, continuar (não bloquear)
-          if (duplicataError && duplicataError.message?.includes('Timeout')) {
-            console.warn('⚠️ Timeout na verificação de duplicatas por UUID (continuando...):', duplicataError.message);
-          } else if (!duplicataError && duplicatas && duplicatas.length > 0) {
-            // UUID encontrado = duplicata confirmada
-            const duplicata = duplicatas[0];
-            console.error('🚨🚨🚨 DUPLICATA DETECTADA POR UUID - BLOQUEANDO 🚨🚨🚨', {
-              uuid: registro.id,
-              uuidExistente: duplicata.uuid,
-              nome: duplicata.nome_completo,
-              comum: duplicata.comum,
-              cargo: duplicata.cargo,
-              dataExistente: duplicata.data_ensaio,
-            });
+          // Usar supabase diretamente para verificar
+          if (isSupabaseConfigured() && supabase) {
+            // 🚀 OTIMIZAÇÃO: Query com timeout e limit(1) para parar na primeira duplicata (mais rápido)
+            const duplicataPromise = supabase
+              .from('presencas')
+              .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
+              .ilike('nome_completo', nomeCompleto)
+              .ilike('comum', comumBusca)
+              .ilike('cargo', cargoBusca)
+              .gte('data_ensaio', dataInicio.toISOString())
+              .lt('data_ensaio', dataFim.toISOString())
+              .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
+            
+            // 🚀 OTIMIZAÇÃO: Timeout de 2 segundos para não bloquear muito tempo
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
+            );
+            
+            const { data: duplicatas, error: duplicataError } = await Promise.race([
+              duplicataPromise,
+              timeoutPromise
+            ]) as any;
 
-            // Formatar data e horário do registro existente
-            try {
-              const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
-              const dataFormatada = formatDate ? formatDate(dataExistente) : dataExistente.toLocaleDateString('pt-BR');
-              const horarioFormatado = formatTime ? formatTime(dataExistente) : dataExistente.toLocaleTimeString('pt-BR');
-              const nomeDuplicata = (duplicata.nome_completo || '').trim();
-              const comumDuplicata = (duplicata.comum || '').trim();
+            // Se for timeout, continuar (não bloquear)
+            if (duplicataError && duplicataError.message?.includes('Timeout')) {
+              console.warn('⚠️ Timeout na verificação de duplicatas (continuando...):', duplicataError.message);
+            } else if (!duplicataError && duplicatas && duplicatas.length > 0) {
+              // Duplicata encontrada = bloquear
+              const duplicata = duplicatas[0];
+              console.error('🚨🚨🚨 DUPLICATA DETECTADA NO SUPABASE - BLOQUEANDO 🚨🚨🚨', {
+                nome: nomeCompleto,
+                comum: comumBusca,
+                cargo: cargoBusca,
+                uuidExistente: duplicata.uuid,
+                dataExistente: duplicata.data_ensaio,
+              });
 
-              return {
-                success: false,
-                error: `DUPLICATA:${nomeDuplicata}|${comumDuplicata}|${dataFormatada}|${horarioFormatado}`,
-              };
-            } catch (formatError) {
-              // Se erro ao formatar, usar dados básicos
-              console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
-              return {
-                success: false,
-                error: `DUPLICATA:${duplicata.nome_completo || 'Registro'}|${duplicata.comum || ''}|${duplicata.data_ensaio || duplicata.created_at}`,
-              };
+              // Formatar data e horário do registro existente usando funções utilitárias
+              try {
+                const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+                const dataFormatada = formatDate ? formatDate(dataExistente) : dataExistente.toLocaleDateString('pt-BR');
+                const horarioFormatado = formatTime ? formatTime(dataExistente) : dataExistente.toLocaleTimeString('pt-BR');
+
+                return {
+                  success: false,
+                  error: `DUPLICATA:${nomeCompleto}|${comumBusca}|${dataFormatada}|${horarioFormatado}`,
+                };
+              } catch (formatError) {
+                // Se erro ao formatar, usar data ISO como fallback
+                console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
+                return {
+                  success: false,
+                  error: `DUPLICATA:${nomeCompleto}|${comumBusca}|${duplicata.data_ensaio}|${duplicata.created_at}`,
+                };
+              }
             }
           }
         }
       } catch (error) {
-        console.warn('⚠️ Erro ao verificar duplicatas por UUID no Supabase (continuando...):', error);
-        // Se houver erro na verificação online, continuar (não bloquear)
+        console.warn('⚠️ Erro ao verificar duplicatas no Supabase (continuando...):', error);
+        // Se houver erro na verificação online, continuar com verificação local
       }
     }
 

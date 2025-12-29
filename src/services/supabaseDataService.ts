@@ -2197,10 +2197,112 @@ export const supabaseDataService = {
       created_at: registro.created_at || new Date().toISOString(),
     };
 
-    // 🚀 OTIMIZAÇÃO: Verificação de duplicatas já foi feita em createRegistro (offlineSyncService) por UUID
-    // Removida verificação duplicada aqui para evitar queries desnecessárias e melhorar performance
-    // A verificação em createRegistro por UUID é suficiente, simples e confiável
-    // Se chegou aqui sem skipDuplicateCheck, significa que UUID não existe (não é duplicata)
+    // 🛡️ VERIFICAÇÃO DE DUPLICADOS: Verificar se já existe registro no mesmo dia
+    // IMPORTANTE: Verificar por nome + comum + cargo REAL (não importa o instrumento ou local de ensaio)
+    // Baseado na lógica do backupcont/app.js
+    // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
+    if (!skipDuplicateCheck) {
+    try {
+      const nomeBusca = row.nome_completo.trim().toUpperCase();
+      const comumBusca = row.comum.trim().toUpperCase();
+      const cargoBusca = row.cargo.trim().toUpperCase(); // Cargo REAL já está em row.cargo
+
+      // Extrair apenas a data (sem hora) para comparação
+      const dataRegistro = new Date(row.data_ensaio);
+      const dataInicio = new Date(
+        dataRegistro.getFullYear(),
+        dataRegistro.getMonth(),
+        dataRegistro.getDate()
+      );
+      const dataFim = new Date(dataInicio);
+      dataFim.setDate(dataFim.getDate() + 1);
+
+      console.log('🔍 Verificando duplicados:', {
+        nome: nomeBusca,
+        comum: comumBusca,
+        cargo: cargoBusca,
+        dataInicio: dataInicio.toISOString(),
+        dataFim: dataFim.toISOString(),
+      });
+
+      // 🚀 OTIMIZAÇÃO: Query com timeout e limit(1) para parar na primeira duplicata encontrada
+      const duplicataPromise = supabase
+        .from('presencas')
+        .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
+        .ilike('nome_completo', nomeBusca)
+        .ilike('comum', comumBusca)
+        .ilike('cargo', cargoBusca)
+        .gte('data_ensaio', dataInicio.toISOString())
+        .lt('data_ensaio', dataFim.toISOString())
+        .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
+
+      // 🚀 OTIMIZAÇÃO: Timeout de 2 segundos para não bloquear muito tempo
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
+      );
+
+      const { data: duplicatas, error: duplicataError } = await Promise.race([
+        duplicataPromise,
+        timeoutPromise
+      ]) as any;
+
+      if (duplicataError) {
+        // Se for timeout, continuar (não bloquear)
+        if (duplicataError.message?.includes('Timeout')) {
+          console.warn('⚠️ Timeout na verificação de duplicatas (continuando...):', duplicataError.message);
+        } else {
+          console.warn('⚠️ Erro ao verificar duplicatas:', duplicataError);
+        }
+        // Continuar mesmo com erro na verificação
+      } else if (duplicatas && duplicatas.length > 0) {
+        const duplicata = duplicatas[0];
+        console.error('🚨🚨🚨 DUPLICATA DETECTADA - BLOQUEANDO INSERÇÃO 🚨🚨🚨', {
+          nome: nomeBusca,
+          comum: comumBusca,
+          cargo: cargoBusca,
+          uuidExistente: duplicata.uuid,
+          dataExistente: duplicata.data_ensaio,
+          created_at: duplicata.created_at,
+        });
+
+        // Formatar data e horário do registro existente usando funções utilitárias
+        // 🚨 CORREÇÃO: Verificar se formatDate e formatTime existem antes de usar
+        let dataFormatada = '';
+        let horarioFormatado = '';
+        try {
+          const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+          if (formatDate && typeof formatDate === 'function') {
+            dataFormatada = formatDate(dataExistente);
+          } else {
+            dataFormatada = dataExistente.toLocaleDateString('pt-BR');
+          }
+          if (formatTime && typeof formatTime === 'function') {
+            horarioFormatado = formatTime(dataExistente);
+          } else {
+            horarioFormatado = dataExistente.toLocaleTimeString('pt-BR');
+          }
+        } catch (formatError) {
+          console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
+          const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+          dataFormatada = dataExistente.toLocaleDateString('pt-BR');
+          horarioFormatado = dataExistente.toLocaleTimeString('pt-BR');
+        }
+
+        // Lançar erro para bloquear inserção com informações formatadas
+        throw new Error(
+          `DUPLICATA_BLOQUEADA:DUPLICATA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`
+        );
+      }
+    } catch (error) {
+      // Se o erro for de duplicata bloqueada, propagar o erro
+      if (error instanceof Error && error.message.includes('DUPLICATA_BLOQUEADA')) {
+        console.error('🚨🚨🚨 BLOQUEIO DEFINITIVO DE DUPLICATA 🚨🚨🚨');
+        throw error;
+      }
+      // Outros erros na verificação não devem bloquear
+      console.warn('⚠️ Erro ao verificar duplicatas (continuando...):', error);
+      }
+    }
 
     // 🚨 OTIMIZAÇÃO: Log apenas se nivel estiver null (evitar logs desnecessários)
     if (!row.nivel) {
