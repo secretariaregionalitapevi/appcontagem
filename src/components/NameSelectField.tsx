@@ -291,14 +291,15 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     setIsFocused(false);
     
     // 🚨 CORREÇÃO CRÍTICA: Se há texto digitado que não corresponde a nenhuma opção, tratar como manual
-    if (searchText.trim() && !isManualMode) {
+    // 🚨 CORREÇÃO: NÃO mudar para manual se ainda está carregando - aguardar carregamento terminar
+    if (searchText.trim() && !isManualMode && !loading) {
       const textoNormalizado = normalize(searchText);
       const encontrouNaLista = options.some(opt => {
         const labelNorm = normalize(opt.label);
         return labelNorm === textoNormalizado;
       });
       
-      // Se não encontrou na lista e há texto, é nome manual
+      // Se não encontrou na lista e há texto E não está carregando, é nome manual
       if (!encontrouNaLista) {
         console.log('✏️ [NameSelectField] Texto digitado não encontrado na lista, tratando como manual:', searchText);
         setIsManualMode(true);
