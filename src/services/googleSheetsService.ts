@@ -724,6 +724,34 @@ export const googleSheetsService = {
         console.log('✏️ [GoogleSheets] Nome manual de comum da regional detectado - adicionando "SAM Desatualizado" nas anotações');
       }
 
+      // 🚨 CORREÇÃO CRÍTICA: Garantir que formatDateTimeManual funcione mesmo se houver problema de importação
+      let dataEnsaioFormatada = '';
+      try {
+        if (formatDateTimeManual && typeof formatDateTimeManual === 'function') {
+          dataEnsaioFormatada = formatDateTimeManual(registro.data_hora_registro);
+        } else {
+          // Fallback: formatar manualmente se função não estiver disponível
+          const data = registro.data_hora_registro ? new Date(registro.data_hora_registro) : new Date();
+          const dia = String(data.getDate()).padStart(2, '0');
+          const mes = String(data.getMonth() + 1).padStart(2, '0');
+          const ano = data.getFullYear();
+          const horas = String(data.getHours()).padStart(2, '0');
+          const minutos = String(data.getMinutes()).padStart(2, '0');
+          dataEnsaioFormatada = `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+          console.warn('⚠️ formatDateTimeManual não disponível, usando fallback manual');
+        }
+      } catch (formatError) {
+        // Fallback em caso de erro
+        const data = registro.data_hora_registro ? new Date(registro.data_hora_registro) : new Date();
+        const dia = String(data.getDate()).padStart(2, '0');
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const ano = data.getFullYear();
+        const horas = String(data.getHours()).padStart(2, '0');
+        const minutos = String(data.getMinutes()).padStart(2, '0');
+        dataEnsaioFormatada = `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+        console.error('❌ Erro ao formatar data, usando fallback:', formatError);
+      }
+
       // Formato esperado pelo Google Apps Script (Code.gs) - tudo em maiúscula
       const sheetRow = {
         UUID: registro.id || '',
@@ -736,7 +764,7 @@ export const googleSheetsService = {
         NAIPE_INSTRUMENTO: naipeInstrumento.toUpperCase(),
         CLASSE_ORGANISTA: classeOrganistaFinal.toUpperCase(), // Classe normalizada
         LOCAL_ENSAIO: localEnsaioNome.toUpperCase(),
-        DATA_ENSAIO: formatDateTimeManual(registro.data_hora_registro),
+        DATA_ENSAIO: dataEnsaioFormatada,
         REGISTRADO_POR: registradoPorNome.toUpperCase(),
         ANOTACOES: anotacoes.toUpperCase(), // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" para nomes manuais da regional
       };
