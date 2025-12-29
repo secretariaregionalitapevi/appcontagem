@@ -1865,21 +1865,19 @@ export const RegisterScreen: React.FC = () => {
                   }}
                   placeholder="Selecione a comum..."
                 />
-                {/* 🚨 CRÍTICO: NÃO mostrar botão "+ Novo registro" quando offline - não faz sentido já que precisa digitar manualmente */}
-                {isOnline && (
-                  <TouchableOpacity
-                    onPress={(e) => {
-                      e.preventDefault?.();
-                      e.stopPropagation?.();
-                      console.log('🔘 Botão "+ Novo registro" clicado');
-                      setNewRegistrationModalVisible(true);
-                    }}
-                    style={styles.newRegistrationLink}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.newRegistrationLinkText}>+ Novo registro</Text>
-                  </TouchableOpacity>
-                )}
+                {/* 🚨 CORREÇÃO: Permitir botão "+ Novo registro" funcionar offline - modal salva na fila automaticamente */}
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.preventDefault?.();
+                    e.stopPropagation?.();
+                    console.log('🔘 Botão "+ Novo registro" clicado');
+                    setNewRegistrationModalVisible(true);
+                  }}
+                  style={styles.newRegistrationLink}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.newRegistrationLinkText}>+ Novo registro</Text>
+                </TouchableOpacity>
               </View>
 
               <View style={[styles.field, Platform.OS === 'web' ? { position: 'relative' as const, zIndex: 1002, overflow: 'visible' as const } : {}]}>
