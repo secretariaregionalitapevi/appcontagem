@@ -85,14 +85,13 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   const optionsWithManual = useMemo(() => {
     const manualOption: SelectOption = {
       id: MANUAL_INPUT_OPTION_ID,
-      label: '✏️ Adicionar novo nome manualmente',
+      label: '➕ Adicionar novo nome manualmente',
       value: MANUAL_INPUT_OPTION_ID,
     };
     return [...options, manualOption];
   }, [options]);
 
   // Filtrar opções baseado no texto digitado
-  // 🚀 OTIMIZAÇÃO: Remover logs desnecessários e otimizar cálculos
   const filtered = useMemo(() => {
     if (isManualMode) {
       return [];
@@ -109,12 +108,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     // Verificar se o valor atual é uma entrada manual (começa com "manual_")
     const isManualValue = value && typeof value === 'string' && value.startsWith('manual_');
 
-    // 🚀 OTIMIZAÇÃO: Só filtrar se há texto digitado
-    if (!searchText.trim()) {
-      // Se não há texto, mostrar todas as opções + opção manual
-      return optionsWithManual;
-    }
-
     // Filtrar opções baseado no texto
     const query = normalize(searchText);
     const filteredOptions = options.filter(opt => {
@@ -129,6 +122,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       const selectedOption = options.find(opt => opt.id === value || opt.value === value);
       if (selectedOption && normalize(selectedOption.label) === normalize(searchText)) {
         // Usuário está vendo o nome selecionado, não mostrar manual
+        if (!searchText.trim()) {
+          return options; // Mostrar todas as opções
+        }
         if (filteredOptions.length > 0) {
           return filteredOptions; // Mostrar resultados filtrados
         }
@@ -136,40 +132,59 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       }
     }
 
-    // 🚨 CORREÇÃO CRÍTICA: Se há resultados filtrados, mostrar APENAS os resultados (SEM opção manual)
-    // O botão "Adicionar novo nome manualmente" só deve aparecer quando NÃO há resultados
-    if (filteredOptions.length > 0) {
-      return filteredOptions; // Apenas resultados, SEM opção manual
+    // Se não há texto digitado, mostrar todas as opções + opção manual no final
+    // Isso permite que o usuário veja a lista E tenha a opção de digitar manualmente
+    if (!searchText.trim()) {
+      return optionsWithManual;
     }
 
-    // 🚨 CORREÇÃO: Se não há resultados filtrados, mostrar apenas a opção manual
+    // Se há resultados filtrados, mostrar apenas eles (sem opção manual)
+    // Isso evita confusão quando há resultados na busca
+    if (filteredOptions.length > 0) {
+      return filteredOptions;
+    }
+
+    // Se não há resultados filtrados, mostrar apenas a opção manual
     // Isso permite digitação quando o usuário não encontra o nome na busca
     return optionsWithManual.slice(-1);
   }, [searchText, options, optionsWithManual, isManualMode, value]);
 
-  // 🚨 LÓGICA SIMPLIFICADA: Quando não há opções, entrar automaticamente em modo manual
+  // 🚨 CRÍTICO: Quando não há opções, entrar automaticamente em modo manual
+  // Quando há opções, modo manual só quando usuário SELECIONAR a opção manual
   useEffect(() => {
+    // Se não há opções, entrar automaticamente em modo manual
     if (!options || options.length === 0) {
       if (!isManualMode) {
         setIsManualMode(true);
+        // Se há um valor manual anterior, manter
+        if (value && typeof value === 'string' && value.startsWith('manual_')) {
+          const manualValue = value.replace('manual_', '');
+          setSearchText(manualValue);
+        } else if (value) {
+          setSearchText(value);
+        } else {
+          setSearchText('');
+        }
       }
       return;
     }
 
     // Se há opções e está em modo manual, verificar se foi escolha do usuário
     if (isManualMode) {
-      // Se o valor é manual (começa com manual_), manter modo manual
+      // Se o valor é manual (começa com manual_), manter modo manual (usuário escolheu)
       if (value && typeof value === 'string' && value.startsWith('manual_')) {
+        // Usuário escolheu manualmente, manter modo manual
         return;
       }
-      // Se o valor corresponde a uma opção, sair do modo manual
-      if (value && typeof value === 'string') {
+      // Se o valor não é manual, verificar se corresponde a uma opção da lista
+      if (value) {
         const matchesOption = options.some(opt => opt.id === value || opt.value === value);
         if (matchesOption) {
+          // Valor corresponde a uma opção, sair do modo manual
           setIsManualMode(false);
         }
-      } else if (!value) {
-        // Sem valor - sair do modo manual para permitir seleção
+      } else {
+        // Não há valor, sair do modo manual para mostrar lista
         setIsManualMode(false);
       }
     }
@@ -187,6 +202,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       return;
     }
 
+    // Se não há opções, já foi convertido para manual no useEffect anterior
     if (!options || options.length === 0) {
       return;
     }
@@ -198,90 +214,32 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     } else if (!value) {
       setSearchText('');
     } else {
+      // Se o value não está nas opções, pode ser entrada manual anterior
+      // Mas não converter automaticamente - deixar o usuário escolher
       setSearchText(value);
     }
   }, [value, options, isManualMode]);
-
-  // 🚨 CRÍTICO MOBILE: Garantir que a lista apareça quando há opções e o campo está focado
-  // 🚀 OTIMIZAÇÃO: Remover logs desnecessários
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      return; // No web, a lógica normal já funciona
-    }
-
-    // Se está em modo manual, não mostrar lista
-    if (isManualMode) {
-      if (showList) {
-        setShowList(false);
-      }
-      return;
-    }
-
-    // Se não há opções, não mostrar lista
-    if (!options || options.length === 0) {
-      if (showList) {
-        setShowList(false);
-      }
-      return;
-    }
-
-    // Se o campo está focado e há opções, garantir que a lista esteja visível
-    if (isFocused && filtered.length > 0 && !showList) {
-      setShowList(true);
-    }
-  }, [isFocused, filtered.length, options, isManualMode, Platform.OS, showList]);
 
   // Quando o usuário digita
   const handleChange = (text: string) => {
     setSearchText(text);
     setSelectedIndex(-1);
 
-    // 🚨 LÓGICA SIMPLIFICADA: Se está em modo manual, manter modo manual e atualizar selectedPessoa
     if (isManualMode) {
-      if (text.trim()) {
-        onSelect({ id: 'manual', label: text.trim(), value: text.trim() });
-      }
+      onSelect({ id: 'manual', label: text, value: text });
       return;
     }
 
-    // 🚨 LÓGICA SIMPLIFICADA: Verificar se há resultados filtrados
-    const query = normalize(text);
-    const filteredOptions = options.filter(opt => {
-      const labelNorm = normalize(opt.label);
-      return labelNorm.includes(query);
-    });
-
-    // 🚨 CRÍTICO MOBILE: Sempre mostrar lista quando há opções disponíveis
-    // 🚀 OTIMIZAÇÃO: Remover logs desnecessários durante digitação
-    if (filteredOptions.length > 0) {
-      // Há resultados filtrados → mostrar lista
+    // 🚨 CRÍTICO: Sempre mostrar lista se há opções disponíveis (mesmo com texto vazio)
+    // Isso garante que ao apagar as letras, a lista continue aparecendo
+    if (options && options.length > 0) {
       setShowList(true);
-    } else if (text.trim().length >= 3) {
-      // Se não há resultados E digitou pelo menos 3 letras → ativar modo manual automaticamente (input mode)
-      setIsManualMode(true);
-      setShowList(false);
-      if (text.trim()) {
-        onSelect({ id: 'manual', label: text.trim(), value: text.trim() });
-      }
-    } else if (text.trim().length > 0) {
-      // Se digitou menos de 3 letras, ainda pode aparecer resultados - mostrar lista se houver opções
-      if (options && options.length > 0) {
-        setShowList(true);
-      } else {
-        setShowList(false);
-      }
     } else {
-      // Texto vazio - mostrar todas as opções (CRÍTICO no mobile)
-      if (options && options.length > 0) {
-        setShowList(true);
-      } else {
-        setShowList(false);
-      }
+      setShowList(false);
     }
   };
 
   // Quando o campo recebe foco
-  // 🚀 OTIMIZAÇÃO: Remover logs desnecessários
   const handleFocus = () => {
     setIsFocused(true);
     // Cancelar blur pendente
@@ -291,59 +249,61 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     }
 
     if (isManualMode) {
+      return;
+    }
+
+    // Se não há opções, não abrir dropdown (já está em modo manual automaticamente)
+    if (!options || options.length === 0) {
       setShowList(false);
       return;
     }
 
-    // 🚨 CRÍTICO MOBILE: Sempre mostrar lista quando recebe foco, se houver opções
-    if (options && options.length > 0) {
-      // Forçar mostrar lista no mobile
-      setShowList(true);
-      // No mobile, garantir que a lista apareça mesmo sem texto digitado
-      if (Platform.OS !== 'web' && !searchText.trim()) {
-        setShowList(true);
-      }
-    } else {
-      setShowList(false);
-    }
+    // 🚨 CRÍTICO: Sempre abrir dropdown quando há opções e não está em modo manual
+    // Isso permite que o usuário veja e selecione nomes da lista
+    setShowList(true);
   };
 
   // Quando o campo perde foco
   const handleBlur = () => {
     // Se está selecionando um item, ignorar o blur completamente
     if (isSelectingRef.current) {
+      console.log('🔒 [NameSelectField] Blur ignorado - seleção em andamento');
+      return;
+    }
+
+    // 🚨 CRÍTICO: Se há itens filtrados na lista, NÃO fechar a lista no blur
+    // Isso permite que o usuário clique nos itens mesmo após o blur do input
+    if (filtered.length > 0 && !isManualMode) {
+      console.log('📋 [NameSelectField] Blur ignorado - há itens na lista, mantendo lista aberta');
+      // Não fechar a lista, apenas marcar como não focado
+      setIsFocused(false);
       return;
     }
 
     setIsFocused(false);
     
-    // 🚨 LÓGICA SIMPLIFICADA: Se está em modo manual e há texto, confirmar
-    if (isManualMode && searchText.trim()) {
-      onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
-    } else if (searchText.trim() && !isManualMode) {
-      // Se não está em modo manual mas há texto, verificar se corresponde exatamente a alguma opção
+    // 🚨 CORREÇÃO CRÍTICA: Se há texto digitado que não corresponde a nenhuma opção, tratar como manual
+    if (searchText.trim() && !isManualMode) {
       const textoNormalizado = normalize(searchText);
-      const correspondeExatamente = options.some(opt => {
+      const encontrouNaLista = options.some(opt => {
         const labelNorm = normalize(opt.label);
         return labelNorm === textoNormalizado;
       });
       
-      // Se não corresponde exatamente, tratar como manual
-      if (!correspondeExatamente) {
+      // Se não encontrou na lista e há texto, é nome manual
+      if (!encontrouNaLista) {
+        console.log('✏️ [NameSelectField] Texto digitado não encontrado na lista, tratando como manual:', searchText);
         setIsManualMode(true);
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
       }
     }
-
-    // Se há itens filtrados na lista, manter lista aberta para permitir clique
-    if (filtered.length > 0 && !isManualMode) {
-      return;
-    }
     
-    // Fechar lista após delay (para permitir clique nos itens)
+    // Só fechar lista se não há itens filtrados
+    // 🚨 CRÍTICO: Android precisa de delay maior para capturar toques
     const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 600 : 300;
     blurTimeoutRef.current = setTimeout(() => {
-      if (filtered.length === 0 || isManualMode) {
+      // Verificar novamente se não há itens antes de fechar
+      if (filtered.length === 0) {
         setShowList(false);
       }
       blurTimeoutRef.current = null;
@@ -352,7 +312,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
   // Quando seleciona um item
   const handleSelect = (option: SelectOption) => {
-    console.log('🖱️ [NameSelectField] handleSelect chamado:', {
+    console.log('✅ [NameSelectField] handleSelect chamado:', {
       id: option.id,
       label: option.label,
       value: option.value,
@@ -373,30 +333,26 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
     // Se selecionou opção manual, ativar modo manual
     if (option.id === MANUAL_INPUT_OPTION_ID || option.value === MANUAL_INPUT_OPTION_ID) {
-      console.log('✏️ [NameSelectField] Modo manual ativado - botão clicado');
       setIsManualMode(true);
       setSearchText('');
-      // 🚨 CORREÇÃO: Não chamar onSelect com valor vazio - aguardar usuário digitar
-      // Mas marcar que está em modo manual para permitir digitação
-      // A lista será ocultada automaticamente porque isManualMode = true faz filtered retornar []
+      onSelect({ id: 'manual', label: '', value: '' });
       isSelectingRef.current = false;
-      // Focar no input após um pequeno delay para garantir que o modo manual foi ativado
+      // Focar no input após um pequeno delay
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          console.log('✏️ [NameSelectField] Input focado após ativar modo manual');
         }
-      }, 150);
+      }, 100);
       return;
     }
 
     // Seleção normal da lista - ATUALIZAR TUDO IMEDIATAMENTE
     const selectedValue = option.value || option.id;
-    
-    // 🚨 LÓGICA SIMPLIFICADA: Se selecionou da lista, sair do modo manual
-    if (isManualMode) {
-      setIsManualMode(false);
-    }
+    console.log('📝 [NameSelectField] Selecionando nome:', {
+      id: option.id,
+      label: option.label,
+      value: selectedValue,
+    });
 
     // Atualizar o texto do input PRIMEIRO
     setSearchText(option.label);
@@ -424,10 +380,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     if (isManualMode) {
       // Em modo manual, confirmar o texto digitado
       if (searchText.trim()) {
-        console.log('✏️ [NameSelectField] Enter pressionado em modo manual - confirmando nome:', searchText.trim());
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
-      } else {
-        console.warn('⚠️ [NameSelectField] Enter pressionado em modo manual mas texto está vazio');
       }
       if (inputRef.current) {
         inputRef.current.blur();
@@ -450,7 +403,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       });
       
       if (!encontrouNaLista) {
-        console.log('📝 [NameSelectField] Enter pressionado com texto não encontrado na lista, tratando como manual:', searchText);
+        console.log('✏️ [NameSelectField] Enter pressionado com texto não encontrado na lista, tratando como manual:', searchText);
         setIsManualMode(true);
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
         if (inputRef.current) {
@@ -605,20 +558,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
               {/* Dropdown - Usar dropdown inline mesmo no mobile para não bloquear scroll */}
               {Platform.OS !== 'web' ? (
               <>
-                {(() => {
-                  const shouldShow = showList && filtered.length > 0;
-                  if (Platform.OS !== 'web') {
-                    console.log('📱 [NameSelectField] Renderizando dropdown mobile:', {
-                      showList,
-                      filteredLength: filtered.length,
-                      shouldShow,
-                      isManualMode,
-                      optionsCount: options?.length || 0,
-                      searchText,
-                    });
-                  }
-                  return shouldShow;
-                })() && (
+                {showList && filtered.length > 0 && (
                   <>
                     {/* Overlay transparente para fechar ao clicar fora */}
                     <TouchableOpacity
@@ -627,7 +567,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                       onPress={() => {
                         // Só fechar se não está selecionando
                         if (!isSelectingRef.current) {
-                          console.log('🔄 [NameSelectField] Overlay clicado - fechando lista');
                           setShowList(false);
                         }
                       }}
@@ -637,14 +576,10 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                     />
                     <View 
                       style={styles.mobileDropdownContainer}
-                      // 🚨 CRÍTICO MOBILE: Garantir que o container capture toques
-                      pointerEvents="box-none"
                     >
                       <View
                         style={styles.mobileDropdownContent}
                         onStartShouldSetResponder={() => false}
-                        // 🚨 CRÍTICO MOBILE: Garantir que o conteúdo capture toques
-                        pointerEvents="auto"
                       >
                     {filtered.length > 0 ? (
                       <FlatList
@@ -889,13 +824,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: theme.spacing.md,
-    // 🚨 CRÍTICO MOBILE: Garantir que o container não corte o overflow do dropdown
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
-    } : {
-      // No mobile, garantir que o overflow seja visível para o dropdown
-      overflow: 'visible' as ViewStyle['overflow'],
-    }),
+    } : {}),
   },
   label: {
     fontSize: theme.fontSize.sm,
@@ -907,14 +838,10 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'relative' as ViewStyle['position'],
-    // 🚨 CRÍTICO MOBILE: Garantir que o container não corte o overflow
     ...(Platform.OS === 'web' ? {
       backgroundColor: '#ffffff',
       zIndex: 1,
-    } : {
-      overflow: 'visible' as ViewStyle['overflow'],
-      zIndex: 1,
-    }),
+    } : {}),
   },
   input: {
     borderWidth: 1.5,
@@ -1131,11 +1058,6 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     marginTop: 4,
     elevation: 999999,
-    // 🚨 CRÍTICO MOBILE: Garantir que o container não seja cortado pelo ScrollView
-    ...(Platform.OS !== 'web' ? {
-      // @ts-ignore
-      pointerEvents: 'box-none', // Permitir toques passarem através quando não há conteúdo
-    } : {}),
   },
   mobileDropdownContent: {
     backgroundColor: '#ffffff',
@@ -1149,11 +1071,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 15,
     overflow: 'hidden',
-    // 🚨 CRÍTICO MOBILE: Garantir que o conteúdo seja clicável e visível
-    ...(Platform.OS !== 'web' ? {
-      // @ts-ignore
-      pointerEvents: 'auto', // Garantir que toques sejam capturados
-    } : {}),
   },
   modalOverlay: {
     flex: 1,
@@ -1176,3 +1093,4 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 });
+
