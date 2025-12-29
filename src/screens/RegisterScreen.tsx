@@ -1447,12 +1447,35 @@ export const RegisterScreen: React.FC = () => {
   };
 
   const handleOrganistasEnsaio = () => {
-    console.log('🎹 Navegando para tela de Organistas no Ensaio');
+    console.log('🎹 [handleOrganistasEnsaio] Iniciando navegação para tela de Organistas no Ensaio');
+    console.log('🎹 [handleOrganistasEnsaio] Navigation disponível?', !!navigation);
+    console.log('🎹 [handleOrganistasEnsaio] Tipo do navigation:', typeof navigation);
+    
     try {
+      if (!navigation) {
+        console.error('❌ [handleOrganistasEnsaio] Navigation não está disponível');
+        showToast.error('Erro', 'Navegação não disponível. Tente recarregar a página.');
+        return;
+      }
+
+      // Verificar se o método navigate existe
+      if (typeof (navigation as any).navigate !== 'function') {
+        console.error('❌ [handleOrganistasEnsaio] Método navigate não está disponível');
+        showToast.error('Erro', 'Navegação não configurada corretamente.');
+        return;
+      }
+
+      console.log('🎹 [handleOrganistasEnsaio] Chamando navigation.navigate("OrganistasEnsaio")');
       (navigation as any).navigate('OrganistasEnsaio');
+      console.log('✅ [handleOrganistasEnsaio] Navegação chamada com sucesso');
     } catch (error) {
-      console.error('❌ Erro ao navegar para OrganistasEnsaio:', error);
-      showToast.error('Erro', 'Não foi possível acessar a página de organistas');
+      console.error('❌ [handleOrganistasEnsaio] Erro ao navegar para OrganistasEnsaio:', error);
+      console.error('❌ [handleOrganistasEnsaio] Detalhes do erro:', {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      showToast.error('Erro', 'Não foi possível acessar a página de organistas. Tente novamente.');
     }
   };
 
