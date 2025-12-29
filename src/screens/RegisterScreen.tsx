@@ -2055,6 +2055,13 @@ export const RegisterScreen: React.FC = () => {
               });
               
               if (option.id === 'manual') {
+                // 🚨 CORREÇÃO CRÍTICA: NÃO processar modo manual durante carregamento
+                // Aguardar lista carregar completamente antes de tratar como manual
+                if (loadingPessoas) {
+                  console.log('⏳ [RegisterScreen] Modo manual detectado mas lista ainda carregando - ignorando até carregar');
+                  return; // Não processar durante carregamento
+                }
+
                 console.log('✏️✏️✏️✏️✏️ [RegisterScreen] OPÇÃO MANUAL DETECTADA!');
                 console.log('✏️✏️✏️✏️✏️ [RegisterScreen] Option recebida:', JSON.stringify(option));
                 // 🚨 CORREÇÃO: Se o valor está vazio, apenas ativar modo manual mas não limpar selectedPessoa

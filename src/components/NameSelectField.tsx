@@ -240,13 +240,29 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     setSearchText(text);
     setSelectedIndex(-1);
 
+    // 🚨 CORREÇÃO CRÍTICA: Se está em modo manual, permitir digitação
+    // Mas NÃO chamar onSelect durante carregamento - aguardar lista carregar
     if (isManualMode) {
-      onSelect({ id: 'manual', label: text, value: text });
+      // Só chamar onSelect se NÃO está carregando - durante carregamento, apenas atualizar o texto
+      if (!loading) {
+        onSelect({ id: 'manual', label: text, value: text });
+      }
       return;
     }
 
+    // 🚨 CORREÇÃO CRÍTICA: NÃO chamar onSelect durante carregamento
+    // Durante carregamento, apenas atualizar o texto e mostrar lista quando disponível
+    // Não mudar para modo manual até a lista carregar completamente
+
     // 🚨 CRÍTICO: Sempre mostrar lista se há opções disponíveis (mesmo com texto vazio)
     // Isso garante que ao apagar as letras, a lista continue aparecendo
+    if (loading) {
+      // Durante carregamento, não fazer nada além de atualizar o texto
+      // Não mostrar lista ainda (aguardar carregar)
+      setShowList(false);
+      return;
+    }
+
     if (options && options.length > 0) {
       setShowList(true);
     } else {
