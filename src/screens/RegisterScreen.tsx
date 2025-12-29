@@ -83,8 +83,7 @@ export const RegisterScreen: React.FC = () => {
   const [pendingRegistro, setPendingRegistro] = useState<RegistroPresenca | null>(null);
   const [newRegistrationModalVisible, setNewRegistrationModalVisible] = useState(false);
   
-  // 🚨 CORREÇÃO: Removido fechamento automático do modal quando offline
-  // O modal agora funciona offline e salva na fila automaticamente
+  // 🚨 CORREÇÃO: Modal funciona offline - salva na fila automaticamente quando não há conexão
 
   // Mostrar campo de instrumento apenas para Músico
   // Organista NÃO mostra campo de instrumento (sempre toca órgão)

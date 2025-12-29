@@ -471,7 +471,8 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
       </KeyboardAvoidingView>
   );
 
-  // 🚨 CORREÇÃO: Permitir modal funcionar offline - handleSaveNewRegistration já salva na fila quando offline
+  // 🚨 CORREÇÃO: Modal funciona offline - handleSaveNewRegistration já salva na fila quando offline
+  // Removidas todas as verificações de isOnline que impediam o modal de aparecer offline
   if (Platform.OS === 'web') {
     // No web, renderizar diretamente usando View fixo para evitar problemas com Modal
     return visible ? (
