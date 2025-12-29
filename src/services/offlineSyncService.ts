@@ -588,12 +588,23 @@ export const offlineSyncService = {
         };
         
         // Enviar ambos em paralelo - Google Sheets é crítico, Supabase é secundário
+        // 🚨 CORREÇÃO CRÍTICA: NÃO capturar erros de duplicata silenciosamente
         const [sheetsResult, supabaseResult] = await Promise.allSettled([
           googleSheetsService.sendRegistroToSheet(registroComId),
-          // Supabase em paralelo (não bloqueia se falhar)
+          // Supabase em paralelo (não bloqueia se falhar, EXCETO duplicata)
           supabaseDataService.createRegistroPresenca(registroComId, skipDuplicateCheck).catch(err => {
+            // 🚨 CORREÇÃO: Se for erro de duplicata, propagar o erro (não ignorar)
+            if (err instanceof Error && (
+              err.message.includes('DUPLICATA') ||
+              err.message.includes('DUPLICATA_BLOQUEADA') ||
+              err.message.includes('duplicat')
+            )) {
+              console.error('🚨 Erro de duplicata no Supabase - propagando erro:', err.message);
+              throw err; // Propagar erro de duplicata
+            }
+            // Outros erros do Supabase podem ser ignorados (não críticos)
             console.warn('⚠️ Erro ao enviar para Supabase (não crítico):', err.message);
-            return null; // Não falhar se Supabase der erro
+            return null; // Não falhar se Supabase der erro (exceto duplicata)
           })
         ]);
 
