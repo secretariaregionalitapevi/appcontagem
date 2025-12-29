@@ -72,12 +72,16 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   // Como agora usamos o nome do cargo diretamente como valor, não precisamos buscar no array de cargos
   const cargoNome = selectedCargo || '';
   const isMusico = cargoNome.toLowerCase().includes('músico');
+  const isInstrutor = cargoNome === 'Instrutor'; // 🚨 Instrutor (masculino) = classe de músicos
   const isOrganista = cargoNome === 'Organista';
-  const showInstrumento = isMusico && !isOrganista;
+  // Mostrar instrumento para Músico e Instrutor (masculino)
+  const showInstrumento = (isMusico || isInstrutor) && !isOrganista;
   
   // 🚨 CARGOS QUE DEVEM SER OFICIALIZADAS AUTOMATICAMENTE (sem mostrar campo)
+  // Apenas cargos femininos de organistas: Instrutora, Secretária da Música, Examinadora
+  // 🚨 NÃO incluir "Instrutor" (masculino) - ele é classe de músicos e precisa selecionar instrumento
   const cargosOficializadaAutomatica = [
-    'Instrutora',
+    'Instrutora', // Feminino = organista
     'Secretária da Música',
     'Examinadora'
   ];
@@ -278,7 +282,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
             <View style={styles.header}>
               <FontAwesome5
                 name="laptop"
-                size={Platform.OS === 'web' ? 48 : 40}
+                size={Platform.OS === 'web' ? 48 : 32}
                 color="#e2e3e3"
                 style={styles.headerIcon}
               />
@@ -355,8 +359,10 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                       setSelectedInstrumento('');
                       
                       // 🚨 FORÇAR "Oficializada" automaticamente para cargos específicos
+                      // Apenas cargos femininos de organistas: Instrutora, Secretária da Música, Examinadora
+                      // 🚨 NÃO incluir "Instrutor" (masculino) - ele é classe de músicos e precisa selecionar instrumento
                       const cargosOficializadaAutomatica = [
-                        'Instrutora',
+                        'Instrutora', // Feminino = organista
                         'Secretária da Música',
                         'Examinadora'
                       ];
@@ -465,17 +471,10 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
       </KeyboardAvoidingView>
   );
 
-  // 🚨 CRÍTICO: NUNCA renderizar modal quando offline (não faz sentido)
-  // Verificar se está online antes de renderizar
-  const isOnline = typeof navigator !== 'undefined' && navigator.onLine !== false;
-  if (!isOnline) {
-    console.log('🚨 [NewRegistrationModal] Offline detectado - NÃO renderizando modal');
-    return null;
-  }
-  
+  // 🚨 CORREÇÃO: Permitir modal funcionar offline - handleSaveNewRegistration já salva na fila quando offline
   if (Platform.OS === 'web') {
     // No web, renderizar diretamente usando View fixo para evitar problemas com Modal
-    return visible && isOnline ? (
+    return visible ? (
       <View
         style={{
           position: 'fixed' as any,
@@ -497,7 +496,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 
   return (
     <Modal
-      visible={visible && isOnline}
+      visible={visible}
       transparent
       animationType="fade"
       onRequestClose={onClose}
@@ -537,7 +536,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.lg,
+    padding: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.sm,
     zIndex: 999999,
     ...(Platform.OS === 'web'
       ? {
@@ -569,10 +568,10 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: Platform.OS === 'web' ? 16 : 20,
     width: '100%',
-    maxWidth: Platform.OS === 'web' ? 500 : '95%',
-    maxHeight: Platform.OS === 'web' ? '90%' : '85%',
+    maxWidth: Platform.OS === 'web' ? 500 : '98%',
+    maxHeight: Platform.OS === 'web' ? '90%' : Platform.OS === 'android' ? '95%' : '92%',
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
@@ -599,8 +598,9 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.lg,
-    paddingTop: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.md,
+    padding: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.md,
+    paddingTop: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.lg,
+    paddingBottom: Platform.OS === 'web' ? theme.spacing.xl : theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: '#ffffff',
@@ -612,18 +612,21 @@ const styles = StyleSheet.create({
     } : {}),
   },
   headerIcon: {
-    marginBottom: theme.spacing.md,
+    marginBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
   },
   title: {
-    fontSize: theme.fontSize.xl,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.xl : theme.fontSize.lg,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: Platform.OS === 'web' ? theme.spacing.xs : 4,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: theme.fontSize.sm,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.xs,
     color: theme.colors.textSecondary,
     fontWeight: '600',
+    textAlign: 'center',
+    paddingHorizontal: Platform.OS === 'web' ? 0 : theme.spacing.sm,
   },
   body: {
     flex: 1,
@@ -637,7 +640,8 @@ const styles = StyleSheet.create({
   },
   bodyContent: {
     padding: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.md,
-    paddingBottom: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.xl,
+    paddingBottom: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.md,
+    paddingTop: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.sm,
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web' ? {
       // @ts-ignore - Propriedades CSS apenas para web
@@ -647,7 +651,7 @@ const styles = StyleSheet.create({
     } : {}),
   },
   field: {
-    marginBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
+    marginBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
     ...(Platform.OS === 'web' ? {
       // @ts-ignore
       position: 'relative',
@@ -656,10 +660,10 @@ const styles = StyleSheet.create({
     } : {}),
   },
   label: {
-    fontSize: theme.fontSize.sm,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: Platform.OS === 'web' ? theme.spacing.xs : 6,
   },
   required: {
     color: theme.colors.error,
@@ -667,13 +671,13 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    padding: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
+    borderRadius: Platform.OS === 'web' ? theme.borderRadius.md : 12,
+    padding: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
     paddingVertical: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
-    fontSize: theme.fontSize.md,
+    fontSize: Platform.OS === 'web' ? theme.fontSize.md : 16, // Tamanho mínimo para evitar zoom no iOS
     color: theme.colors.text,
     backgroundColor: '#ffffff',
-    minHeight: Platform.OS === 'web' ? 44 : 48,
+    minHeight: Platform.OS === 'web' ? 44 : 50, // Aumentado para melhor toque no mobile
     ...(Platform.OS === 'web'
       ? {
           // @ts-ignore - Propriedades CSS apenas para web
@@ -698,8 +702,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
+    padding: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
     paddingVertical: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
+    paddingBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.lg, // Mais espaço no mobile
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     backgroundColor: '#ffffff',
