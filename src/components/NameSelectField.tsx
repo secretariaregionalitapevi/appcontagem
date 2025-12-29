@@ -160,8 +160,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       return;
     }
     
-    // Se não há opções E não está carregando, entrar automaticamente em modo manual
-    if (!options || options.length === 0) {
+    // 🚨 CORREÇÃO CRÍTICA: Só entrar em modo manual se NÃO está carregando E não há opções
+    // Isso evita mudar para manual enquanto a lista ainda está carregando
+    if (!loading && (!options || options.length === 0)) {
       if (!isManualMode) {
         setIsManualMode(true);
         // Se há um valor manual anterior, manter
@@ -174,6 +175,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
           setSearchText('');
         }
       }
+      return;
+    }
+    
+    // 🚨 CORREÇÃO: Se está carregando, NÃO mudar para manual ainda - aguardar carregamento terminar
+    if (loading) {
+      // Manter estado atual, não mudar para manual durante carregamento
       return;
     }
 
@@ -291,15 +298,16 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     setIsFocused(false);
     
     // 🚨 CORREÇÃO CRÍTICA: Se há texto digitado que não corresponde a nenhuma opção, tratar como manual
-    // 🚨 CORREÇÃO: NÃO mudar para manual se ainda está carregando - aguardar carregamento terminar
-    if (searchText.trim() && !isManualMode && !loading) {
+    // 🚨 CORREÇÃO: NÃO mudar para manual se ainda está carregando OU se não há opções ainda - aguardar carregamento terminar
+    // Só mudar para manual DEPOIS que a lista carregou completamente
+    if (searchText.trim() && !isManualMode && !loading && options && options.length > 0) {
       const textoNormalizado = normalize(searchText);
       const encontrouNaLista = options.some(opt => {
         const labelNorm = normalize(opt.label);
         return labelNorm === textoNormalizado;
       });
       
-      // Se não encontrou na lista e há texto E não está carregando, é nome manual
+      // Se não encontrou na lista e há texto E lista já carregou, é nome manual
       if (!encontrouNaLista) {
         console.log('✏️ [NameSelectField] Texto digitado não encontrado na lista, tratando como manual:', searchText);
         setIsManualMode(true);
@@ -411,13 +419,17 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         return labelNorm === textoNormalizado;
       });
       
-      if (!encontrouNaLista) {
+      // 🚨 CORREÇÃO: Só mudar para manual se lista já carregou (não está carregando E há opções)
+      if (!encontrouNaLista && !loading && options && options.length > 0) {
         console.log('✏️ [NameSelectField] Enter pressionado com texto não encontrado na lista, tratando como manual:', searchText);
         setIsManualMode(true);
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
         if (inputRef.current) {
           inputRef.current.blur();
         }
+      } else if (loading || !options || options.length === 0) {
+        // Se ainda está carregando ou não há opções, não fazer nada - aguardar carregamento
+        console.log('⏳ [NameSelectField] Enter pressionado mas lista ainda carregando, aguardando...');
       }
     }
   };
