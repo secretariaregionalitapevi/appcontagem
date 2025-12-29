@@ -150,9 +150,17 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   }, [searchText, options, optionsWithManual, isManualMode, value]);
 
   // 🚨 CRÍTICO: Quando não há opções, entrar automaticamente em modo manual
+  // 🚨 CORREÇÃO: NÃO mudar para modo manual enquanto está carregando - aguardar carregamento terminar
   // Quando há opções, modo manual só quando usuário SELECIONAR a opção manual
   useEffect(() => {
-    // Se não há opções, entrar automaticamente em modo manual
+    // 🚨 CORREÇÃO CRÍTICA: Se está carregando, NÃO mudar para modo manual ainda
+    // Aguardar carregamento terminar para verificar se realmente não há opções
+    if (loading) {
+      // Enquanto carrega, manter estado atual (não mudar para manual)
+      return;
+    }
+    
+    // Se não há opções E não está carregando, entrar automaticamente em modo manual
     if (!options || options.length === 0) {
       if (!isManualMode) {
         setIsManualMode(true);
@@ -188,7 +196,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         setIsManualMode(false);
       }
     }
-  }, [options, isManualMode, value]);
+  }, [options, isManualMode, value, loading]); // 🚨 CORREÇÃO: Adicionar loading como dependência
 
   // Sincronizar searchText com value quando muda externamente
   useEffect(() => {
