@@ -445,34 +445,110 @@ export const offlineSyncService = {
 
           // Usar supabase diretamente para verificar
           if (isSupabaseConfigured() && supabase) {
-            const { data: duplicatas, error: duplicataError } = await supabase
+            // 🚀 OTIMIZAÇÃO: Query com timeout e limit(1) para parar na primeira duplicata (mais rápido)
+            const duplicataPromise = supabase
               .from('presencas')
               .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
               .ilike('nome_completo', nomeCompleto)
               .ilike('comum', comumBusca)
               .ilike('cargo', cargoBusca)
               .gte('data_ensaio', dataInicio.toISOString())
-              .lt('data_ensaio', dataFim.toISOString());
+              .lt('data_ensaio', dataFim.toISOString())
+              .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
+            
+            // 🚀 OTIMIZAÇÃO: Timeout de 2 segundos para não bloquear muito tempo
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
+            );
+            
+            const { data: duplicatas, error: duplicataError } = await Promise.race([
+              duplicataPromise,
+              timeoutPromise
+            ]) as any;
 
-            if (!duplicataError && duplicatas && duplicatas.length > 0) {
+            // 🚨 CORREÇÃO CRÍTICA: Log detalhado para debug
+            console.log('🔍 [VERIFICAÇÃO DUPLICATAS] Resultado da busca:', {
+              duplicataError: duplicataError?.message || null,
+              duplicatasEncontradas: duplicatas?.length || 0,
+              nomeBuscado: nomeCompleto,
+              comumBuscado: comumBusca,
+              cargoBuscado: cargoBusca,
+              dataInicio: dataInicio.toISOString(),
+              dataFim: dataFim.toISOString(),
+            });
+
+            // Se for timeout, continuar (não bloquear)
+            if (duplicataError && duplicataError.message?.includes('Timeout')) {
+              console.warn('⚠️ Timeout na verificação de duplicatas (continuando...):', duplicataError.message);
+            } else if (!duplicataError && duplicatas && duplicatas.length > 0) {
               const duplicata = duplicatas[0];
-              console.error('🚨🚨🚨 DUPLICATA DETECTADA NO SUPABASE - BLOQUEANDO 🚨🚨🚨', {
-                nome: nomeCompleto,
-                comum: comumBusca,
-                cargo: cargoBusca,
+              
+              // 🚨 CORREÇÃO CRÍTICA: Verificar se realmente é duplicata (comparar dados exatos)
+              // Pode haver diferenças sutis que não devem bloquear
+              const nomeDuplicata = (duplicata.nome_completo || '').trim().toUpperCase();
+              const comumDuplicata = (duplicata.comum || '').trim().toUpperCase();
+              const cargoDuplicata = (duplicata.cargo || '').trim().toUpperCase();
+              
+              // Comparação exata (case-insensitive já feito pelo ilike, mas garantir)
+              const isExatamenteIgual = 
+                nomeDuplicata === nomeCompleto &&
+                comumDuplicata === comumBusca &&
+                cargoDuplicata === cargoBusca;
+              
+              console.log('🔍 [VERIFICAÇÃO DUPLICATAS] Comparação detalhada:', {
+                nomeBuscado: nomeCompleto,
+                nomeEncontrado: nomeDuplicata,
+                nomeIgual: nomeDuplicata === nomeCompleto,
+                comumBuscado: comumBusca,
+                comumEncontrado: comumDuplicata,
+                comumIgual: comumDuplicata === comumBusca,
+                cargoBuscado: cargoBusca,
+                cargoEncontrado: cargoDuplicata,
+                cargoIgual: cargoDuplicata === cargoBusca,
+                isExatamenteIgual,
                 uuidExistente: duplicata.uuid,
                 dataExistente: duplicata.data_ensaio,
               });
+              
+              // 🚨 CORREÇÃO: Só bloquear se for EXATAMENTE igual (evitar falsos positivos)
+              if (isExatamenteIgual) {
+                console.error('🚨🚨🚨 DUPLICATA DETECTADA NO SUPABASE - BLOQUEANDO 🚨🚨🚨', {
+                  nome: nomeCompleto,
+                  comum: comumBusca,
+                  cargo: cargoBusca,
+                  uuidExistente: duplicata.uuid,
+                  dataExistente: duplicata.data_ensaio,
+                });
 
-              // Formatar data e horário do registro existente usando funções utilitárias
-              const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
-              const dataFormatada = formatDate(dataExistente);
-              const horarioFormatado = formatTime(dataExistente);
+                // Formatar data e horário do registro existente usando funções utilitárias
+                try {
+                  const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+                  const dataFormatada = formatDate ? formatDate(dataExistente) : dataExistente.toLocaleDateString('pt-BR');
+                  const horarioFormatado = formatTime ? formatTime(dataExistente) : dataExistente.toLocaleTimeString('pt-BR');
 
-              return {
-                success: false,
-                error: `DUPLICATA:${nomeCompleto}|${comumBusca}|${dataFormatada}|${horarioFormatado}`,
-              };
+                  return {
+                    success: false,
+                    error: `DUPLICATA:${nomeCompleto}|${comumBusca}|${dataFormatada}|${horarioFormatado}`,
+                  };
+                } catch (formatError) {
+                  // Se erro ao formatar, usar data ISO como fallback
+                  console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
+                  return {
+                    success: false,
+                    error: `DUPLICATA:${nomeCompleto}|${comumBusca}|${duplicata.data_ensaio}|${duplicata.created_at}`,
+                  };
+                }
+              } else {
+                // 🚨 CORREÇÃO: Se não é exatamente igual, não bloquear (pode ser pessoa diferente com nome similar)
+                console.warn('⚠️ Registro encontrado mas NÃO é duplicata exata - continuando:', {
+                  nomeBuscado: nomeCompleto,
+                  nomeEncontrado: nomeDuplicata,
+                  comumBuscado: comumBusca,
+                  comumEncontrado: comumDuplicata,
+                  cargoBuscado: cargoBusca,
+                  cargoEncontrado: cargoDuplicata,
+                });
+              }
             }
           }
         }

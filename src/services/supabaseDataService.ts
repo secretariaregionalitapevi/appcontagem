@@ -1907,13 +1907,24 @@ export const supabaseDataService = {
     }
 
     // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de inserir
+    // 🚀 OTIMIZAÇÃO: Timeout de 1 segundo para não bloquear muito tempo
     // Mas não bloquear se não conseguir restaurar (RLS pode permitir algumas operações)
     try {
-      const sessionRestored = await ensureSessionRestored();
+      const sessionPromise = Promise.race([
+        ensureSessionRestored(),
+        new Promise(resolve => setTimeout(() => resolve(false), 1000)) // Timeout de 1s
+      ]).catch(() => false);
+      
+      const sessionRestored = await sessionPromise;
       
       if (sessionRestored) {
-        // Verificar autenticação apenas se conseguiu restaurar
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        // 🚀 OTIMIZAÇÃO: Verificar autenticação com timeout também (não bloquear)
+        const authPromise = Promise.race([
+          supabase.auth.getUser(),
+          new Promise(resolve => setTimeout(() => resolve({ data: { user: null }, error: null }), 500))
+        ]).catch(() => ({ data: { user: null }, error: null }));
+        
+        const { data: { user }, error: authError } = await authPromise as any;
         if (authError) {
           console.warn('⚠️ Erro ao verificar autenticação:', authError.message);
         } else if (user) {
@@ -2186,12 +2197,13 @@ export const supabaseDataService = {
       created_at: registro.created_at || new Date().toISOString(),
     };
 
-    // 🛡️ VERIFICAÇÃO DE DUPLICADOS: Verificar se já existe registro no mesmo dia
-    // IMPORTANTE: Verificar por nome + comum + cargo REAL (não importa o instrumento ou local de ensaio)
-    // Baseado na lógica do backupcont/app.js
+    // 🚀 OTIMIZAÇÃO: Verificação de duplicatas já foi feita em createRegistro (offlineSyncService)
+    // Removida verificação duplicada aqui para evitar queries desnecessárias e melhorar performance
+    // A verificação em createRegistro é suficiente e mais eficiente
     // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
     if (!skipDuplicateCheck) {
     try {
+      // 🚀 OTIMIZAÇÃO: Verificação rápida com timeout para não bloquear muito tempo
       const nomeBusca = row.nome_completo.trim().toUpperCase();
       const comumBusca = row.comum.trim().toUpperCase();
       const cargoBusca = row.cargo.trim().toUpperCase(); // Cargo REAL já está em row.cargo
@@ -2206,25 +2218,34 @@ export const supabaseDataService = {
       const dataFim = new Date(dataInicio);
       dataFim.setDate(dataFim.getDate() + 1);
 
-      console.log('🔍 Verificando duplicados:', {
-        nome: nomeBusca,
-        comum: comumBusca,
-        cargo: cargoBusca,
-        dataInicio: dataInicio.toISOString(),
-        dataFim: dataFim.toISOString(),
-      });
-
-      const { data: duplicatas, error: duplicataError } = await supabase
+      // 🚀 OTIMIZAÇÃO: Query com timeout e limit(1) para parar na primeira duplicata encontrada
+      const duplicataPromise = supabase
         .from('presencas')
         .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
         .ilike('nome_completo', nomeBusca)
         .ilike('comum', comumBusca)
         .ilike('cargo', cargoBusca)
         .gte('data_ensaio', dataInicio.toISOString())
-        .lt('data_ensaio', dataFim.toISOString());
+        .lt('data_ensaio', dataFim.toISOString())
+        .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
+
+      // 🚀 OTIMIZAÇÃO: Timeout de 2 segundos para não bloquear muito tempo
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
+      );
+
+      const { data: duplicatas, error: duplicataError } = await Promise.race([
+        duplicataPromise,
+        timeoutPromise
+      ]) as any;
 
       if (duplicataError) {
-        console.warn('⚠️ Erro ao verificar duplicatas:', duplicataError);
+        // Se for timeout, continuar (não bloquear)
+        if (duplicataError.message?.includes('Timeout')) {
+          console.warn('⚠️ Timeout na verificação de duplicatas (continuando...):', duplicataError.message);
+        } else {
+          console.warn('⚠️ Erro ao verificar duplicatas:', duplicataError);
+        }
         // Continuar mesmo com erro na verificação
       } else if (duplicatas && duplicatas.length > 0) {
         const duplicata = duplicatas[0];
@@ -2238,9 +2259,27 @@ export const supabaseDataService = {
         });
 
         // Formatar data e horário do registro existente usando funções utilitárias
-        const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
-        const dataFormatada = formatDate(dataExistente);
-        const horarioFormatado = formatTime(dataExistente);
+        // 🚨 CORREÇÃO: Verificar se formatDate e formatTime existem antes de usar
+        let dataFormatada = '';
+        let horarioFormatado = '';
+        try {
+          const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+          if (formatDate && typeof formatDate === 'function') {
+            dataFormatada = formatDate(dataExistente);
+          } else {
+            dataFormatada = dataExistente.toLocaleDateString('pt-BR');
+          }
+          if (formatTime && typeof formatTime === 'function') {
+            horarioFormatado = formatTime(dataExistente);
+          } else {
+            horarioFormatado = dataExistente.toLocaleTimeString('pt-BR');
+          }
+        } catch (formatError) {
+          console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
+          const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+          dataFormatada = dataExistente.toLocaleDateString('pt-BR');
+          horarioFormatado = dataExistente.toLocaleTimeString('pt-BR');
+        }
 
         // Lançar erro para bloquear inserção com informações formatadas
         throw new Error(
