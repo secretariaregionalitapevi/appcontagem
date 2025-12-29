@@ -1450,6 +1450,7 @@ export const RegisterScreen: React.FC = () => {
     console.log('🎹 [handleOrganistasEnsaio] Iniciando navegação para tela de Organistas no Ensaio');
     console.log('🎹 [handleOrganistasEnsaio] Navigation disponível?', !!navigation);
     console.log('🎹 [handleOrganistasEnsaio] Tipo do navigation:', typeof navigation);
+    console.log('🎹 [handleOrganistasEnsaio] Navigation object:', navigation);
     
     try {
       if (!navigation) {
@@ -1461,13 +1462,32 @@ export const RegisterScreen: React.FC = () => {
       // Verificar se o método navigate existe
       if (typeof (navigation as any).navigate !== 'function') {
         console.error('❌ [handleOrganistasEnsaio] Método navigate não está disponível');
+        console.error('❌ [handleOrganistasEnsaio] Métodos disponíveis:', Object.keys(navigation));
         showToast.error('Erro', 'Navegação não configurada corretamente.');
         return;
       }
 
+      // Verificar se podemos obter o estado atual da navegação
+      const state = (navigation as any).getState?.();
+      console.log('🎹 [handleOrganistasEnsaio] Estado atual da navegação:', state);
+      console.log('🎹 [handleOrganistasEnsaio] Rotas disponíveis:', state?.routes?.map((r: any) => r.name));
+
+      // Verificar se a rota existe
+      const routeExists = state?.routes?.some((r: any) => r.name === 'OrganistasEnsaio');
+      console.log('🎹 [handleOrganistasEnsaio] Rota OrganistasEnsaio existe?', routeExists);
+
       console.log('🎹 [handleOrganistasEnsaio] Chamando navigation.navigate("OrganistasEnsaio")');
-      (navigation as any).navigate('OrganistasEnsaio');
-      console.log('✅ [handleOrganistasEnsaio] Navegação chamada com sucesso');
+      
+      // Tentar navegar com um pequeno delay para garantir que tudo está pronto
+      setTimeout(() => {
+        try {
+          (navigation as any).navigate('OrganistasEnsaio');
+          console.log('✅ [handleOrganistasEnsaio] Navegação chamada com sucesso');
+        } catch (navError) {
+          console.error('❌ [handleOrganistasEnsaio] Erro ao executar navigate:', navError);
+          showToast.error('Erro', 'Não foi possível navegar. Tente novamente.');
+        }
+      }, 50);
     } catch (error) {
       console.error('❌ [handleOrganistasEnsaio] Erro ao navegar para OrganistasEnsaio:', error);
       console.error('❌ [handleOrganistasEnsaio] Detalhes do erro:', {
