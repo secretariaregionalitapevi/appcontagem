@@ -392,7 +392,13 @@ export const OrganistasEnsaioScreen: React.FC = () => {
           <View style={[styles.section, styles.registrarSection]}>
             <Text style={styles.sectionTitle}>Registrar Organista</Text>
             
-            <View style={styles.nameSelectWrapper}>
+            <View style={[styles.nameSelectWrapper, Platform.OS === 'web' ? {
+              // @ts-ignore - Propriedades CSS apenas para web
+              position: 'relative' as const,
+              zIndex: 10000,
+              // @ts-ignore
+              isolation: 'isolate',
+            } : {}]}>
               <NameSelectField
                 key={organistaFieldKey} // Key para forçar remontagem quando limpar
                 label="Organista"
@@ -542,10 +548,14 @@ const styles = StyleSheet.create({
   },
   nameSelectWrapper: {
     position: 'relative' as any,
-    zIndex: 10,
+    zIndex: 100, // 🚀 Aumentado para ficar acima da seção de organistas registradas
     marginBottom: theme.spacing.xl,
     minHeight: 80,
     overflow: 'visible' as any,
+    ...(Platform.OS === 'web' ? {
+      // @ts-ignore - Propriedades CSS apenas para web
+      isolation: 'isolate',
+    } : {}),
   },
   sectionTitle: {
     fontSize: theme.fontSize.md,
@@ -607,12 +617,16 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
   registrarSection: {
-    zIndex: 10,
+    zIndex: 100, // 🚀 Aumentado para garantir que o dropdown apareça acima
     position: 'relative' as any,
-    overflow: 'visible' as any,
+    overflow: 'visible' as any, // 🚀 CRÍTICO: overflow visible para permitir que dropdown apareça
+    ...(Platform.OS === 'web' ? {
+      // @ts-ignore - Propriedades CSS apenas para web
+      isolation: 'isolate',
+    } : {}),
   },
   organistasSection: {
-    zIndex: 50,
+    zIndex: 1, // 🚀 Reduzido para ficar abaixo do dropdown
     position: 'relative' as any,
     marginTop: theme.spacing.xl,
   },
