@@ -610,6 +610,28 @@ export const offlineSyncService = {
 
         const sheetsSuccess = sheetsResult.status === 'fulfilled' && sheetsResult.value.success;
         const supabaseSuccess = supabaseResult.status === 'fulfilled' && supabaseResult.value !== null;
+        
+        // 🚨 CORREÇÃO CRÍTICA: Verificar se Supabase retornou erro de duplicata
+        // Se retornou erro de duplicata, bloquear mesmo que Google Sheets tenha sucesso
+        if (supabaseResult.status === 'rejected') {
+          const supabaseError = supabaseResult.reason;
+          if (supabaseError instanceof Error && (
+            supabaseError.message.includes('DUPLICATA') ||
+            supabaseError.message.includes('DUPLICATA_BLOQUEADA') ||
+            supabaseError.message.includes('duplicat')
+          )) {
+            console.error('🚨 Duplicata detectada no Supabase (bloqueando mesmo com Google Sheets OK):', supabaseError.message);
+            // Extrair informações do erro para retornar ao usuário
+            let errorMessage = supabaseError.message;
+            if (errorMessage.includes('DUPLICATA_BLOQUEADA:')) {
+              errorMessage = errorMessage.replace('DUPLICATA_BLOQUEADA:', 'DUPLICATA:');
+            }
+            return {
+              success: false,
+              error: errorMessage,
+            };
+          }
+        }
 
         if (sheetsSuccess) {
           // Sucesso - retornar imediatamente (logs reduzidos para performance)
