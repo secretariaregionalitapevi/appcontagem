@@ -2099,7 +2099,8 @@ export const RegisterScreen: React.FC = () => {
                 setIsNomeManual(false);
               }
             }}
-                placeholder="Selecione o nome..."
+            placeholder="Selecione o nome..."
+            loading={loadingPessoas}
           />
           </View>
 
