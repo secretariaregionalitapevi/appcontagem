@@ -383,5 +383,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 107, 107, 0.2)', // Cor destacada para organistas
     borderWidth: 1,
     borderColor: 'rgba(255, 107, 107, 0.4)',
+    ...(Platform.OS === 'web' ? {
+      // @ts-ignore - Propriedades CSS apenas para web
+      cursor: 'pointer',
+      // @ts-ignore
+      userSelect: 'none',
+      // @ts-ignore
+      WebkitUserSelect: 'none',
+      // @ts-ignore
+      MozUserSelect: 'none',
+      // @ts-ignore
+      msUserSelect: 'none',
+      // @ts-ignore
+      pointerEvents: 'auto',
+      // @ts-ignore
+      zIndex: 1000,
+    } : {}),
   },
 });
