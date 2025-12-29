@@ -71,6 +71,7 @@ export const RegisterScreen: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const loadPessoasTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 🚀 OTIMIZAÇÃO: Ref para debounce
   const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{
     nome: string;
@@ -337,9 +338,14 @@ export const RegisterScreen: React.FC = () => {
     };
   }, []); // Sem dependências - sempre executar
 
-  // 🚀 OTIMIZAÇÃO: Carregar imediatamente quando comum e cargo são selecionados
-  // Removido debounce para resposta instantânea
+  // 🚀 OTIMIZAÇÃO: Carregar com debounce leve (100ms) para evitar múltiplas chamadas rápidas
+  // Mantém resposta rápida mas evita queries desnecessárias
   useEffect(() => {
+    // Limpar timeout anterior se existir
+    if (loadPessoasTimeoutRef.current) {
+      clearTimeout(loadPessoasTimeoutRef.current);
+    }
+    
     // Verificar se precisa de instrumento obrigatório (apenas Músico)
     // Organista e Candidato(a) não precisam de instrumento obrigatório, mas podem ter
     const selectedCargoObj = cargos.find(c => c.id === selectedCargo);
@@ -354,12 +360,22 @@ export const RegisterScreen: React.FC = () => {
         setSelectedPessoa('');
         return;
       }
-      // 🚀 CARREGAR IMEDIATAMENTE - sem debounce para resposta instantânea
-      loadPessoas();
+      // 🚀 OTIMIZAÇÃO: Debounce leve (100ms) para evitar múltiplas chamadas rápidas
+      // Ainda mantém resposta muito rápida mas evita queries desnecessárias
+      loadPessoasTimeoutRef.current = setTimeout(() => {
+        loadPessoas();
+      }, 100);
     } else {
       setPessoas([]);
       setSelectedPessoa('');
     }
+    
+    // Cleanup: limpar timeout ao desmontar ou quando dependências mudarem
+    return () => {
+      if (loadPessoasTimeoutRef.current) {
+        clearTimeout(loadPessoasTimeoutRef.current);
+      }
+    };
   }, [selectedComum, selectedCargo, selectedInstrumento, cargos]);
 
   const loadInitialData = async () => {

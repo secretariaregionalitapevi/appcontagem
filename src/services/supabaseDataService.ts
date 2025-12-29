@@ -858,10 +858,10 @@ export const supabaseDataService = {
 
     try {
       // 🚀 OTIMIZAÇÃO: Restaurar sessão de forma rápida e não-bloqueante
-      // Aguardar apenas o mínimo necessário (timeout de 2s)
+      // Aguardar apenas o mínimo necessário (timeout de 500ms para resposta mais rápida)
       const sessionPromise = Promise.race([
         ensureSessionRestored(),
-        new Promise(resolve => setTimeout(resolve, 2000)) // Timeout de 2s
+        new Promise(resolve => setTimeout(resolve, 500)) // Timeout de 500ms (reduzido de 2s)
       ]).catch(() => {
         // Se falhar, continuar mesmo assim
       });
@@ -912,7 +912,8 @@ export const supabaseDataService = {
       let allData: any[] = [];
       let hasMore = true;
       let currentPage = 0;
-      const pageSize = 1000;
+      // 🚀 OTIMIZAÇÃO: Aumentar pageSize para 2000 para reduzir número de queries (mais rápido)
+      const pageSize = 2000; // Aumentado de 1000 para 2000
       let finalError: any = null;
 
       const fetchPage = async (
@@ -1053,7 +1054,8 @@ export const supabaseDataService = {
         const result1 = await query1;
         
         if (result1.data && !result1.error && result1.data.length > 0) {
-          // Se encontrou resultados na primeira query, usar apenas ela (mais rápido)
+          // 🚀 OTIMIZAÇÃO: Se encontrou resultados na primeira query, usar apenas ela (mais rápido)
+          // Retornar imediatamente sem tentar outras queries
           result1.data.forEach((item: any) => {
             const key = `${item.nome}_${item.comum}`.toUpperCase();
             if (!seenNames.has(key)) {
@@ -1061,6 +1063,35 @@ export const supabaseDataService = {
               combinedDataComum.push(item);
             }
           });
+          
+          // 🚀 OTIMIZAÇÃO: Se encontrou resultados suficientes, retornar imediatamente
+          // Evita queries de fallback desnecessárias
+          if (combinedDataComum.length > 0) {
+            // Aplicar filtro de cargo se necessário (já vem filtrado da query, mas garantir)
+            let filteredData = combinedDataComum;
+            if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+              const cargoBuscaNormalizado = normalizeString(cargoBusca.toUpperCase());
+              filteredData = combinedDataComum.filter((item: any) => {
+                if (!item.cargo) return false;
+                const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
+                if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
+                if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
+                  const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
+                  const isSubstring = cargosConhecidos.some(c => 
+                    c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+                  );
+                  return !isSubstring;
+                }
+                return false;
+              });
+            }
+            
+            return {
+              data: filteredData,
+              error: null,
+              hasMore: combinedDataComum.length === pageSize,
+            };
+          }
         } else {
           // Se não encontrou, tentar outras variações em paralelo (apenas se necessário)
           // 🚨 CORREÇÃO CRÍTICA: Aplicar filtro de cargo também nas queries de fallback
