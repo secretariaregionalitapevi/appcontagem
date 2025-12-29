@@ -572,7 +572,9 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-};
+});
+
+AutocompleteField.displayName = 'AutocompleteField';
 
 const styles = StyleSheet.create({
   container: {
