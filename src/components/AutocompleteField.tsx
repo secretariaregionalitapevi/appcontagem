@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
   View,
   Text,
@@ -49,7 +49,12 @@ interface AutocompleteFieldProps {
   style?: ViewStyle;
 }
 
-export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
+export interface AutocompleteFieldRef {
+  focus: () => void;
+  blur: () => void;
+}
+
+export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFieldProps>(({
   label,
   value,
   options,
@@ -58,7 +63,7 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
   icon = 'map-marker-alt',
   error,
   style,
-}) => {
+}, ref) => {
   const [searchText, setSearchText] = useState('');
   const [showList, setShowList] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -288,6 +293,27 @@ export const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
       }
     };
   }, []);
+
+  // 🚀 EXPOR MÉTODOS VIA REF: Permitir que componentes pais controlem o foco
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        setIsFocused(true);
+        // Mostrar lista se houver texto
+        if (searchText.trim().length >= 1) {
+          setShowList(true);
+        }
+      }
+    },
+    blur: () => {
+      if (inputRef.current) {
+        inputRef.current.blur();
+        setIsFocused(false);
+        setShowList(false);
+      }
+    },
+  }));
 
   // Z-index MUITO ALTO para aparecer acima de TUDO em TODAS as plataformas
   const containerZIndex = isFocused ? 99999 : 1;
@@ -827,3 +853,5 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+AutocompleteField.displayName = 'AutocompleteField';

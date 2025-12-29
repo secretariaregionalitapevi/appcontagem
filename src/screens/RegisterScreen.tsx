@@ -15,7 +15,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import { useAuthContext } from '../context/AuthContext';
 import { SimpleSelectField } from '../components/SimpleSelectField';
-import { AutocompleteField } from '../components/AutocompleteField';
+import { AutocompleteField, AutocompleteFieldRef } from '../components/AutocompleteField';
 import { NameSelectField } from '../components/NameSelectField';
 import { TextInputField } from '../components/TextInputField';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -72,6 +72,7 @@ export const RegisterScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const loadPessoasTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 🚀 OTIMIZAÇÃO: Ref para debounce
+  const comumFieldRef = useRef<AutocompleteFieldRef>(null); // 🚀 REF: Para focar no campo de comum após registro
   const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{
     nome: string;
@@ -451,7 +452,30 @@ export const RegisterScreen: React.FC = () => {
     setIsNomeManual(false);
     // Incrementar key para forçar remontagem do NameSelectField
     setNameFieldKey(prev => prev + 1);
+    
+    // 🚀 FOCO AUTOMÁTICO: Focar no campo de comum após limpar (web e mobile)
+    setTimeout(() => {
+      if (comumFieldRef.current) {
+        comumFieldRef.current.focus();
+        console.log('🎯 Focando no campo de comum após limpar formulário');
+      }
+    }, 100);
   }, []);
+  
+  // 🚀 FOCO AUTOMÁTICO: Focar no campo de comum após carregar a página (web e mobile)
+  useEffect(() => {
+    if (!initialLoading && comuns.length > 0) {
+      // Aguardar um pouco para garantir que o componente está totalmente renderizado
+      const focusTimeout = setTimeout(() => {
+        if (comumFieldRef.current) {
+          comumFieldRef.current.focus();
+          console.log('🎯 Focando no campo de comum após carregar página');
+        }
+      }, 300);
+      
+      return () => clearTimeout(focusTimeout);
+    }
+  }, [initialLoading, comuns.length]);
 
   // Função para pull-to-refresh (otimizada com useCallback)
   const onRefresh = useCallback(async () => {
@@ -1871,6 +1895,7 @@ export const RegisterScreen: React.FC = () => {
                 isolation: 'isolate',
               } : {}}>
                 <AutocompleteField
+                  ref={comumFieldRef}
                   label="COMUM CONGREGAÇÃO *"
                   value={selectedComum}
                   options={comunsOptions}
