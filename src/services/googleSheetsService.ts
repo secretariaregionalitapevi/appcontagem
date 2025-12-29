@@ -140,8 +140,53 @@ export const googleSheetsService = {
         CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
         LOCAL_ENSAIO: localEnsaioConvertido.toUpperCase(),
         // 🚨 CORREÇÃO: DATA_ENSAIO deve incluir hora no formato dd/mm/aaaa HH:mm
-        DATA_ENSAIO: formatDateTimeManual(),
-        HORÁRIO: formatTime(),
+        // 🚨 CORREÇÃO CRÍTICA: Garantir que formatDateTimeManual funcione mesmo se houver problema de importação
+        DATA_ENSAIO: (() => {
+          try {
+            if (formatDateTimeManual && typeof formatDateTimeManual === 'function') {
+              return formatDateTimeManual();
+            } else {
+              // Fallback: formatar manualmente se função não estiver disponível
+              const data = new Date();
+              const dia = String(data.getDate()).padStart(2, '0');
+              const mes = String(data.getMonth() + 1).padStart(2, '0');
+              const ano = data.getFullYear();
+              const horas = String(data.getHours()).padStart(2, '0');
+              const minutos = String(data.getMinutes()).padStart(2, '0');
+              return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+            }
+          } catch (error) {
+            // Fallback em caso de erro
+            const data = new Date();
+            const dia = String(data.getDate()).padStart(2, '0');
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const ano = data.getFullYear();
+            const horas = String(data.getHours()).padStart(2, '0');
+            const minutos = String(data.getMinutes()).padStart(2, '0');
+            return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+          }
+        })(),
+        HORÁRIO: (() => {
+          try {
+            if (formatTime && typeof formatTime === 'function') {
+              return formatTime();
+            } else {
+              // Fallback: formatar manualmente se função não estiver disponível
+              const data = new Date();
+              const horas = String(data.getHours()).padStart(2, '0');
+              const minutos = String(data.getMinutes()).padStart(2, '0');
+              const segundos = String(data.getSeconds()).padStart(2, '0');
+              return `${horas}:${minutos}:${segundos}`;
+            }
+          } catch (error) {
+            // Fallback em caso de erro
+            const data = new Date();
+            const horas = String(data.getHours()).padStart(2, '0');
+            const minutos = String(data.getMinutes()).padStart(2, '0');
+            const segundos = String(data.getSeconds()).padStart(2, '0');
+            return `${horas}:${minutos}:${segundos}`;
+          }
+        })(),
         REGISTRADO_POR: data.registradoPor.toUpperCase(),
         USER_ID: data.userId || '',
         ANOTACOES: 'Cadastro fora da Regional', // 🚨 SEMPRE usar esta anotação para registros externos
