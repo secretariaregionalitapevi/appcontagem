@@ -2262,6 +2262,25 @@ export const supabaseDataService = {
 
         if (error) {
           ultimoErro = error;
+          
+          // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
+          const isConstraintError = 
+            error.code === '23505' || 
+            error.message?.includes('duplicate key') || 
+            error.message?.includes('already exists') ||
+            error.message?.includes('pessoas_pkey') ||
+            error.message?.includes('presencas_pkey');
+          
+          if (isConstraintError) {
+            console.log(`✅ Registro já existe no Supabase (constraint ${error.code}) - tratado como sucesso`);
+            // Retornar registro como se tivesse sido inserido com sucesso
+            return {
+              ...registro,
+              id: uuid,
+              status_sincronizacao: 'synced',
+            };
+          }
+          
           console.error(`❌ Erro ao inserir no Supabase (tentativa ${tentativas}):`, {
             code: error.code,
             message: error.message,
@@ -2296,8 +2315,27 @@ export const supabaseDataService = {
             status_sincronizacao: 'synced',
           };
         }
-      } catch (error) {
+      } catch (error: any) {
         ultimoErro = error;
+        
+        // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
+        const isConstraintError = 
+          error?.code === '23505' || 
+          error?.message?.includes('duplicate key') || 
+          error?.message?.includes('already exists') ||
+          error?.message?.includes('pessoas_pkey') ||
+          error?.message?.includes('presencas_pkey');
+        
+        if (isConstraintError) {
+          console.log(`✅ Registro já existe no Supabase (constraint) - tratado como sucesso`);
+          // Retornar registro como se tivesse sido inserido com sucesso
+          return {
+            ...registro,
+            id: uuid,
+            status_sincronizacao: 'synced',
+          };
+        }
+        
         console.error(`❌ Exceção ao inserir no Supabase (tentativa ${tentativas}):`, error);
         
         if (tentativas >= maxTentativas) {

@@ -7,6 +7,11 @@ import { uuidv4 } from '../utils/uuid';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { formatDate, formatTime } from '../utils/dateUtils';
 
+// 🚨 PROTEÇÃO: Flag global para evitar processamento duplicado simultâneo
+let isProcessingQueue = false;
+let lastProcessTimestamp = 0;
+const PROCESS_COOLDOWN = 2000; // 2 segundos de cooldown entre processamentos
+
 export const offlineSyncService = {
   async isOnline(): Promise<boolean> {
     const state = await NetInfo.fetch();
@@ -89,6 +94,24 @@ export const offlineSyncService = {
 
   // 🚨 FUNÇÃO MELHORADA: processarFilaLocal com retry e validação robusta
   async processarFilaLocal(): Promise<{ successCount: number; errorCount: number }> {
+    // 🚨 PROTEÇÃO: Evitar processamento duplicado simultâneo (ex: F5, múltiplos eventos online)
+    const now = Date.now();
+    if (isProcessingQueue) {
+      console.log('⚠️ Processamento da fila já em andamento, ignorando chamada duplicada');
+      return { successCount: 0, errorCount: 0 };
+    }
+    
+    // Verificar cooldown para evitar processamento muito frequente (ex: F5 repetido)
+    if (now - lastProcessTimestamp < PROCESS_COOLDOWN) {
+      const remainingCooldown = PROCESS_COOLDOWN - (now - lastProcessTimestamp);
+      console.log(`⚠️ Processamento muito recente, aguardando ${remainingCooldown}ms antes de processar novamente`);
+      return { successCount: 0, errorCount: 0 };
+    }
+    
+    // Marcar como processando
+    isProcessingQueue = true;
+    lastProcessTimestamp = now;
+    
     try {
       // Buscar fila
       const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
@@ -162,7 +185,19 @@ export const offlineSyncService = {
               await supabaseDataService.createRegistroPresenca(item, true);
               console.log(`✅ Item ${i + 1}: Supabase OK`);
             } catch (e: any) {
-              console.warn(`⚠️ Item ${i + 1}: Erro no Supabase (não crítico):`, e.message);
+              // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
+              const isConstraintError = 
+                e.code === '23505' || 
+                e.message?.includes('duplicate key') || 
+                e.message?.includes('already exists') ||
+                e.message?.includes('pessoas_pkey') ||
+                e.message?.includes('presencas_pkey');
+              
+              if (isConstraintError) {
+                console.log(`✅ Item ${i + 1}: Registro já existe no Supabase (constraint) - tratado como sucesso`);
+              } else {
+                console.warn(`⚠️ Item ${i + 1}: Erro no Supabase (não crítico):`, e.message);
+              }
               // Continua mesmo se Supabase falhar (Google Sheets já salvou e registro já foi removido da fila)
             }
             
@@ -197,15 +232,23 @@ export const offlineSyncService = {
                 
                 itensProcessados.push(item);
               } catch (supabaseError: any) {
-                // Ambos falharam - verificar se é duplicata
-                if (supabaseError.message?.includes('DUPLICATA') || supabaseError.message?.includes('duplicat')) {
-                  console.warn(`⚠️ Item ${i + 1}: Duplicata detectada, removendo da fila`);
+                // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
+                const isConstraintError = 
+                  supabaseError.code === '23505' || 
+                  supabaseError.message?.includes('duplicate key') || 
+                  supabaseError.message?.includes('already exists') ||
+                  supabaseError.message?.includes('pessoas_pkey') ||
+                  supabaseError.message?.includes('presencas_pkey');
+                
+                // Verificar se é duplicata ou constraint
+                if (supabaseError.message?.includes('DUPLICATA') || supabaseError.message?.includes('duplicat') || isConstraintError) {
+                  console.log(`✅ Item ${i + 1}: Registro já existe (duplicata/constraint) - removendo da fila`);
                   
-                  // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE quando duplicata detectada
+                  // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE quando duplicata/constraint detectada
                   if (item.id) {
                     try {
                       await supabaseDataService.deleteRegistroFromLocal(item.id);
-                      console.log(`🗑️ Item ${i + 1}: Removido da fila (duplicata detectada)`);
+                      console.log(`🗑️ Item ${i + 1}: Removido da fila (duplicata/constraint detectada)`);
                     } catch (deleteError) {
                       console.warn(`⚠️ Item ${i + 1}: Erro ao remover duplicata da fila:`, deleteError);
                     }
@@ -305,6 +348,9 @@ export const offlineSyncService = {
     } catch (error) {
       console.error('❌ Erro ao processar fila local:', error);
       return { successCount: 0, errorCount: 0 };
+    } finally {
+      // 🚨 PROTEÇÃO: Sempre liberar flag de processamento, mesmo em caso de erro
+      isProcessingQueue = false;
     }
   },
 
