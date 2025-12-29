@@ -155,11 +155,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           {onOrganistasEnsaioPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={onOrganistasEnsaioPress}
+              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall, styles.organistaBtn]}
+              onPress={(e) => {
+                console.log('🎹 [AppHeader] Botão de organistas clicado!');
+                console.log('🎹 [AppHeader] onOrganistasEnsaioPress disponível?', !!onOrganistasEnsaioPress);
+                console.log('🎹 [AppHeader] Tipo de onOrganistasEnsaioPress:', typeof onOrganistasEnsaioPress);
+                try {
+                  if (onOrganistasEnsaioPress) {
+                    onOrganistasEnsaioPress();
+                    console.log('✅ [AppHeader] onOrganistasEnsaioPress chamado com sucesso');
+                  } else {
+                    console.error('❌ [AppHeader] onOrganistasEnsaioPress é null/undefined');
+                  }
+                } catch (error) {
+                  console.error('❌ [AppHeader] Erro ao chamar onOrganistasEnsaioPress:', error);
+                }
+              }}
               activeOpacity={0.7}
             >
-              <FontAwesome5 name="music" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+              <FontAwesome5 name="music" size={IS_SMALL_SCREEN ? 16 : 18} color="#ffffff" />
             </TouchableOpacity>
           )}
           {isMaster && onEditRegistrosPress && (
@@ -193,9 +207,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       {/* Segunda linha (apenas em telas pequenas): Local */}
       {IS_SMALL_SCREEN && (
         <View style={styles.headerSecondRow}>
-          <View style={styles.brandSubtitleContainer}>
-            <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
-            <Text style={styles.brandSubtitle} numberOfLines={1}>{localEnsaio}</Text>
+          <View style={styles.headerSecondRowContent}>
+            <View style={styles.brandSubtitleContainer}>
+              <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
+              <Text style={styles.brandSubtitle} numberOfLines={1}>{localEnsaio}</Text>
+            </View>
           </View>
         </View>
       )}
@@ -227,7 +243,15 @@ const styles = StyleSheet.create({
   headerSecondRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    paddingLeft: 0,
+    marginTop: 4, // Espaçamento adicional
+  },
+  headerSecondRowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    // Alinhar com o título: logo width (28 em small, 35 normal) + gap (8 em small, 12 normal)
+    marginLeft: IS_SMALL_SCREEN ? 36 : 47,
   },
   headerLeftSection: {
     flexDirection: 'row',
@@ -354,5 +378,10 @@ const styles = StyleSheet.create({
     minWidth: 36,
     minHeight: 36,
     borderRadius: 6,
+  },
+  organistaBtn: {
+    backgroundColor: 'rgba(255, 107, 107, 0.2)', // Cor destacada para organistas
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.4)',
   },
 });
