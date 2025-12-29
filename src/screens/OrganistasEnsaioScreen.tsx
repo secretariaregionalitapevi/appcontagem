@@ -412,7 +412,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
 
             {selectedOrganista && (
               <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel}>
+                <Text style={styles.switchLabel} numberOfLines={2} ellipsizeMode="tail">
                   {selectedOrganista} tocou no ensaio?
                 </Text>
                 <Switch
@@ -568,16 +568,20 @@ const styles = StyleSheet.create({
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between', // 🚀 Mudado de flex-end para space-between para melhor distribuição
     gap: theme.spacing.sm,
-    flexShrink: 0,
-    minWidth: 120,
-    paddingLeft: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.sm,
   },
   switchLabel: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.text,
-    flexShrink: 0,
+    flex: 1, // 🚀 Permite que o texto ocupe o espaço disponível
+    flexShrink: 1, // 🚀 Permite que o texto encolha se necessário
+    marginRight: theme.spacing.sm,
+    lineHeight: 20,
   },
   saveButton: {
     marginTop: theme.spacing.md,
