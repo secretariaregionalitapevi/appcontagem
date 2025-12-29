@@ -1852,11 +1852,7 @@ export const RegisterScreen: React.FC = () => {
     }
   };
 
-  // Debug: verificar se a função está definida (apenas log, sem hook)
-  // Movido para useEffect para evitar problemas de renderização
-  useEffect(() => {
-    console.log('🎹 RegisterScreen - handleOrganistasEnsaio definido?', typeof handleOrganistasEnsaio);
-  }, []);
+  // 🚨 REMOVIDO: Log desnecessário que estava causando loop - função já está definida e funcionando
 
   return (
     <View style={styles.container}>
