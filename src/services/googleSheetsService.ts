@@ -5,6 +5,8 @@ import { normalizarRegistroCargoFeminino, isCargoFemininoOrganista } from '../ut
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { uuidv4 } from '../utils/uuid';
 import { normalizarNivel } from '../utils/normalizeNivel';
+import { formatDateTimeManual, formatTime } from '../utils/dateUtils';
+import { supabase } from './supabaseClient';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
 const GOOGLE_SHEETS_API_URL =
@@ -77,12 +79,14 @@ export const googleSheetsService = {
       // 🚨 CORREÇÃO CRÍTICA: Determinar instrumento e naipe baseado no cargo (igual backupcont)
       // Cargos relacionados a organistas (Examinadora, Instrutora, Organista, Secretária da Música)
       // sempre devem ter instrumento "ÓRGÃO" e naipe "TECLADO", independente de ter classe ou não
+      // 🚨 IMPORTANTE: "Instrutor" (masculino) é classe de músicos, NÃO organista
+      // Apenas "Instrutora" (feminino) é organista
       const cargoUpper = data.cargo.trim().toUpperCase();
       console.log('🔍 [EXTERNAL] Verificando cargo:', cargoUpper);
       
       const isOrganista = cargoUpper === 'ORGANISTA';
       const isExaminadora = cargoUpper === 'EXAMINADORA';
-      const isInstrutora = cargoUpper === 'INSTRUTORA' || cargoUpper === 'INSTRUTOR';
+      const isInstrutora = cargoUpper === 'INSTRUTORA'; // 🚨 Apenas feminino (Instrutora), NÃO Instrutor
       const isSecretariaMusica = (cargoUpper.includes('SECRETÁRI') || cargoUpper.includes('SECRETARI')) && 
                                   (cargoUpper.includes('MÚSICA') || cargoUpper.includes('MUSICA'));
       const isOrganistaOuRelacionado = isOrganista || isExaminadora || isInstrutora || isSecretariaMusica;
@@ -135,18 +139,9 @@ export const googleSheetsService = {
         NAIPE_INSTRUMENTO: naipeFinal,
         CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
         LOCAL_ENSAIO: localEnsaioConvertido.toUpperCase(),
-        DATA_ENSAIO: new Date().toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        }),
-        HORÁRIO: new Date().toLocaleTimeString('pt-BR', {
-          timeZone: 'America/Sao_Paulo',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        }),
+        // 🚨 CORREÇÃO: DATA_ENSAIO deve incluir hora no formato dd/mm/aaaa HH:mm
+        DATA_ENSAIO: formatDateTimeManual(),
+        HORÁRIO: formatTime(),
         REGISTRADO_POR: data.registradoPor.toUpperCase(),
         USER_ID: data.userId || '',
         ANOTACOES: 'Cadastro fora da Regional', // 🚨 SEMPRE usar esta anotação para registros externos
@@ -472,6 +467,11 @@ export const googleSheetsService = {
       // Verificar se é registro externo (do modal de novo registro)
       const isExternalRegistro = registro.comum_id.startsWith('external_');
       
+      // 🚨 CORREÇÃO: Verificar se é nome manual de uma comum da regional (não do modal)
+      // Nomes manuais de comuns da regional indicam que o cadastro está desatualizado
+      const isNomeManual = registro.pessoa_id.startsWith('manual_');
+      const isNomeManualRegional = isNomeManual && !isExternalRegistro;
+      
       let comum: any = null;
       // 🚨 CRÍTICO: Tentar buscar cargo por ID primeiro, depois por nome (fallback)
       let cargoSelecionado = cargos.find(c => c.id === registro.cargo_id);
@@ -511,7 +511,7 @@ export const googleSheetsService = {
       }
 
       // 🚀 OTIMIZAÇÃO: Verificar se é nome manual (evitar buscar pessoas se não necessário)
-      const isNomeManual = registro.pessoa_id.startsWith('manual_');
+      // isNomeManual já foi declarado acima
       let nomeCompleto = '';
       let cargoReal = cargoSelecionado.nome;
       let pessoa: any = null;
@@ -575,14 +575,90 @@ export const googleSheetsService = {
 
       // Buscar cidade da pessoa (se disponível)
       // Para registros externos, a cidade vem no registro
+      // 🚨 CORREÇÃO CRÍTICA: Sempre garantir que cidade seja preenchida (não usar localEnsaio como fallback)
       let cidade = '';
       if (isExternalRegistro) {
         // Para registros externos, buscar cidade do registro (se disponível)
         cidade = (registro as any).cidade || '';
       } else if (isNomeManual) {
-        cidade = '';
+        // 🚨 CORREÇÃO: Para nomes manuais da página principal, buscar cidade da comum
+        try {
+          const cidadeResult = await supabase
+            .from('cadastro')
+            .select('cidade')
+            .ilike('comum', `%${comum.nome}%`)
+            .not('cidade', 'is', null)
+            .neq('cidade', '')
+            .limit(1)
+            .single();
+          
+          if (cidadeResult.data && cidadeResult.data.cidade) {
+            cidade = cidadeResult.data.cidade;
+            console.log('✅ [GoogleSheets] Cidade encontrada da comum para nome manual:', cidade);
+          } else {
+            console.warn('⚠️ [GoogleSheets] Cidade não encontrada para comum:', comum.nome);
+            // 🚨 CORREÇÃO: Se não encontrou, tentar extrair da comum (ex: "ITAPEVI - CENTRAL" -> "ITAPEVI")
+            const comumNomeUpper = comum.nome.toUpperCase();
+            if (comumNomeUpper.includes('ITAPEVI')) {
+              cidade = 'ITAPEVI';
+            } else if (comumNomeUpper.includes('COTIA')) {
+              cidade = 'COTIA';
+            } else if (comumNomeUpper.includes('JANDIRA')) {
+              cidade = 'JANDIRA';
+            } else if (comumNomeUpper.includes('CAUCAIA')) {
+              cidade = 'CAUCAIA DO ALTO';
+            }
+            console.log('🔄 [GoogleSheets] Cidade inferida da comum:', cidade);
+          }
+        } catch (error) {
+          console.warn('⚠️ [GoogleSheets] Erro ao buscar cidade da comum:', error);
+          // 🚨 CORREÇÃO: Fallback - tentar extrair da comum
+          const comumNomeUpper = comum.nome.toUpperCase();
+          if (comumNomeUpper.includes('ITAPEVI')) {
+            cidade = 'ITAPEVI';
+          } else if (comumNomeUpper.includes('COTIA')) {
+            cidade = 'COTIA';
+          } else if (comumNomeUpper.includes('JANDIRA')) {
+            cidade = 'JANDIRA';
+          } else if (comumNomeUpper.includes('CAUCAIA')) {
+            cidade = 'CAUCAIA DO ALTO';
+          }
+        }
       } else {
         cidade = pessoa?.cidade || '';
+        // 🚨 CORREÇÃO: Se pessoa não tem cidade, tentar extrair da comum como fallback
+        if (!cidade) {
+          const comumNomeUpper = comum.nome.toUpperCase();
+          if (comumNomeUpper.includes('ITAPEVI')) {
+            cidade = 'ITAPEVI';
+          } else if (comumNomeUpper.includes('COTIA')) {
+            cidade = 'COTIA';
+          } else if (comumNomeUpper.includes('JANDIRA')) {
+            cidade = 'JANDIRA';
+          } else if (comumNomeUpper.includes('CAUCAIA')) {
+            cidade = 'CAUCAIA DO ALTO';
+          }
+          console.log('🔄 [GoogleSheets] Cidade não encontrada na pessoa, inferida da comum:', cidade);
+        }
+      }
+      
+      // 🚨 CORREÇÃO CRÍTICA: Garantir que cidade nunca seja vazia (evitar que Google Apps Script use localEnsaio como fallback)
+      if (!cidade || cidade.trim() === '') {
+        console.warn('⚠️ [GoogleSheets] Cidade vazia detectada, usando fallback da comum');
+        const comumNomeUpper = comum.nome.toUpperCase();
+        if (comumNomeUpper.includes('ITAPEVI')) {
+          cidade = 'ITAPEVI';
+        } else if (comumNomeUpper.includes('COTIA')) {
+          cidade = 'COTIA';
+        } else if (comumNomeUpper.includes('JANDIRA')) {
+          cidade = 'JANDIRA';
+        } else if (comumNomeUpper.includes('CAUCAIA')) {
+          cidade = 'CAUCAIA DO ALTO';
+        } else {
+          // Último fallback: usar primeira palavra da comum
+          cidade = comum.nome.split(' ')[0].toUpperCase();
+        }
+        console.log('🔄 [GoogleSheets] Cidade definida como fallback:', cidade);
       }
 
       // Buscar nome do local de ensaio (se for ID, converter para nome)
@@ -602,16 +678,7 @@ export const googleSheetsService = {
         localEnsaioNome = localEncontrado?.nome || localEnsaioNome;
       }
 
-      // Formatar data com hora no formato dd/mm/aaaa HH:mm
-      const formatarDataHora = (dataISO: string): string => {
-        const data = new Date(dataISO);
-        const dia = String(data.getDate()).padStart(2, '0');
-        const mes = String(data.getMonth() + 1).padStart(2, '0');
-        const ano = data.getFullYear();
-        const horas = String(data.getHours()).padStart(2, '0');
-        const minutos = String(data.getMinutes()).padStart(2, '0');
-        return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
-      };
+      // Usar função utilitária centralizada para formatação de data/hora
 
       // Buscar nome do usuário e extrair apenas primeiro e último nome
       const registradoPorNome = formatRegistradoPor(registro.usuario_responsavel || '');
@@ -649,6 +716,14 @@ export const googleSheetsService = {
           ? normalizacao.classeOrganista || 'OFICIALIZADA'
           : registro.classe_organista || '';
 
+      // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" nas anotações para nomes manuais de comuns da regional
+      // Nomes manuais indicam que o cadastro está desatualizado (pessoa não encontrada na lista)
+      let anotacoes = '';
+      if (isNomeManualRegional) {
+        anotacoes = 'SAM Desatualizado';
+        console.log('✏️ [GoogleSheets] Nome manual de comum da regional detectado - adicionando "SAM Desatualizado" nas anotações');
+      }
+
       // Formato esperado pelo Google Apps Script (Code.gs) - tudo em maiúscula
       const sheetRow = {
         UUID: registro.id || '',
@@ -661,9 +736,9 @@ export const googleSheetsService = {
         NAIPE_INSTRUMENTO: naipeInstrumento.toUpperCase(),
         CLASSE_ORGANISTA: classeOrganistaFinal.toUpperCase(), // Classe normalizada
         LOCAL_ENSAIO: localEnsaioNome.toUpperCase(),
-        DATA_ENSAIO: formatarDataHora(registro.data_hora_registro || new Date().toISOString()),
+        DATA_ENSAIO: formatDateTimeManual(registro.data_hora_registro),
         REGISTRADO_POR: registradoPorNome.toUpperCase(),
-        ANOTACOES: '', // Campo anotações (pode ser preenchido depois)
+        ANOTACOES: anotacoes.toUpperCase(), // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" para nomes manuais da regional
       };
 
       console.log('📤 Enviando para Google Sheets:', sheetRow);
