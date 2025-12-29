@@ -1952,8 +1952,11 @@ export const RegisterScreen: React.FC = () => {
                   onPress={(e) => {
                     e.preventDefault?.();
                     e.stopPropagation?.();
-                    console.log('🔘 Botão "+ Novo registro" clicado');
+                    console.log('🔘 [RegisterScreen] Botão "+ Novo registro" clicado');
+                    console.log('🔘 [RegisterScreen] isOnline:', isOnline);
+                    console.log('🔘 [RegisterScreen] Abrindo modal...');
                     setNewRegistrationModalVisible(true);
+                    console.log('✅ [RegisterScreen] Modal aberto - newRegistrationModalVisible = true');
                   }}
                   style={styles.newRegistrationLink}
                   activeOpacity={0.7}
@@ -2276,7 +2279,7 @@ export const RegisterScreen: React.FC = () => {
           cargos={cargos}
           instrumentos={instrumentos}
           onClose={() => {
-            console.log('🚨 [MODAL] Fechando modal manualmente');
+            console.log('🚨 [RegisterScreen] Fechando modal manualmente via onClose');
             setNewRegistrationModalVisible(false);
           }}
           onSave={handleSaveNewRegistration}
