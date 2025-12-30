@@ -15,6 +15,7 @@ import { theme } from '../theme';
 import { SimpleSelectField } from './SimpleSelectField';
 import { PrimaryButton } from './PrimaryButton';
 import { showToast } from '../utils/toast';
+import { sanitizeInput, sanitizeForLogging, FIELD_LIMITS } from '../utils/securityUtils';
 
 interface NewRegistrationModalProps {
   visible: boolean;
@@ -164,14 +165,15 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
     }
 
     console.log('✅ [MODAL] Validação passou, iniciando salvamento...');
-    console.log('📋 [MODAL] Dados do formulário:', {
+    // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
+    console.log('📋 [MODAL] Dados do formulário:', sanitizeForLogging({
       comum: comum.trim(),
       cidade: cidade.trim(),
       cargo: selectedCargo,
       instrumento: showInstrumento ? selectedInstrumento : undefined,
       classe: showClasse ? selectedClasse : undefined,
       nome: nome.trim(),
-    });
+    }));
 
     setLoading(true);
     try {
@@ -186,14 +188,17 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         classeFinal = selectedClasse || 'Oficializada';
       }
 
-      console.log('📤 [MODAL] Chamando onSave com dados:', {
-        comum: comum.trim(),
-        cidade: cidade.trim(),
+      // 🛡️ SEGURANÇA: Sanitizar dados antes de enviar
+      const dadosSanitizados = {
+        comum: sanitizeInput(comum.trim(), { fieldType: 'comum', maxLength: FIELD_LIMITS.comum }),
+        cidade: sanitizeInput(cidade.trim(), { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade }),
         cargo: selectedCargo,
         instrumento: showInstrumento ? selectedInstrumento : undefined,
-        classe: classeFinal,
-        nome: nome.trim(),
-      });
+        classe: classeFinal ? sanitizeInput(classeFinal, { fieldType: 'classe', maxLength: FIELD_LIMITS.classe }) : undefined,
+        nome: sanitizeInput(nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome }),
+      };
+      
+      console.log('📤 [MODAL] Chamando onSave com dados sanitizados:', sanitizeForLogging(dadosSanitizados));
 
       // 🚨 CRÍTICO: Aguardar resultado do onSave e tratar erros
       try {
@@ -471,17 +476,11 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
       </KeyboardAvoidingView>
   );
 
-  // 🚨 CRÍTICO: NUNCA renderizar modal quando offline (não faz sentido)
-  // Verificar se está online antes de renderizar
-  const isOnline = typeof navigator !== 'undefined' && navigator.onLine !== false;
-  if (!isOnline) {
-    console.log('🚨 [NewRegistrationModal] Offline detectado - NÃO renderizando modal');
-    return null;
-  }
-  
+  // 🚨 CORREÇÃO: Modal funciona offline - handleSaveNewRegistration já salva na fila quando offline
+  // Removidas todas as verificações de isOnline que impediam o modal de aparecer offline
   if (Platform.OS === 'web') {
     // No web, renderizar diretamente usando View fixo para evitar problemas com Modal
-    return visible && isOnline ? (
+    return visible ? (
       <View
         style={{
           position: 'fixed' as any,
@@ -503,7 +502,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 
   return (
     <Modal
-      visible={visible && isOnline}
+      visible={visible}
       transparent
       animationType="fade"
       onRequestClose={onClose}

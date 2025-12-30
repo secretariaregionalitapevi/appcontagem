@@ -7,6 +7,7 @@ import { uuidv4 } from '../utils/uuid';
 import { normalizarNivel } from '../utils/normalizeNivel';
 import { formatDateTimeManual, formatTime } from '../utils/dateUtils';
 import { supabase } from './supabaseClient';
+import { sanitizeInput, sanitizeForLogging, FIELD_LIMITS } from '../utils/securityUtils';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
 const GOOGLE_SHEETS_API_URL =
@@ -128,41 +129,98 @@ export const googleSheetsService = {
       console.log('📋 [EXTERNAL] Instrumento final:', instrumentoFinal || '(vazio - OK para cargos sem instrumento)');
       console.log('📋 [EXTERNAL] Naipe final:', naipeFinal || '(vazio - OK para cargos sem instrumento)');
       
+      // 🛡️ SEGURANÇA: Sanitizar todos os inputs antes de enviar
+      const nomeSanitizado = sanitizeInput(data.nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome });
+      const comumSanitizado = sanitizeInput(data.comum.trim(), { fieldType: 'comum', maxLength: FIELD_LIMITS.comum });
+      const cidadeSanitizada = sanitizeInput(data.cidade.trim(), { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade });
+      const cargoSanitizado = sanitizeInput(data.cargo.trim(), { fieldType: 'cargo', maxLength: FIELD_LIMITS.cargo });
+      const classeSanitizada = data.classe ? sanitizeInput(data.classe.trim(), { fieldType: 'classe', maxLength: FIELD_LIMITS.classe }) : '';
+      const localEnsaioSanitizado = sanitizeInput(localEnsaioConvertido, { maxLength: 100 });
+
       // Formato esperado pelo Google Apps Script (igual ao backupcont)
       const sheetRow = {
         UUID: uuid,
-        'NOME COMPLETO': data.nome.trim().toUpperCase(),
-        COMUM: data.comum.trim().toUpperCase(),
-        CIDADE: data.cidade.trim().toUpperCase(),
-        CARGO: data.cargo.trim().toUpperCase(),
+        'NOME COMPLETO': nomeSanitizado.toUpperCase(),
+        COMUM: comumSanitizado.toUpperCase(),
+        CIDADE: cidadeSanitizada.toUpperCase(),
+        CARGO: cargoSanitizado.toUpperCase(),
         INSTRUMENTO: instrumentoFinal,
         NAIPE_INSTRUMENTO: naipeFinal,
-        CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
-        LOCAL_ENSAIO: localEnsaioConvertido.toUpperCase(),
+        CLASSE_ORGANISTA: classeSanitizada.toUpperCase(),
+        LOCAL_ENSAIO: localEnsaioSanitizado.toUpperCase(),
         // 🚨 CORREÇÃO: DATA_ENSAIO deve incluir hora no formato dd/mm/aaaa HH:mm
-        DATA_ENSAIO: formatDateTimeManual(),
-        HORÁRIO: formatTime(),
+        // 🚨 CORREÇÃO CRÍTICA: Garantir que formatDateTimeManual funcione mesmo se houver problema de importação
+        DATA_ENSAIO: (() => {
+          try {
+            if (formatDateTimeManual && typeof formatDateTimeManual === 'function') {
+              return formatDateTimeManual();
+            } else {
+              // Fallback: formatar manualmente se função não estiver disponível
+              const data = new Date();
+              const dia = String(data.getDate()).padStart(2, '0');
+              const mes = String(data.getMonth() + 1).padStart(2, '0');
+              const ano = data.getFullYear();
+              const horas = String(data.getHours()).padStart(2, '0');
+              const minutos = String(data.getMinutes()).padStart(2, '0');
+              return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+            }
+          } catch (error) {
+            // Fallback em caso de erro
+            const data = new Date();
+            const dia = String(data.getDate()).padStart(2, '0');
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const ano = data.getFullYear();
+            const horas = String(data.getHours()).padStart(2, '0');
+            const minutos = String(data.getMinutes()).padStart(2, '0');
+            return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+          }
+        })(),
+        HORÁRIO: (() => {
+          try {
+            if (formatTime && typeof formatTime === 'function') {
+              return formatTime();
+            } else {
+              // Fallback: formatar manualmente se função não estiver disponível
+              const data = new Date();
+              const horas = String(data.getHours()).padStart(2, '0');
+              const minutos = String(data.getMinutes()).padStart(2, '0');
+              const segundos = String(data.getSeconds()).padStart(2, '0');
+              return `${horas}:${minutos}:${segundos}`;
+            }
+          } catch (error) {
+            // Fallback em caso de erro
+            const data = new Date();
+            const horas = String(data.getHours()).padStart(2, '0');
+            const minutos = String(data.getMinutes()).padStart(2, '0');
+            const segundos = String(data.getSeconds()).padStart(2, '0');
+            return `${horas}:${minutos}:${segundos}`;
+          }
+        })(),
         REGISTRADO_POR: data.registradoPor.toUpperCase(),
         USER_ID: data.userId || '',
         ANOTACOES: 'Cadastro fora da Regional', // 🚨 SEMPRE usar esta anotação para registros externos
         SYNC_STATUS: 'ATUALIZADO',
       };
 
+      // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
+      const logData = sanitizeForLogging({
+        uuid,
+        nome: sheetRow['NOME COMPLETO'],
+        comum: sheetRow.COMUM,
+        cidade: sheetRow.CIDADE,
+        cargo: sheetRow.CARGO,
+        instrumento: sheetRow.INSTRUMENTO || '(vazio)',
+        naipe: sheetRow.NAIPE_INSTRUMENTO || '(vazio)',
+        classe: sheetRow.CLASSE_ORGANISTA || '(vazio)',
+        localEnsaio: sheetRow.LOCAL_ENSAIO,
+        dataEnsaio: sheetRow.DATA_ENSAIO,
+        horario: sheetRow.HORÁRIO,
+        registradoPor: sheetRow.REGISTRADO_POR,
+        anotacoes: sheetRow.ANOTACOES,
+        syncStatus: sheetRow.SYNC_STATUS,
+      });
       console.log('📤 [EXTERNAL] ========== DADOS FINAIS PARA ENVIO ==========');
-      console.log('📤 [EXTERNAL] UUID gerado:', uuid);
-      console.log('📤 [EXTERNAL] NOME COMPLETO:', sheetRow['NOME COMPLETO']);
-      console.log('📤 [EXTERNAL] COMUM:', sheetRow.COMUM);
-      console.log('📤 [EXTERNAL] CIDADE:', sheetRow.CIDADE);
-      console.log('📤 [EXTERNAL] CARGO:', sheetRow.CARGO, '✅ (qualquer cargo é aceito)');
-      console.log('📤 [EXTERNAL] INSTRUMENTO:', sheetRow.INSTRUMENTO || '(vazio - OK para cargos sem instrumento)');
-      console.log('📤 [EXTERNAL] NAIPE_INSTRUMENTO:', sheetRow.NAIPE_INSTRUMENTO || '(vazio - OK)');
-      console.log('📤 [EXTERNAL] CLASSE_ORGANISTA:', sheetRow.CLASSE_ORGANISTA || '(vazio - OK)');
-      console.log('📤 [EXTERNAL] LOCAL_ENSAIO:', sheetRow.LOCAL_ENSAIO);
-      console.log('📤 [EXTERNAL] DATA_ENSAIO:', sheetRow.DATA_ENSAIO);
-      console.log('📤 [EXTERNAL] HORÁRIO:', sheetRow.HORÁRIO);
-      console.log('📤 [EXTERNAL] REGISTRADO_POR:', sheetRow.REGISTRADO_POR);
-      console.log('📤 [EXTERNAL] ANOTACOES:', sheetRow.ANOTACOES);
-      console.log('📤 [EXTERNAL] SYNC_STATUS:', sheetRow.SYNC_STATUS);
+      console.log('📤 [EXTERNAL] Dados sanitizados:', logData);
       console.log('📤 [EXTERNAL] URL da API:', GOOGLE_SHEETS_API_URL);
       console.log('📤 [EXTERNAL] Nome da planilha:', SHEET_NAME);
       console.log('📤 [EXTERNAL] ============================================');
@@ -575,6 +633,7 @@ export const googleSheetsService = {
 
       // Buscar cidade da pessoa (se disponível)
       // Para registros externos, a cidade vem no registro
+      // 🚨 CORREÇÃO CRÍTICA: Sempre garantir que cidade seja preenchida (não usar localEnsaio como fallback)
       let cidade = '';
       if (isExternalRegistro) {
         // Para registros externos, buscar cidade do registro (se disponível)
@@ -596,12 +655,68 @@ export const googleSheetsService = {
             console.log('✅ [GoogleSheets] Cidade encontrada da comum para nome manual:', cidade);
           } else {
             console.warn('⚠️ [GoogleSheets] Cidade não encontrada para comum:', comum.nome);
+            // 🚨 CORREÇÃO: Se não encontrou, tentar extrair da comum (ex: "ITAPEVI - CENTRAL" -> "ITAPEVI")
+            const comumNomeUpper = comum.nome.toUpperCase();
+            if (comumNomeUpper.includes('ITAPEVI')) {
+              cidade = 'ITAPEVI';
+            } else if (comumNomeUpper.includes('COTIA')) {
+              cidade = 'COTIA';
+            } else if (comumNomeUpper.includes('JANDIRA')) {
+              cidade = 'JANDIRA';
+            } else if (comumNomeUpper.includes('CAUCAIA')) {
+              cidade = 'CAUCAIA DO ALTO';
+            }
+            console.log('🔄 [GoogleSheets] Cidade inferida da comum:', cidade);
           }
         } catch (error) {
           console.warn('⚠️ [GoogleSheets] Erro ao buscar cidade da comum:', error);
+          // 🚨 CORREÇÃO: Fallback - tentar extrair da comum
+          const comumNomeUpper = comum.nome.toUpperCase();
+          if (comumNomeUpper.includes('ITAPEVI')) {
+            cidade = 'ITAPEVI';
+          } else if (comumNomeUpper.includes('COTIA')) {
+            cidade = 'COTIA';
+          } else if (comumNomeUpper.includes('JANDIRA')) {
+            cidade = 'JANDIRA';
+          } else if (comumNomeUpper.includes('CAUCAIA')) {
+            cidade = 'CAUCAIA DO ALTO';
+          }
         }
       } else {
         cidade = pessoa?.cidade || '';
+        // 🚨 CORREÇÃO: Se pessoa não tem cidade, tentar extrair da comum como fallback
+        if (!cidade) {
+          const comumNomeUpper = comum.nome.toUpperCase();
+          if (comumNomeUpper.includes('ITAPEVI')) {
+            cidade = 'ITAPEVI';
+          } else if (comumNomeUpper.includes('COTIA')) {
+            cidade = 'COTIA';
+          } else if (comumNomeUpper.includes('JANDIRA')) {
+            cidade = 'JANDIRA';
+          } else if (comumNomeUpper.includes('CAUCAIA')) {
+            cidade = 'CAUCAIA DO ALTO';
+          }
+          console.log('🔄 [GoogleSheets] Cidade não encontrada na pessoa, inferida da comum:', cidade);
+        }
+      }
+      
+      // 🚨 CORREÇÃO CRÍTICA: Garantir que cidade nunca seja vazia (evitar que Google Apps Script use localEnsaio como fallback)
+      if (!cidade || cidade.trim() === '') {
+        console.warn('⚠️ [GoogleSheets] Cidade vazia detectada, usando fallback da comum');
+        const comumNomeUpper = comum.nome.toUpperCase();
+        if (comumNomeUpper.includes('ITAPEVI')) {
+          cidade = 'ITAPEVI';
+        } else if (comumNomeUpper.includes('COTIA')) {
+          cidade = 'COTIA';
+        } else if (comumNomeUpper.includes('JANDIRA')) {
+          cidade = 'JANDIRA';
+        } else if (comumNomeUpper.includes('CAUCAIA')) {
+          cidade = 'CAUCAIA DO ALTO';
+        } else {
+          // Último fallback: usar primeira palavra da comum
+          cidade = comum.nome.split(' ')[0].toUpperCase();
+        }
+        console.log('🔄 [GoogleSheets] Cidade definida como fallback:', cidade);
       }
 
       // Buscar nome do local de ensaio (se for ID, converter para nome)
@@ -667,24 +782,66 @@ export const googleSheetsService = {
         console.log('✏️ [GoogleSheets] Nome manual de comum da regional detectado - adicionando "SAM Desatualizado" nas anotações');
       }
 
+      // 🚨 CORREÇÃO CRÍTICA: Garantir que formatDateTimeManual funcione mesmo se houver problema de importação
+      let dataEnsaioFormatada = '';
+      try {
+        if (formatDateTimeManual && typeof formatDateTimeManual === 'function') {
+          dataEnsaioFormatada = formatDateTimeManual(registro.data_hora_registro);
+        } else {
+          // Fallback: formatar manualmente se função não estiver disponível
+          const data = registro.data_hora_registro ? new Date(registro.data_hora_registro) : new Date();
+          const dia = String(data.getDate()).padStart(2, '0');
+          const mes = String(data.getMonth() + 1).padStart(2, '0');
+          const ano = data.getFullYear();
+          const horas = String(data.getHours()).padStart(2, '0');
+          const minutos = String(data.getMinutes()).padStart(2, '0');
+          dataEnsaioFormatada = `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+          console.warn('⚠️ formatDateTimeManual não disponível, usando fallback manual');
+        }
+      } catch (formatError) {
+        // Fallback em caso de erro
+        const data = registro.data_hora_registro ? new Date(registro.data_hora_registro) : new Date();
+        const dia = String(data.getDate()).padStart(2, '0');
+        const mes = String(data.getMonth() + 1).padStart(2, '0');
+        const ano = data.getFullYear();
+        const horas = String(data.getHours()).padStart(2, '0');
+        const minutos = String(data.getMinutes()).padStart(2, '0');
+        dataEnsaioFormatada = `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+        console.error('❌ Erro ao formatar data, usando fallback:', formatError);
+      }
+
+      // 🛡️ SEGURANÇA: Sanitizar todos os inputs antes de enviar
+      const nomeCompletoSanitizado = sanitizeInput(nomeCompleto.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome });
+      const comumNomeSanitizado = sanitizeInput(comum.nome, { fieldType: 'comum', maxLength: FIELD_LIMITS.comum });
+      const cidadeSanitizada = sanitizeInput(cidade, { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade });
+      const cargoRealSanitizado = sanitizeInput(cargoReal, { fieldType: 'cargo', maxLength: FIELD_LIMITS.cargo });
+      const nivelPessoaSanitizado = nivelPessoa ? sanitizeInput(nivelPessoa, { maxLength: 50 }) : '';
+      const instrumentoFinalSanitizado = sanitizeInput(instrumentoFinal, { fieldType: 'instrumento', maxLength: FIELD_LIMITS.instrumento });
+      const naipeInstrumentoSanitizado = sanitizeInput(naipeInstrumento, { maxLength: 50 });
+      const classeOrganistaFinalSanitizada = sanitizeInput(classeOrganistaFinal, { fieldType: 'classe', maxLength: FIELD_LIMITS.classe });
+      const localEnsaioNomeSanitizado = sanitizeInput(localEnsaioNome, { maxLength: 100 });
+      const registradoPorNomeSanitizado = sanitizeInput(registradoPorNome, { maxLength: 200 });
+      const anotacoesSanitizadas = sanitizeInput(anotacoes, { maxLength: 500 });
+
       // Formato esperado pelo Google Apps Script (Code.gs) - tudo em maiúscula
       const sheetRow = {
         UUID: registro.id || '',
-        'NOME COMPLETO': nomeCompleto.trim().toUpperCase(),
-        COMUM: comum.nome.toUpperCase(),
-        CIDADE: cidade.toUpperCase(),
-        CARGO: cargoReal.toUpperCase(), // 🚨 CORREÇÃO: Usar cargo REAL da pessoa, não o selecionado
-        NÍVEL: nivelPessoa ? nivelPessoa.toUpperCase() : '', // 🚨 CORREÇÃO: Adicionar campo NÍVEL (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)
-        INSTRUMENTO: instrumentoFinal.toUpperCase(),
-        NAIPE_INSTRUMENTO: naipeInstrumento.toUpperCase(),
-        CLASSE_ORGANISTA: classeOrganistaFinal.toUpperCase(), // Classe normalizada
-        LOCAL_ENSAIO: localEnsaioNome.toUpperCase(),
-        DATA_ENSAIO: formatDateTimeManual(registro.data_hora_registro),
-        REGISTRADO_POR: registradoPorNome.toUpperCase(),
-        ANOTACOES: anotacoes.toUpperCase(), // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" para nomes manuais da regional
+        'NOME COMPLETO': nomeCompletoSanitizado.toUpperCase(),
+        COMUM: comumNomeSanitizado.toUpperCase(),
+        CIDADE: cidadeSanitizada.toUpperCase(),
+        CARGO: cargoRealSanitizado.toUpperCase(), // 🚨 CORREÇÃO: Usar cargo REAL da pessoa, não o selecionado
+        NÍVEL: nivelPessoaSanitizado.toUpperCase(), // 🚨 CORREÇÃO: Adicionar campo NÍVEL (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)
+        INSTRUMENTO: instrumentoFinalSanitizado.toUpperCase(),
+        NAIPE_INSTRUMENTO: naipeInstrumentoSanitizado.toUpperCase(),
+        CLASSE_ORGANISTA: classeOrganistaFinalSanitizada.toUpperCase(), // Classe normalizada
+        LOCAL_ENSAIO: localEnsaioNomeSanitizado.toUpperCase(),
+        DATA_ENSAIO: dataEnsaioFormatada,
+        REGISTRADO_POR: registradoPorNomeSanitizado.toUpperCase(),
+        ANOTACOES: anotacoesSanitizadas.toUpperCase(), // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" para nomes manuais da regional
       };
 
-      console.log('📤 Enviando para Google Sheets:', sheetRow);
+      // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
+      console.log('📤 Enviando para Google Sheets:', sanitizeForLogging(sheetRow));
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 🚀 OTIMIZAÇÃO: 8 segundos (reduzido de 10s)
