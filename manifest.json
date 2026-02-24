@@ -1,28 +1,31 @@
 {
-  "name": "Sistema de Cadastro - CCB",
-  "short_name": "Cadastro CCB",
+  "name": "CCB Contagem",
+  "short_name": "Contagem",
   "description": "Sistema de cadastro de presença com suporte offline",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b1020",
-  "theme_color": "#0ea5e9",
+  "background_color": "#ffffff",
+  "theme_color": "#1E88E5",
   "icons": [
     {
-      "src": "./assets/favicon.png",
+      "src": "./assets/icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./assets/favicon.png",
+      "src": "./assets/icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "screenshots": [],
   "shortcuts": [],
   "prefer_related_applications": false,

@@ -17,7 +17,7 @@ export const useOnlineStatus = () => {
   useEffect(() => {
     const handleStatusChange = async (state: any) => {
       const newStatus = state.isConnected === true && state.isInternetReachable === true;
-      
+
       // 🚨 CORREÇÃO: Sempre atualizar estado e chamar callback quando status mudar
       // Não verificar se previousStatusRef.current !== null para garantir que funcione na primeira mudança
       if (previousStatusRef.current !== null && previousStatusRef.current !== newStatus) {
@@ -28,12 +28,13 @@ export const useOnlineStatus = () => {
           // Importar serviço dinamicamente para evitar dependência circular
           const { offlineSyncService } = await import('../services/offlineSyncService');
           const { supabaseDataService } = await import('../services/supabaseDataService');
-          
+
           // Verificar se há registros pendentes
           try {
             const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
             if (registros.length > 0) {
-              showToast.success('Conexão restaurada', `${registros.length} registro(s) será(ão) enviado(s)`);
+              // showToast.success('Conexão restaurada', `${registros.length} registro(s) será(ão) enviado(s)`);
+              console.log(`🌐 Conexão restaurada: ${registros.length} registro(s) pendente(s)`);
               // Processar fila após um pequeno delay para garantir conexão estável
               setTimeout(async () => {
                 try {
@@ -43,13 +44,14 @@ export const useOnlineStatus = () => {
                 }
               }, 2000);
             } else {
-              showToast.info('Conexão restaurada', 'Você está online novamente');
+              // showToast.info('Conexão restaurada', 'Você está online novamente');
+              console.log('🌐 Conexão restaurada (sem registros pendentes)');
             }
           } catch (error) {
             console.error('❌ Erro ao verificar registros pendentes:', error);
-            showToast.info('Conexão restaurada', 'Você está online novamente');
+            // showToast.info('Conexão restaurada', 'Você está online novamente');
           }
-          
+
           alertShownRef.current.online = true;
           alertShownRef.current.offline = false;
         } else {
@@ -59,14 +61,14 @@ export const useOnlineStatus = () => {
           alertShownRef.current.offline = true;
           alertShownRef.current.online = false;
         }
-        
+
         // Chamar callback se existir
         if (onStatusChangeRef.current) {
           console.log(`🔄 [useOnlineStatus] Status mudou: ${previousStatusRef.current} -> ${newStatus}`);
           onStatusChangeRef.current(newStatus);
         }
       }
-      
+
       previousStatusRef.current = newStatus;
       setIsOnline(newStatus);
     };
@@ -87,20 +89,21 @@ export const useOnlineStatus = () => {
         setTimeout(async () => {
           const state = await NetInfo.fetch();
           const newStatus = state.isConnected === true && state.isInternetReachable === true;
-          
+
           // 🚨 CORREÇÃO: Sempre chamar callback quando status mudar (não verificar null)
           if (previousStatusRef.current !== null && previousStatusRef.current !== newStatus) {
             console.log(`🔄 [useOnlineStatus] Status mudou (web): ${previousStatusRef.current} -> ${newStatus}`);
-            
+
             if (newStatus) {
               // Importar serviços dinamicamente
               const { offlineSyncService } = await import('../services/offlineSyncService');
               const { supabaseDataService } = await import('../services/supabaseDataService');
-              
+
               try {
                 const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
                 if (registros.length > 0) {
-                  showToast.success('Conexão restaurada', `${registros.length} registro(s) será(ão) enviado(s)`);
+                  // showToast.success('Conexão restaurada', `${registros.length} registro(s) será(ão) enviado(s)`);
+                  console.log(`🌐 Conexão restaurada (web): ${registros.length} registro(s) pendente(s)`);
                   setTimeout(async () => {
                     try {
                       await offlineSyncService.processarFilaLocal();
@@ -109,14 +112,15 @@ export const useOnlineStatus = () => {
                     }
                   }, 2000);
                 } else {
-                  showToast.info('Conexão restaurada', 'Você está online novamente');
+                  // showToast.info('Conexão restaurada', 'Você está online novamente');
+                  console.log('🌐 Conexão restaurada (web, sem registros pendentes)');
                 }
               } catch (error) {
                 console.error('❌ Erro ao verificar registros pendentes:', error);
-                showToast.info('Conexão restaurada', 'Você está online novamente');
+                // showToast.info('Conexão restaurada', 'Você está online novamente');
               }
             }
-            
+
             if (onStatusChangeRef.current) {
               onStatusChangeRef.current(newStatus);
             }

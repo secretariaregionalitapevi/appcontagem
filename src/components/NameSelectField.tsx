@@ -81,15 +81,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   // O campo sempre inicia como select normal
   // Só converte para modo manual quando o usuário clicar em "Adicionar novo nome manualmente"
 
-  // Adicionar opção manual às opções filtradas
-  const optionsWithManual = useMemo(() => {
-    const manualOption: SelectOption = {
-      id: MANUAL_INPUT_OPTION_ID,
-      label: '➕ Adicionar novo nome manualmente',
-      value: MANUAL_INPUT_OPTION_ID,
-    };
-    return [...options, manualOption];
-  }, [options]);
+  // REMOVIDO: Conversão automática para modo manual
+  // O campo agora alterna entre busca e manual de forma transparente
 
   // Filtrar opções baseado no texto digitado
   const filtered = useMemo(() => {
@@ -104,7 +97,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
     // Verificar se já há um nome selecionado válido (que está na lista de opções)
     const hasValidSelection = value && options.some(opt => opt.id === value || opt.value === value);
-    
+
     // Verificar se o valor atual é uma entrada manual (começa com "manual_")
     const isManualValue = value && typeof value === 'string' && value.startsWith('manual_');
 
@@ -132,22 +125,14 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       }
     }
 
-    // Se não há texto digitado, mostrar todas as opções + opção manual no final
-    // Isso permite que o usuário veja a lista E tenha a opção de digitar manualmente
-    if (!searchText.trim()) {
-      return optionsWithManual;
-    }
-
-    // Se há resultados filtrados, mostrar apenas eles (sem opção manual)
-    // Isso evita confusão quando há resultados na busca
+    // Se há resultados filtrados, mostrar apenas eles
     if (filteredOptions.length > 0) {
       return filteredOptions;
     }
 
-    // Se não há resultados filtrados, mostrar apenas a opção manual
-    // Isso permite digitação quando o usuário não encontra o nome na busca
-    return optionsWithManual.slice(-1);
-  }, [searchText, options, optionsWithManual, isManualMode, value]);
+    // Se não há resultados, não mostramos nada (o modo manual será ativado no handleChange)
+    return [];
+  }, [searchText, options, isManualMode, value]);
 
   // 🚨 CRÍTICO: Quando não há opções, entrar automaticamente em modo manual
   // 🚨 CORREÇÃO: NÃO mudar para modo manual enquanto está carregando - aguardar carregamento terminar
@@ -159,7 +144,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       // Enquanto carrega, manter estado atual (não mudar para manual)
       return;
     }
-    
+
     // 🚨 CORREÇÃO CRÍTICA: Só entrar em modo manual se NÃO está carregando E não há opções
     // Isso evita mudar para manual enquanto a lista ainda está carregando
     if (!loading && (!options || options.length === 0)) {
@@ -177,7 +162,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       }
       return;
     }
-    
+
     // 🚨 CORREÇÃO: Se está carregando, NÃO mudar para manual ainda - aguardar carregamento terminar
     if (loading) {
       // Manter estado atual, não mudar para manual durante carregamento
@@ -240,33 +225,36 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     setSearchText(text);
     setSelectedIndex(-1);
 
-    // 🚨 CORREÇÃO CRÍTICA: Se está em modo manual, permitir digitação
-    // Mas NÃO chamar onSelect durante carregamento - aguardar lista carregar
-    if (isManualMode) {
-      // Só chamar onSelect se NÃO está carregando - durante carregamento, apenas atualizar o texto
-      if (!loading) {
-        onSelect({ id: 'manual', label: text, value: text });
-      }
-      return;
-    }
-
-    // 🚨 CORREÇÃO CRÍTICA: NÃO chamar onSelect durante carregamento
-    // Durante carregamento, apenas atualizar o texto e mostrar lista quando disponível
-    // Não mudar para modo manual até a lista carregar completamente
-
-    // 🚨 CRÍTICO: Sempre mostrar lista se há opções disponíveis (mesmo com texto vazio)
-    // Isso garante que ao apagar as letras, a lista continue aparecendo
-    if (loading) {
-      // Durante carregamento, não fazer nada além de atualizar o texto
-      // Não mostrar lista ainda (aguardar carregar)
-      setShowList(false);
-      return;
-    }
-
-    if (options && options.length > 0) {
+    // 🚨 CORREÇÃO CRÍTICA: Se o texto foi apagado totalmente, sair do modo manual
+    if (text === '') {
+      console.log('🧹 [NameSelectField] Campo limpo - saindo do modo manual e voltando para busca');
+      setIsManualMode(false);
       setShowList(true);
-    } else {
+      onSelect({ id: '', label: '', value: '' });
+      return;
+    }
+
+    // 🚨 LÓGICA SEM FISSURAS: Verificar se o que foi digitado resultaria em algum item na lista
+    const query = normalize(text);
+    const hasMatches = options.some(opt => normalize(opt.label).includes(query));
+
+    if (!hasMatches && text.trim().length > 0) {
+      // Se não há combinações, entra em modo manual AUTOMATICAMENTE
+      if (!isManualMode) {
+        console.log('✏️ [NameSelectField] Sem correspondências - ativando modo manual automático');
+        setIsManualMode(true);
+      }
+      onSelect({ id: 'manual', label: text, value: text });
       setShowList(false);
+    } else {
+      // Se há combinações, garante que NÃO está em modo manual
+      if (isManualMode) {
+        console.log('🔍 [NameSelectField] Correspondências encontradas - voltando para modo busca');
+        setIsManualMode(false);
+      }
+      setShowList(true);
+      // Opcional: Notificar o pai que o valor está "em aberto" na busca
+      onSelect({ id: '', label: text, value: '' });
     }
   };
 
@@ -312,7 +300,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     }
 
     setIsFocused(false);
-    
+
     // 🚨 CORREÇÃO CRÍTICA: Se há texto digitado que não corresponde a nenhuma opção, tratar como manual
     // 🚨 CORREÇÃO: NÃO mudar para manual se ainda está carregando OU se não há opções ainda - aguardar carregamento terminar
     // Só mudar para manual DEPOIS que a lista carregou completamente
@@ -322,7 +310,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         const labelNorm = normalize(opt.label);
         return labelNorm === textoNormalizado;
       });
-      
+
       // Se não encontrou na lista e há texto E lista já carregou, é nome manual
       if (!encontrouNaLista) {
         console.log('✏️ [NameSelectField] Texto digitado não encontrado na lista, tratando como manual:', searchText);
@@ -330,7 +318,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
       }
     }
-    
+
     // Só fechar lista se não há itens filtrados
     // 🚨 CRÍTICO: Android precisa de delay maior para capturar toques
     const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 600 : 300;
@@ -389,7 +377,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
     // Atualizar o texto do input PRIMEIRO
     setSearchText(option.label);
-    
+
     // Chamar onSelect IMEDIATAMENTE com o valor correto
     onSelect({
       id: option.id,
@@ -434,7 +422,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         const labelNorm = normalize(opt.label);
         return labelNorm === textoNormalizado;
       });
-      
+
       // 🚨 CORREÇÃO: Só mudar para manual se lista já carregou (não está carregando E há opções)
       if (!encontrouNaLista && !loading && options && options.length > 0) {
         console.log('✏️ [NameSelectField] Enter pressionado com texto não encontrado na lista, tratando como manual:', searchText);
@@ -470,17 +458,17 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       style={[
         styles.container,
         style,
-          Platform.OS === 'web'
+        Platform.OS === 'web'
           ? {
-              position: 'relative' as ViewStyle['position'],
-              overflow: 'visible' as ViewStyle['overflow'],
-              zIndex: containerZIndex,
-            }
+            position: 'relative' as ViewStyle['position'],
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+          }
           : {
-              overflow: 'visible' as ViewStyle['overflow'],
-              zIndex: containerZIndex,
-              elevation: isFocused ? 10 : 0,
-            },
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+            elevation: isFocused ? 10 : 0,
+          },
       ]}
       ref={containerRef}
       collapsable={false}
@@ -510,8 +498,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                 error ? styles.inputError : undefined,
                 Platform.OS === 'web'
                   ? {
-                      position: 'relative' as ViewStyle['position'],
-                    }
+                    position: 'relative' as ViewStyle['position'],
+                  }
                   : undefined,
               ]}
               value={searchText}
@@ -525,15 +513,15 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
               autoCapitalize="words"
               editable={!loading}
               onKeyPress={(e) => {
-              // Suporte para Android/iOS com teclado físico ou virtual
-              if (Platform.OS !== 'web') {
-                // No mobile, Enter já é tratado por onSubmitEditing
-                // Mas podemos adicionar lógica adicional se necessário
-                return;
-              }
-            }}
-            {...(Platform.OS === 'web'
-              ? {
+                // Suporte para Android/iOS com teclado físico ou virtual
+                if (Platform.OS !== 'web') {
+                  // No mobile, Enter já é tratado por onSubmitEditing
+                  // Mas podemos adicionar lógica adicional se necessário
+                  return;
+                }
+              }}
+              {...(Platform.OS === 'web'
+                ? {
                   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -579,14 +567,14 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                     }
                   },
                 }
-              : {})}
-          />
-          {loading && (
-            <View style={styles.loadingContainer}>
-              <FontAwesome5 name="spinner" size={14} color={theme.colors.primary} style={styles.loadingSpinner} />
-              <Text style={styles.loadingText}>Carregando...</Text>
-            </View>
-          )}
+                : {})}
+            />
+            {loading && (
+              <View style={styles.loadingContainer}>
+                <FontAwesome5 name="spinner" size={14} color={theme.colors.primary} style={styles.loadingSpinner} />
+                <Text style={styles.loadingText}>Carregando...</Text>
+              </View>
+            )}
           </View>
 
           {/* Dropdown - só mostrar se não estiver em modo manual E houver opções */}
@@ -594,260 +582,260 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
             <>
               {/* Dropdown - Usar dropdown inline mesmo no mobile para não bloquear scroll */}
               {Platform.OS !== 'web' ? (
-              <>
-                {showList && filtered.length > 0 && (
-                  <>
-                    {/* Overlay transparente para fechar ao clicar fora */}
-                    <TouchableOpacity
-                      style={styles.mobileOverlay}
-                      activeOpacity={1}
-                      onPress={() => {
-                        // Só fechar se não está selecionando
-                        if (!isSelectingRef.current) {
-                          setShowList(false);
-                        }
-                      }}
-                      // 🚨 CRÍTICO: No Android, garantir que não interfira com toques nos itens
-                      delayPressIn={Platform.OS === 'android' ? 200 : 0}
-                      delayPressOut={Platform.OS === 'android' ? 100 : 0}
-                    />
-                    <View 
-                      style={styles.mobileDropdownContainer}
+                <>
+                  {showList && filtered.length > 0 && (
+                    <>
+                      {/* Overlay transparente para fechar ao clicar fora */}
+                      <TouchableOpacity
+                        style={styles.mobileOverlay}
+                        activeOpacity={1}
+                        onPress={() => {
+                          // Só fechar se não está selecionando
+                          if (!isSelectingRef.current) {
+                            setShowList(false);
+                          }
+                        }}
+                        // 🚨 CRÍTICO: No Android, garantir que não interfira com toques nos itens
+                        delayPressIn={Platform.OS === 'android' ? 200 : 0}
+                        delayPressOut={Platform.OS === 'android' ? 100 : 0}
+                      />
+                      <View
+                        style={styles.mobileDropdownContainer}
+                      >
+                        <View
+                          style={styles.mobileDropdownContent}
+                          onStartShouldSetResponder={() => false}
+                        >
+                          {filtered.length > 0 ? (
+                            <FlatList
+                              ref={flatListRef}
+                              data={filtered}
+                              keyExtractor={item => item.id}
+                              keyboardDismissMode="none"
+                              // 🚨 CRÍTICO: Garantir que os toques sejam sempre capturados
+                              keyboardShouldPersistTaps="handled"
+                              nestedScrollEnabled={true}
+                              // 🚨 CRÍTICO: Android precisa de configurações específicas
+                              scrollEnabled={true}
+                              bounces={false}
+                              overScrollMode={Platform.OS === 'android' ? 'never' : undefined}
+                              renderItem={({ item, index }) => {
+                                const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
+                                return (
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.item,
+                                      selectedIndex === index && styles.itemHighlighted,
+                                      value === item.id && !isManualOption && styles.itemSelected,
+                                      isManualOption && styles.itemManual,
+                                    ]}
+                                    onPress={(e) => {
+                                      // 🚨 CRÍTICO: Prevenir propagação para o overlay
+                                      e.stopPropagation();
+                                      // Marcar que está selecionando ANTES de tudo
+                                      isSelectingRef.current = true;
+                                      // Cancelar blur pendente ao clicar
+                                      if (blurTimeoutRef.current) {
+                                        clearTimeout(blurTimeoutRef.current);
+                                        blurTimeoutRef.current = null;
+                                      }
+                                      // Selecionar o item
+                                      handleSelect(item);
+                                    }}
+                                    onPressIn={(e) => {
+                                      // 🚨 CRÍTICO: Prevenir propagação e cancelar blur imediatamente
+                                      e.stopPropagation();
+                                      // Cancelar blur imediatamente ao tocar (melhor para mobile)
+                                      if (blurTimeoutRef.current) {
+                                        clearTimeout(blurTimeoutRef.current);
+                                        blurTimeoutRef.current = null;
+                                      }
+                                      // Marcar que está selecionando ANTES do blur
+                                      isSelectingRef.current = true;
+                                    }}
+                                    onPressOut={(e) => {
+                                      // 🚨 CRÍTICO: No Android, garantir que o evento seja capturado
+                                      e.stopPropagation();
+                                    }}
+                                    onLongPress={() => {
+                                      // 🚨 CRÍTICO: No Android, usar onLongPress como fallback se onPress não funcionar
+                                      if (Platform.OS === 'android' && !isSelectingRef.current) {
+                                        isSelectingRef.current = true;
+                                        if (blurTimeoutRef.current) {
+                                          clearTimeout(blurTimeoutRef.current);
+                                          blurTimeoutRef.current = null;
+                                        }
+                                      }
+                                    }}
+                                    activeOpacity={0.7}
+                                    hitSlop={Platform.OS === 'android'
+                                      ? { top: 30, bottom: 30, left: 25, right: 25 }
+                                      : { top: 25, bottom: 25, left: 20, right: 20 }}
+                                    // 🚨 CRÍTICO: Android precisa de delay menor para melhor responsividade
+                                    delayPressIn={0}
+                                    delayPressOut={Platform.OS === 'android' ? 100 : 0}
+                                    delayLongPress={Platform.OS === 'android' ? 200 : 500}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.itemText,
+                                        value === item.id && !isManualOption && styles.itemTextSelected,
+                                        isManualOption && styles.itemTextManual,
+                                      ]}
+                                      numberOfLines={1}
+                                    >
+                                      {item.label}
+                                    </Text>
+                                    {value === item.id && !isManualOption && (
+                                      <FontAwesome5
+                                        name="check"
+                                        size={12}
+                                        color={theme.colors.primary}
+                                        style={styles.checkIcon}
+                                      />
+                                    )}
+                                  </TouchableOpacity>
+                                );
+                              }}
+                              style={styles.list}
+                              initialNumToRender={10}
+                              maxToRenderPerBatch={10}
+                              windowSize={5}
+                              removeClippedSubviews={false}
+                            />
+                          ) : (
+                            <View style={styles.emptyContainer}>
+                              <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  {showList && filtered.length > 0 && (
+                    <View
+                      style={styles.webDropdownContainer}
                     >
                       <View
-                        style={styles.mobileDropdownContent}
+                        style={[
+                          styles.dropdown,
+                          Platform.OS === 'web' ? {
+                            // @ts-ignore
+                            backgroundColor: '#ffffff',
+                            // @ts-ignore
+                            // @ts-ignore
+                            opacity: 1,
+                          } : {},
+                        ]}
                         onStartShouldSetResponder={() => false}
+                        onMoveShouldSetResponder={() => false}
+                        pointerEvents="auto"
+                        {...(Platform.OS === 'web'
+                          ? {
+                            onMouseEnter: () => {
+                              // Cancelar blur quando mouse entra no dropdown
+                              if (blurTimeoutRef.current) {
+                                clearTimeout(blurTimeoutRef.current);
+                                blurTimeoutRef.current = null;
+                              }
+                            },
+                            onMouseDown: (e: React.MouseEvent) => {
+                              // Cancelar blur ao clicar no dropdown
+                              if (blurTimeoutRef.current) {
+                                clearTimeout(blurTimeoutRef.current);
+                                blurTimeoutRef.current = null;
+                              }
+                            },
+                          }
+                          : {})}
                       >
-                    {filtered.length > 0 ? (
-                      <FlatList
-                        ref={flatListRef}
-                        data={filtered}
-                        keyExtractor={item => item.id}
-                        keyboardDismissMode="none"
-                        // 🚨 CRÍTICO: Garantir que os toques sejam sempre capturados
-                        keyboardShouldPersistTaps="handled"
-                        nestedScrollEnabled={true}
-                        // 🚨 CRÍTICO: Android precisa de configurações específicas
-                        scrollEnabled={true}
-                        bounces={false}
-                        overScrollMode={Platform.OS === 'android' ? 'never' : undefined}
-                        renderItem={({ item, index }) => {
-                          const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
-                          return (
-                            <TouchableOpacity
-                              style={[
-                                styles.item,
-                                selectedIndex === index && styles.itemHighlighted,
-                                value === item.id && !isManualOption && styles.itemSelected,
-                                isManualOption && styles.itemManual,
-                              ]}
-                              onPress={(e) => {
-                                // 🚨 CRÍTICO: Prevenir propagação para o overlay
-                                e.stopPropagation();
-                                // Marcar que está selecionando ANTES de tudo
-                                isSelectingRef.current = true;
-                                // Cancelar blur pendente ao clicar
-                                if (blurTimeoutRef.current) {
-                                  clearTimeout(blurTimeoutRef.current);
-                                  blurTimeoutRef.current = null;
-                                }
-                                // Selecionar o item
-                                handleSelect(item);
-                              }}
-                              onPressIn={(e) => {
-                                // 🚨 CRÍTICO: Prevenir propagação e cancelar blur imediatamente
-                                e.stopPropagation();
-                                // Cancelar blur imediatamente ao tocar (melhor para mobile)
-                                if (blurTimeoutRef.current) {
-                                  clearTimeout(blurTimeoutRef.current);
-                                  blurTimeoutRef.current = null;
-                                }
-                                // Marcar que está selecionando ANTES do blur
-                                isSelectingRef.current = true;
-                              }}
-                              onPressOut={(e) => {
-                                // 🚨 CRÍTICO: No Android, garantir que o evento seja capturado
-                                e.stopPropagation();
-                              }}
-                              onLongPress={() => {
-                                // 🚨 CRÍTICO: No Android, usar onLongPress como fallback se onPress não funcionar
-                                if (Platform.OS === 'android' && !isSelectingRef.current) {
-                                  isSelectingRef.current = true;
+                        <FlatList
+                          ref={flatListRef}
+                          data={filtered}
+                          keyExtractor={item => item.id}
+                          renderItem={({ item, index }) => {
+                            const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
+                            return (
+                              <TouchableOpacity
+                                style={[
+                                  styles.item,
+                                  selectedIndex === index && styles.itemHighlighted,
+                                  value === item.id && !isManualOption && styles.itemSelected,
+                                  isManualOption && styles.itemManual,
+                                ]}
+                                onPress={() => {
+                                  // Cancelar blur pendente ao clicar
                                   if (blurTimeoutRef.current) {
                                     clearTimeout(blurTimeoutRef.current);
                                     blurTimeoutRef.current = null;
                                   }
-                                }
-                              }}
-                              activeOpacity={0.7}
-                              hitSlop={Platform.OS === 'android' 
-                                ? { top: 30, bottom: 30, left: 25, right: 25 } 
-                                : { top: 25, bottom: 25, left: 20, right: 20 }}
-                              // 🚨 CRÍTICO: Android precisa de delay menor para melhor responsividade
-                              delayPressIn={0}
-                              delayPressOut={Platform.OS === 'android' ? 100 : 0}
-                              delayLongPress={Platform.OS === 'android' ? 200 : 500}
-                            >
-                              <Text
-                                style={[
-                                  styles.itemText,
-                                  value === item.id && !isManualOption && styles.itemTextSelected,
-                                  isManualOption && styles.itemTextManual,
-                                ]}
-                                numberOfLines={1}
+                                  handleSelect(item);
+                                }}
+                                onPressIn={() => {
+                                  // Cancelar blur imediatamente ao tocar (melhor para mobile)
+                                  if (blurTimeoutRef.current) {
+                                    clearTimeout(blurTimeoutRef.current);
+                                    blurTimeoutRef.current = null;
+                                  }
+                                }}
+                                activeOpacity={Platform.OS === 'web' ? 0.7 : 0.5}
+                                hitSlop={Platform.OS === 'web' ? undefined : { top: 10, bottom: 10, left: 0, right: 0 }}
+                                delayPressIn={0}
+                                {...(Platform.OS === 'web'
+                                  ? {
+                                    onMouseEnter: () => setSelectedIndex(index),
+                                    onMouseLeave: () => setSelectedIndex(-1),
+                                  }
+                                  : {})}
                               >
-                                {item.label}
-                              </Text>
-                              {value === item.id && !isManualOption && (
-                                <FontAwesome5
-                                  name="check"
-                                  size={12}
-                                  color={theme.colors.primary}
-                                  style={styles.checkIcon}
-                                />
-                              )}
-                            </TouchableOpacity>
-                          );
-                        }}
-                        style={styles.list}
-                        initialNumToRender={10}
-                        maxToRenderPerBatch={10}
-                        windowSize={5}
-                        removeClippedSubviews={false}
-                      />
-                    ) : (
-                      <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
-                      </View>
-                    )}
+                                <Text
+                                  style={[
+                                    styles.itemText,
+                                    value === item.id && !isManualOption && styles.itemTextSelected,
+                                    isManualOption && styles.itemTextManual,
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {item.label}
+                                </Text>
+                                {value === item.id && !isManualOption && (
+                                  <FontAwesome5
+                                    name="check"
+                                    size={12}
+                                    color={theme.colors.primary}
+                                    style={styles.checkIcon}
+                                  />
+                                )}
+                              </TouchableOpacity>
+                            );
+                          }}
+                          style={styles.list}
+                          nestedScrollEnabled
+                          keyboardShouldPersistTaps="always"
+                          initialNumToRender={10}
+                          maxToRenderPerBatch={10}
+                          windowSize={5}
+                          removeClippedSubviews={false}
+                        />
                       </View>
                     </View>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-            {showList && filtered.length > 0 && (
-              <View
-                style={styles.webDropdownContainer}
-              >
-              <View
-                style={[
-                  styles.dropdown,
-                  Platform.OS === 'web' ? {
-                    // @ts-ignore
-                    backgroundColor: '#ffffff',
-                    // @ts-ignore
-                    // @ts-ignore
-                    opacity: 1,
-                  } : {},
-                ]}
-                    onStartShouldSetResponder={() => false}
-                    onMoveShouldSetResponder={() => false}
-                    pointerEvents="auto"
-                    {...(Platform.OS === 'web'
-                      ? {
-                          onMouseEnter: () => {
-                            // Cancelar blur quando mouse entra no dropdown
-                            if (blurTimeoutRef.current) {
-                              clearTimeout(blurTimeoutRef.current);
-                              blurTimeoutRef.current = null;
-                            }
-                          },
-                          onMouseDown: (e: React.MouseEvent) => {
-                            // Cancelar blur ao clicar no dropdown
-                            if (blurTimeoutRef.current) {
-                              clearTimeout(blurTimeoutRef.current);
-                              blurTimeoutRef.current = null;
-                            }
-                          },
-                        }
-                      : {})}
-              >
-                <FlatList
-                  ref={flatListRef}
-                  data={filtered}
-                  keyExtractor={item => item.id}
-                  renderItem={({ item, index }) => {
-                    const isManualOption = item.id === MANUAL_INPUT_OPTION_ID;
-                    return (
-                      <TouchableOpacity
-                        style={[
-                          styles.item,
-                          selectedIndex === index && styles.itemHighlighted,
-                          value === item.id && !isManualOption && styles.itemSelected,
-                          isManualOption && styles.itemManual,
-                        ]}
-                            onPress={() => {
-                              // Cancelar blur pendente ao clicar
-                              if (blurTimeoutRef.current) {
-                                clearTimeout(blurTimeoutRef.current);
-                                blurTimeoutRef.current = null;
-                              }
-                              handleSelect(item);
-                            }}
-                            onPressIn={() => {
-                              // Cancelar blur imediatamente ao tocar (melhor para mobile)
-                              if (blurTimeoutRef.current) {
-                                clearTimeout(blurTimeoutRef.current);
-                                blurTimeoutRef.current = null;
-                              }
-                            }}
-                        activeOpacity={Platform.OS === 'web' ? 0.7 : 0.5}
-                        hitSlop={Platform.OS === 'web' ? undefined : { top: 10, bottom: 10, left: 0, right: 0 }}
-                        delayPressIn={0}
-                        {...(Platform.OS === 'web'
-                          ? {
-                              onMouseEnter: () => setSelectedIndex(index),
-                              onMouseLeave: () => setSelectedIndex(-1),
-                            }
-                          : {})}
-                      >
-                        <Text
-                          style={[
-                            styles.itemText,
-                            value === item.id && !isManualOption && styles.itemTextSelected,
-                            isManualOption && styles.itemTextManual,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {item.label}
-                        </Text>
-                        {value === item.id && !isManualOption && (
-                          <FontAwesome5
-                            name="check"
-                            size={12}
-                            color={theme.colors.primary}
-                            style={styles.checkIcon}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  }}
-                  style={styles.list}
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="always"
-                  initialNumToRender={10}
-                  maxToRenderPerBatch={10}
-                  windowSize={5}
-                  removeClippedSubviews={false}
-                />
-              </View>
-            </View>
-            )}
+                  )}
 
-            {/* Mensagem quando não há resultados */}
-            {showList && filtered.length === 0 && searchText.trim().length > 0 && isFocused && (
-              <View style={styles.webDropdownContainer}>
-                <View style={styles.dropdown}>
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
-                  </View>
-                </View>
-              </View>
-            )}
-              </>
-            )}
+                  {/* Mensagem quando não há resultados */}
+                  {showList && filtered.length === 0 && searchText.trim().length > 0 && isFocused && (
+                    <View style={styles.webDropdownContainer}>
+                      <View style={styles.dropdown}>
+                        <View style={styles.emptyContainer}>
+                          <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
             </>
           )}
         </>

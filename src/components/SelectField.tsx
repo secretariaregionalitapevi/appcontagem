@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   TextInput,
   ViewStyle,
+  Platform,
 } from 'react-native';
 import { theme } from '../theme';
 
@@ -213,8 +214,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.surface,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: Platform.OS === 'web' ? theme.spacing.sm : theme.spacing.md, // Mais padding no mobile
-    minHeight: Platform.OS === 'web' ? 48 : 52, // Aumentado no mobile
+    paddingVertical: Platform.OS === 'web' ? theme.spacing.sm : theme.spacing.md,
+    minHeight: Platform.OS === 'web' ? 48 : 52,
   },
   selectButtonInline: {
     borderWidth: 0,

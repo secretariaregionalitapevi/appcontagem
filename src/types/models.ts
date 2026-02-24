@@ -63,3 +63,17 @@ export interface LocalEnsaio {
   id: string;
   nome: string;
 }
+
+export interface OrganistaEnsaio {
+  id?: string;
+  organista_nome: string;
+  organista_comum?: string;
+  organista_cidade?: string;
+  local_ensaio: string;
+  data_ensaio: string; // Formato: YYYY-MM-DD
+  tocou: boolean;
+  usuario_responsavel: string;
+  observacoes?: string;
+  created_at?: string;
+  updated_at?: string;
+}

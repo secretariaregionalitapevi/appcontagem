@@ -85,8 +85,77 @@ const createIndexedDBDatabase = (): any => {
     },
     runAsync: async (sql: string, params: any[]) => {
       await openDB();
-      // Implementação básica - INSERT/UPDATE/DELETE
-      // Por enquanto, usar getAllAsync e manipular manualmente
+      
+      // Parse SQL para identificar tipo de operação
+      const insertMatch = sql.match(/INSERT OR REPLACE INTO (\w+)/i);
+      const updateMatch = sql.match(/UPDATE (\w+) SET/i);
+      const deleteMatch = sql.match(/DELETE FROM (\w+)/i);
+      
+      if (insertMatch) {
+        const tableName = insertMatch[1];
+        const store = await getStore(tableName, 'readwrite');
+        
+        // Mapear parâmetros para objeto (assumindo ordem: id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at)
+        const record: any = {};
+        
+        // Para registros_presenca
+        if (tableName === 'registros_presenca' && params.length >= 11) {
+          record.id = params[0];
+          record.pessoa_id = params[1];
+          record.comum_id = params[2];
+          record.cargo_id = params[3];
+          record.instrumento_id = params[4] || null;
+          record.local_ensaio = params[5] || null;
+          record.data_hora_registro = params[6];
+          record.usuario_responsavel = params[7] || null;
+          record.status_sincronizacao = params[8] || 'pending';
+          record.created_at = params[9] || null;
+          record.updated_at = params[10] || null;
+        } else {
+          // Para outras tabelas, usar primeiro parâmetro como ID
+          record.id = params[0];
+          // Adicionar outros campos conforme necessário
+          for (let i = 1; i < params.length; i++) {
+            record[`field_${i}`] = params[i];
+          }
+        }
+        
+        return new Promise((resolve, reject) => {
+          const request = store.put(record);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(undefined);
+        });
+      } else if (updateMatch) {
+        const tableName = updateMatch[1];
+        const store = await getStore(tableName, 'readwrite');
+        
+        // Para UPDATE, precisaríamos de uma implementação mais complexa
+        // Por enquanto, usar put com o ID do primeiro parâmetro
+        if (params.length > 0) {
+          const record: any = { id: params[0] };
+          for (let i = 1; i < params.length; i++) {
+            record[`field_${i}`] = params[i];
+          }
+          
+          return new Promise((resolve, reject) => {
+            const request = store.put(record);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(undefined);
+          });
+        }
+      } else if (deleteMatch) {
+        const tableName = deleteMatch[1];
+        const store = await getStore(tableName, 'readwrite');
+        
+        // DELETE - usar primeiro parâmetro como ID
+        if (params.length > 0) {
+          return new Promise((resolve, reject) => {
+            const request = store.delete(params[0]);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(undefined);
+          });
+        }
+      }
     },
     getAllAsync: async (sql: string, params?: any[]): Promise<any[]> => {
       try {
@@ -172,15 +241,66 @@ const createLocalStorageDatabase = (): any => {
       if (insertMatch) {
         const tableName = insertMatch[1];
         const data = getTableData(tableName);
-        // Implementação básica - adicionar registro
-        // Por enquanto, apenas logar
-        console.log(`INSERT em ${tableName}`, params);
+        
+        // Mapear parâmetros para objeto
+        const record: any = {};
+        
+        // Para registros_presenca
+        if (tableName === 'registros_presenca' && params.length >= 11) {
+          record.id = params[0];
+          record.pessoa_id = params[1];
+          record.comum_id = params[2];
+          record.cargo_id = params[3];
+          record.instrumento_id = params[4] || null;
+          record.local_ensaio = params[5] || null;
+          record.data_hora_registro = params[6];
+          record.usuario_responsavel = params[7] || null;
+          record.status_sincronizacao = params[8] || 'pending';
+          record.created_at = params[9] || null;
+          record.updated_at = params[10] || null;
+        } else {
+          // Para outras tabelas, usar primeiro parâmetro como ID
+          record.id = params[0];
+          for (let i = 1; i < params.length; i++) {
+            record[`field_${i}`] = params[i];
+          }
+        }
+        
+        // Remover registro existente se houver (INSERT OR REPLACE)
+        const existingIndex = data.findIndex((r: any) => r.id === record.id);
+        if (existingIndex >= 0) {
+          data[existingIndex] = record;
+        } else {
+          data.push(record);
+        }
+        
+        saveTableData(tableName, data);
       } else if (updateMatch) {
         const tableName = updateMatch[1];
-        console.log(`UPDATE em ${tableName}`, params);
+        const data = getTableData(tableName);
+        
+        if (params.length > 0) {
+          const recordId = params[0];
+          const existingIndex = data.findIndex((r: any) => r.id === recordId);
+          
+          if (existingIndex >= 0) {
+            const record: any = { ...data[existingIndex], id: recordId };
+            for (let i = 1; i < params.length; i++) {
+              record[`field_${i}`] = params[i];
+            }
+            data[existingIndex] = record;
+            saveTableData(tableName, data);
+          }
+        }
       } else if (deleteMatch) {
         const tableName = deleteMatch[1];
-        console.log(`DELETE de ${tableName}`, params);
+        const data = getTableData(tableName);
+        
+        if (params.length > 0) {
+          const recordId = params[0];
+          const filteredData = data.filter((r: any) => r.id !== recordId);
+          saveTableData(tableName, filteredData);
+        }
       }
     },
     getAllAsync: async (sql: string, params?: any[]): Promise<any[]> => {

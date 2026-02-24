@@ -1,6 +1,6 @@
 export default {
   expo: {
-    name: 'CCB | Contagem EnR',
+    name: 'CCB Contagem',
     slug: 'sistema-contagem-sac',
     version: '1.0.0',
     orientation: 'portrait',
@@ -9,7 +9,7 @@ export default {
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
-      backgroundColor: '#1E88E5',
+      backgroundColor: '#ffffff',
     },
     assetBundlePatterns: ['**/*'],
     ios: {
@@ -23,7 +23,7 @@ export default {
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#1E88E5',
+        backgroundColor: '#ffffff',
       },
       package: 'com.ccb.sac',
     },

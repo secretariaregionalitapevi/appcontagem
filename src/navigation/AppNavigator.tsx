@@ -5,6 +5,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { EditRegistrosScreen } from '../screens/EditRegistrosScreen';
+import { OrganistasEnsaioScreen } from '../screens/OrganistasEnsaioScreen';
 import { useAuthContext } from '../context/AuthContext';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { theme } from '../theme';
@@ -95,6 +96,11 @@ export const AppNavigator: React.FC = () => {
           options={{ title: 'CCB | Contagem EnR' }}
         />
         <Stack.Screen name="EditRegistros" component={EditRegistrosScreen} />
+        <Stack.Screen 
+          name="OrganistasEnsaio" 
+          component={OrganistasEnsaioScreen}
+          options={{ title: 'CCB | Organistas no Ensaio' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

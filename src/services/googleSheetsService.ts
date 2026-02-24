@@ -7,9 +7,12 @@ import { uuidv4 } from '../utils/uuid';
 import { normalizarNivel } from '../utils/normalizeNivel';
 import { formatDateTimeManual, formatTime } from '../utils/dateUtils';
 import { supabase } from './supabaseClient';
+import { sanitizeInput, sanitizeForLogging, FIELD_LIMITS } from '../utils/securityUtils';
+import { env } from '../config/env';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
 const GOOGLE_SHEETS_API_URL =
+  env.SHEETS_ENDPOINT_URL ||
   'https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec';
 const SHEET_NAME = 'Dados';
 
@@ -23,12 +26,12 @@ function converterLocalEnsaioIdParaNome(localEnsaio: string | null | undefined):
   if (!localEnsaio) {
     return 'Não definido';
   }
-  
+
   // Se já é um nome (não é apenas número), retornar como está
   if (!/^\d+$/.test(localEnsaio.trim())) {
     return localEnsaio.trim();
   }
-  
+
   // Se é um número (ID), converter para nome
   const locais: { id: string; nome: string }[] = [
     { id: '1', nome: 'Cotia' },
@@ -39,7 +42,7 @@ function converterLocalEnsaioIdParaNome(localEnsaio: string | null | undefined):
     { id: '6', nome: 'Pirapora' },
     { id: '7', nome: 'Vargem Grande' },
   ];
-  
+
   const localEncontrado = locais.find(l => l.id === localEnsaio.trim());
   return localEncontrado?.nome || localEnsaio;
 }
@@ -68,7 +71,7 @@ export const googleSheetsService = {
     console.log('📋 [EXTERNAL] Comum:', data.comum);
     console.log('📋 [EXTERNAL] Cidade:', data.cidade);
     console.log('📋 [EXTERNAL] Local Ensaio:', data.localEnsaio);
-    
+
     try {
       console.log('📤 [EXTERNAL] Iniciando processamento dos dados...');
       console.log('📤 [EXTERNAL] Enviando registro externo diretamente para Google Sheets');
@@ -83,24 +86,24 @@ export const googleSheetsService = {
       // Apenas "Instrutora" (feminino) é organista
       const cargoUpper = data.cargo.trim().toUpperCase();
       console.log('🔍 [EXTERNAL] Verificando cargo:', cargoUpper);
-      
+
       const isOrganista = cargoUpper === 'ORGANISTA';
       const isExaminadora = cargoUpper === 'EXAMINADORA';
       const isInstrutora = cargoUpper === 'INSTRUTORA'; // 🚨 Apenas feminino (Instrutora), NÃO Instrutor
-      const isSecretariaMusica = (cargoUpper.includes('SECRETÁRI') || cargoUpper.includes('SECRETARI')) && 
-                                  (cargoUpper.includes('MÚSICA') || cargoUpper.includes('MUSICA'));
+      const isSecretariaMusica = (cargoUpper.includes('SECRETÁRI') || cargoUpper.includes('SECRETARI')) &&
+        (cargoUpper.includes('MÚSICA') || cargoUpper.includes('MUSICA'));
       const isOrganistaOuRelacionado = isOrganista || isExaminadora || isInstrutora || isSecretariaMusica;
-      
+
       console.log('🔍 [EXTERNAL] Verificações de cargo:');
       console.log('  - isOrganista:', isOrganista);
       console.log('  - isExaminadora:', isExaminadora);
       console.log('  - isInstrutora:', isInstrutora);
       console.log('  - isSecretariaMusica:', isSecretariaMusica);
       console.log('  - isOrganistaOuRelacionado:', isOrganistaOuRelacionado);
-      
+
       let instrumentoFinal = '';
       let naipeFinal = '';
-      
+
       if (isOrganistaOuRelacionado) {
         // 🚨 CRÍTICO: Cargos relacionados a organistas sempre têm instrumento "ÓRGÃO"
         instrumentoFinal = 'ÓRGÃO';
@@ -120,94 +123,82 @@ export const googleSheetsService = {
       const localEnsaioConvertido = converterLocalEnsaioIdParaNome(data.localEnsaio);
       console.log('🔄 [EXTERNAL] Local de ensaio original:', data.localEnsaio);
       console.log('🔄 [EXTERNAL] Local de ensaio convertido:', localEnsaioConvertido);
-      
+
       // 🚨 CRÍTICO: Garantir que TODOS os cargos sejam enviados, sem validação especial
       // Músico, Organista, Examinadora, Instrutor, Encarregado Local, etc. - todos devem funcionar igual
       console.log('📋 [EXTERNAL] Preparando dados para envio - TODOS os cargos são aceitos');
       console.log('📋 [EXTERNAL] Cargo que será enviado:', data.cargo.trim().toUpperCase());
       console.log('📋 [EXTERNAL] Instrumento final:', instrumentoFinal || '(vazio - OK para cargos sem instrumento)');
       console.log('📋 [EXTERNAL] Naipe final:', naipeFinal || '(vazio - OK para cargos sem instrumento)');
-      
+
+      // 🛡️ SEGURANÇA: Sanitizar todos os inputs antes de enviar
+      const nomeSanitizado = sanitizeInput(data.nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome });
+      const comumSanitizado = sanitizeInput(data.comum.trim(), { fieldType: 'comum', maxLength: FIELD_LIMITS.comum });
+      const cidadeSanitizada = sanitizeInput(data.cidade.trim(), { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade });
+      const cargoSanitizado = sanitizeInput(data.cargo.trim(), { fieldType: 'cargo', maxLength: FIELD_LIMITS.cargo });
+      const classeSanitizada = data.classe ? sanitizeInput(data.classe.trim(), { fieldType: 'classe', maxLength: FIELD_LIMITS.classe }) : '';
+      const localEnsaioSanitizado = sanitizeInput(localEnsaioConvertido, { maxLength: 100 });
+
       // Formato esperado pelo Google Apps Script (igual ao backupcont)
       const sheetRow = {
         UUID: uuid,
-        'NOME COMPLETO': data.nome.trim().toUpperCase(),
-        COMUM: data.comum.trim().toUpperCase(),
-        CIDADE: data.cidade.trim().toUpperCase(),
-        CARGO: data.cargo.trim().toUpperCase(),
+        'NOME COMPLETO': nomeSanitizado.toUpperCase(),
+        COMUM: comumSanitizado.toUpperCase(),
+        CIDADE: cidadeSanitizada.toUpperCase(),
+        CARGO: cargoSanitizado.toUpperCase(),
         INSTRUMENTO: instrumentoFinal,
         NAIPE_INSTRUMENTO: naipeFinal,
-        CLASSE_ORGANISTA: (data.classe || '').toUpperCase(),
-        LOCAL_ENSAIO: localEnsaioConvertido.toUpperCase(),
-        // 🚨 CORREÇÃO: DATA_ENSAIO deve incluir hora no formato dd/mm/aaaa HH:mm
-        // 🚨 CORREÇÃO CRÍTICA: Garantir que formatDateTimeManual funcione mesmo se houver problema de importação
+        CLASSE_ORGANISTA: classeSanitizada.toUpperCase(),
+        LOCAL_ENSAIO: localEnsaioSanitizado.toUpperCase(),
         DATA_ENSAIO: (() => {
           try {
             if (formatDateTimeManual && typeof formatDateTimeManual === 'function') {
               return formatDateTimeManual();
             } else {
-              // Fallback: formatar manualmente se função não estiver disponível
-              const data = new Date();
-              const dia = String(data.getDate()).padStart(2, '0');
-              const mes = String(data.getMonth() + 1).padStart(2, '0');
-              const ano = data.getFullYear();
-              const horas = String(data.getHours()).padStart(2, '0');
-              const minutos = String(data.getMinutes()).padStart(2, '0');
+              const dataObj = new Date();
+              const dia = String(dataObj.getDate()).padStart(2, '0');
+              const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+              const ano = dataObj.getFullYear();
+              const horas = String(dataObj.getHours()).padStart(2, '0');
+              const minutos = String(dataObj.getMinutes()).padStart(2, '0');
               return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
             }
           } catch (error) {
-            // Fallback em caso de erro
-            const data = new Date();
-            const dia = String(data.getDate()).padStart(2, '0');
-            const mes = String(data.getMonth() + 1).padStart(2, '0');
-            const ano = data.getFullYear();
-            const horas = String(data.getHours()).padStart(2, '0');
-            const minutos = String(data.getMinutes()).padStart(2, '0');
+            const dataObj = new Date();
+            const dia = String(dataObj.getDate()).padStart(2, '0');
+            const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+            const ano = dataObj.getFullYear();
+            const horas = String(dataObj.getHours()).padStart(2, '0');
+            const minutos = String(dataObj.getMinutes()).padStart(2, '0');
             return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
           }
         })(),
-        HORÁRIO: (() => {
-          try {
-            if (formatTime && typeof formatTime === 'function') {
-              return formatTime();
-            } else {
-              // Fallback: formatar manualmente se função não estiver disponível
-              const data = new Date();
-              const horas = String(data.getHours()).padStart(2, '0');
-              const minutos = String(data.getMinutes()).padStart(2, '0');
-              const segundos = String(data.getSeconds()).padStart(2, '0');
-              return `${horas}:${minutos}:${segundos}`;
-            }
-          } catch (error) {
-            // Fallback em caso de erro
-            const data = new Date();
-            const horas = String(data.getHours()).padStart(2, '0');
-            const minutos = String(data.getMinutes()).padStart(2, '0');
-            const segundos = String(data.getSeconds()).padStart(2, '0');
-            return `${horas}:${minutos}:${segundos}`;
-          }
-        })(),
         REGISTRADO_POR: data.registradoPor.toUpperCase(),
-        USER_ID: data.userId || '',
-        ANOTACOES: 'Cadastro fora da Regional', // 🚨 SEMPRE usar esta anotação para registros externos
         SYNC_STATUS: 'ATUALIZADO',
+        SYNCED_AT: new Date().toISOString(),
+        ANOTACOES: 'Cadastro fora da Regional',
+        DUPLICATA: 'NÃO',
+        'NÍVEL': classeSanitizada.toUpperCase(), // Para externos, NÍVEL = Classe
       };
 
+      // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
+      const logData = sanitizeForLogging({
+        uuid,
+        nome: sheetRow['NOME COMPLETO'],
+        comum: sheetRow.COMUM,
+        cidade: sheetRow.CIDADE,
+        cargo: sheetRow.CARGO,
+        instrumento: sheetRow.INSTRUMENTO || '(vazio)',
+        naipe: sheetRow.NAIPE_INSTRUMENTO || '(vazio)',
+        classe: sheetRow.CLASSE_ORGANISTA || '(vazio)',
+        localEnsaio: sheetRow.LOCAL_ENSAIO,
+        dataEnsaio: sheetRow.DATA_ENSAIO,
+        registradoPor: sheetRow.REGISTRADO_POR,
+        anotacoes: sheetRow.ANOTACOES,
+        syncStatus: sheetRow.SYNC_STATUS,
+      });
       console.log('📤 [EXTERNAL] ========== DADOS FINAIS PARA ENVIO ==========');
-      console.log('📤 [EXTERNAL] UUID gerado:', uuid);
-      console.log('📤 [EXTERNAL] NOME COMPLETO:', sheetRow['NOME COMPLETO']);
-      console.log('📤 [EXTERNAL] COMUM:', sheetRow.COMUM);
-      console.log('📤 [EXTERNAL] CIDADE:', sheetRow.CIDADE);
-      console.log('📤 [EXTERNAL] CARGO:', sheetRow.CARGO, '✅ (qualquer cargo é aceito)');
-      console.log('📤 [EXTERNAL] INSTRUMENTO:', sheetRow.INSTRUMENTO || '(vazio - OK para cargos sem instrumento)');
-      console.log('📤 [EXTERNAL] NAIPE_INSTRUMENTO:', sheetRow.NAIPE_INSTRUMENTO || '(vazio - OK)');
-      console.log('📤 [EXTERNAL] CLASSE_ORGANISTA:', sheetRow.CLASSE_ORGANISTA || '(vazio - OK)');
-      console.log('📤 [EXTERNAL] LOCAL_ENSAIO:', sheetRow.LOCAL_ENSAIO);
-      console.log('📤 [EXTERNAL] DATA_ENSAIO:', sheetRow.DATA_ENSAIO);
-      console.log('📤 [EXTERNAL] HORÁRIO:', sheetRow.HORÁRIO);
-      console.log('📤 [EXTERNAL] REGISTRADO_POR:', sheetRow.REGISTRADO_POR);
-      console.log('📤 [EXTERNAL] ANOTACOES:', sheetRow.ANOTACOES);
-      console.log('📤 [EXTERNAL] SYNC_STATUS:', sheetRow.SYNC_STATUS);
+      console.log('📤 [EXTERNAL] Dados sanitizados:', logData);
       console.log('📤 [EXTERNAL] URL da API:', GOOGLE_SHEETS_API_URL);
       console.log('📤 [EXTERNAL] Nome da planilha:', SHEET_NAME);
       console.log('📤 [EXTERNAL] ============================================');
@@ -223,7 +214,7 @@ export const googleSheetsService = {
 
       console.log('📤 [EXTERNAL] Corpo da requisição:', requestBody);
       console.log('🌐 [EXTERNAL] Fazendo fetch para:', GOOGLE_SHEETS_API_URL);
-      
+
       try {
         // 🚨 CRÍTICO: Usar mesmo formato do backupcont (text/plain, sem mode explícito, sem signal)
         // Promise.race para timeout sem usar AbortController (compatível com no-cors)
@@ -273,7 +264,7 @@ export const googleSheetsService = {
             console.log('📥 [EXTERNAL] responseJson.op:', responseJson?.op);
             console.log('📥 [EXTERNAL] responseJson.inserted:', responseJson?.inserted);
             console.log('📥 [EXTERNAL] responseJson.error:', responseJson?.error);
-            
+
             // 🚨 CRÍTICO: Se o JSON tem ok: false, é um erro mesmo com status HTTP OK
             if (responseJson && responseJson.ok === false) {
               const errorMsg = responseJson.error || 'Erro desconhecido do Google Apps Script';
@@ -312,13 +303,13 @@ export const googleSheetsService = {
             console.error('❌ [EXTERNAL] Dados que causaram erro:', sheetRow);
             throw new Error(`Google Sheets retornou erro: ${responseBody}`);
           }
-          
+
           // 🚨 VERIFICAÇÃO ADICIONAL: Verificar se a resposta está vazia ou muito curta
           // Pode indicar que o Google Apps Script não processou corretamente
           if (responseBody && responseBody.trim().length < 10) {
             console.warn('⚠️ [EXTERNAL] Resposta muito curta, pode indicar problema:', responseBody);
           }
-          
+
           // 🚨 VERIFICAÇÃO CRÍTICA: Se é JSON válido e ok: true, confirmar sucesso
           // Verificar se inserted é 1 para confirmar que realmente foi inserido
           if (responseJson && responseJson.ok === true) {
@@ -334,7 +325,7 @@ export const googleSheetsService = {
             }
             return { success: true, uuid: responseJson.uuid };
           }
-          
+
           // Se não é JSON válido mas status é OK, verificar indicadores de sucesso no texto
           if (responseBody && (
             responseBody.includes('"ok":true') ||
@@ -345,7 +336,7 @@ export const googleSheetsService = {
             console.log('✅ [EXTERNAL] Cargo que foi salvo:', sheetRow.CARGO);
             return { success: true };
           }
-          
+
           console.log('✅ [EXTERNAL] Google Sheets: Dados enviados com sucesso (status OK)');
           console.log('✅ [EXTERNAL] Corpo da resposta confirmado:', responseBody.substring(0, 100));
           console.log('✅ [EXTERNAL] Cargo que foi salvo:', sheetRow.CARGO);
@@ -366,14 +357,14 @@ export const googleSheetsService = {
           responseBody.toLowerCase().includes('operacao nao reconhecida') ||
           responseBody.toLowerCase().includes('operação não reconhecida')
         );
-        
+
         if (temErroNoCorpo) {
           console.error('❌ [EXTERNAL] Erro detectado no corpo da resposta (mesmo em no-cors):', responseBody);
           console.error('❌ [EXTERNAL] Cargo que causou erro:', sheetRow.CARGO);
           console.error('❌ [EXTERNAL] Nome que causou erro:', sheetRow['NOME COMPLETO']);
           throw new Error(`Google Sheets retornou erro: ${responseBody}`);
         }
-        
+
         // 🚨 CRÍTICO: Se responseBody contém JSON válido com ok: false, é erro mesmo em no-cors
         if (responseJson && responseJson.ok === false) {
           const errorMsg = responseJson.error || 'Erro desconhecido do Google Apps Script';
@@ -383,7 +374,7 @@ export const googleSheetsService = {
           console.error('❌ [EXTERNAL] Nome que causou erro:', sheetRow['NOME COMPLETO']);
           throw new Error(errorMsg);
         }
-        
+
         // Se a resposta é opaca (no-cors), também considera sucesso (fallback)
         // Isso é importante porque no-cors sempre retorna response.ok = false
         // MAS só assumir sucesso se não detectamos erro acima
@@ -414,7 +405,7 @@ export const googleSheetsService = {
             console.error('❌ [EXTERNAL] Erro ao ler resposta:', readError);
             // 🚨 CORREÇÃO: Se não conseguiu ler erro, mas response não está OK, 
             // pode ser no-cors - assumir sucesso (igual backupcont faz)
-            if (response.type === 'opaque' || response.status === 0) {
+            if ((response as any).type === 'opaque' || response.status === 0) {
               console.log('✅ [EXTERNAL] Google Sheets: Assumindo sucesso (no-cors ou status 0)');
               return { success: true };
             }
@@ -424,7 +415,7 @@ export const googleSheetsService = {
           // Já temos o corpo da resposta, apenas logar o erro
           console.error('❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:', response.status, responseBody);
         }
-        
+
         // 🚨 CORREÇÃO CRÍTICA: Tentar parsear JSON do erro para obter mensagem mais clara
         let errorMessage = `HTTP ${response.status}: ${responseBody || 'Erro desconhecido'}`;
         if (responseBody) {
@@ -438,7 +429,7 @@ export const googleSheetsService = {
             // Não é JSON, usar mensagem original
           }
         }
-        
+
         // Se chegou aqui, response não está OK e temos o corpo da resposta
         throw new Error(errorMessage);
       } catch (fetchError: any) {
@@ -447,7 +438,7 @@ export const googleSheetsService = {
           console.error('❌ [EXTERNAL] Timeout ao enviar para Google Sheets');
           throw new Error('Timeout ao enviar registro. Tente novamente.');
         }
-        
+
         // 🚨 CORREÇÃO CRÍTICA: Se for erro de rede, pode ser no-cors
         // Em no-cors, fetch pode falhar mas o envio pode ter funcionado
         // Retornar sucesso como fallback (igual backupcont faz)
@@ -462,7 +453,7 @@ export const googleSheetsService = {
           // Retornar sucesso como fallback (igual backupcont faz)
           return { success: true };
         }
-        
+
         console.error('❌ [EXTERNAL] Erro inesperado no fetch:', fetchError);
         throw fetchError;
       }
@@ -474,7 +465,7 @@ export const googleSheetsService = {
       console.error('❌ [EXTERNAL] Cargo que causou erro:', data?.cargo);
       console.error('❌ [EXTERNAL] Nome que causou erro:', data?.nome);
       console.error('❌ [EXTERNAL] Dados completos que causaram erro:', JSON.stringify(data, null, 2));
-      
+
       if (error.message === 'Timeout' || error.name === 'AbortError') {
         console.error('❌ [EXTERNAL] Erro de timeout');
         return { success: false, error: 'Timeout ao enviar registro. Tente novamente.' };
@@ -488,7 +479,7 @@ export const googleSheetsService = {
         console.warn('⚠️ [EXTERNAL] Cargo:', data?.cargo);
         return { success: true };
       }
-      
+
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('❌ [EXTERNAL] Retornando erro:', errorMessage);
       return { success: false, error: errorMessage };
@@ -511,12 +502,12 @@ export const googleSheetsService = {
 
       // Verificar se é registro externo (do modal de novo registro)
       const isExternalRegistro = registro.comum_id.startsWith('external_');
-      
+
       // 🚨 CORREÇÃO: Verificar se é nome manual de uma comum da regional (não do modal)
       // Nomes manuais de comuns da regional indicam que o cadastro está desatualizado
       const isNomeManual = registro.pessoa_id.startsWith('manual_');
       const isNomeManualRegional = isNomeManual && !isExternalRegistro;
-      
+
       let comum: any = null;
       // 🚨 CRÍTICO: Tentar buscar cargo por ID primeiro, depois por nome (fallback)
       let cargoSelecionado = cargos.find(c => c.id === registro.cargo_id);
@@ -528,7 +519,7 @@ export const googleSheetsService = {
           console.warn('⚠️ Cargo encontrado por nome, mas deveria ser por ID:', registro.cargo_id);
         }
       }
-      
+
       if (isExternalRegistro) {
         // Para registros externos, extrair nome da comum do ID
         const comumNome = registro.comum_id.replace(/^external_/, '').replace(/_\d+$/, '');
@@ -536,7 +527,7 @@ export const googleSheetsService = {
       } else {
         comum = comuns.find(c => c.id === registro.comum_id);
       }
-      
+
       const instrumentoOriginal = registro.instrumento_id
         ? instrumentos.find(i => i.id === registro.instrumento_id)
         : null;
@@ -583,10 +574,19 @@ export const googleSheetsService = {
       }
 
       // Buscar nivel da pessoa (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)
-      // 🚨 CORREÇÃO: Para registros externos (do modal), não calcular nível
-      // 🚨 CORREÇÃO: Normalizar nivel baseado em regras (instrumento e cargo)
+      // 🚨 CORREÇÃO: Para candidatos, buscar instrumento da pessoa se não tiver no registro
+      // A pessoa candidata já tem o instrumento_id convertido do nome do instrumento
+      let instrumentoParaUsar = instrumentoOriginal;
+      if (!instrumentoParaUsar && !isExternalRegistro && !isNomeManual && pessoa?.instrumento_id) {
+        // Buscar instrumento pelo ID da pessoa
+        const instrumentoDaPessoa = instrumentos.find(i => i.id === pessoa.instrumento_id);
+        if (instrumentoDaPessoa) {
+          instrumentoParaUsar = instrumentoDaPessoa;
+        }
+      }
+
       let nivelPessoa = '';
-      if (!isExternalRegistro) {
+      if (!isExternalRegistro && !isNomeManual) {
         const nivelPessoaOriginal = pessoa?.nivel || null;
         nivelPessoa = normalizarNivel(
           nivelPessoaOriginal,
@@ -604,17 +604,6 @@ export const googleSheetsService = {
         registro.classe_organista
       );
 
-      // 🚨 CORREÇÃO: Para candidatos, buscar instrumento da pessoa se não tiver no registro
-      // A pessoa candidata já tem o instrumento_id convertido do nome do instrumento
-      let instrumentoParaUsar = instrumentoOriginal;
-      if (!instrumentoParaUsar && pessoa && pessoa.instrumento_id) {
-        // Buscar instrumento pelo ID da pessoa
-        const instrumentoDaPessoa = instrumentos.find(i => i.id === pessoa.instrumento_id);
-        if (instrumentoDaPessoa) {
-          instrumentoParaUsar = instrumentoDaPessoa;
-        }
-      }
-
       // Usar instrumento normalizado se for cargo feminino
       const instrumento = normalizacao.isNormalizado ? { nome: 'ÓRGÃO' } : instrumentoParaUsar;
 
@@ -623,11 +612,10 @@ export const googleSheetsService = {
       // 🚨 CORREÇÃO CRÍTICA: Sempre garantir que cidade seja preenchida (não usar localEnsaio como fallback)
       let cidade = '';
       if (isExternalRegistro) {
-        // Para registros externos, buscar cidade do registro (se disponível)
         cidade = (registro as any).cidade || '';
       } else if (isNomeManual) {
-        // 🚨 CORREÇÃO: Para nomes manuais da página principal, buscar cidade da comum
         try {
+          if (!supabase) throw new Error('Supabase client not initialized');
           const cidadeResult = await supabase
             .from('cadastro')
             .select('cidade')
@@ -636,13 +624,12 @@ export const googleSheetsService = {
             .neq('cidade', '')
             .limit(1)
             .single();
-          
-          if (cidadeResult.data && cidadeResult.data.cidade) {
-            cidade = cidadeResult.data.cidade;
+
+          if (cidadeResult.data && (cidadeResult.data as any).cidade) {
+            cidade = (cidadeResult.data as any).cidade;
             console.log('✅ [GoogleSheets] Cidade encontrada da comum para nome manual:', cidade);
           } else {
             console.warn('⚠️ [GoogleSheets] Cidade não encontrada para comum:', comum.nome);
-            // 🚨 CORREÇÃO: Se não encontrou, tentar extrair da comum (ex: "ITAPEVI - CENTRAL" -> "ITAPEVI")
             const comumNomeUpper = comum.nome.toUpperCase();
             if (comumNomeUpper.includes('ITAPEVI')) {
               cidade = 'ITAPEVI';
@@ -657,7 +644,6 @@ export const googleSheetsService = {
           }
         } catch (error) {
           console.warn('⚠️ [GoogleSheets] Erro ao buscar cidade da comum:', error);
-          // 🚨 CORREÇÃO: Fallback - tentar extrair da comum
           const comumNomeUpper = comum.nome.toUpperCase();
           if (comumNomeUpper.includes('ITAPEVI')) {
             cidade = 'ITAPEVI';
@@ -671,7 +657,6 @@ export const googleSheetsService = {
         }
       } else {
         cidade = pessoa?.cidade || '';
-        // 🚨 CORREÇÃO: Se pessoa não tem cidade, tentar extrair da comum como fallback
         if (!cidade) {
           const comumNomeUpper = comum.nome.toUpperCase();
           if (comumNomeUpper.includes('ITAPEVI')) {
@@ -686,8 +671,7 @@ export const googleSheetsService = {
           console.log('🔄 [GoogleSheets] Cidade não encontrada na pessoa, inferida da comum:', cidade);
         }
       }
-      
-      // 🚨 CORREÇÃO CRÍTICA: Garantir que cidade nunca seja vazia (evitar que Google Apps Script use localEnsaio como fallback)
+
       if (!cidade || cidade.trim() === '') {
         console.warn('⚠️ [GoogleSheets] Cidade vazia detectada, usando fallback da comum');
         const comumNomeUpper = comum.nome.toUpperCase();
@@ -700,7 +684,6 @@ export const googleSheetsService = {
         } else if (comumNomeUpper.includes('CAUCAIA')) {
           cidade = 'CAUCAIA DO ALTO';
         } else {
-          // Último fallback: usar primeira palavra da comum
           cidade = comum.nome.split(' ')[0].toUpperCase();
         }
         console.log('🔄 [GoogleSheets] Cidade definida como fallback:', cidade);
@@ -739,7 +722,7 @@ export const googleSheetsService = {
         : instrumentoFinal
           ? getNaipeByInstrumento(instrumentoFinal)
           : '';
-      
+
       // Log para debug se naipe não foi encontrado
       if (instrumentoFinal && !naipeInstrumento) {
         console.warn('⚠️ Naipe não encontrado para instrumento no Google Sheets:', {
@@ -751,10 +734,10 @@ export const googleSheetsService = {
 
       // 🚨 CORREÇÃO CRÍTICA: Para cargos femininos/órgão, classe_organista deve ser igual ao nivel
       // Se for cargo feminino (Organista, Instrutora, Examinadora, Secretária) ou órgão, usar o nivel normalizado como classe_organista
-      const isOrgaoOuCargoFeminino = normalizacao.isNormalizado || 
+      const isOrgaoOuCargoFeminino = normalizacao.isNormalizado ||
         (instrumentoParaUsar?.nome?.toUpperCase() === 'ÓRGÃO' || instrumentoParaUsar?.nome?.toUpperCase() === 'ORGAO') ||
         isCargoFemininoOrganista(cargoReal);
-      
+
       const classeOrganistaFinal = isOrgaoOuCargoFeminino && nivelPessoa
         ? nivelPessoa // Usar nivel como classe_organista para cargos femininos/órgão
         : normalizacao.isNormalizado
@@ -797,24 +780,40 @@ export const googleSheetsService = {
         console.error('❌ Erro ao formatar data, usando fallback:', formatError);
       }
 
+      // 🛡️ SEGURANÇA: Sanitizar todos os inputs antes de enviar
+      const nomeCompletoSanitizado = sanitizeInput(nomeCompleto.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome });
+      const comumNomeSanitizado = sanitizeInput(comum.nome, { fieldType: 'comum', maxLength: FIELD_LIMITS.comum });
+      const cidadeSanitizada = sanitizeInput(cidade, { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade });
+      const cargoRealSanitizado = sanitizeInput(cargoReal, { fieldType: 'cargo', maxLength: FIELD_LIMITS.cargo });
+      const nivelPessoaSanitizado = nivelPessoa ? sanitizeInput(nivelPessoa, { maxLength: 50 }) : '';
+      const instrumentoFinalSanitizado = sanitizeInput(instrumentoFinal, { fieldType: 'instrumento', maxLength: FIELD_LIMITS.instrumento });
+      const naipeInstrumentoSanitizado = sanitizeInput(naipeInstrumento, { maxLength: 50 });
+      const classeOrganistaFinalSanitizada = sanitizeInput(classeOrganistaFinal, { fieldType: 'classe', maxLength: FIELD_LIMITS.classe });
+      const localEnsaioNomeSanitizado = sanitizeInput(localEnsaioNome, { maxLength: 100 });
+      const registradoPorNomeSanitizado = sanitizeInput(registradoPorNome, { maxLength: 200 });
+      const anotacoesSanitizadas = sanitizeInput(anotacoes, { maxLength: 500 });
+
       // Formato esperado pelo Google Apps Script (Code.gs) - tudo em maiúscula
       const sheetRow = {
         UUID: registro.id || '',
-        'NOME COMPLETO': nomeCompleto.trim().toUpperCase(),
-        COMUM: comum.nome.toUpperCase(),
-        CIDADE: cidade.toUpperCase(),
-        CARGO: cargoReal.toUpperCase(), // 🚨 CORREÇÃO: Usar cargo REAL da pessoa, não o selecionado
-        NÍVEL: nivelPessoa ? nivelPessoa.toUpperCase() : '', // 🚨 CORREÇÃO: Adicionar campo NÍVEL (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)
-        INSTRUMENTO: instrumentoFinal.toUpperCase(),
-        NAIPE_INSTRUMENTO: naipeInstrumento.toUpperCase(),
-        CLASSE_ORGANISTA: classeOrganistaFinal.toUpperCase(), // Classe normalizada
-        LOCAL_ENSAIO: localEnsaioNome.toUpperCase(),
+        'NOME COMPLETO': nomeCompletoSanitizado.toUpperCase(),
+        COMUM: comumNomeSanitizado.toUpperCase(),
+        CIDADE: cidadeSanitizada.toUpperCase(),
+        CARGO: cargoRealSanitizado.toUpperCase(),
+        'NÍVEL': nivelPessoaSanitizado.toUpperCase(),
+        INSTRUMENTO: instrumentoFinalSanitizado.toUpperCase(),
+        NAIPE_INSTRUMENTO: naipeInstrumentoSanitizado.toUpperCase(),
+        CLASSE_ORGANISTA: (classeOrganistaFinalSanitizada || nivelPessoaSanitizado).toUpperCase(),
+        LOCAL_ENSAIO: localEnsaioNomeSanitizado.toUpperCase(),
         DATA_ENSAIO: dataEnsaioFormatada,
-        REGISTRADO_POR: registradoPorNome.toUpperCase(),
-        ANOTACOES: anotacoes.toUpperCase(), // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" para nomes manuais da regional
+        REGISTRADO_POR: registradoPorNomeSanitizado.toUpperCase(),
+        SYNC_STATUS: 'ATUALIZADO',
+        SYNCED_AT: new Date().toISOString(),
+        ANOTACOES: (anotacoesSanitizadas || (isNomeManualRegional ? 'SAM Desatualizado' : '')).toUpperCase(),
+        DUPLICATA: 'NÃO',
       };
-
-      console.log('📤 Enviando para Google Sheets:', sheetRow);
+      // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
+      console.log('📤 Enviando para Google Sheets:', sanitizeForLogging(sheetRow));
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 🚀 OTIMIZAÇÃO: 8 segundos (reduzido de 10s)
@@ -835,7 +834,7 @@ export const googleSheetsService = {
       clearTimeout(timeoutId);
 
       // Se a resposta é opaca (no-cors), considera sucesso
-      if (response.type === 'opaque') {
+      if ((response as any).type === 'opaque') {
         console.log('✅ Google Sheets: Dados enviados (no-cors)');
         return { success: true };
       }

@@ -82,7 +82,7 @@ export const RegisterScreen: React.FC = () => {
   } | null>(null);
   const [pendingRegistro, setPendingRegistro] = useState<RegistroPresenca | null>(null);
   const [newRegistrationModalVisible, setNewRegistrationModalVisible] = useState(false);
-  
+
   // 🚨 CORREÇÃO: Modal funciona offline - salva na fila automaticamente quando não há conexão
 
   // Mostrar campo de instrumento apenas para Músico
@@ -102,42 +102,42 @@ export const RegisterScreen: React.FC = () => {
       console.log('⏳ Sincronização já em andamento, aguardando...');
       return;
     }
-    
+
     // Verificar se está online antes de sincronizar
-    const isOnlineNow = Platform.OS === 'web' 
+    const isOnlineNow = Platform.OS === 'web'
       ? (typeof navigator !== 'undefined' && navigator.onLine)
       : isOnline;
-    
+
     if (!isOnlineNow) {
       console.log('📴 Sem conexão - não é possível sincronizar agora');
       return;
     }
-    
+
     try {
       setSyncing(true);
       console.log('🔄 [SYNC] Iniciando sincronização de dados...');
-      
+
       // Verificar quantos registros pendentes existem
       const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
       console.log(`📊 [SYNC] ${registrosPendentes.length} registro(s) pendente(s) encontrado(s)`);
-      
+
       if (registrosPendentes.length === 0) {
         console.log('📭 [SYNC] Nenhum registro pendente para sincronizar');
         setSyncing(false);
         return;
       }
-      
+
       // Atualizar contador antes de sincronizar
       await refreshCount();
-      
+
       // Sincronizar apenas registros pendentes (mais eficiente)
       const result = await offlineSyncService.syncPendingRegistros();
-      
+
       console.log(`📊 [SYNC] Resultado: ${result.successCount} de ${result.totalCount} registros enviados`);
-      
+
       // Atualizar contador após sincronizar
       await refreshCount();
-      
+
       // Mostrar toast se registros foram sincronizados (igual ao contpedras)
       if (result.successCount > 0) {
         const mensagem = result.successCount === 1
@@ -176,14 +176,14 @@ export const RegisterScreen: React.FC = () => {
       } else {
         // Conexão restaurada - SINCRONIZAR IMEDIATAMENTE
         console.log('🌐 Conexão restaurada - iniciando sincronização automática...');
-        
+
         // Verificar se há registros pendentes antes de sincronizar
         supabaseDataService.getRegistrosPendentesFromLocal().then((registros) => {
           if (registros.length > 0) {
             console.log(`🔄 ${registros.length} registro(s) pendente(s) encontrado(s) - iniciando sincronização...`);
-        // Aguardar um pouco para garantir que a conexão está estável
-        setTimeout(() => {
-          if (!syncing) {
+            // Aguardar um pouco para garantir que a conexão está estável
+            setTimeout(() => {
+              if (!syncing) {
                 syncData().catch(error => {
                   console.error('❌ Erro na sincronização automática ao voltar online:', error);
                 });
@@ -211,7 +211,7 @@ export const RegisterScreen: React.FC = () => {
   useEffect(() => {
     const handleOnline = async () => {
       console.log('🌐 Evento online detectado - verificando conectividade real');
-      
+
       // Aguardar um pouco para garantir que a conexão está estável (como BACKUPCONT)
       setTimeout(async () => {
         try {
@@ -219,7 +219,7 @@ export const RegisterScreen: React.FC = () => {
           if (isReallyOnline) {
             console.log('✅ Conectividade real confirmada - processando fila');
             // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando volta online
-            showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
+            // showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
             // Usar processarFilaLocal que é exatamente como BACKUPCONT
             await offlineSyncService.processarFilaLocal();
             console.log('✅ Fila processada automaticamente');
@@ -247,14 +247,14 @@ export const RegisterScreen: React.FC = () => {
         window.removeEventListener('offline', handleOffline);
       };
     }
-    
+
     // Para React Native, usar NetInfo listener
     if (Platform.OS !== 'web') {
       let lastStatus: boolean | null = null;
-      
+
       const unsubscribe = NetInfo.addEventListener(state => {
         const isConnectedNow = state.isConnected === true && state.isInternetReachable === true;
-        
+
         // 🚨 CRÍTICO: Só mostrar alerta quando status MUDAR (não na primeira verificação)
         if (lastStatus !== null && lastStatus !== isConnectedNow) {
           if (isConnectedNow) {
@@ -265,7 +265,7 @@ export const RegisterScreen: React.FC = () => {
                 const isReallyOnline = await offlineSyncService.isOnline();
                 if (isReallyOnline) {
                   console.log('✅ Conectividade real confirmada - processando fila');
-                  showToast.success('Conexão restaurada', 'Enviando registros pendentes...', 3000);
+                  // showToast.success('Conexão restaurada', 'Enviando registros pendentes...', 3000);
                   await offlineSyncService.processarFilaLocal();
                 }
               } catch (e) {
@@ -275,13 +275,13 @@ export const RegisterScreen: React.FC = () => {
           } else {
             // Ficou offline
             console.log('📵 Conexão perdida - modo offline ativado');
-            showToast.warning('Modo offline', 'Registros serão salvos na fila', 3000);
+            showToast.warning('Modo offline', 'Registros serão salvos na fila');
           }
         }
-        
+
         lastStatus = isConnectedNow;
       });
-      
+
       // Verificar status inicial
       NetInfo.fetch().then(state => {
         const initialStatus = state.isConnected === true && state.isInternetReachable === true;
@@ -290,7 +290,7 @@ export const RegisterScreen: React.FC = () => {
           console.log('📵 Status inicial: offline');
         }
       });
-      
+
       return () => {
         unsubscribe();
       };
@@ -306,15 +306,15 @@ export const RegisterScreen: React.FC = () => {
     }
 
     console.log('🔄 Iniciando processamento periódico da fila (a cada 30s) - como BACKUPCONT');
-    
+
     syncIntervalRef.current = setInterval(async () => {
       try {
         // Verificar se há itens na fila (como BACKUPCONT)
         const fila = await supabaseDataService.getRegistrosPendentesFromLocal();
-        
+
         if (fila.length > 0) {
           console.log('🔄 Processamento periódico da fila...');
-          
+
           // Verifica conectividade real antes de processar (como BACKUPCONT)
           const isOnline = await offlineSyncService.isOnline();
           if (isOnline) {
@@ -345,13 +345,13 @@ export const RegisterScreen: React.FC = () => {
     if (loadPessoasTimeoutRef.current) {
       clearTimeout(loadPessoasTimeoutRef.current);
     }
-    
+
     // Verificar se precisa de instrumento obrigatório (apenas Músico)
     // Organista e Candidato(a) não precisam de instrumento obrigatório, mas podem ter
     const selectedCargoObj = cargos.find(c => c.id === selectedCargo);
     const cargoNome = selectedCargoObj?.nome || '';
     const precisaInstrumento = cargoNome === 'Músico'; // Apenas Músico requer instrumento obrigatório
-    
+
     // Só carregar pessoas se tiver comum + cargo + (instrumento se necessário)
     if (selectedComum && selectedCargo) {
       if (precisaInstrumento && !selectedInstrumento) {
@@ -360,16 +360,16 @@ export const RegisterScreen: React.FC = () => {
         setSelectedPessoa('');
         return;
       }
-      // 🚀 OTIMIZAÇÃO: Debounce leve (100ms) para evitar múltiplas chamadas rápidas
-      // Ainda mantém resposta muito rápida mas evita queries desnecessárias
+      // 🚀 OTIMIZAÇÃO: Debounce de 300ms (aumentado de 100ms) para evitar múltiplas chamadas rápidas
+      // Reduz significativamente a carga no Supabase durante a seleção de campos
       loadPessoasTimeoutRef.current = setTimeout(() => {
         loadPessoas();
-      }, 100);
+      }, 300);
     } else {
       setPessoas([]);
       setSelectedPessoa('');
     }
-    
+
     // Cleanup: limpar timeout ao desmontar ou quando dependências mudarem
     return () => {
       if (loadPessoasTimeoutRef.current) {
@@ -381,61 +381,59 @@ export const RegisterScreen: React.FC = () => {
   const loadInitialData = async () => {
     try {
       setInitialLoading(true);
-      
-      // Se está online, sempre tentar sincronizar primeiro
+
+      // Se está online, sempre tentar sincronizar primeiro (mas não travar se falhar)
       if (isOnline) {
         console.log('🔄 Sincronizando dados do Supabase...');
         try {
           await syncData();
         } catch (syncError) {
-          console.warn('⚠️ Erro na sincronização:', syncError);
+          console.warn('⚠️ Erro na sincronização inicial:', syncError);
         }
       }
-      
-      // Carregar do banco local/cache
-      let [comunsData, cargosData, instrumentosData] = await Promise.all([
+
+      // Carregar do banco local/cache em paralelo (mais rápido)
+      const [comunsData, cargosData, instrumentosData] = await Promise.all([
         supabaseDataService.getComunsFromLocal(),
         supabaseDataService.getCargosFromLocal(),
         (supabaseDataService as any).getInstrumentosFromLocal(),
       ]);
 
-      console.log('📊 Dados carregados:', {
+      console.log('📊 Dados carregados do local/cache:', {
         comuns: comunsData.length,
         cargos: cargosData.length,
         instrumentos: instrumentosData.length,
       });
 
-      // Debug detalhado dos cargos
-      console.log('🔍 Debug cargos:', {
-        quantidade: cargosData.length,
-        cargos: cargosData.map((c: Cargo) => ({ id: c.id, nome: c.nome, is_musical: c.is_musical })),
-      });
-
-      // Se ainda não há dados e está online, tentar buscar diretamente
+      // Se ainda não há dados locais e está online, tentar buscar diretamente (fallback crítico)
+      let finalComuns = comunsData;
       if (isOnline && comunsData.length === 0) {
-        console.log('🔄 Nenhuma comum no cache, buscando diretamente do Supabase...');
+        console.log('🔄 Nenhuma comum no cache local, buscando diretamente do Supabase...');
         try {
           const comunsDiretas = await supabaseDataService.fetchComuns();
           if (comunsDiretas.length > 0) {
-            comunsData = comunsDiretas;
-            // Salvar no cache
-            await supabaseDataService.syncComunsToLocal();
+            finalComuns = comunsDiretas;
+            // Salvar no cache em background
+            supabaseDataService.syncComunsToLocal().catch(err =>
+              console.warn('⚠️ Erro ao salvar comuns no cache:', err)
+            );
           }
         } catch (error) {
           console.warn('⚠️ Erro ao buscar comuns diretamente:', error);
         }
       }
 
-      if (comunsData.length === 0) {
-        console.warn('⚠️ Nenhuma comum encontrada - verifique a conexão e tente novamente');
-      }
-
-      setComuns(comunsData);
+      setComuns(finalComuns);
       setCargos(cargosData);
       setInstrumentos(instrumentosData);
+
+      if (finalComuns.length === 0) {
+        console.warn('⚠️ Nenhuma comum encontrada após todas as tentativas');
+      }
+
     } catch (error) {
-      console.error('❌ Erro ao carregar dados iniciais:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os dados. Verifique sua conexão.');
+      console.error('❌ Erro crítico ao carregar dados iniciais:', error);
+      Alert.alert('Erro', 'Não foi possível carregar os dados base. Verifique sua conexão.');
     } finally {
       setInitialLoading(false);
     }
@@ -451,7 +449,7 @@ export const RegisterScreen: React.FC = () => {
     setIsNomeManual(false);
     // Incrementar key para forçar remontagem do NameSelectField
     setNameFieldKey(prev => prev + 1);
-    
+
     // 🚀 FOCO AUTOMÁTICO: Focar no campo de comum após limpar (web e mobile)
     setTimeout(() => {
       if (comumFieldRef.current) {
@@ -460,7 +458,7 @@ export const RegisterScreen: React.FC = () => {
       }
     }, 100);
   }, []);
-  
+
   // 🚀 FOCO AUTOMÁTICO: Focar no campo de comum após carregar a página (web e mobile)
   useEffect(() => {
     if (!initialLoading && comuns.length > 0) {
@@ -471,7 +469,7 @@ export const RegisterScreen: React.FC = () => {
           console.log('🎯 Focando no campo de comum após carregar página');
         }
       }, 300);
-      
+
       return () => clearTimeout(focusTimeout);
     }
   }, [initialLoading, comuns.length]);
@@ -482,36 +480,36 @@ export const RegisterScreen: React.FC = () => {
       console.log('⏳ Pull-to-refresh já em andamento, ignorando...');
       return;
     }
-    
+
     try {
       setRefreshing(true);
       console.log('🔄 Pull-to-refresh: recarregando dados e limpando campos...');
-      
+
       // 🚨 CRÍTICO: Limpar todos os campos do formulário primeiro
       console.log('🧹 Limpando campos do formulário...');
       clearAllFields();
-      
+
       // Mostrar feedback visual imediato
       showToast.info('Atualizando...', 'Recarregando dados');
-      
+
       // 1. Primeiro, sincronizar registros pendentes se estiver online
       if (isOnline) {
         console.log('🌐 Online - sincronizando registros pendentes primeiro...');
         try {
-        await syncData();
+          await syncData();
         } catch (syncError) {
           console.warn('⚠️ Erro na sincronização durante pull-to-refresh:', syncError);
         }
       }
-      
+
       // 2. Recarregar dados iniciais (comuns, cargos, instrumentos)
       console.log('📚 Recarregando dados iniciais...');
       await loadInitialData();
-      
+
       // 3. Atualizar contador da fila
       console.log('📊 Atualizando contador da fila...');
       await refreshCount();
-      
+
       // Feedback de sucesso
       showToast.success('Atualizado!', 'Dados recarregados e campos limpos');
       console.log('✅ Pull-to-refresh concluído com sucesso - campos limpos');
@@ -528,27 +526,27 @@ export const RegisterScreen: React.FC = () => {
     // Buscar nomes de comum e cargo rapidamente (já estão em memória)
     const comumObj = comuns.find(c => c.id === selectedComum);
     const cargoObj = cargos.find(c => c.id === selectedCargo);
-    const instrumentoObj = showInstrumento && selectedInstrumento 
-      ? instrumentos.find(i => i.id === selectedInstrumento) 
+    const instrumentoObj = showInstrumento && selectedInstrumento
+      ? instrumentos.find(i => i.id === selectedInstrumento)
       : undefined;
-    
+
     if (!comumObj || !cargoObj) {
       setPessoas([]);
       return;
     }
-    
+
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
-    const CACHE_VERSION = 'v2';
+    const CACHE_VERSION = 'v4'; // Sincronizado com supabaseDataService.ts
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumObj.nome}_${cargoObj.nome}_${instrumentoObj?.nome || ''}`;
-    
+
     try {
       // Tentar buscar do cache primeiro (síncrono/assíncrono rápido)
       const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
-      
+
       if (cached && cached.length > 0) {
         // 🚀 Cache encontrado - aplicar filtro de cargo e converter
         console.log(`✅ [loadPessoas] Cache encontrado: ${cached.length} pessoas - aplicando filtros`);
-        
+
         // 🚨 CORREÇÃO: Aplicar filtro de cargo também nos dados do cache (mesma lógica do fetchPessoasFromCadastro)
         let filteredCached = cached;
         const cargoBusca = cargoObj.nome.trim().toUpperCase();
@@ -557,11 +555,11 @@ export const RegisterScreen: React.FC = () => {
           filteredCached = cached.filter((item: any) => {
             if (!item.cargo) return false;
             const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
-            
+
             if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
             if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
               const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
-              const isSubstring = cargosConhecidos.some(c => 
+              const isSubstring = cargosConhecidos.some(c =>
                 c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
               );
               return !isSubstring;
@@ -570,11 +568,11 @@ export const RegisterScreen: React.FC = () => {
           });
           console.log(`🔍 [loadPessoas] Filtro aplicado no cache: ${cached.length} → ${filteredCached.length} resultados`);
         }
-        
+
         // Converter dados do cache para formato Pessoa[]
-        const pessoas: Pessoa[] = filteredCached.map((p, index) => {
+        const pessoas: Pessoa[] = filteredCached.map((p: any, index: number) => {
           const nomeCompleto = (p.nome || '').trim();
-          const partesNome = nomeCompleto.split(' ').filter(p => p.trim());
+          const partesNome = nomeCompleto.split(' ').filter((p: string) => p.trim());
           const primeiroNome = partesNome[0] || '';
           const ultimoNome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : '';
 
@@ -600,25 +598,25 @@ export const RegisterScreen: React.FC = () => {
 
           return pessoa;
         });
-        
+
         setPessoas(pessoas);
         return; // Retornar imediatamente - não precisa buscar do banco
       }
     } catch (error) {
       console.warn('⚠️ [loadPessoas] Erro ao verificar cache, continuando com busca normal:', error);
     }
-    
+
     // Se não encontrou cache, mostrar loading e buscar do banco
     setLoadingPessoas(true);
     setPessoas([]); // Limpar lista imediatamente para feedback visual
-    
+
     try {
       const pessoasData = await (supabaseDataService as any).getPessoasFromLocal(
         selectedComum,
         selectedCargo,
         showInstrumento ? selectedInstrumento : undefined
       );
-      
+
       setPessoas(pessoasData);
     } catch (error) {
       console.error('❌ Erro ao carregar pessoas:', error);
@@ -640,14 +638,14 @@ export const RegisterScreen: React.FC = () => {
       selectedPessoaTrimmed: selectedPessoa?.trim(),
       selectedPessoaValue: selectedPessoa,
     });
-    
+
     // Validar campos obrigatórios (permitir nome manual para candidatos também)
     if (!selectedComum || !selectedCargo) {
       console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
       return;
     }
-    
+
     // 🚨 CORREÇÃO CRÍTICA: Se selectedPessoa está vazio mas há pessoas carregadas,
     // verificar se o texto digitado no campo corresponde a alguma opção
     // Se não corresponder, tratar como nome manual
@@ -660,10 +658,10 @@ export const RegisterScreen: React.FC = () => {
         selectedPessoaTrimmed: selectedPessoa?.trim(),
         pessoasCount: pessoas.length,
       });
-      Alert.alert('Erro', 'Selecione um nome da lista ou clique em "Adicionar manualmente" para usar um nome que não está na lista');
+      Alert.alert('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
       return;
     }
-    
+
     // Verificar se é nome manual e se tem valor válido
     if (isNomeManual && (!selectedPessoa || selectedPessoa.trim().length < 3)) {
       console.warn('⚠️ [SUBMIT] Nome manual muito curto', {
@@ -696,32 +694,32 @@ export const RegisterScreen: React.FC = () => {
 
     // 🚨 ESTRATÉGIA SIMPLIFICADA: Verificar status de conexão de forma mais confiável
     let isOfflineNow = false;
-    
+
     // Verificar status de conexão de forma mais robusta
     try {
       // 1. Verificar hook primeiro (mais confiável)
       const hookOffline = !isOnline;
-      
+
       // 2. Verificar NetInfo diretamente (mais preciso)
       let netInfoOffline = false;
       try {
         const netState = await NetInfo.fetch();
         const isReallyOnline = netState.isConnected === true && netState.isInternetReachable === true;
         netInfoOffline = !isReallyOnline;
-        console.log(`📡 [${Platform.OS}] NetInfo:`, { 
-          isConnected: netState.isConnected, 
-          isInternetReachable: netState.isInternetReachable, 
-          isReallyOnline 
+        console.log(`📡 [${Platform.OS}] NetInfo:`, {
+          isConnected: netState.isConnected,
+          isInternetReachable: netState.isInternetReachable,
+          isReallyOnline
         });
       } catch (netError) {
         console.warn(`⚠️ [${Platform.OS}] NetInfo falhou:`, netError);
         // Se NetInfo falhar, confiar no hook
         netInfoOffline = hookOffline;
       }
-      
+
       // 3. Verificar navigator.onLine (se disponível)
       const navigatorOffline = typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
-      
+
       // 🚨 ESTRATÉGIA: Se QUALQUER verificação indicar offline, considerar offline
       // No iOS, ser mais conservador - se houver qualquer dúvida, salvar na fila
       if (Platform.OS === 'ios') {
@@ -742,12 +740,12 @@ export const RegisterScreen: React.FC = () => {
       // Em caso de erro, assumir offline para segurança
       isOfflineNow = true;
     }
-    
+
     // 🚨 CRÍTICO: Se estiver offline, salvar IMEDIATAMENTE na fila (SEM tentar online)
     if (isOfflineNow) {
       // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar alerta quando fica offline
       showToast.warning('Modo offline', 'Registros serão salvos na fila');
-      
+
       console.log(`📴 [${Platform.OS}] Modo offline detectado - salvando diretamente na fila`);
       console.log(`📊 [${Platform.OS}] Dados do registro:`, {
         pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
@@ -755,64 +753,64 @@ export const RegisterScreen: React.FC = () => {
         cargo_id: selectedCargo,
         instrumento_id: selectedInstrumento,
       });
-      
+
       // 🚨 CORREÇÃO: Modal pode permanecer aberto - não precisa fechar antes de salvar offline
-      
+
       try {
         // Preparar registro para salvar na fila
-    const localEnsaio = await localStorageService.getLocalEnsaio();
-    
-    // Usar nome do usuário ao invés do ID
-      let nomeCompletoUsuario = user.nome;
-      if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
-        const emailSemDominio = user.email?.split('@')[0] || '';
-        nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
-      }
-      const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
-    
-    // Buscar classe da organista do banco de dados se for Organista
-    let classeOrganistaDB: string | undefined = undefined;
-    if (isOrganista && !isNomeManual) {
-      const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-      if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-        classeOrganistaDB = pessoaSelecionada.classe_organista;
-      } else {
-        classeOrganistaDB = 'OFICIALIZADA';
-      }
-    }
+        const localEnsaio = await localStorageService.getLocalEnsaio();
+
+        // Usar nome do usuário ao invés do ID
+        let nomeCompletoUsuario = user.nome;
+        if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
+          const emailSemDominio = user.email?.split('@')[0] || '';
+          nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
+        }
+        const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
+
+        // Buscar classe da organista do banco de dados se for Organista
+        let classeOrganistaDB: string | undefined = undefined;
+        if (isOrganista && !isNomeManual) {
+          const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+          if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+            classeOrganistaDB = pessoaSelecionada.classe_organista;
+          } else {
+            classeOrganistaDB = 'OFICIALIZADA';
+          }
+        }
 
         // Para Candidatos: buscar instrumento da pessoa selecionada
-    let instrumentoCandidato: string | null = null;
-    if (isCandidato && !isNomeManual) {
-      const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-      if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
-        instrumentoCandidato = pessoaSelecionada.instrumento_id;
-      }
-    }
+        let instrumentoCandidato: string | null = null;
+        if (isCandidato && !isNomeManual) {
+          const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+          if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
+            instrumentoCandidato = pessoaSelecionada.instrumento_id;
+          }
+        }
 
-    const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
+        const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
 
-    const registro: RegistroPresenca = {
-      pessoa_id: pessoaIdFinal,
-      comum_id: selectedComum,
-      cargo_id: selectedCargo,
-      instrumento_id: isCandidato 
-        ? instrumentoCandidato 
-        : (showInstrumento && selectedInstrumento) 
-          ? selectedInstrumento 
-          : null,
+        const registro: RegistroPresenca = {
+          pessoa_id: pessoaIdFinal,
+          comum_id: selectedComum,
+          cargo_id: selectedCargo,
+          instrumento_id: isCandidato
+            ? instrumentoCandidato
+            : (showInstrumento && selectedInstrumento)
+              ? selectedInstrumento
+              : null,
           classe_organista: classeOrganistaDB,
-      local_ensaio: localEnsaio || 'Não definido',
-      data_hora_registro: getCurrentDateTimeISO(),
+          local_ensaio: localEnsaio || 'Não definido',
+          data_hora_registro: getCurrentDateTimeISO(),
           usuario_responsavel: nomeUsuario,
-      status_sincronizacao: 'pending',
-    };
+          status_sincronizacao: 'pending',
+        };
 
         // 🚨 VERIFICAÇÃO CRÍTICA: Verificar duplicata ANTES de salvar
         const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
         const dataRegistro = new Date(registro.data_hora_registro);
         const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
-        
+
         // Verificação rápida de duplicata
         const isDuplicata = registrosPendentes.some(r => {
           const rData = new Date(r.data_hora_registro);
@@ -825,18 +823,18 @@ export const RegisterScreen: React.FC = () => {
             r.status_sincronizacao === 'pending'
           );
         });
-        
+
         if (isDuplicata) {
           console.warn('🚨 Registro duplicado - já está na fila');
           showToast.warning('Atenção', 'Este registro já está na fila');
           setLoading(false);
           return;
         }
-        
+
         // 🚨 CRÍTICO: Salvar na fila com tratamento robusto de erros
         console.log(`💾 [${Platform.OS}] Salvando registro na fila offline...`);
         console.log(`📋 [${Platform.OS}] Dados completos do registro:`, JSON.stringify(registro, null, 2));
-        
+
         try {
           await supabaseDataService.saveRegistroToLocal(registro);
           console.log(`✅ [${Platform.OS}] saveRegistroToLocal executado com sucesso`);
@@ -844,21 +842,21 @@ export const RegisterScreen: React.FC = () => {
           console.error(`❌ [${Platform.OS}] Erro ao chamar saveRegistroToLocal:`, saveError);
           throw saveError; // Re-lançar para ser tratado no catch externo
         }
-        
+
         // Verificar se foi realmente salvo (especialmente importante no iOS/Android)
         console.log(`🔍 [${Platform.OS}] Verificando se registro foi salvo...`);
         const registrosAposSalvar = await supabaseDataService.getRegistrosPendentesFromLocal();
         console.log(`📊 [${Platform.OS}] Total de registros na fila após salvar:`, registrosAposSalvar.length);
-        
-        const foiSalvo = registrosAposSalvar.some(r => 
+
+        const foiSalvo = registrosAposSalvar.some(r =>
           r.pessoa_id === registro.pessoa_id &&
           r.comum_id === registro.comum_id &&
           r.cargo_id === registro.cargo_id &&
           r.status_sincronizacao === 'pending'
         );
-        
+
         console.log(`✅ [${Platform.OS}] Registro foi salvo?`, foiSalvo);
-        
+
         if (!foiSalvo) {
           // Se não foi salvo, tentar novamente com novo ID
           console.warn(`⚠️ [${Platform.OS}] Registro não encontrado após salvar, tentando novamente com novo ID...`);
@@ -874,23 +872,23 @@ export const RegisterScreen: React.FC = () => {
             throw retryError;
           }
         }
-        
+
         console.log(`🔄 [${Platform.OS}] Atualizando contador da fila...`);
         await refreshCount();
         console.log(`✅ [${Platform.OS}] Contador atualizado`);
-        
+
         showToast.success('Salvo offline', 'Será enviado quando voltar online');
         console.log(`✅ [${Platform.OS}] Toast de sucesso exibido`);
-        
+
         // Limpar formulário
         clearAllFields();
-        
+
         console.log(`✅ [${Platform.OS}] Formulário limpo, finalizando...`);
         setLoading(false);
         return;
       } catch (error) {
         console.error(`❌ [${Platform.OS}] Erro crítico ao salvar registro offline:`, error);
-        
+
         // Tentar novamente com novo ID
         try {
           const localEnsaio = await localStorageService.getLocalEnsaio();
@@ -900,7 +898,7 @@ export const RegisterScreen: React.FC = () => {
             nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
           }
           const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
-          
+
           let classeOrganistaDB: string | undefined = undefined;
           if (isOrganista && !isNomeManual) {
             const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
@@ -925,10 +923,10 @@ export const RegisterScreen: React.FC = () => {
             pessoa_id: pessoaIdFinal,
             comum_id: selectedComum,
             cargo_id: selectedCargo,
-            instrumento_id: isCandidato 
-              ? instrumentoCandidato 
-              : (showInstrumento && selectedInstrumento) 
-                ? selectedInstrumento 
+            instrumento_id: isCandidato
+              ? instrumentoCandidato
+              : (showInstrumento && selectedInstrumento)
+                ? selectedInstrumento
                 : null,
             classe_organista: classeOrganistaDB,
             local_ensaio: localEnsaio || 'Não definido',
@@ -937,18 +935,18 @@ export const RegisterScreen: React.FC = () => {
             status_sincronizacao: 'pending',
             id: generateExternalUUID(),
           };
-          
+
           await supabaseDataService.saveRegistroToLocal(registroComNovoId);
-      await refreshCount();
+          await refreshCount();
           showToast.success('Salvo offline', 'Será enviado quando voltar online');
-          
+
           // Limpar formulário
           setSelectedComum('');
           setSelectedCargo('');
           setSelectedInstrumento('');
           setSelectedPessoa('');
           setIsNomeManual(false);
-          
+
           setLoading(false);
           return;
         } catch (retryError) {
@@ -963,7 +961,7 @@ export const RegisterScreen: React.FC = () => {
     // Preparar registro ANTES do try/catch para estar disponível em todo o escopo
     // Isso garante que o registro esteja disponível mesmo no catch
     const localEnsaioOnline = await localStorageService.getLocalEnsaio();
-    
+
     // Usar nome do usuário ao invés do ID
     let nomeCompletoUsuarioOnline = user.nome;
     if (!nomeCompletoUsuarioOnline || nomeCompletoUsuarioOnline.trim() === '') {
@@ -971,7 +969,7 @@ export const RegisterScreen: React.FC = () => {
       nomeCompletoUsuarioOnline = emailSemDominio.replace(/[._]/g, ' ').trim();
     }
     const nomeUsuarioOnline = formatRegistradoPor(nomeCompletoUsuarioOnline || user.id);
-    
+
     // Buscar classe da organista do banco de dados se for Organista
     let classeOrganistaDBOnline: string | undefined = undefined;
     if (isOrganista && !isNomeManual) {
@@ -998,10 +996,10 @@ export const RegisterScreen: React.FC = () => {
       pessoa_id: pessoaIdFinalOnline,
       comum_id: selectedComum,
       cargo_id: selectedCargo,
-      instrumento_id: isCandidato 
-        ? instrumentoCandidatoOnline 
-        : (showInstrumento && selectedInstrumento) 
-          ? selectedInstrumento 
+      instrumento_id: isCandidato
+        ? instrumentoCandidatoOnline
+        : (showInstrumento && selectedInstrumento)
+          ? selectedInstrumento
           : null,
       classe_organista: classeOrganistaDBOnline,
       local_ensaio: localEnsaioOnline || 'Não definido',
@@ -1020,12 +1018,12 @@ export const RegisterScreen: React.FC = () => {
         comum_id: registroOnline.comum_id,
         cargo_id: registroOnline.cargo_id,
       });
-      
+
       const result = await (offlineSyncService as any).createRegistro(registroOnline);
 
       console.log('📋 Resultado do createRegistro:', result);
       console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
-      
+
       // Atualizar contador da fila após criar registro (sempre, mesmo se houver erro)
       try {
         await refreshCount();
@@ -1038,7 +1036,7 @@ export const RegisterScreen: React.FC = () => {
       if (result.success) {
         // Verificar se foi enviado com sucesso ou salvo localmente
         const foiEnviado = !result.error || !result.error.includes('salvo localmente');
-        
+
         if (foiEnviado) {
           // 🚀 MELHORIA: Toast de sucesso compacto (tudo em uma linha)
           showToast.success('Registro enviado com sucesso');
@@ -1066,14 +1064,14 @@ export const RegisterScreen: React.FC = () => {
           result.error.includes('já foi cadastrado hoje') ||
           result.error.includes('DUPLICATA_BLOQUEADA')
         );
-        
+
         console.log('❌ Registro falhou - Verificando se é duplicata...');
         console.log('   Error:', result.error);
         console.log('   É duplicata?:', isDuplicateError);
-        
+
         if (isDuplicateError) {
           console.log('✅ DUPLICATA DETECTADA! Processando erro:', result.error);
-          
+
           let nome = '';
           let comumNome = '';
           let dataFormatada = '';
@@ -1082,15 +1080,15 @@ export const RegisterScreen: React.FC = () => {
           // SEMPRE usar dados do formulário primeiro (mais confiável)
           nome = isNomeManual
             ? selectedPessoa
-            : pessoas.find(p => p.id === selectedPessoa)?.nome_completo || 
-              (pessoas.find(p => p.id === selectedPessoa)?.nome + ' ' + 
-               (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')).trim() || '';
+            : pessoas.find(p => p.id === selectedPessoa)?.nome_completo ||
+            (pessoas.find(p => p.id === selectedPessoa)?.nome + ' ' +
+              (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')).trim() || '';
           comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
-          
+
           // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario
           if (result.error && result.error.includes('DUPLICATA:')) {
             const errorPart = result.error.split('DUPLICATA:')[1]?.trim() || '';
-            
+
             // Tentar formato com pipes primeiro: DUPLICATA:nome|comum|data|horario
             if (errorPart.includes('|')) {
               const parts = errorPart.split('|');
@@ -1099,7 +1097,7 @@ export const RegisterScreen: React.FC = () => {
                 comumNome = parts[1].trim() || comumNome;
                 dataFormatada = parts[2].trim();
                 horarioFormatado = parts[3].trim();
-            }
+              }
             } else {
               // Tentar formato sem pipes: DUPLICATA: nome comum data/horario
               // Exemplo: "DUPLICATA: ADRIANO MOTA BR-22-1739 - JARDIM MIRANDA 21/11/2025/13:18"
@@ -1125,7 +1123,7 @@ export const RegisterScreen: React.FC = () => {
             dataFormatada = formatDate();
             horarioFormatado = formatTime();
           }
-          
+
           console.log('📋 Informações extraídas:', { nome, comumNome, dataFormatada, horarioFormatado });
 
           // Mostrar alerta de duplicata usando SweetAlert2 (igual ao backupcont)
@@ -1197,7 +1195,7 @@ export const RegisterScreen: React.FC = () => {
                   setTimeout(() => {
                     const confirmBtn = document.querySelector('.swal2-confirm, .swal-duplicity-confirm') as HTMLElement;
                     const cancelBtn = document.querySelector('.swal2-cancel, .swal-duplicity-cancel') as HTMLElement;
-                    
+
                     if (confirmBtn) {
                       const icon = confirmBtn.querySelector('i');
                       if (icon) {
@@ -1229,28 +1227,28 @@ export const RegisterScreen: React.FC = () => {
 
                 // Usuário confirmou - criar registro mesmo assim
                 console.log('✅ Usuário confirmou registro mesmo com duplicata');
-                  setLoading(true);
-                  try {
-                    const registroForce = { ...registroOnline };
+                setLoading(true);
+                try {
+                  const registroForce = { ...registroOnline };
                   const resultForce = await (offlineSyncService as any).createRegistro(registroForce, true);
-                  
-                    if (resultForce.success) {
-                      if (isOnline && !syncing) {
-                        setTimeout(() => {
-                          syncData();
-                        }, 500);
-                      }
+
+                  if (resultForce.success) {
+                    if (isOnline && !syncing) {
+                      setTimeout(() => {
+                        syncData();
+                      }, 500);
+                    }
                     showToast.success(
                       'Registro enviado!',
                       'Registro duplicado cadastrado com sucesso!'
                     );
-                  // Limpar formulário ANTES de recarregar
-                  clearAllFields();
-                  // Recarregar página após sucesso
+                    // Limpar formulário ANTES de recarregar
+                    clearAllFields();
+                    // Recarregar página após sucesso
                     setTimeout(() => {
                       window.location.reload();
                     }, 1000);
-                    } else {
+                  } else {
                     showToast.error(
                       'Erro',
                       resultForce.error || 'Erro ao cadastrar registro duplicado'
@@ -1265,10 +1263,10 @@ export const RegisterScreen: React.FC = () => {
                     setTimeout(() => {
                       window.location.reload();
                     }, 2000);
-                    }
-                  } catch (error) {
+                  }
+                } catch (error) {
                   showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
-                    console.error('Erro ao criar registro duplicado:', error);
+                  console.error('Erro ao criar registro duplicado:', error);
                   // Limpar formulário ANTES de recarregar
                   setSelectedComum('');
                   setSelectedCargo('');
@@ -1279,9 +1277,9 @@ export const RegisterScreen: React.FC = () => {
                   setTimeout(() => {
                     window.location.reload();
                   }, 2000);
-                  } finally {
-                    setLoading(false);
-                  }
+                } finally {
+                  setLoading(false);
+                }
               });
             } else {
               // Fallback: usar modal React Native
@@ -1310,7 +1308,7 @@ export const RegisterScreen: React.FC = () => {
           const errorMessage = result.error || 'Erro ao enviar registro';
           console.error('❌ Erro ao enviar registro:', errorMessage);
           showToast.error('Erro', errorMessage);
-          
+
           // Se for erro de salvamento local, tentar salvar manualmente como fallback
           if (errorMessage.includes('salvar') || errorMessage.includes('localmente')) {
             console.log('🔄 Tentando salvar registro manualmente como fallback...');
@@ -1331,7 +1329,7 @@ export const RegisterScreen: React.FC = () => {
     } catch (error) {
       console.error('❌ ERRO CRÍTICO ao processar registro:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       // Tentar salvar localmente como último recurso
       try {
         console.log('🔄 Tentando salvar registro localmente como último recurso...');
@@ -1348,7 +1346,7 @@ export const RegisterScreen: React.FC = () => {
             nomeCompletoUsuarioFallback = emailSemDominio.replace(/[._]/g, ' ').trim();
           }
           const nomeUsuarioFallback = formatRegistradoPor(nomeCompletoUsuarioFallback || user?.id || '');
-          
+
           registroFallback = {
             pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
             comum_id: selectedComum,
@@ -1413,14 +1411,14 @@ export const RegisterScreen: React.FC = () => {
       'Secretário da Música',
       'Secretária da Música',
     ];
-    
+
     return cargos
       .filter(c => !cargosExcluidos.includes(c.nome))
       .map(c => ({
-      id: c.id,
-      label: c.nome,
-      value: c.id,
-    }));
+        id: c.id,
+        label: c.nome,
+        value: c.id,
+      }));
   }, [cargos]);
 
   // MEMOIZAR instrumentosOptions para evitar recriação constante
@@ -1450,7 +1448,7 @@ export const RegisterScreen: React.FC = () => {
     console.log('🎹 [handleOrganistasEnsaio] Navigation disponível?', !!navigation);
     console.log('🎹 [handleOrganistasEnsaio] Tipo do navigation:', typeof navigation);
     console.log('🎹 [handleOrganistasEnsaio] Navigation object:', navigation);
-    
+
     try {
       if (!navigation) {
         console.error('❌ [handleOrganistasEnsaio] Navigation não está disponível');
@@ -1476,7 +1474,7 @@ export const RegisterScreen: React.FC = () => {
       console.log('🎹 [handleOrganistasEnsaio] Rota OrganistasEnsaio existe?', routeExists);
 
       console.log('🎹 [handleOrganistasEnsaio] Chamando navigation.navigate("OrganistasEnsaio")');
-      
+
       // Tentar navegar com um pequeno delay para garantir que tudo está pronto
       setTimeout(() => {
         try {
@@ -1524,7 +1522,7 @@ export const RegisterScreen: React.FC = () => {
 
     try {
       let localEnsaio = await localStorageService.getLocalEnsaio();
-      
+
       // 🚨 CRÍTICO: Converter ID para nome do local (mesma lógica do registro principal)
       // Garantir que sempre salvamos o nome, nunca o ID
       let localEnsaioNome: string = 'Não definido';
@@ -1548,7 +1546,7 @@ export const RegisterScreen: React.FC = () => {
           localEnsaioNome = localEnsaio.trim();
         }
       }
-      
+
       // Extrair apenas primeiro e último nome do usuário
       // Se não tem nome no perfil, extrair do email (remover @gmail.com e formatar)
       let nomeCompletoUsuario = user.nome;
@@ -1570,13 +1568,13 @@ export const RegisterScreen: React.FC = () => {
         totalCargos: cargos.length,
         cargosDisponiveis: cargos.map(c => c.nome),
       });
-      
+
       let cargoObj = cargos.find(c => c.nome === data.cargo);
       if (!cargoObj) {
         // Tentar buscar por ID também (caso já venha como ID)
         cargoObj = cargos.find(c => c.id === data.cargo);
       }
-      
+
       if (!cargoObj) {
         console.error('❌ [MODAL] Cargo não encontrado:', {
           cargoProcurado: data.cargo,
@@ -1585,12 +1583,12 @@ export const RegisterScreen: React.FC = () => {
         Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
         return;
       }
-      
+
       console.log('✅ [MODAL] Cargo encontrado:', {
         id: cargoObj.id,
         nome: cargoObj.nome,
       });
-      
+
       const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
 
       // Criar registro com dados do modal
@@ -1611,11 +1609,11 @@ export const RegisterScreen: React.FC = () => {
       // 🚨 CRÍTICO: Verificar se está offline ANTES de tentar enviar
       const isOfflineNow = !(await offlineSyncService.isOnline());
       console.log('🌐 [MODAL] Status de conexão:', isOfflineNow ? 'OFFLINE' : 'ONLINE');
-      
+
       if (isOfflineNow) {
         // 🚨 CORREÇÃO CRÍTICA: Se offline, salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
         console.log('📴 [MODAL] Modo offline detectado - salvando usando saveRegistroToLocal');
-        
+
         try {
           // Usar o mesmo formato de registro que o sistema principal usa
           const registroOffline: RegistroPresenca & { cidade?: string } = {
@@ -1630,20 +1628,20 @@ export const RegisterScreen: React.FC = () => {
             status_sincronizacao: 'pending',
             cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro offline
           };
-          
+
           // Salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
           await supabaseDataService.saveRegistroToLocal(registroOffline);
           console.log('✅ [MODAL] Registro salvo offline com sucesso');
-          
+
           showToast.success('Salvo offline', 'Registro será enviado quando voltar online');
-          
+
           // Limpar formulário ANTES de recarregar
           setSelectedComum('');
           setSelectedCargo('');
           setSelectedInstrumento('');
           setSelectedPessoa('');
           setIsNomeManual(false);
-          
+
           // Recarregar página após salvar (apenas web)
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             setTimeout(() => {
@@ -1657,7 +1655,7 @@ export const RegisterScreen: React.FC = () => {
           throw filaError;
         }
       }
-      
+
       // 🚨 CRÍTICO: Para registros externos (modal de novo registro), enviar DIRETAMENTE para Google Sheets
       // NÃO usar createRegistro que tenta validar contra listas locais
       // Seguir o mesmo padrão do backupcont: enviar direto para Google Sheets, NÃO para Supabase
@@ -1679,7 +1677,7 @@ export const RegisterScreen: React.FC = () => {
         convertido: localEnsaioNome,
         ehNumero: localEnsaio ? /^\d+$/.test(localEnsaio.trim()) : false,
       });
-      
+
       console.log('🔄 [MODAL] ========== INICIANDO ENVIO PARA GOOGLE SHEETS ==========');
       console.log('🔄 [MODAL] Chamando sendExternalRegistroToSheet...');
       console.log('🔄 [MODAL] Parâmetros que serão enviados:', {
@@ -1723,7 +1721,7 @@ export const RegisterScreen: React.FC = () => {
         console.log('📥 [MODAL] result.success:', result?.success);
         console.log('📥 [MODAL] result.error:', result?.error);
         console.log('📥 [MODAL] Resultado completo (JSON):', JSON.stringify(result, null, 2));
-        
+
         // 🚨 CRÍTICO: Se result.success não é true, lançar exceção IMEDIATAMENTE
         // Isso garante que o modal não feche silenciosamente
         if (!result || result.success !== true) {
@@ -1738,12 +1736,12 @@ export const RegisterScreen: React.FC = () => {
           name: sendError.name,
           stack: sendError.stack,
         });
-        
+
         // 🚨 CRÍTICO: Mostrar erro IMEDIATAMENTE para o usuário
         const errorMessage = sendError.message || 'Erro ao enviar registro. Tente novamente.';
         console.error('❌ [MODAL] Exibindo toast de erro:', errorMessage);
         showToast.error('Erro ao salvar', errorMessage);
-        
+
         // Se falhou, tentar salvar usando saveRegistroToLocal como fallback (funciona em Android/iOS/Web)
         console.log('🔄 [MODAL] Tentando salvar usando saveRegistroToLocal como fallback...');
         try {
@@ -1759,18 +1757,18 @@ export const RegisterScreen: React.FC = () => {
             status_sincronizacao: 'pending',
             cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro fallback
           };
-          
+
           await supabaseDataService.saveRegistroToLocal(registroFallback);
           console.log('✅ [MODAL] Registro salvo como fallback');
           showToast.warning('Salvo na fila', 'Erro ao enviar. Registro será enviado quando possível.');
-          
+
           // Limpar formulário ANTES de recarregar
           setSelectedComum('');
           setSelectedCargo('');
           setSelectedInstrumento('');
           setSelectedPessoa('');
           setIsNomeManual(false);
-          
+
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             setTimeout(() => {
               window.location.reload();
@@ -1783,13 +1781,13 @@ export const RegisterScreen: React.FC = () => {
           throw sendError; // Re-lançar erro original
         }
       }
-      
+
       // 🚨 CRÍTICO: Se chegou aqui, result.success é true (já verificamos acima)
       // Se não fosse true, teria lançado exceção no catch acima
       console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
       console.log('✅ [MODAL] Cargo que foi salvo:', cargoObj.nome);
       console.log('✅ [MODAL] Resultado completo:', result);
-      
+
       // 🚨 CORREÇÃO: Salvar também no Supabase após envio bem-sucedido para Google Sheets
       console.log('💾 [MODAL] Salvando registro no Supabase...');
       console.log('💾 [MODAL] Dados do registro que será salvo no Supabase:', {
@@ -1825,7 +1823,7 @@ export const RegisterScreen: React.FC = () => {
           console.error('❌ [MODAL] Erro ao salvar na fila local:', filaError);
         }
       }
-      
+
       // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
       showToast.success('Registro de visita salvo com sucesso');
 
@@ -1842,7 +1840,7 @@ export const RegisterScreen: React.FC = () => {
           window.location.reload();
         }, 2000); // Aumentado de 1500ms para 2000ms para dar tempo do toast aparecer
       }
-      
+
     } catch (error) {
       console.error('❌ [MODAL] Erro ao salvar novo registro:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar registro. Tente novamente.';
@@ -1855,7 +1853,7 @@ export const RegisterScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader 
+      <AppHeader
         onEditRegistrosPress={handleEditRegistros}
         onOrganistasEnsaioPress={handleOrganistasEnsaio}
       />
@@ -1885,20 +1883,20 @@ export const RegisterScreen: React.FC = () => {
           automaticallyAdjustContentInsets={false}
           // 🚨 CRÍTICO: Permitir que o scroll comece do topo
           contentOffset={Platform.OS !== 'web' ? { x: 0, y: 0 } : undefined}
-          style={Platform.OS === 'web' 
-            ? { 
-                position: 'relative' as const, 
-                overflow: 'visible' as const,
-                zIndex: 1,
-                // @ts-ignore
-                WebkitOverflowScrolling: 'touch',
-                // @ts-ignore - Permitir que dropdowns apareçam acima (propriedade CSS apenas para web)
-                overflowY: 'auto',
-              } 
-            : { 
-                flex: 1,
-                backgroundColor: theme.colors.background,
-              }}
+          style={Platform.OS === 'web'
+            ? {
+              position: 'relative' as const,
+              overflow: 'visible' as const,
+              zIndex: 1,
+              // @ts-ignore
+              WebkitOverflowScrolling: 'touch',
+              // @ts-ignore - Permitir que dropdowns apareçam acima (propriedade CSS apenas para web)
+              overflowY: 'auto',
+            }
+            : {
+              flex: 1,
+              backgroundColor: theme.colors.background,
+            }}
           refreshControl={
             Platform.OS !== 'web' ? (
               <RefreshControl
@@ -1915,7 +1913,7 @@ export const RegisterScreen: React.FC = () => {
                 progressBackgroundColor={Platform.OS === 'android' ? theme.colors.surface : undefined}
                 enabled={true}
                 // 🚨 CRÍTICO: Android precisa de size default
-                size={Platform.OS === 'android' ? 'default' : undefined}
+                size={Platform.OS === 'android' ? 0 : undefined} // 0 is default
               />
             ) : undefined
           }
@@ -1928,9 +1926,9 @@ export const RegisterScreen: React.FC = () => {
               </Text>
             </View>
             <View style={styles.cardBody}>
-              <View style={Platform.OS === 'web' ? { 
-                position: 'relative' as const, 
-                zIndex: 999999, 
+              <View style={Platform.OS === 'web' ? {
+                position: 'relative' as const,
+                zIndex: 999999,
                 overflow: 'visible' as const,
                 // @ts-ignore
                 isolation: 'isolate',
@@ -2009,104 +2007,96 @@ export const RegisterScreen: React.FC = () => {
                 )}
               </View>
 
-                  {showInstrumento && (
-                    <View style={[styles.field, Platform.OS === 'web' ? { 
-                      position: 'relative' as const, 
-                      zIndex: 999999, 
-                      overflow: 'visible' as const,
-                      // @ts-ignore
-                      isolation: 'isolate',
-                    } : {}]}>
-                      <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
-                      <SimpleSelectField
-                        label=""
-                        value={selectedInstrumento}
-                        options={instrumentosOptions}
-                        onSelect={(option: any) => {
-                          setSelectedInstrumento(String(option.value));
-                          setSelectedPessoa('');
-                          setIsNomeManual(false);
-                        }}
-                        placeholder="Selecione o instrumento..."
-                      />
-                    </View>
-                  )}
+              {showInstrumento && (
+                <View style={[styles.field, Platform.OS === 'web' ? {
+                  position: 'relative' as const,
+                  zIndex: 999999,
+                  overflow: 'visible' as const,
+                  // @ts-ignore
+                  isolation: 'isolate',
+                } : {}]}>
+                  <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
+                  <SimpleSelectField
+                    label=""
+                    value={selectedInstrumento}
+                    options={instrumentosOptions}
+                    onSelect={(option: any) => {
+                      setSelectedInstrumento(String(option.value));
+                      setSelectedPessoa('');
+                      setIsNomeManual(false);
+                    }}
+                    placeholder="Selecione o instrumento..."
+                  />
+                </View>
+              )}
 
-          <View style={Platform.OS === 'web' ? { 
-            position: 'relative' as const, 
-            zIndex: 1, 
-            overflow: 'visible' as const,
-            // @ts-ignore
-            isolation: 'isolate',
-          } : {}}>
-          <NameSelectField
-            key={nameFieldKey} // Key para forçar remontagem quando limpar
-            label="Nome e Sobrenome *"
-            value={selectedPessoa}
-            options={pessoasOptions}
-            onSelect={(option: any) => {
-              console.log('📝📝📝 [RegisterScreen] onSelect CHAMADO:', {
-                id: option.id,
-                label: option.label,
-                value: option.value,
-                isManual: option.id === 'manual',
-                selectedPessoaAntes: selectedPessoa,
-                isNomeManualAntes: isNomeManual,
-              });
-              
-              if (option.id === 'manual') {
-                // 🚨 CORREÇÃO CRÍTICA: NÃO processar modo manual durante carregamento
-                // Aguardar lista carregar completamente antes de tratar como manual
-                if (loadingPessoas) {
-                  console.log('⏳ [RegisterScreen] Modo manual detectado mas lista ainda carregando - ignorando até carregar');
-                  return; // Não processar durante carregamento
-                }
+              <View style={Platform.OS === 'web' ? {
+                position: 'relative' as const,
+                zIndex: 1,
+                overflow: 'visible' as const,
+                // @ts-ignore
+                isolation: 'isolate',
+              } : {}}>
+                <NameSelectField
+                  key={nameFieldKey} // Key para forçar remontagem quando limpar
+                  label="Nome e Sobrenome *"
+                  value={selectedPessoa}
+                  options={pessoasOptions}
+                  onSelect={(option: any) => {
+                    console.log('📝📝📝 [RegisterScreen] onSelect CHAMADO:', {
+                      id: option.id,
+                      label: option.label,
+                      value: option.value,
+                      isManual: option.id === 'manual',
+                      selectedPessoaAntes: selectedPessoa,
+                      isNomeManualAntes: isNomeManual,
+                    });
 
-                console.log('✏️✏️✏️✏️✏️ [RegisterScreen] OPÇÃO MANUAL DETECTADA!');
-                console.log('✏️✏️✏️✏️✏️ [RegisterScreen] Option recebida:', JSON.stringify(option));
-                // 🚨 CORREÇÃO: Se o valor está vazio, apenas ativar modo manual mas não limpar selectedPessoa
-                // Isso permite que o usuário clique em "Adicionar novo nome manualmente" sem perder o que já digitou
-                if (!option.value || option.value === '' || !option.value.trim()) {
-                  console.log('✏️✏️✏️✏️✏️ [RegisterScreen] Valor vazio - apenas ativando modo manual, mantendo selectedPessoa');
-                  setIsNomeManual(true);
-                  // NÃO limpar selectedPessoa aqui - manter o que já foi digitado
-                  return;
-                }
-                // Se há valor, atualizar selectedPessoa
-                const novoValor = option.value.trim();
-                console.log('✏️✏️✏️✏️✏️ [RegisterScreen] DEFININDO NOME MANUAL:', {
-                  valorAntes: selectedPessoa,
-                  valorNovo: novoValor,
-                  optionValue: option.value,
-                  optionLabel: option.label,
-                  optionId: option.id,
-                });
-                // Atualizar ambos os estados IMEDIATAMENTE
-                setSelectedPessoa(novoValor);
-                setIsNomeManual(true);
-              } else {
-                // 🚨 CORREÇÃO CRÍTICA: Se o valor está vazio e NÃO é manual, limpar o estado
-                if (!option.value || option.value === '' || (!option.id || option.id === '')) {
-                  console.log('🧹 [RegisterScreen] Valor vazio - limpando selectedPessoa e isNomeManual');
-                  setSelectedPessoa('');
-                  setIsNomeManual(false);
-                  return;
-                }
-                // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
-                const pessoaId = option.value || option.id;
-                console.log('✅ [RegisterScreen] Definindo selectedPessoa:', pessoaId);
-                setSelectedPessoa(pessoaId);
-                setIsNomeManual(false);
-              }
-            }}
-            placeholder="Selecione o nome..."
-            loading={loadingPessoas}
-          />
-          </View>
+                    if (option.id === 'manual') {
+                      // 🚨 CORREÇÃO CRÍTICA: NÃO processar modo manual durante carregamento
+                      // Aguardar lista carregar completamente antes de tratar como manual
+                      if (loadingPessoas) {
+                        console.log('⏳ [RegisterScreen] Modo manual detectado mas lista ainda carregando - ignorando até carregar');
+                        return; // Não processar durante carregamento
+                      }
 
-          <Text style={styles.hint}>
-            Selecione um nome da lista após preencher Comum e Cargo.
-          </Text>
+                      console.log('✏️✏️✏️✏️✏️ [RegisterScreen] OPÇÃO MANUAL DETECTADA!');
+                      console.log('✏️✏️✏️✏️✏️ [RegisterScreen] Option recebida:', JSON.stringify(option));
+                      if (!option.value || option.value === '' || !option.value.trim()) {
+                        console.log('🧹 [RegisterScreen] Manual ou vazio sem valor - limpando estado');
+                        setSelectedPessoa('');
+                        setIsNomeManual(false);
+                        return;
+                      }
+
+                      // Se há valor, atualizar selectedPessoa
+                      const novoValor = option.value.trim();
+                      console.log('✏️ [RegisterScreen] DEFININDO NOME MANUAL AUTOMÁTICO:', novoValor);
+                      setSelectedPessoa(novoValor);
+                      setIsNomeManual(true);
+                    } else {
+                      // 🚨 CORREÇÃO CRÍTICA: Se o valor está vazio e NÃO é manual, limpar o estado
+                      if (!option.value || option.value === '' || (!option.id || option.id === '')) {
+                        console.log('🧹 [RegisterScreen] Valor vazio - limpando selectedPessoa e isNomeManual');
+                        setSelectedPessoa('');
+                        setIsNomeManual(false);
+                        return;
+                      }
+                      // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
+                      const pessoaId = option.value || option.id;
+                      console.log('✅ [RegisterScreen] Definindo selectedPessoa:', pessoaId);
+                      setSelectedPessoa(pessoaId);
+                      setIsNomeManual(false);
+                    }
+                  }}
+                  placeholder="Selecione o nome..."
+                  loading={loadingPessoas}
+                />
+              </View>
+
+              <Text style={styles.hint}>
+                Selecione um nome da lista após preencher Comum e Cargo.
+              </Text>
 
               <PrimaryButton
                 title="ENVIAR REGISTRO"
@@ -2120,9 +2110,9 @@ export const RegisterScreen: React.FC = () => {
                     isOnline,
                     newRegistrationModalVisible,
                   });
-                  
+
                   // 🚨 CORREÇÃO: Não fechar modal automaticamente - usuário pode estar usando o modal
-                  
+
                   try {
                     await handleSubmit();
                   } catch (error) {
@@ -2138,8 +2128,8 @@ export const RegisterScreen: React.FC = () => {
             </View>
           </View>
 
-        <View style={styles.footer}>
-          <OfflineBadge count={pendingCount} syncing={syncing} />
+          <View style={styles.footer}>
+            <OfflineBadge count={pendingCount} syncing={syncing} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -2183,8 +2173,8 @@ export const RegisterScreen: React.FC = () => {
               // Pular verificação de duplicata (skipDuplicateCheck = true)
               const registroForce = { ...pendingRegistro };
               const resultForce = await (offlineSyncService as any).createRegistro(registroForce, true);
-              
-                if (resultForce.success) {
+
+              if (resultForce.success) {
                 if (isOnline && !syncing) {
                   setTimeout(() => {
                     syncData();
@@ -2315,23 +2305,23 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     ...(Platform.OS === 'web'
       ? {
-          padding: theme.spacing.lg,
-          paddingBottom: theme.spacing.xl * 2,
-          overflow: 'visible' as const,
-          minHeight: '100%',
-          // @ts-ignore
-          position: 'relative' as const,
-        }
+        padding: theme.spacing.lg,
+        paddingBottom: theme.spacing.xl * 2,
+        overflow: 'visible' as const,
+        minHeight: '100%',
+        // @ts-ignore
+        position: 'relative' as const,
+      }
       : {
-          // 🚨 CRÍTICO: Para mobile, NÃO usar padding no contentContainerStyle
-          // Isso permite que o pull-to-refresh funcione corretamente
-          // O padding será aplicado no card em vez disso
-          paddingHorizontal: theme.spacing.md,
-          paddingTop: 0, // CRÍTICO: Sem paddingTop para permitir pull-to-refresh
-          paddingBottom: theme.spacing.xl * 2,
-          minHeight: '100%',
-          overflow: 'visible' as const,
-        }),
+        // 🚨 CRÍTICO: Para mobile, NÃO usar padding no contentContainerStyle
+        // Isso permite que o pull-to-refresh funcione corretamente
+        // O padding será aplicado no card em vez disso
+        paddingHorizontal: theme.spacing.md,
+        paddingTop: 0, // CRÍTICO: Sem paddingTop para permitir pull-to-refresh
+        paddingBottom: theme.spacing.xl * 2,
+        minHeight: '100%',
+        overflow: 'visible' as const,
+      }),
   },
   loadingContainer: {
     flex: 1,
@@ -2361,14 +2351,14 @@ const styles = StyleSheet.create({
     elevation: Platform.OS === 'web' ? 3 : 4,
     ...(Platform.OS === 'web'
       ? {
-          position: 'relative' as const,
-          zIndex: 1,
-          overflow: 'visible' as const,
-        }
+        position: 'relative' as const,
+        zIndex: 1,
+        overflow: 'visible' as const,
+      }
       : {
-          marginHorizontal: theme.spacing.xs, // Margem horizontal no mobile
-          overflow: 'visible' as const,
-        }),
+        marginHorizontal: theme.spacing.xs, // Margem horizontal no mobile
+        overflow: 'visible' as const,
+      }),
   },
   cardHeader: {
     backgroundColor: theme.colors.surface,
@@ -2391,14 +2381,14 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
-          overflow: 'visible' as const,
-          position: 'relative' as const,
-          zIndex: 1,
-        }
+        overflow: 'visible' as const,
+        position: 'relative' as const,
+        zIndex: 1,
+      }
       : {
-          overflow: 'visible' as const,
-          padding: theme.spacing.md, // Menos padding no mobile
-        }),
+        overflow: 'visible' as const,
+        padding: theme.spacing.md, // Menos padding no mobile
+      }),
   },
   hint: {
     fontSize: theme.fontSize.xs,
@@ -2422,14 +2412,14 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
-          position: 'relative' as const,
-          zIndex: 0,
-          // @ts-ignore
-          isolation: 'isolate',
-        }
+        position: 'relative' as const,
+        zIndex: 0,
+        // @ts-ignore
+        isolation: 'isolate',
+      }
       : {
-          elevation: 0,
-        }),
+        elevation: 0,
+      }),
   },
   syncIndicator: {
     flexDirection: 'row',
@@ -2447,12 +2437,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     ...(Platform.OS === 'web'
       ? {
-          cursor: 'pointer',
-          zIndex: 10,
-        }
+        cursor: 'pointer',
+        zIndex: 10,
+      }
       : {
-          zIndex: 10,
-        }),
+        zIndex: 10,
+      }),
   },
   newRegistrationLinkText: {
     fontSize: theme.fontSize.sm,
@@ -2461,9 +2451,9 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     ...(Platform.OS === 'web'
       ? {
-          cursor: 'pointer',
-          userSelect: 'none',
-        }
+        cursor: 'pointer',
+        userSelect: 'none',
+      }
       : {}),
   },
   field: {

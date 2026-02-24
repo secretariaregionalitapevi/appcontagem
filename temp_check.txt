@@ -1,0 +1,8 @@
+﻿
+      // Mobile
+      const filaKey = 'fila_registros_presenca';
+      const filaExistente = await robustGetItem(filaKey);
+      let fila: any[] = filaExistente ? JSON.parse(filaExistente) : [];
+
+      const registroParaFila = {
+        ...registroCompleto,
