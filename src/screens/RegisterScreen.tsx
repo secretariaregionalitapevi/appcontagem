@@ -164,7 +164,7 @@ export const RegisterScreen: React.FC = () => {
   }, [syncing, isOnline, refreshCount]);
 
   useEffect(() => {
-    loadInitialData();
+    loadInitialData(false);
   }, []);
 
   // Configurar listener para mudanças de status de conexão
@@ -378,9 +378,11 @@ export const RegisterScreen: React.FC = () => {
     };
   }, [selectedComum, selectedCargo, selectedInstrumento, cargos]);
 
-  const loadInitialData = async () => {
+  const loadInitialData = async (isRefresh = false) => {
     try {
-      setInitialLoading(true);
+      if (!isRefresh) {
+        setInitialLoading(true);
+      }
 
       // Se está online, sempre tentar sincronizar primeiro (mas não travar se falhar)
       if (isOnline) {
@@ -435,7 +437,9 @@ export const RegisterScreen: React.FC = () => {
       console.error('❌ Erro crítico ao carregar dados iniciais:', error);
       Alert.alert('Erro', 'Não foi possível carregar os dados base. Verifique sua conexão.');
     } finally {
-      setInitialLoading(false);
+      if (!isRefresh) {
+        setInitialLoading(false);
+      }
     }
   };
 
@@ -502,9 +506,9 @@ export const RegisterScreen: React.FC = () => {
         }
       }
 
-      // 2. Recarregar dados iniciais (comuns, cargos, instrumentos)
+      // 2. Recarregar dados iniciais (comuns, cargos, instrumentos) - passando true para isRefresh
       console.log('📚 Recarregando dados iniciais...');
-      await loadInitialData();
+      await loadInitialData(true);
 
       // 3. Atualizar contador da fila
       console.log('📊 Atualizando contador da fila...');
