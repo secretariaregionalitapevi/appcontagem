@@ -1,11 +1,12 @@
-const CACHE_NAME = 'cadastro-cache-v3';
-const RUNTIME_CACHE = 'cadastro-runtime-v3';
+const CACHE_NAME = 'cadastro-cache-v4';
+const RUNTIME_CACHE = 'cadastro-runtime-v4';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
-  './manifest.json',
-  './assets/icon.png'
+  './manifest.json?v=2',
+  './assets/icon.png?v=2',
+  './assets/favicon.png?v=2'
 ];
 
 // Instalação do Service Worker
