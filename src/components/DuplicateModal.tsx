@@ -75,13 +75,13 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
             opacity: opacityAnim,
             ...(Platform.OS === 'web'
               ? {
-                  zIndex: 999999999,
-                  position: 'fixed' as ViewStyle['position'],
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                }
+                zIndex: 999999999,
+                position: 'fixed' as ViewStyle['position'],
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+              }
               : {}),
           },
         ]}
@@ -97,18 +97,18 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           {/* Ícone de alerta no topo */}
           <View style={styles.iconContainer}>
             <View style={styles.iconCircle}>
-              <FontAwesome5 name="exclamation" size={28} color="#ffffff" />
+              <FontAwesome5 name="exclamation" size={38} color="#f8bb86" />
             </View>
           </View>
 
           {/* Título */}
-          <Text style={styles.title}>Cadastro Duplicado</Text>
+          <Text style={styles.title}>Cadastro Duplicado!</Text>
 
           {/* Mensagem */}
           <View style={styles.messageContainer}>
             <Text style={styles.message}>
               <Text style={styles.bold}>{nome}</Text> de <Text style={styles.bold}>{comum}</Text> já
-              foi cadastrado hoje!
+              foi cadastrado(a).
             </Text>
           </View>
 
@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
-          backdropFilter: 'blur(4px)',
-        }
+        backdropFilter: 'blur(4px)',
+      }
       : {}),
   },
   modal: {
@@ -170,17 +170,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-          position: 'relative' as ViewStyle['position'],
-          zIndex: 999999999,
-        }
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+        position: 'relative' as ViewStyle['position'],
+        zIndex: 999999999,
+      }
       : {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.25,
-          shadowRadius: 24,
-          elevation: 20,
-        }),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 24,
+        elevation: 20,
+      }),
   },
   iconContainer: {
     alignItems: 'center',
@@ -188,46 +188,36 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#ff9800',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 4,
+    borderColor: '#f8bb86',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    ...(Platform.OS === 'web'
-      ? {
-          boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
-        }
-      : {
-          shadowColor: '#ff9800',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 4,
-        }),
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontSize: 26,
+    fontWeight: '600',
+    color: '#545454',
     textAlign: 'center',
     marginBottom: theme.spacing.md,
     paddingHorizontal: theme.spacing.xl,
-    letterSpacing: -0.3,
   },
   messageContainer: {
     marginBottom: theme.spacing.lg,
     paddingHorizontal: theme.spacing.xl,
   },
   message: {
-    fontSize: 15,
-    color: '#4a4a4a',
+    fontSize: 16,
+    color: '#545454',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
   },
   bold: {
     fontWeight: '700',
-    color: '#1a1a1a',
+    color: '#545454',
   },
   detailsContainer: {
     backgroundColor: '#f8f9fa',
@@ -260,33 +250,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.sm,
     padding: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    backgroundColor: '#fafafa',
-    borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
-    alignItems: 'stretch', // Garantir que ambos os botões tenham a mesma altura
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    alignItems: 'center', // Garantir que ambos os botões tenham a mesma altura
   },
   cancelButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Platform.OS === 'web' ? 14 : 16,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#dee2e6',
-    minHeight: Platform.OS === 'web' ? 48 : 52,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    backgroundColor: '#6e7881',
+    minHeight: 44,
     ...(Platform.OS === 'web'
       ? {
-          transition: 'all 0.2s ease',
-          cursor: 'pointer',
-          ':hover': {
-            backgroundColor: '#f8f9fa',
-            borderColor: '#adb5bd',
-          },
-        }
+        transition: 'all 0.2s ease',
+        cursor: 'pointer',
+        ':hover': {
+          backgroundColor: '#5a6268',
+        },
+      }
       : {}),
   },
   buttonIcon: {
@@ -301,51 +285,37 @@ const styles = StyleSheet.create({
     } : {}),
   },
   cancelButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#495057',
-    marginLeft: 8, // Aumentado de 6 para 8 para melhor espaçamento
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#ffffff',
     textAlign: 'center',
   },
   confirmButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Platform.OS === 'web' ? 14 : 16,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: 8,
-    backgroundColor: '#ff9800',
-    minHeight: Platform.OS === 'web' ? 48 : 52, // Mesma altura do botão cancelar
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    backgroundColor: '#d33',
+    minHeight: 44,
     ...(Platform.OS === 'web'
       ? {
-          boxShadow: '0 2px 8px rgba(255, 152, 0, 0.25)',
-          transition: 'all 0.2s ease',
-          cursor: 'pointer',
-          ':hover': {
-            backgroundColor: '#fb8c00',
-            boxShadow: '0 4px 16px rgba(255, 152, 0, 0.35)',
-            transform: 'translateY(-1px)',
-          },
-          ':active': {
-            transform: 'translateY(0)',
-          },
-        }
-      : {
-          shadowColor: '#ff9800',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 6,
-          elevation: 4,
-        }),
+        transition: 'all 0.2s ease',
+        cursor: 'pointer',
+        ':hover': {
+          backgroundColor: '#bd2b2b',
+        },
+        ':active': {
+          transform: 'scale(0.98)',
+        },
+      }
+      : {}),
   },
   confirmButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
     color: '#ffffff',
-    marginLeft: 8, // Aumentado de 6 para 8 para melhor espaçamento
-    letterSpacing: 0.2,
     textAlign: 'center',
-    flexShrink: 1, // Permitir que o texto quebre se necessário
   },
 });

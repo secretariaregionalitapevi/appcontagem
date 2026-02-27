@@ -1,5 +1,5 @@
-const CACHE_NAME = 'cadastro-cache-v4';
-const RUNTIME_CACHE = 'cadastro-runtime-v4';
+const CACHE_NAME = 'cadastro-cache-v5';
+const RUNTIME_CACHE = 'cadastro-runtime-v5';
 const ASSETS = [
   './',
   './index.html',

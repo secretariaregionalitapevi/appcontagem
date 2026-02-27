@@ -1147,11 +1147,13 @@ export const RegisterScreen: React.FC = () => {
             const Swal = getSwal();
             if (Swal) {
               const mensagem = `
-                <div style="text-align: left;">
-                  <strong>${nome || 'Nome não encontrado'}</strong> de <strong>${comumNome || 'Comum não encontrada'}</strong><br>
-                  já foi cadastrado hoje!<br><br>
-                  <small>Data: ${dataFormatada}</small><br>
-                  <small>Horário: ${horarioFormatado}</small>
+                <div style="color: #545454; font-size: 16px; margin-top: 5px;">
+                  <strong style="color: #545454;">${nome || 'Nome não encontrado'}</strong> de <strong style="color: #545454;">${comumNome || 'Comum não encontrada'}</strong><br>
+                  já foi cadastrado(a).<br><br>
+                  <div style="text-align: left; background-color: #f8f9fa; padding: 12px 16px; border-radius: 8px; border: 1px solid #e9ecef; width: 100%; box-sizing: border-box; margin: 0 auto; overflow: hidden;">
+                    <span style="font-weight: 600; color: #495057;">Data:</span> <span style="color: #6c757d">${dataFormatada}</span><br>
+                    <span style="font-weight: 600; color: #495057;">Horário:</span> <span style="color: #6c757d">${horarioFormatado}</span>
+                  </div>
                 </div>
               `;
 
@@ -1172,14 +1174,15 @@ export const RegisterScreen: React.FC = () => {
               }
 
               Swal.fire({
-                title: '⚠️ Cadastro Duplicado!',
+                title: 'Cadastro Duplicado!',
                 html: mensagem,
                 icon: 'warning',
+                iconColor: '#f8bb86',
                 showCancelButton: true,
-                confirmButtonText: '<i class="fa-solid fa-check"></i> Cadastrar Mesmo Assim',
-                cancelButtonText: '<i class="fa-solid fa-times"></i> Cancelar',
-                confirmButtonColor: '#f59e0b',
-                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Cadastrar Mesmo Assim',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6e7881',
                 reverseButtons: true,
                 width: isMobileDevice ? '90%' : '500px',
                 padding: isMobileDevice ? '1.5rem' : '2rem',
@@ -1193,26 +1196,20 @@ export const RegisterScreen: React.FC = () => {
                 customClass: {
                   confirmButton: 'swal-duplicity-confirm',
                   cancelButton: 'swal-duplicity-cancel',
+                  title: 'swal-duplicity-title'
                 },
                 didOpen: () => {
-                  // Ajustar estilos dos botões para mostrar ícones corretamente
-                  setTimeout(() => {
-                    const confirmBtn = document.querySelector('.swal2-confirm, .swal-duplicity-confirm') as HTMLElement;
-                    const cancelBtn = document.querySelector('.swal2-cancel, .swal-duplicity-cancel') as HTMLElement;
+                  const popupEl = Swal.getPopup();
+                  if (popupEl) {
+                    popupEl.style.fontFamily = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+                  }
 
-                    if (confirmBtn) {
-                      const icon = confirmBtn.querySelector('i');
-                      if (icon) {
-                        icon.style.marginRight = '0.5rem';
-                      }
-                    }
-                    if (cancelBtn) {
-                      const icon = cancelBtn.querySelector('i');
-                      if (icon) {
-                        icon.style.marginRight = '0.5rem';
-                      }
-                    }
-                  }, 100);
+                  const titleEl = Swal.getTitle();
+                  if (titleEl) {
+                    titleEl.style.color = '#545454';
+                    titleEl.style.fontSize = '26px';
+                    titleEl.style.fontWeight = '600';
+                  }
                 },
               }).then(async (result: any) => {
                 if (!result.isConfirmed) {

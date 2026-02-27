@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, shrink-to-fit=no, maximum-scale=1, user-scalable=0" />
+    <meta name="theme-color" content="#1E88E5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CCB Contagem" />
+    <title>CCB Contagem</title>
+
+    <!-- PWA Manifest and Icons (With cache burst) -->
+    <link rel="manifest" href="/manifest.json?v=3" />
+    <link rel="icon" type="image/png" href="/icon.png?v=3" />
+    <link rel="apple-touch-icon" href="/icon.png?v=3" />
+
+    <!-- The `react-native-web` recommended style reset -->
+    <style id="expo-reset">
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f3f4;
+        }
+
+        body {
+            overflow: hidden;
+            /* Disable pull-to-refresh behavior on body to allow in-app scrollviews to handle it */
+            overscroll-behavior-y: none;
+        }
+
+        #root {
+            display: flex;
+            height: 100%;
+            flex: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <noscript>
+        Para este aplicativo funcionar, é necessário habilitar o JavaScript.
+    </noscript>
+
+    <div id="root"></div>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('✅ ServiceWorker registrado com sucesso com escopo: ', registration.scope);
+                    })
+                    .catch((err) => {
+                        console.error('❌ Registro do ServiceWorker falhou: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>
