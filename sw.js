@@ -1,10 +1,11 @@
-const CACHE_NAME = 'cadastro-cache-v2';
-const RUNTIME_CACHE = 'cadastro-runtime-v2';
+const CACHE_NAME = 'cadastro-cache-v3';
+const RUNTIME_CACHE = 'cadastro-runtime-v3';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
-  './manifest.json'
+  './manifest.json',
+  './assets/icon.png'
 ];
 
 // Instalação do Service Worker
@@ -36,7 +37,7 @@ self.addEventListener('activate', (event) => {
           })
       );
     })
-    .then(() => self.clients.claim()) // Assumir controle imediatamente
+      .then(() => self.clients.claim()) // Assumir controle imediatamente
   );
 });
 
