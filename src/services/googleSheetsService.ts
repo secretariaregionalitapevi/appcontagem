@@ -227,11 +227,13 @@ export const googleSheetsService = {
           body: requestBody,
         });
 
+        // 🚨 CORREÇÃO: Aumentado o timeout de 8s para 16s pois o Google Apps Script
+        // costuma demorar mais em locais de baixa conexão, e matar a conexão leva a recadastro duplo.
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout')), 8000);
+          setTimeout(() => reject(new Error('Timeout')), 16000);
         });
 
-        console.log('⏱️ [EXTERNAL] Aguardando resposta (timeout: 8s)...');
+        console.log('⏱️ [EXTERNAL] Aguardando resposta (timeout: 16s)...');
         const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
 
         console.log('📥 [EXTERNAL] Resposta recebida!');
@@ -816,7 +818,7 @@ export const googleSheetsService = {
       console.log('📤 Enviando para Google Sheets:', sanitizeForLogging(sheetRow));
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 🚀 OTIMIZAÇÃO: 8 segundos (reduzido de 10s)
+      const timeoutId = setTimeout(() => controller.abort(), 16000); // 🚀 OTIMIZAÇÃO: 16 segundos (aumentado preventivamente)
 
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
@@ -939,7 +941,7 @@ export const googleSheetsService = {
       console.log('📤 Request body para Google Sheets:', requestBody);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 16000); // 🚀 OTIMIZAÇÃO: 16 segundos
 
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',

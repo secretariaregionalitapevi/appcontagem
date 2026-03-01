@@ -144,6 +144,12 @@ export const authService = {
         // Aguardar um pouco para garantir que o trigger do Supabase criou o perfil
         await new Promise(resolve => setTimeout(resolve, 500));
 
+        // 🚨 CRÍTICO: Configurar a sessão ANTES de atualizar o perfil para satisfazer o RLS do Supabase
+        if (data.session) {
+          await this.saveSession(data.session);
+          console.log('🔑 Sessão configurada prematuramente para autorizar o upsert no profiles.');
+        }
+
         // Criar ou atualizar perfil na tabela profiles
         const { profile, error: profileError } = await userProfileService.createOrUpdateProfile(
           data.user.id,
@@ -190,7 +196,6 @@ export const authService = {
         }
 
         if (data.session) {
-          await this.saveSession(data.session);
           await secureStore.setItemAsync(USER_KEY, JSON.stringify(user));
         }
 

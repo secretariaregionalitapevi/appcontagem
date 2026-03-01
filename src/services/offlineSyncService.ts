@@ -1,4 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
+import { Platform } from 'react-native';
 import { supabaseDataService } from './supabaseDataService';
 import { googleSheetsService } from './googleSheetsService';
 import { RegistroPresenca } from '../types/models';
@@ -14,8 +15,12 @@ const PROCESS_COOLDOWN = 2000; // 2 segundos de cooldown entre processamentos
 
 export const offlineSyncService = {
   async isOnline(): Promise<boolean> {
+    if (Platform.OS === 'web') {
+      // Na web, o NetInfo tenta dar ping no localhost via HEAD, o que pode falhar em dev
+      return navigator.onLine;
+    }
     const state = await NetInfo.fetch();
-    return state.isConnected === true && state.isInternetReachable === true;
+    return state.isConnected === true && state.isInternetReachable !== false;
   },
 
   async syncAllData(): Promise<{ success: boolean; error?: string; syncResult?: { successCount: number; totalCount: number } }> {
@@ -100,27 +105,27 @@ export const offlineSyncService = {
       console.log('⚠️ Processamento da fila já em andamento, ignorando chamada duplicada');
       return { successCount: 0, errorCount: 0 };
     }
-    
+
     // Verificar cooldown para evitar processamento muito frequente (ex: F5 repetido)
     if (now - lastProcessTimestamp < PROCESS_COOLDOWN) {
       const remainingCooldown = PROCESS_COOLDOWN - (now - lastProcessTimestamp);
       console.log(`⚠️ Processamento muito recente, aguardando ${remainingCooldown}ms antes de processar novamente`);
       return { successCount: 0, errorCount: 0 };
     }
-    
+
     // Marcar como processando
     isProcessingQueue = true;
     lastProcessTimestamp = now;
-    
+
     try {
       // Buscar fila
       const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
-      
+
       if (registros.length === 0) {
         console.log('📭 Fila vazia, nada para processar');
         return { successCount: 0, errorCount: 0 };
       }
-      
+
       // Testa conectividade antes de processar (com retry)
       let conectividadeOK = false;
       for (let retry = 0; retry < 3; retry++) {
@@ -131,20 +136,20 @@ export const offlineSyncService = {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
-      
+
       if (!conectividadeOK) {
         console.log('⚠️ Conectividade não estável após 3 tentativas, mantendo itens na fila');
         return { successCount: 0, errorCount: 0 };
       }
-      
+
       console.log(`🔄 Processando fila local: ${registros.length} item(s)`);
-      
+
       const itensProcessados: RegistroPresenca[] = [];
       const itensComErro: RegistroPresenca[] = [];
-      
+
       for (let i = 0; i < registros.length; i++) {
         const item = registros[i];
-        
+
         // Verificar conectividade antes de cada item
         const stillOnline = await this.isOnline();
         if (!stillOnline) {
@@ -153,22 +158,22 @@ export const offlineSyncService = {
           itensComErro.push(...registros.slice(i));
           break;
         }
-        
+
         try {
           console.log(`📤 Processando item ${i + 1}/${registros.length}: ${item.pessoa_id}`);
-          
+
           // Validar item antes de processar
           if (!item.pessoa_id || !item.comum_id || !item.cargo_id) {
             console.warn(`⚠️ Item ${i + 1}: Dados incompletos, removendo da fila`);
             itensProcessados.push(item); // Remover da fila
             continue;
           }
-          
+
           // Tenta enviar para Google Sheets primeiro (mais crítico)
           const sheetsResult = await googleSheetsService.sendRegistroToSheet(item);
           if (sheetsResult.success) {
             console.log(`✅ Item ${i + 1}: Google Sheets OK`);
-            
+
             // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE após sucesso no Google Sheets
             // Isso previne que o mesmo registro seja processado novamente em caso de retry ou erro subsequente
             if (item.id) {
@@ -179,20 +184,20 @@ export const offlineSyncService = {
                 console.warn(`⚠️ Item ${i + 1}: Erro ao remover da fila (não crítico):`, deleteError);
               }
             }
-            
+
             // Tenta enviar para Supabase (secundário, não bloqueia)
             try {
               await supabaseDataService.createRegistroPresenca(item, true);
               console.log(`✅ Item ${i + 1}: Supabase OK`);
             } catch (e: any) {
               // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
-              const isConstraintError = 
-                e.code === '23505' || 
-                e.message?.includes('duplicate key') || 
+              const isConstraintError =
+                e.code === '23505' ||
+                e.message?.includes('duplicate key') ||
                 e.message?.includes('already exists') ||
                 e.message?.includes('pessoas_pkey') ||
                 e.message?.includes('presencas_pkey');
-              
+
               if (isConstraintError) {
                 console.log(`✅ Item ${i + 1}: Registro já existe no Supabase (constraint) - tratado como sucesso`);
               } else {
@@ -200,16 +205,16 @@ export const offlineSyncService = {
               }
               // Continua mesmo se Supabase falhar (Google Sheets já salvou e registro já foi removido da fila)
             }
-            
+
             itensProcessados.push(item);
           } else {
             // Verificar se é erro de rede ou erro de dados
-            const isNetworkError = 
+            const isNetworkError =
               sheetsResult.error?.includes('Failed to fetch') ||
               sheetsResult.error?.includes('Timeout') ||
               sheetsResult.error?.includes('Network') ||
               sheetsResult.error?.includes('AbortError');
-            
+
             if (isNetworkError) {
               // Erro de rede - manter na fila
               throw new Error('Erro de rede ao enviar para Google Sheets');
@@ -219,7 +224,7 @@ export const offlineSyncService = {
               try {
                 await supabaseDataService.createRegistroPresenca(item, true);
                 console.log(`✅ Item ${i + 1}: Supabase OK (fallback)`);
-                
+
                 // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE após sucesso no Supabase (fallback)
                 if (item.id) {
                   try {
@@ -229,21 +234,21 @@ export const offlineSyncService = {
                     console.warn(`⚠️ Item ${i + 1}: Erro ao remover da fila (não crítico):`, deleteError);
                   }
                 }
-                
+
                 itensProcessados.push(item);
               } catch (supabaseError: any) {
                 // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
-                const isConstraintError = 
-                  supabaseError.code === '23505' || 
-                  supabaseError.message?.includes('duplicate key') || 
+                const isConstraintError =
+                  supabaseError.code === '23505' ||
+                  supabaseError.message?.includes('duplicate key') ||
                   supabaseError.message?.includes('already exists') ||
                   supabaseError.message?.includes('pessoas_pkey') ||
                   supabaseError.message?.includes('presencas_pkey');
-                
+
                 // Verificar se é duplicata ou constraint
                 if (supabaseError.message?.includes('DUPLICATA') || supabaseError.message?.includes('duplicat') || isConstraintError) {
                   console.log(`✅ Item ${i + 1}: Registro já existe (duplicata/constraint) - removendo da fila`);
-                  
+
                   // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE quando duplicata/constraint detectada
                   if (item.id) {
                     try {
@@ -253,7 +258,7 @@ export const offlineSyncService = {
                       console.warn(`⚠️ Item ${i + 1}: Erro ao remover duplicata da fila:`, deleteError);
                     }
                   }
-                  
+
                   itensProcessados.push(item); // Remover da fila
                 } else {
                   throw supabaseError;
@@ -261,18 +266,18 @@ export const offlineSyncService = {
               }
             }
           }
-          
+
         } catch (error: any) {
           console.error(`❌ Item ${i + 1}: Erro:`, error.message);
-          
+
           // Incrementa tentativas
           const tentativas = (item as any).tentativas || 0;
           (item as any).tentativas = tentativas + 1;
-          
+
           // Se já tentou 3 vezes, remove da fila
           if ((item as any).tentativas >= 3) {
             console.log(`🗑️ Item ${i + 1}: Removido após 3 tentativas`);
-            
+
             // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE após 3 tentativas
             if (item.id) {
               try {
@@ -282,19 +287,19 @@ export const offlineSyncService = {
                 console.warn(`⚠️ Item ${i + 1}: Erro ao remover da fila após 3 tentativas:`, deleteError);
               }
             }
-            
+
             itensProcessados.push(item); // Remover da fila
           } else {
             itensComErro.push(item); // Manter na fila para retry
           }
         }
-        
+
         // Pequena pausa entre itens para não sobrecarregar
         if (i < registros.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
-      
+
       // Atualiza fila removendo itens processados
       // Salvar apenas itens com erro de volta na fila
       if (itensComErro.length > 0) {
@@ -307,7 +312,7 @@ export const offlineSyncService = {
         const { robustRemoveItem } = await import('../utils/robustStorage');
         await robustRemoveItem(filaKey);
       }
-      
+
       // Remover itens processados do storage local também
       for (const item of itensProcessados) {
         if (item.id) {
@@ -318,20 +323,20 @@ export const offlineSyncService = {
           }
         }
       }
-      
+
       const result = {
         successCount: itensProcessados.length,
         errorCount: itensComErro.length,
       };
-      
+
       console.log(`✅ Fila processada: ${result.successCount} enviados, ${result.errorCount} com erro`);
-      
+
       // Mostrar toast quando processa fila
       if (result.successCount > 0) {
         const { showToast } = await import('../utils/toast');
         if (result.errorCount > 0) {
           showToast.success(
-            'Fila processada', 
+            'Fila processada',
             `${result.successCount} enviado(s), ${result.errorCount} pendente(s)`
           );
         } else {
@@ -342,9 +347,9 @@ export const offlineSyncService = {
         const { showToast } = await import('../utils/toast');
         showToast.warning('Fila não processada', `${result.errorCount} registro(s) aguardando conexão estável`);
       }
-      
+
       return result;
-      
+
     } catch (error) {
       console.error('❌ Erro ao processar fila local:', error);
       return { successCount: 0, errorCount: 0 };
@@ -358,14 +363,14 @@ export const offlineSyncService = {
     // 🚨 CORREÇÃO CRÍTICA: Usar APENAS processarFilaLocal para evitar duplicação
     // processarFilaLocal já faz todo o processamento necessário e remove registros da fila
     // NÃO processar novamente aqui para evitar que o mesmo registro seja enviado múltiplas vezes
-    
+
     // Buscar contagem ANTES de processar para retornar totalCount correto
     const registrosAntes = await supabaseDataService.getRegistrosPendentesFromLocal();
     const totalCount = registrosAntes.length;
-    
+
     // Processar fila (isso já remove os registros processados da fila)
     const result = await this.processarFilaLocal();
-    
+
     // Retornar resultado compatível com a interface esperada
     return {
       successCount: result.successCount,
@@ -379,7 +384,7 @@ export const offlineSyncService = {
   ): Promise<{ success: boolean; error?: string }> {
     // 🚨 OTIMIZAÇÃO: Medir tempo de processamento
     const inicioTempo = performance.now();
-    
+
     // 🚀 OTIMIZAÇÃO: Verificar status online de forma rápida (sem logs desnecessários)
     let isOnline = false;
     try {
@@ -397,7 +402,7 @@ export const offlineSyncService = {
       try {
         // 🚀 OTIMIZAÇÃO: Buscar apenas o necessário (evitar buscar pessoas se nome manual)
         const isNomeManual = registro.pessoa_id.startsWith('manual_');
-        
+
         // Buscar comuns e cargos sempre (são rápidos do cache)
         const [comuns, cargos] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
@@ -456,12 +461,12 @@ export const offlineSyncService = {
               .gte('data_ensaio', dataInicio.toISOString())
               .lt('data_ensaio', dataFim.toISOString())
               .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
-            
+
             // 🚀 OTIMIZAÇÃO: Timeout de 2 segundos para não bloquear muito tempo
-            const timeoutPromise = new Promise((_, reject) => 
+            const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
             );
-            
+
             const { data: duplicatas, error: duplicataError } = await Promise.race([
               duplicataPromise,
               timeoutPromise
@@ -514,7 +519,7 @@ export const offlineSyncService = {
     if (!skipDuplicateCheck) {
       try {
         const registrosLocais = await supabaseDataService.getRegistrosPendentesFromLocal();
-        
+
         // Extrair apenas a data (sem hora) para comparação
         const dataRegistro = new Date(registro.data_hora_registro);
         const dataRegistroStr = dataRegistro.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -523,7 +528,7 @@ export const offlineSyncService = {
         const duplicataLocal = registrosLocais.find(r => {
           const rData = new Date(r.data_hora_registro);
           const rDataStr = rData.toISOString().split('T')[0];
-          
+
           // Comparar por IDs e data (muito mais rápido)
           return (
             r.pessoa_id === registro.pessoa_id &&
@@ -581,12 +586,12 @@ export const offlineSyncService = {
       try {
         // 🚀 OTIMIZAÇÃO: Enviar para Google Sheets e Supabase EM PARALELO (mais rápido)
         // Google Sheets é mais rápido, mas Supabase pode ser feito em paralelo sem bloquear
-        
+
         const registroComId = {
           ...registro,
           id: uuidFinal,
         };
-        
+
         // Enviar ambos em paralelo - Google Sheets é crítico, Supabase é secundário
         // 🚨 CORREÇÃO CRÍTICA: NÃO capturar erros de duplicata silenciosamente
         const [sheetsResult, supabaseResult] = await Promise.allSettled([
@@ -610,7 +615,7 @@ export const offlineSyncService = {
 
         const sheetsSuccess = sheetsResult.status === 'fulfilled' && sheetsResult.value.success;
         const supabaseSuccess = supabaseResult.status === 'fulfilled' && supabaseResult.value !== null;
-        
+
         // 🚨 CORREÇÃO CRÍTICA: Verificar se Supabase retornou erro de duplicata
         // Se retornou erro de duplicata, bloquear mesmo que Google Sheets tenha sucesso
         if (supabaseResult.status === 'rejected') {
@@ -643,13 +648,13 @@ export const offlineSyncService = {
           return { success: true };
         } else {
           // Google Sheets falhou - verificar se é erro de conectividade
-          const sheetsError = sheetsResult.status === 'rejected' 
+          const sheetsError = sheetsResult.status === 'rejected'
             ? sheetsResult.reason?.message || String(sheetsResult.reason)
             : sheetsResult.status === 'fulfilled' && !sheetsResult.value.success
               ? sheetsResult.value.error || 'Erro desconhecido'
               : 'Erro desconhecido';
-          
-          const isNetworkError = 
+
+          const isNetworkError =
             sheetsError?.includes('Failed to fetch') ||
             sheetsError?.includes('Timeout') ||
             sheetsError?.includes('Network') ||
@@ -727,7 +732,7 @@ export const offlineSyncService = {
         }
 
         // Verificar se é erro de conectividade
-        const isNetworkError = 
+        const isNetworkError =
           error instanceof Error &&
           (error.message.includes('Failed to fetch') ||
             error.message.includes('Timeout') ||

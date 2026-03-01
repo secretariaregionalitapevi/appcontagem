@@ -209,7 +209,7 @@ export const LoginScreen: React.FC = () => {
               {Platform.OS === 'web' ? (
                 <select
                   style={styles.selectWeb}
-                value={localEnsaio}
+                  value={localEnsaio}
                   onChange={(e) => setLocalEnsaio(e.target.value)}
                   required
                 >

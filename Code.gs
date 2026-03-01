@@ -1,4 +1,21 @@
 /**
+ * ============================================================================
+ * PROPRIEDADE INTELECTUAL E DIREITOS AUTORAIS
+ * ============================================================================
+ * Este sistema foi desenvolvido e arquitetado exclusivamente pela:
+ * SECRETARIA DA ADMINISTRAÇÃO MUSICAL - REGIONAL ITAPEVI
+ * 
+ * Sede da Administração Musical Itapevi:
+ * Av. Ana Araújo de Castro, 815 - Jardim Itapevi, Itapevi - SP
+ * CEP: 06653-140
+ * 
+ * É ESTRITAMENTE PROIBIDA a cópia, distribuição, engenharia reversa 
+ * ou uso deste código-fonte por outras regionais ou terceiros sem 
+ * autorização prévia e expressa da Secretaria de Itapevi.
+ * ============================================================================
+ */
+
+/**
  * Sistema Contagem Ensaios Regionais - CCB Regional Itapevi
  * Versão 1.0
  */
@@ -1221,8 +1238,54 @@ function doPost(e) {
 
       // 1. Salvar na Planilha Mestra
       ensureHeaders(sh);
+      
+      // --- VERIFICAÇÃO ANTI-DUPLICATA ---
+      const uuidReq = data['UUID'];
+      const nomeReq = (data['NOME COMPLETO'] || '').toString().trim().toUpperCase();
+      const localReq = (data['LOCAL_ENSAIO'] || '').toString().trim().toUpperCase();
+      const cargoReq = (data['CARGO'] || '').toString().trim().toUpperCase();
+      const dataReq = (data['DATA_ENSAIO'] || '').toString().trim(); // assumindo mesmo formato
+
+      let isDuplicate = false;
+      const lastRow = sh.getLastRow();
+      if (lastRow > 1) {
+        // Obter ultimas 50 linhas para verificar duplicata no dia
+        const startRow = Math.max(2, lastRow - 50);
+        const numRows = lastRow - startRow + 1;
+        const lastCol = sh.getLastColumn();
+        const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => (h || '').toString().trim().toUpperCase());
+        
+        const idxUuid = headers.indexOf('UUID');
+        const idxNome = headers.indexOf('NOME COMPLETO');
+        const idxLocal = headers.indexOf('LOCAL_ENSAIO');
+        const idxCargo = headers.indexOf('CARGO');
+        const idxData = headers.indexOf('DATA_ENSAIO');
+        
+        if (idxNome >= 0 && idxData >= 0) {
+          const recentData = sh.getRange(startRow, 1, numRows, lastCol).getValues();
+          for (let i = recentData.length - 1; i >= 0; i--) {
+            const row = recentData[i];
+            const rowUuid = idxUuid >= 0 ? (row[idxUuid] || '').toString().trim() : '';
+            const rowNome = (row[idxNome] || '').toString().trim().toUpperCase();
+            const rowLocal = idxLocal >= 0 ? (row[idxLocal] || '').toString().trim().toUpperCase() : '';
+            const rowCargo = idxCargo >= 0 ? (row[idxCargo] || '').toString().trim().toUpperCase() : '';
+            const rowData = (row[idxData] || '').toString().trim();
+            
+            // É duplicata se o UUID bate OU se Nome, Local, Cargo e Data batem perfeitamente.
+            if ((uuidReq && rowUuid === uuidReq) || 
+                (nomeReq && nomeReq === rowNome && localReq === rowLocal && cargoReq === rowCargo && dataReq === rowData)) {
+              isDuplicate = true;
+              console.log(`⚠️ Duplicata ignorada no Code.gs para Mestra: Nome=${nomeReq}, Local=${localReq}, Data=${dataReq}`);
+              break;
+            }
+          }
+        }
+      }
+
       const rowMaster = buildRow(sh, data);
-      if (rowMaster.length > 0) sh.appendRow(rowMaster);
+      
+      // Se não for duplicata, faz o append
+      if (!isDuplicate && rowMaster.length > 0) sh.appendRow(rowMaster);
       
       const diag = {
         master: { ok: true, id: sh.getParent().getId(), sheet: sh.getName() },
@@ -1266,12 +1329,17 @@ function doPost(e) {
 
           const rowRegional = buildRow(shRegional, data);
           console.log(`📋 Colunas regional: ${shRegional.getLastColumn()}, Linha: [${rowRegional.join('|')}]`);
-          if (rowRegional.length > 0) {
+          if (!isDuplicate && rowRegional.length > 0) {
             shRegional.appendRow(rowRegional);
             diag.regional.ok = true;
             diag.regional.sheetUsed = shRegional.getName();
             debugMsg += ` → ✅ Regional OK (${regionalId})`;
             console.log(`✅ Espelhamento concluído para regional [${shRegional.getName()}] - ${regionalId}`);
+          } else if (isDuplicate) {
+            diag.regional.ok = true; // Simula sucesso para não encadear novos retries
+            diag.regional.sheetUsed = shRegional.getName();
+            debugMsg += ` → ✅ Regional Ignorou Duplicata (${regionalId})`;
+            console.log(`⚠️ Duplicata ignorada também para regional [${shRegional.getName()}] - ${regionalId}`);
           } else {
             diag.regional.error = 'Linha vazia (0 colunas na regional)';
             debugMsg += ` → ❌ Linha vazia na regional`;

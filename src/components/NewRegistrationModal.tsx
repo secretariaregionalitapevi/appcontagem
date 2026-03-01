@@ -77,7 +77,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   const isOrganista = cargoNome === 'Organista';
   // Mostrar instrumento para Músico e Instrutor (masculino)
   const showInstrumento = (isMusico || isInstrutor) && !isOrganista;
-  
+
   // 🚨 CARGOS QUE DEVEM SER OFICIALIZADAS AUTOMATICAMENTE (sem mostrar campo)
   // Apenas cargos femininos de organistas: Instrutora, Secretária da Música, Examinadora
   // 🚨 NÃO incluir "Instrutor" (masculino) - ele é classe de músicos e precisa selecionar instrumento
@@ -87,7 +87,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
     'Examinadora'
   ];
   const isCargoOficializadaAutomatica = cargosOficializadaAutomatica.includes(cargoNome);
-  
+
   // Mostrar campo de classe APENAS para Organista (outros cargos são oficializados automaticamente)
   const showClasse = isOrganista && !isCargoOficializadaAutomatica;
 
@@ -158,7 +158,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 
   const handleSave = async () => {
     console.log('🔘 [MODAL] Botão Salvar clicado');
-    
+
     if (!validate()) {
       console.warn('⚠️ [MODAL] Validação falhou');
       return;
@@ -179,7 +179,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
     try {
       // 🚨 DETERMINAR CLASSE FINAL
       let classeFinal: string | undefined = undefined;
-      
+
       // Se for cargo que deve ser oficializado automaticamente, forçar "Oficializada"
       if (isCargoOficializadaAutomatica) {
         classeFinal = 'Oficializada';
@@ -197,7 +197,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         classe: classeFinal ? sanitizeInput(classeFinal, { fieldType: 'classe', maxLength: FIELD_LIMITS.classe }) : undefined,
         nome: sanitizeInput(nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome }),
       };
-      
+
       console.log('📤 [MODAL] Chamando onSave com dados sanitizados:', sanitizeForLogging(dadosSanitizados));
 
       // 🚨 CRÍTICO: Aguardar resultado do onSave e tratar erros
@@ -224,11 +224,11 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         setSelectedClasse('');
         setNome('');
         setErrors({});
-        
+
         // 🚨 CORREÇÃO: NÃO mostrar toast aqui - o handleSaveNewRegistration já mostra
         // Apenas fechar modal após um delay para permitir que o toast do handleSaveNewRegistration apareça
         console.log('✅ [MODAL] Campos limpos, aguardando para fechar modal...');
-        
+
         // Fechar modal após sucesso (aguardar um pouco para toast aparecer)
         setTimeout(() => {
           console.log('🚪 [MODAL] Fechando modal após sucesso');
@@ -278,202 +278,202 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
         activeOpacity={1}
         onPress={onClose}
       >
-          <TouchableOpacity
-            style={styles.modalContent}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
+        <TouchableOpacity
+          style={styles.modalContent}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <FontAwesome5
+              name="laptop"
+              size={Platform.OS === 'web' ? 48 : 32}
+              color="#e2e3e3"
+              style={styles.headerIcon}
+            />
+            <Text style={styles.title}>Novo Registro</Text>
+            <Text style={styles.subtitle}>Use o formulário para o novo registro</Text>
+          </View>
+
+          {/* Body */}
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
           >
-            {/* Header */}
-            <View style={styles.header}>
-              <FontAwesome5
-                name="laptop"
-                size={Platform.OS === 'web' ? 48 : 32}
-                color="#e2e3e3"
-                style={styles.headerIcon}
+            {/* Comum */}
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Comum <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.comum ? styles.inputError : undefined]}
+                value={comum}
+                onChangeText={(text) => {
+                  setComum(text);
+                  if (errors.comum) {
+                    setErrors({ ...errors, comum: '' });
+                  }
+                }}
+                placeholder="Ex.: Água Rasa"
+                placeholderTextColor={theme.colors.textSecondary}
               />
-              <Text style={styles.title}>Novo Registro</Text>
-              <Text style={styles.subtitle}>Use o formulário para o novo registro</Text>
+              {errors.comum && <Text style={styles.errorText}>{errors.comum}</Text>}
             </View>
 
-            {/* Body */}
-            <ScrollView
-              style={styles.body}
-              contentContainerStyle={styles.bodyContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-            >
-              {/* Comum */}
-              <View style={styles.field}>
-                <Text style={styles.label}>
-                  Comum <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, errors.comum ? styles.inputError : undefined]}
-                  value={comum}
-                  onChangeText={(text) => {
-                    setComum(text);
-                    if (errors.comum) {
-                      setErrors({ ...errors, comum: '' });
-                    }
-                  }}
-                  placeholder="Ex.: Água Rasa"
-                  placeholderTextColor={theme.colors.textSecondary}
-                />
-                {errors.comum && <Text style={styles.errorText}>{errors.comum}</Text>}
-              </View>
+            {/* Cidade */}
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Cidade <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.cidade ? styles.inputError : undefined]}
+                value={cidade}
+                onChangeText={(text) => {
+                  setCidade(text);
+                  if (errors.cidade) {
+                    setErrors({ ...errors, cidade: '' });
+                  }
+                }}
+                placeholder="Ex.: São Paulo"
+                placeholderTextColor={theme.colors.textSecondary}
+              />
+              {errors.cidade && <Text style={styles.errorText}>{errors.cidade}</Text>}
+            </View>
 
-              {/* Cidade */}
-              <View style={styles.field}>
-                <Text style={styles.label}>
-                  Cidade <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, errors.cidade ? styles.inputError : undefined]}
-                  value={cidade}
-                  onChangeText={(text) => {
-                    setCidade(text);
-                    if (errors.cidade) {
-                      setErrors({ ...errors, cidade: '' });
-                    }
-                  }}
-                  placeholder="Ex.: São Paulo"
-                  placeholderTextColor={theme.colors.textSecondary}
-                />
-                {errors.cidade && <Text style={styles.errorText}>{errors.cidade}</Text>}
-              </View>
-
-              {/* Cargo */}
-              <View style={styles.field}>
-                <Text style={styles.label}>
-                  Cargo/Ministério <Text style={styles.required}>*</Text>
-                </Text>
-                <View style={Platform.OS === 'web' ? { 
-                  position: 'relative' as const, 
-                  zIndex: 9999999, 
-                  overflow: 'visible' as const,
-                  // @ts-ignore
-                  isolation: 'isolate',
-                } : {}}>
-                  <SimpleSelectField
-                    value={selectedCargo}
-                    options={cargosOptions}
-                    onSelect={(option) => {
-                      const novoCargo = String(option.value);
-                      setSelectedCargo(novoCargo);
-                      setSelectedInstrumento('');
-                      
-                      // 🚨 FORÇAR "Oficializada" automaticamente para cargos específicos
-                      // Apenas cargos femininos de organistas: Instrutora, Secretária da Música, Examinadora
-                      // 🚨 NÃO incluir "Instrutor" (masculino) - ele é classe de músicos e precisa selecionar instrumento
-                      const cargosOficializadaAutomatica = [
-                        'Instrutora', // Feminino = organista
-                        'Secretária da Música',
-                        'Examinadora'
-                      ];
-                      if (cargosOficializadaAutomatica.includes(novoCargo)) {
-                        setSelectedClasse('Oficializada');
-                      } else {
-                        setSelectedClasse('');
-                      }
-                      
-                      if (errors.cargo) {
-                        setErrors({ ...errors, cargo: '' });
-                      }
-                    }}
-                    placeholder="Selecione um cargo..."
-                    error={errors.cargo}
-                  />
-                </View>
-              </View>
-
-              {/* Instrumento (se Músico) */}
-              {showInstrumento && (
-                <View style={styles.field}>
-                  <Text style={styles.label}>
-                    Instrumento <Text style={styles.required}>*</Text>
-                  </Text>
-                  <SimpleSelectField
-                    value={selectedInstrumento}
-                    options={instrumentosOptions}
-                    onSelect={(option) => {
-                      setSelectedInstrumento(String(option.value));
-                      if (errors.instrumento) {
-                        setErrors({ ...errors, instrumento: '' });
-                      }
-                    }}
-                    placeholder="Selecione um instrumento..."
-                    error={errors.instrumento}
-                  />
-                </View>
-              )}
-
-              {/* Classe (se Organista/Examinadora/Instrutora) */}
-              {showClasse && (
-                <View style={styles.field}>
-                  <Text style={styles.label}>
-                    Classe da Organista <Text style={styles.required}>*</Text>
-                  </Text>
-                  <SimpleSelectField
-                    value={selectedClasse}
-                    options={classesOptions}
-                    onSelect={(option) => {
-                      setSelectedClasse(String(option.value));
-                      if (errors.classe) {
-                        setErrors({ ...errors, classe: '' });
-                      }
-                    }}
-                    placeholder="Selecione a classe..."
-                    error={errors.classe}
-                  />
-                </View>
-              )}
-
-              {/* Nome */}
-              <View style={Platform.OS === 'web' ? { 
-                position: 'relative' as const, 
-                zIndex: 0, 
+            {/* Cargo */}
+            <View style={[styles.field, Platform.OS === 'web' ? { zIndex: 99, position: 'relative' as const } : { zIndex: 99 }]}>
+              <Text style={styles.label}>
+                Cargo/Ministério <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={Platform.OS === 'web' ? {
+                position: 'relative' as const,
+                zIndex: 99999,
                 overflow: 'visible' as const,
                 // @ts-ignore
                 isolation: 'isolate',
               } : {}}>
-                <View style={styles.field}>
-                  <Text style={styles.label}>
-                    Nome completo <Text style={styles.required}>*</Text>
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      errors.nome ? styles.inputError : undefined,
-                    ]}
-                    value={nome}
-                    onChangeText={(text) => {
-                      setNome(text);
-                      if (errors.nome) {
-                        setErrors({ ...errors, nome: '' });
-                      }
-                    }}
-                    placeholder="Ex.: João da Silva"
-                    placeholderTextColor={theme.colors.textSecondary}
-                  />
-                  {errors.nome && <Text style={styles.errorText}>{errors.nome}</Text>}
-                </View>
-              </View>
-            </ScrollView>
+                <SimpleSelectField
+                  value={selectedCargo}
+                  options={cargosOptions}
+                  onSelect={(option) => {
+                    const novoCargo = String(option.value);
+                    setSelectedCargo(novoCargo);
+                    setSelectedInstrumento('');
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <PrimaryButton
-                title="Salvar"
-                onPress={handleSave}
-                loading={loading}
-                style={styles.saveButton}
-                icon="save"
-              />
+                    // 🚨 FORÇAR "Oficializada" automaticamente para cargos específicos
+                    // Apenas cargos femininos de organistas: Instrutora, Secretária da Música, Examinadora
+                    // 🚨 NÃO incluir "Instrutor" (masculino) - ele é classe de músicos e precisa selecionar instrumento
+                    const cargosOficializadaAutomatica = [
+                      'Instrutora', // Feminino = organista
+                      'Secretária da Música',
+                      'Examinadora'
+                    ];
+                    if (cargosOficializadaAutomatica.includes(novoCargo)) {
+                      setSelectedClasse('Oficializada');
+                    } else {
+                      setSelectedClasse('');
+                    }
+
+                    if (errors.cargo) {
+                      setErrors({ ...errors, cargo: '' });
+                    }
+                  }}
+                  placeholder="Selecione um cargo..."
+                  error={errors.cargo}
+                />
+              </View>
             </View>
-          </TouchableOpacity>
+
+            {/* Instrumento (se Músico) */}
+            {showInstrumento && (
+              <View style={styles.field}>
+                <Text style={styles.label}>
+                  Instrumento <Text style={styles.required}>*</Text>
+                </Text>
+                <SimpleSelectField
+                  value={selectedInstrumento}
+                  options={instrumentosOptions}
+                  onSelect={(option) => {
+                    setSelectedInstrumento(String(option.value));
+                    if (errors.instrumento) {
+                      setErrors({ ...errors, instrumento: '' });
+                    }
+                  }}
+                  placeholder="Selecione um instrumento..."
+                  error={errors.instrumento}
+                />
+              </View>
+            )}
+
+            {/* Classe (se Organista/Examinadora/Instrutora) */}
+            {showClasse && (
+              <View style={styles.field}>
+                <Text style={styles.label}>
+                  Classe da Organista <Text style={styles.required}>*</Text>
+                </Text>
+                <SimpleSelectField
+                  value={selectedClasse}
+                  options={classesOptions}
+                  onSelect={(option) => {
+                    setSelectedClasse(String(option.value));
+                    if (errors.classe) {
+                      setErrors({ ...errors, classe: '' });
+                    }
+                  }}
+                  placeholder="Selecione a classe..."
+                  error={errors.classe}
+                />
+              </View>
+            )}
+
+            {/* Nome */}
+            <View style={Platform.OS === 'web' ? {
+              position: 'relative' as const,
+              zIndex: 0,
+              overflow: 'visible' as const,
+              // @ts-ignore
+              isolation: 'isolate',
+            } : {}}>
+              <View style={styles.field}>
+                <Text style={styles.label}>
+                  Nome completo <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    errors.nome ? styles.inputError : undefined,
+                  ]}
+                  value={nome}
+                  onChangeText={(text) => {
+                    setNome(text);
+                    if (errors.nome) {
+                      setErrors({ ...errors, nome: '' });
+                    }
+                  }}
+                  placeholder="Ex.: João da Silva"
+                  placeholderTextColor={theme.colors.textSecondary}
+                />
+                {errors.nome && <Text style={styles.errorText}>{errors.nome}</Text>}
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <PrimaryButton
+              title="Salvar"
+              onPress={handleSave}
+              loading={loading}
+              style={styles.saveButton}
+              icon="save"
+            />
+          </View>
         </TouchableOpacity>
-      </KeyboardAvoidingView>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
   );
 
   // 🚨 CORREÇÃO: Modal funciona offline - handleSaveNewRegistration já salva na fila quando offline
@@ -546,30 +546,30 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     ...(Platform.OS === 'web'
       ? {
-          backdropFilter: 'blur(4px)',
-          // @ts-ignore - Propriedades CSS apenas para web
-          backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          // @ts-ignore - Propriedades CSS apenas para web
-          opacity: 1,
-          // @ts-ignore - Propriedades CSS apenas para web
-          zIndex: 999999,
-          // @ts-ignore
-          position: 'fixed',
-          // @ts-ignore
-          top: 0,
-          // @ts-ignore
-          left: 0,
-          // @ts-ignore
-          right: 0,
-          // @ts-ignore
-          bottom: 0,
-          // @ts-ignore
-          width: '100%',
-          // @ts-ignore
-          height: '100%',
-          // @ts-ignore
-          isolation: 'isolate',
-        }
+        backdropFilter: 'blur(4px)',
+        // @ts-ignore - Propriedades CSS apenas para web
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        // @ts-ignore - Propriedades CSS apenas para web
+        opacity: 1,
+        // @ts-ignore - Propriedades CSS apenas para web
+        zIndex: 999999,
+        // @ts-ignore
+        position: 'fixed',
+        // @ts-ignore
+        top: 0,
+        // @ts-ignore
+        left: 0,
+        // @ts-ignore
+        right: 0,
+        // @ts-ignore
+        bottom: 0,
+        // @ts-ignore
+        width: '100%',
+        // @ts-ignore
+        height: '100%',
+        // @ts-ignore
+        isolation: 'isolate',
+      }
       : {}),
   },
   modalContent: {
@@ -581,26 +581,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
-          // @ts-ignore - Propriedades CSS apenas para web
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          // @ts-ignore - Propriedades CSS apenas para web
-          zIndex: 999999,
-          // @ts-ignore - Propriedades CSS apenas para web
-          opacity: 1,
-          // @ts-ignore
-          zIndex: 1000000,
-          // @ts-ignore
-          position: 'relative',
-          // @ts-ignore
-          isolation: 'isolate',
-        }
+        // @ts-ignore - Propriedades CSS apenas para web
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+        // @ts-ignore - Propriedades CSS apenas para web
+        zIndex: 999999,
+        // @ts-ignore - Propriedades CSS apenas para web
+        opacity: 1,
+        // @ts-ignore
+        zIndex: 1000000,
+        // @ts-ignore
+        position: 'relative',
+        // @ts-ignore
+        isolation: 'isolate',
+      }
       : {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.25,
-          shadowRadius: 24,
-          elevation: 999999,
-        }),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 24,
+        elevation: 999999,
+      }),
   },
   header: {
     alignItems: 'center',
@@ -686,14 +686,14 @@ const styles = StyleSheet.create({
     minHeight: Platform.OS === 'web' ? 44 : 50, // Aumentado para melhor toque no mobile
     ...(Platform.OS === 'web'
       ? {
-          // @ts-ignore - Propriedades CSS apenas para web
-          outlineStyle: 'none',
-          outlineWidth: 0,
-          // @ts-ignore - Propriedades CSS apenas para web
-          backgroundColor: '#ffffff',
-          // @ts-ignore - Propriedades CSS apenas para web
-          opacity: 1,
-        }
+        // @ts-ignore - Propriedades CSS apenas para web
+        outlineStyle: 'none',
+        outlineWidth: 0,
+        // @ts-ignore - Propriedades CSS apenas para web
+        backgroundColor: '#ffffff',
+        // @ts-ignore - Propriedades CSS apenas para web
+        opacity: 1,
+      }
       : {}),
   },
   inputError: {

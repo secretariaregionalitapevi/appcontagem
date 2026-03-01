@@ -32,11 +32,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Ignorar requisições que não sejam GET ou sejam requisições de API (Supabase/Google Sheets)
+    // Ignorar requisições que não sejam GET, requisições de API ou URLs de extensões Chrome
     if (
         event.request.method !== 'GET' ||
         event.request.url.includes('supabase.co') ||
-        event.request.url.includes('script.google.com')
+        event.request.url.includes('script.google.com') ||
+        !event.request.url.startsWith('http')
     ) {
         return;
     }

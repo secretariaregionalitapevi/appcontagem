@@ -9,6 +9,7 @@ import {
   Platform,
   ViewStyle,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -41,6 +42,7 @@ interface NameSelectFieldProps {
   error?: string;
   style?: ViewStyle;
   loading?: boolean;
+  onSubmit?: () => void;
 }
 
 const MANUAL_INPUT_OPTION_ID = '__MANUAL_INPUT__';
@@ -54,6 +56,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   error,
   style,
   loading = false,
+  onSubmit,
 }) => {
   // Iniciar sempre como select, não como manual
   const [isManualMode, setIsManualMode] = useState(false);
@@ -385,13 +388,17 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       value: selectedValue,
     });
 
-    // Resetar flag após um pequeno delay
-    // 🚨 CRÍTICO: Android precisa de delay maior para garantir que a seleção seja processada
     const resetDelay = Platform.OS === 'android' ? 200 : 100;
     setTimeout(() => {
       isSelectingRef.current = false;
       if (inputRef.current) {
         inputRef.current.blur();
+      }
+
+      // 🚨 CRÍTICO: Disparar onSubmit se fornecido DENTRO do timeout 
+      // para garantir que os sets states tenham tempo de terminar de rodar em RegisterScreen
+      if (onSubmit) {
+        onSubmit();
       }
     }, resetDelay);
   };
@@ -399,9 +406,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   // Handler para Enter/Submit
   const handleEnterPress = () => {
     if (isManualMode) {
-      // Em modo manual, confirmar o texto digitado
       if (searchText.trim()) {
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
+        // Acionar submit imediatamente no modo manual se for fornecida a prop
+        if (onSubmit) {
+          setTimeout(() => onSubmit(), 150); // Delay curto para dar tempo de atualizar o state
+        }
       }
       if (inputRef.current) {
         inputRef.current.blur();
@@ -428,6 +438,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         console.log('✏️ [NameSelectField] Enter pressionado com texto não encontrado na lista, tratando como manual:', searchText);
         setIsManualMode(true);
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
+        if (onSubmit) {
+          setTimeout(() => onSubmit(), 150);
+        }
         if (inputRef.current) {
           inputRef.current.blur();
         }
@@ -571,7 +584,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
             />
             {loading && (
               <View style={styles.loadingContainer}>
-                <FontAwesome5 name="spinner" size={14} color={theme.colors.primary} style={styles.loadingSpinner} />
+                <ActivityIndicator size="small" color={theme.colors.primary} />
                 <Text style={styles.loadingText}>Carregando...</Text>
               </View>
             )}
@@ -1055,8 +1068,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.xs,
   },
   loadingSpinner: {
-    // @ts-ignore - animação de rotação
-    animation: 'spin 1s linear infinite',
+    // Removido animation
   },
   loadingText: {
     fontSize: theme.fontSize.sm,

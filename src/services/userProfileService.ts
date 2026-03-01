@@ -4,7 +4,8 @@ import { Usuario } from '../types/models';
 export interface UserProfile {
   id: string;
   email: string;
-  name?: string; // Campo principal na tabela profiles (nome completo)
+  name?: string; // Legado ou caso venha de provedores OAuth
+  nome?: string; // Campo principal na tabela profiles (nome completo)
   role?: string;
   created_at?: string;
   updated_at?: string;
@@ -39,7 +40,7 @@ export const userProfileService = {
           {
             id: userId,
             email,
-            name: nome || null,
+            nome: nome || null,
             role: role || 'user',
             updated_at: new Date().toISOString(),
           },
@@ -74,10 +75,10 @@ export const userProfileService = {
     }
 
     try {
-      // 🚨 CORREÇÃO: Buscar campos corretos da tabela profiles (name, role)
+      // 🚨 CORREÇÃO: Buscar campos corretos da tabela profiles (nome, role)
       const result = await supabase
         .from('profiles')
-        .select('id, email, name, role, created_at, updated_at')
+        .select('id, email, nome, name, role, created_at, updated_at')
         .eq('id', userId)
         .single();
 
@@ -95,12 +96,25 @@ export const userProfileService = {
         console.log('✅ Perfil encontrado:', {
           id: result.data.id,
           email: result.data.email,
-          name: result.data.name || 'não definido',
+          nome: result.data.nome || result.data.name || 'não definido', // Usando 'nome' como principal
           role: result.data.role || 'não definido',
         });
+
+        // Retornar um objeto UserProfile construído com os dados
+        return {
+          profile: {
+            id: result.data.id,
+            email: result.data.email,
+            nome: result.data.nome || result.data.name || undefined, // Usando 'nome' como principal
+            role: result.data.role || undefined,
+            created_at: result.data.created_at || undefined,
+            updated_at: result.data.updated_at || undefined,
+          },
+          error: null,
+        };
       }
 
-      return { profile: result.data, error: null };
+      return { profile: null, error: null }; // Caso result.data seja null (embora single() já trate isso)
     } catch (error) {
       console.error('❌ Erro ao buscar perfil:', error);
       return { profile: null, error: error as Error };

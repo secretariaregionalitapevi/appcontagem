@@ -157,7 +157,7 @@ export const EditRegistrosScreen: React.FC = () => {
 
   const handleSearch = (text: string) => {
     setSearchTerm(text);
-    
+
     // Se o campo estiver vazio, limpar resultados
     if (!text.trim()) {
       setRegistros([]);
@@ -172,7 +172,7 @@ export const EditRegistrosScreen: React.FC = () => {
         setRegistros([]);
       }
     }, 300);
-    
+
     return () => clearTimeout(timeoutId);
   };
 
@@ -184,7 +184,7 @@ export const EditRegistrosScreen: React.FC = () => {
 
   const handleEdit = (registro: RegistroPresencaSupabase) => {
     console.log('📝 handleEdit chamado para registro:', registro);
-    
+
     // Verificar permissão
     if (!isMaster) {
       console.log('❌ Usuário não é master');
@@ -213,17 +213,17 @@ export const EditRegistrosScreen: React.FC = () => {
     setEditNome(registro.nome_completo || '');
     setEditComum(registro.comum || '');
     setEditCidade(registro.cidade || '');
-    
+
     // Encontrar o ID do cargo pelo nome
     const cargoEncontrado = cargos.find(c => c.nome.toUpperCase() === (registro.cargo || '').toUpperCase());
     setEditCargo(cargoEncontrado?.id || '');
-    
+
     setEditInstrumento(registro.instrumento || '');
     setEditNaipe(registro.naipe_instrumento || '');
     setEditClasse(registro.classe_organista || '');
     setEditDataEnsaio(registro.data_ensaio || '');
     setEditAnotacoes(registro.anotacoes || '');
-    
+
     // Abrir modal usando setTimeout para garantir que o estado seja atualizado
     setTimeout(() => {
       console.log('📝 Definindo editFormVisible como true');
@@ -270,7 +270,7 @@ export const EditRegistrosScreen: React.FC = () => {
       // Atualizar no Google Sheets PRIMEIRO (como backupcont)
       console.log('📤 ETAPA 1: Atualizando no Google Sheets...');
       const sheetsResult = await googleSheetsService.updateRegistroInSheet(editingRegistro.uuid, updateData);
-      
+
       if (!sheetsResult.success) {
         console.warn('⚠️ Google Sheets falhou, mas continuando com Supabase:', sheetsResult.error);
       } else {
@@ -289,10 +289,10 @@ export const EditRegistrosScreen: React.FC = () => {
         // Fechar modal primeiro
         setEditFormVisible(false);
         setEditingRegistro(null);
-        
+
         // Mostrar toast de sucesso
         showToast.success('Sucesso!', 'Registro atualizado com sucesso!');
-        
+
         // Recarregar lista após pequeno delay para garantir que o toast apareça
         setTimeout(async () => {
           await performSearch(searchTerm);
@@ -405,89 +405,89 @@ export const EditRegistrosScreen: React.FC = () => {
       >
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-              <View style={styles.headerTop}>
-                <TouchableOpacity
-                  style={styles.backButton}
-                  onPress={() => {
-                    console.log('🔙 Botão voltar clicado');
-                    try {
-                      if (navigation.canGoBack()) {
-                        navigation.goBack();
-                      } else {
-                        navigation.navigate('Register' as never);
-                      }
-                    } catch (error) {
-                      console.error('Erro ao voltar:', error);
+            <View style={styles.headerTop}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => {
+                  console.log('🔙 Botão voltar clicado');
+                  try {
+                    if (navigation.canGoBack()) {
+                      navigation.goBack();
+                    } else {
                       navigation.navigate('Register' as never);
                     }
-                  }}
-                >
-                  <FontAwesome5 name="arrow-left" size={16} color={theme.colors.primary} />
-                  <Text style={styles.backButtonText}>Voltar</Text>
-                </TouchableOpacity>
-              </View>
+                  } catch (error) {
+                    console.error('Erro ao voltar:', error);
+                    navigation.navigate('Register' as never);
+                  }
+                }}
+              >
+                <FontAwesome5 name="arrow-left" size={16} color={theme.colors.primary} />
+                <Text style={styles.backButtonText}>Voltar</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.cardTitle}>Editar Registros</Text>
             <Text style={styles.cardSubtitle}>
-                Local: {localEnsaio} • {registros.length} registro(s) encontrado(s)
+              Local: {localEnsaio} • {registros.length} registro(s) encontrado(s)
             </Text>
           </View>
 
-            {/* Campo de busca */}
-            <View style={styles.searchContainer}>
-              <FontAwesome5 name="search" size={16} color={theme.colors.textSecondary} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Pesquisar por nome, cargo ou comum..."
-                placeholderTextColor={theme.colors.textSecondary}
-                value={searchTerm}
-                onChangeText={handleSearch}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+          {/* Campo de busca */}
+          <View style={styles.searchContainer}>
+            <FontAwesome5 name="search" size={16} color={theme.colors.textSecondary} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Pesquisar por nome, cargo ou comum..."
+              placeholderTextColor={theme.colors.textSecondary}
+              value={searchTerm}
+              onChangeText={handleSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
 
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Buscando registros...</Text>
-              </View>
-            ) : registros.length === 0 ? (
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.loadingText}>Buscando registros...</Text>
+            </View>
+          ) : registros.length === 0 ? (
             <View style={styles.emptyContainer}>
-                <FontAwesome5 name="search" size={48} color={theme.colors.textSecondary} />
-                <Text style={styles.emptyText}>
-                  {searchTerm ? 'Nenhum registro encontrado' : 'Nenhuma pesquisa realizada'}
-                </Text>
-                <Text style={styles.emptySubtext}>
-                  {searchTerm
-                    ? 'Tente refinar sua pesquisa'
-                    : 'Digite no campo acima para buscar registros'}
-                </Text>
+              <FontAwesome5 name="search" size={48} color={theme.colors.textSecondary} />
+              <Text style={styles.emptyText}>
+                {searchTerm ? 'Nenhum registro encontrado' : 'Nenhuma pesquisa realizada'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {searchTerm
+                  ? 'Tente refinar sua pesquisa'
+                  : 'Digite no campo acima para buscar registros'}
+              </Text>
             </View>
           ) : (
             <View style={styles.registrosList}>
-                {registros.map((registro, index) => (
-                  <View key={registro.uuid || index} style={styles.registroItem}>
+              {registros.map((registro, index) => (
+                <View key={registro.uuid || index} style={styles.registroItem}>
                   <View style={styles.registroContent}>
                     <View style={styles.registroHeader}>
-                        <Text style={styles.registroNome}>
-                          {registro.nome_completo || 'Nome não informado'}
-                        </Text>
+                      <Text style={styles.registroNome}>
+                        {registro.nome_completo || 'Nome não informado'}
+                      </Text>
                       <TouchableOpacity
-                          style={styles.editButton}
-                          onPress={() => {
-                            console.log('🔘 Botão de editar clicado para:', registro.nome_completo);
-                            handleEdit(registro);
-                          }}
-                          activeOpacity={0.7}
+                        style={styles.editButton}
+                        onPress={() => {
+                          console.log('🔘 Botão de editar clicado para:', registro.nome_completo);
+                          handleEdit(registro);
+                        }}
+                        activeOpacity={0.7}
                       >
-                          <FontAwesome5 name="edit" size={16} color={theme.colors.primary} />
+                        <FontAwesome5 name="edit" size={16} color={theme.colors.primary} />
                       </TouchableOpacity>
                     </View>
 
                     <View style={styles.registroDetails}>
                       <View style={styles.detailRow}>
                         <FontAwesome5 name="users" size={12} color={theme.colors.textSecondary} />
-                          <Text style={styles.detailText}>{registro.comum || 'Não informado'}</Text>
+                        <Text style={styles.detailText}>{registro.comum || 'Não informado'}</Text>
                       </View>
 
                       <View style={styles.detailRow}>
@@ -496,20 +496,20 @@ export const EditRegistrosScreen: React.FC = () => {
                           size={12}
                           color={theme.colors.textSecondary}
                         />
-                          <Text style={styles.detailText}>{registro.cargo || 'Não informado'}</Text>
+                        <Text style={styles.detailText}>{registro.cargo || 'Não informado'}</Text>
                       </View>
 
-                        {registro.instrumento && (
+                      {registro.instrumento && (
                         <View style={styles.detailRow}>
                           <FontAwesome5 name="music" size={12} color={theme.colors.textSecondary} />
-                            <Text style={styles.detailText}>{registro.instrumento}</Text>
-                          </View>
-                        )}
+                          <Text style={styles.detailText}>{registro.instrumento}</Text>
+                        </View>
+                      )}
 
-                        {registro.classe_organista && (
-                          <View style={styles.detailRow}>
-                            <FontAwesome5 name="keyboard" size={12} color={theme.colors.textSecondary} />
-                            <Text style={styles.detailText}>Classe: {registro.classe_organista}</Text>
+                      {registro.classe_organista && (
+                        <View style={styles.detailRow}>
+                          <FontAwesome5 name="keyboard" size={12} color={theme.colors.textSecondary} />
+                          <Text style={styles.detailText}>Classe: {registro.classe_organista}</Text>
                         </View>
                       )}
 
@@ -519,22 +519,22 @@ export const EditRegistrosScreen: React.FC = () => {
                           size={12}
                           color={theme.colors.textSecondary}
                         />
-                          <Text style={styles.detailText}>{registro.local_ensaio || 'Não informado'}</Text>
+                        <Text style={styles.detailText}>{registro.local_ensaio || 'Não informado'}</Text>
                       </View>
 
                       <View style={styles.detailRow}>
                         <FontAwesome5 name="clock" size={12} color={theme.colors.textSecondary} />
                         <Text style={styles.detailText}>
-                            {formatDate(registro.data_ensaio || registro.created_at || '')}
+                          {formatDate(registro.data_ensaio || registro.created_at || '')}
                         </Text>
                       </View>
 
-                        {registro.anotacoes && (
-                          <View style={styles.detailRow}>
-                            <FontAwesome5 name="sticky-note" size={12} color={theme.colors.textSecondary} />
-                            <Text style={styles.detailText}>{registro.anotacoes}</Text>
-                          </View>
-                        )}
+                      {registro.anotacoes && (
+                        <View style={styles.detailRow}>
+                          <FontAwesome5 name="sticky-note" size={12} color={theme.colors.textSecondary} />
+                          <Text style={styles.detailText}>{registro.anotacoes}</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -581,8 +581,8 @@ export const EditRegistrosScreen: React.FC = () => {
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView 
-                    style={styles.modalBody} 
+                  <ScrollView
+                    style={styles.modalBody}
                     contentContainerStyle={{ flexGrow: 1 }}
                     keyboardShouldPersistTaps="handled"
                     nestedScrollEnabled={Platform.OS !== 'web'}
@@ -626,7 +626,7 @@ export const EditRegistrosScreen: React.FC = () => {
                       />
                     </View>
 
-                    <View style={styles.formField}>
+                    <View style={[styles.formField, Platform.OS === 'web' ? { zIndex: 99, position: 'relative', isolation: 'isolate' } as any : { zIndex: 99 }]}>
                       <Text style={styles.formLabel}>Cargo/Ministério *</Text>
                       <AutocompleteField
                         value={editCargo}

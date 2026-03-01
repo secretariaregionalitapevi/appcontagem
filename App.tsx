@@ -1,3 +1,20 @@
+/**
+ * ============================================================================
+ * PROPRIEDADE INTELECTUAL E DIREITOS AUTORAIS
+ * ============================================================================
+ * Este sistema (App Frontend) foi desenvolvido e arquitetado exclusivamente pela:
+ * SECRETARIA DA ADMINISTRAÇÃO MUSICAL - REGIONAL ITAPEVI
+ * 
+ * Sede da Administração Musical Itapevi:
+ * Av. Ana Araújo de Castro, 815 - Jardim Itapevi, Itapevi - SP
+ * CEP: 06653-140
+ * 
+ * É ESTRITAMENTE PROIBIDA a cópia, distribuição, engenharia reversa 
+ * ou uso deste código-fonte por outras regionais ou terceiros sem 
+ * autorização prévia e expressa da Secretaria de Itapevi.
+ * ============================================================================
+ */
+
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, Platform } from 'react-native';
