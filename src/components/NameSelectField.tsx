@@ -486,7 +486,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       ref={containerRef}
       collapsable={false}
     >
-      {label && <Text style={styles.label}>{label}</Text>}
+      {!!label && <Text style={styles.label}>{label}</Text>}
 
       <View
         style={[
@@ -854,7 +854,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         </>
       </View>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };

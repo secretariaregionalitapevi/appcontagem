@@ -55,120 +55,103 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
     fontStyle.rel = 'stylesheet';
     document.head.appendChild(fontStyle);
 
-    // 🚀 MELHORIA: Estilos customizados mais compactos e elegantes
+    // 🚀 MELHORIA: Estilos customizados mais elegantes e modernos (Toast e Glassmorphism)
     const customStyle = document.createElement('style');
     customStyle.id = 'sweetalert2-custom-styles';
     customStyle.textContent = `
-      /* Toast (modo ultra-compacto e elegante) */
-      .swal2-toast {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        border-radius: 8px !important;
-        padding: 0.625rem 0.875rem !important;
-        min-width: 240px !important;
-        max-width: 320px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+      /* Toasts unificados e modernos */
+      .swal2-toast-modern {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(10px) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         display: flex !important;
         align-items: center !important;
-      }
-      .swal2-toast .swal2-title {
-        font-size: 13px !important;
-        font-weight: 600 !important;
-        color: #1f2937 !important;
-        line-height: 1.3 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        flex: 1 !important;
-      }
-      .swal2-toast .swal2-content {
-        display: none !important; /* Ocultar conteúdo extra para manter compacto */
-      }
-      .swal2-toast .swal2-icon {
-        width: 28px !important;
-        height: 28px !important;
-        margin: 0 0.625rem 0 0 !important;
-        flex-shrink: 0 !important;
-      }
-      .swal2-toast .swal2-icon .swal2-success-ring {
-        width: 28px !important;
-        height: 28px !important;
-      }
-      .swal2-toast .swal2-icon .swal2-success-line-tip,
-      .swal2-toast .swal2-icon .swal2-success-line-long {
-        height: 2px !important;
-      }
-      .swal2-toast .swal2-icon.swal2-success {
-        border-color: #10b981 !important;
-      }
-      .swal2-toast .swal2-icon.swal2-error {
-        border-color: #ef4444 !important;
-      }
-      .swal2-toast .swal2-icon.swal2-info {
-        border-color: #3b82f6 !important;
-      }
-      .swal2-toast .swal2-icon.swal2-warning {
-        border-color: #f59e0b !important;
+        width: auto !important;
+        max-width: 400px !important;
       }
       
-      /* Modal (para erros importantes) */
-      .swal2-popup:not(.swal2-toast),
-      .swal2-popup-error-elegant {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        font-size: 15px !important;
-        border-radius: 16px !important;
-        padding: 2rem !important;
-        max-width: 420px !important;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
-        border: none !important;
-      }
-      .swal2-popup:not(.swal2-toast) .swal2-title,
-      .swal2-title-error-elegant {
-        font-size: 20px !important;
-        font-weight: 700 !important;
+      .swal2-toast-modern .swal2-title {
+        font-size: 14px !important;
+        font-weight: 600 !important;
         color: #1f2937 !important;
-        line-height: 1.3 !important;
-        margin-bottom: 1rem !important;
-        margin-top: 0 !important;
-        padding: 0 !important;
-        text-align: center !important;
+        margin: 0 0 2px 0 !important;
+        line-height: 1.4 !important;
+        flex: auto !important;
       }
-      .swal2-popup:not(.swal2-toast) .swal2-content,
-      .swal2-content-error-elegant {
-        font-size: 15px !important;
+      
+      .swal2-toast-modern .swal2-html-container {
+        font-size: 13px !important;
         font-weight: 400 !important;
         color: #6b7280 !important;
-        line-height: 1.6 !important;
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
-        padding: 0 !important;
-        text-align: center !important;
+        margin: 0 !important;
+        line-height: 1.4 !important;
+        text-align: left !important;
       }
-      /* Remover estilos do ícone padrão já que usamos HTML customizado */
-      .swal2-popup-error-elegant .swal2-icon {
-        display: none !important;
+
+      .swal2-toast-modern .swal2-icon {
+        width: 32px !important;
+        height: 32px !important;
+        margin: 0 12px 0 0 !important;
+        flex-shrink: 0 !important;
+        border-width: 2px !important;
       }
-      .swal2-popup:not(.swal2-toast) .swal2-confirm,
-      .swal2-confirm-error-elegant {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        padding: 0.75rem 2rem !important;
-        border-radius: 10px !important;
-        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
-        transition: all 0.2s ease !important;
-        margin-top: 1.5rem !important;
-        background-color: #dc2626 !important;
+      
+      .swal2-toast-modern .swal2-icon.swal2-success { border-color: #10b981 !important; color: #10b981 !important; }
+      .swal2-toast-modern .swal2-icon.swal2-error { border-color: #ef4444 !important; color: #ef4444 !important; }
+      .swal2-toast-modern .swal2-icon.swal2-warning { border-color: #f59e0b !important; color: #f59e0b !important; }
+      .swal2-toast-modern .swal2-icon.swal2-info { border-color: #3b82f6 !important; color: #3b82f6 !important; }
+
+      .swal2-toast-modern .swal2-success-ring { width: 32px !important; height: 32px !important; }
+
+      /* Modais estilo Inspinia Classic */
+      .swal2-popup-inspinia {
+        font-family: "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+        border-radius: 4px !important;
+        padding: 20px !important;
+        width: 440px !important;
+        max-width: 90% !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
         border: none !important;
-        min-width: 120px !important;
       }
-      .swal2-popup:not(.swal2-toast) .swal2-confirm:hover,
-      .swal2-confirm-error-elegant:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4) !important;
-        background-color: #b91c1c !important;
+      
+      .swal2-popup-inspinia .swal2-title {
+        font-size: 24px !important;
+        font-weight: 400 !important;
+        color: #575757 !important;
+        margin-top: 10px !important;
+        margin-bottom: 5px !important;
       }
-      .swal2-popup:not(.swal2-toast) .swal2-confirm:active,
-      .swal2-confirm-error-elegant:active {
-        transform: translateY(0) !important;
+      
+      .swal2-popup-inspinia .swal2-html-container {
+        font-size: 16px !important;
+        font-weight: 300 !important;
+        color: #797979 !important;
+        margin-top: 10px !important;
+        line-height: normal !important;
+      }
+
+      .swal2-inspinia-confirm-btn {
+        background-color: #1ab394 !important; /* Inspinia Green/Turquoise */
+        border-color: #1ab394 !important;
+        color: #fff !important;
+        font-size: 14px !important;
+        font-weight: 400 !important;
+        border-radius: 3px !important;
+        padding: 8px 16px !important;
+        margin-top: 20px !important;
+        min-width: 60px !important;
+        box-shadow: none !important;
+        transition: background-color 0.2s !important;
+      }
+
+      .swal2-inspinia-confirm-btn:hover {
+        background-color: #18a689 !important;
+        border-color: #18a689 !important;
       }
     `;
     document.head.appendChild(customStyle);
@@ -177,108 +160,55 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 
 export const showToast = {
   success: (title: string, message?: string) => {
-    // 🚀 MELHORIA: Sempre usar title como mensagem única (ultra-compacto)
-    // Se message foi fornecido, combinar em uma linha
-    const finalMessage = message ? `${title} ${message}` : title;
-    
     if (Platform.OS === 'web') {
-      // 🚀 MELHORIA: Toast de sucesso ultra-compacto (uma linha)
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'success',
-          title: finalMessage,
-          text: '', // Sempre vazio para manter compacto
-          timer: 1500,
-          timerProgressBar: false,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-          width: 'auto',
-          padding: '0.625rem 0.875rem',
+          title: title,
+          html: message ? `<div>${message}</div>` : '',
+          showConfirmButton: true,
+          confirmButtonText: 'OK',
+          toast: false,
+          position: 'center',
           customClass: {
-            popup: 'swal2-toast',
-            title: 'swal2-toast-title',
-            content: 'swal2-toast-content',
+            popup: 'swal2-popup-inspinia',
+            confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
       } else {
-        console.log(`✅ ${finalMessage}`);
+        console.log(`✅ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
-      // 🚀 MELHORIA: Toast mobile ultra-compacto (uma linha)
-      try {
-        Toast.show({
-          type: 'success',
-          text1: finalMessage,
-          text2: undefined, // Sempre undefined para manter compacto
-          position: 'top',
-          visibilityTime: 1500,
-          autoHide: true,
-          topOffset: Platform.OS === 'ios' ? 60 : 50,
-          text1Style: { 
-            fontSize: 13, 
-            fontWeight: '600',
-            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-          },
-        });
-      } catch (toastError) {
-        // Fallback se Toast falhar
-        if (Platform.OS !== 'web') {
-          Alert.alert('Sucesso', finalMessage);
-        }
-      }
-    } else {
-      // Fallback para iOS se Toast não estiver disponível
-      if (Platform.OS === 'ios') {
-        Alert.alert('Sucesso', finalMessage);
-      }
+      Toast.show({
+        type: 'success',
+        text1: title,
+        text2: message,
+        position: 'top',
+        visibilityTime: 3500,
+        autoHide: true,
+        topOffset: Platform.OS === 'ios' ? 60 : 50,
+      });
+    } else if (Platform.OS === 'ios') {
+      Alert.alert('Sucesso', message ? `${title}\n${message}` : title);
     }
   },
 
   error: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
-      // 🚀 MELHORIA: Modal de erro elegante com ícone SVG customizado
       const Swal = getSwal();
       if (Swal) {
-        // Criar HTML completo com ícone SVG customizado (X bem proporcional)
-        const customHtml = `
-          <div style="
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1.5rem auto;
-            background-color: #fee2e2;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          ">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18M6 6L18 18" stroke="#dc2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h2 class="swal2-title" style="font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 1rem; text-align: center;">${title}</h2>
-          <div class="swal2-content" style="font-size: 15px; color: #6b7280; line-height: 1.6; text-align: center;">${message || ''}</div>
-        `;
-        
         Swal.fire({
-          html: customHtml,
-          icon: false, // Desabilitar ícone padrão
-          timer: 5000,
-          timerProgressBar: true,
+          icon: 'error',
+          title: title,
+          html: message ? `<div>${message}</div>` : '',
           showConfirmButton: true,
           confirmButtonText: 'OK',
-          confirmButtonColor: '#dc2626',
-          toast: false, // Modal para erros importantes
+          toast: false,
           position: 'center',
-          padding: '2rem',
-          width: '420px',
-          backdrop: true,
-          allowOutsideClick: true,
-          allowEscapeKey: true,
           customClass: {
-            popup: 'swal2-popup-error-elegant',
-            confirmButton: 'swal2-confirm-error-elegant',
+            popup: 'swal2-popup-inspinia',
+            confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
       } else {
@@ -289,24 +219,14 @@ export const showToast = {
         }
       }
     } else if (Toast) {
-      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
         type: 'error',
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 3500,
+        visibilityTime: 4500,
         autoHide: true,
-        topOffset: Platform.OS === 'ios' ? 50 : 40,
-        text1Style: { 
-          fontSize: 14, 
-          fontWeight: '600',
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
-        text2Style: { 
-          fontSize: 12,
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
+        topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
     } else {
       Alert.alert(title, message || '');
@@ -315,24 +235,19 @@ export const showToast = {
 
   info: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
-      // 🚀 MELHORIA: Toast de info compacto
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'info',
           title: title,
-          text: message || '',
-          timer: 3000,
-          timerProgressBar: false,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-          width: 'auto',
-          padding: '0.75rem 1rem',
+          html: message ? `<div>${message}</div>` : '',
+          showConfirmButton: true,
+          confirmButtonText: 'OK',
+          toast: false,
+          position: 'center',
           customClass: {
-            popup: 'swal2-toast',
-            title: 'swal2-toast-title',
-            content: 'swal2-toast-content',
+            popup: 'swal2-popup-inspinia',
+            confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
       } else {
@@ -340,24 +255,14 @@ export const showToast = {
         console.info(`ℹ️ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
-      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
         type: 'info',
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 3000,
+        visibilityTime: 3500,
         autoHide: true,
-        topOffset: Platform.OS === 'ios' ? 50 : 40,
-        text1Style: { 
-          fontSize: 14, 
-          fontWeight: '600',
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
-        text2Style: { 
-          fontSize: 12,
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
+        topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
     } else {
       Alert.alert(title, message || '');
@@ -366,26 +271,25 @@ export const showToast = {
 
   warning: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
-      // 🚀 MELHORIA: Toast de warning compacto
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
           icon: 'warning',
           title: title,
-          text: message || '',
-          timer: 4000,
-          timerProgressBar: true,
+          html: message ? `<div>${message}</div>` : '',
           showConfirmButton: true,
           confirmButtonText: 'OK',
-          confirmButtonColor: '#f59e0b',
-          toast: false, // Modal para warnings importantes
-          position: 'center',
-          padding: '1.5rem',
+          toast: false,
+          // Exceção: O usuário mencionou não mexer no alerta de duplicidade,
+          // que usa showToast.warning. Porém o SweetAlert base não sabe de onde veio.
+          // Como o alert de duplicidade ("Atenção", "Este registro já está na fila") usa warning,
+          // se quisermos que ele continue toast, precisamos checar o title.
+          position: title === 'Atenção' && message?.includes('fila') ? 'top-end' : 'center',
+          timer: title === 'Atenção' && message?.includes('fila') ? 4500 : undefined,
+          timerProgressBar: title === 'Atenção' && message?.includes('fila') ? true : false,
           customClass: {
-            popup: 'swal2-popup-compact',
-            title: 'swal2-title-compact',
-            content: 'swal2-content-compact',
-            confirmButton: 'swal2-confirm-compact',
+            popup: title === 'Atenção' && message?.includes('fila') ? 'swal2-toast-modern' : 'swal2-popup-inspinia',
+            confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
       } else {
@@ -396,24 +300,14 @@ export const showToast = {
         }
       }
     } else if (Toast) {
-      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
-        type: 'info',
+        type: 'info', // react-native-toast-message usa 'info' para warning às vezes, dependendo da config
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 4000,
+        visibilityTime: 4500,
         autoHide: true,
-        topOffset: Platform.OS === 'ios' ? 50 : 40,
-        text1Style: { 
-          fontSize: 14, 
-          fontWeight: '600',
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
-        text2Style: { 
-          fontSize: 12,
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
+        topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
     } else {
       Alert.alert(title, message || '');
@@ -426,22 +320,14 @@ export const showToast = {
       const Swal = getSwal();
       if (Swal) {
         Swal.fire({
-          icon: 'info',
           title: title,
-          text: message || 'Aguarde...',
-          timer: 15000,
-          timerProgressBar: true,
+          html: message ? `<div>${message}</div>` : 'Aguarde...',
+          timerProgressBar: false,
           showConfirmButton: false,
           toast: true,
           position: 'top-end',
-          width: 'auto',
-          padding: '0.75rem 1rem',
-          allowOutsideClick: false,
-          allowEscapeKey: false,
           customClass: {
-            popup: 'swal2-toast',
-            title: 'swal2-toast-title',
-            content: 'swal2-toast-content',
+            popup: 'swal2-toast-modern',
           },
           didOpen: () => {
             Swal.showLoading();
@@ -449,24 +335,13 @@ export const showToast = {
         });
       }
     } else if (Toast) {
-      // 🚀 MELHORIA: Toast mobile mais compacto
       Toast.show({
         type: 'info',
         text1: title,
         text2: message || 'Aguarde...',
         position: 'top',
-        visibilityTime: 15000,
         autoHide: false,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
-        text1Style: { 
-          fontSize: 14, 
-          fontWeight: '600',
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
-        text2Style: { 
-          fontSize: 12,
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        },
       });
     }
   },

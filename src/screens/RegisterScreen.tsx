@@ -193,6 +193,9 @@ export const RegisterScreen: React.FC = () => {
                   <select
                     style={{
                       ...styles.selectWeb,
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
                       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
                       backgroundRepeat: 'no-repeat',
                       backgroundPosition: 'right center',
@@ -683,14 +686,5 @@ const styles = StyleSheet.create({
     outlineStyle: 'none',
     outlineWidth: 0,
     cursor: 'pointer',
-    ...(Platform.OS === 'web' ? {
-      WebkitAppearance: 'none' as any,
-      MozAppearance: 'none' as any,
-      appearance: 'none' as any,
-      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
-      backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'right center',
-      backgroundSize: '10px 10px',
-    } : {}),
   } as any,
 });

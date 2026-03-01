@@ -190,22 +190,22 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
       style={[
         styles.container,
         style,
-          Platform.OS === 'web'
+        Platform.OS === 'web'
           ? {
-              position: 'relative' as any,
-              overflow: 'visible' as any,
-              zIndex: containerZIndex,
-            }
+            position: 'relative' as any,
+            overflow: 'visible' as any,
+            zIndex: containerZIndex,
+          }
           : {
-              overflow: 'visible' as any,
-              zIndex: containerZIndex,
-              elevation: isFocused ? 10 : 0,
-            },
+            overflow: 'visible' as any,
+            zIndex: containerZIndex,
+            elevation: isFocused ? 10 : 0,
+          },
       ]}
       ref={containerRef}
       collapsable={false}
     >
-      {label && <Text style={styles.label}>{label}</Text>}
+      {!!label && <Text style={styles.label}>{label}</Text>}
 
       <View
         style={[
@@ -227,12 +227,12 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
             error && styles.inputError,
             Platform.OS === 'web'
               ? {
-                  position: 'relative' as ViewStyle['position'],
-                  zIndex: 1,
-                  // @ts-ignore - Propriedades CSS apenas para web
-                  outlineStyle: 'none',
-                  outlineWidth: 0,
-                }
+                position: 'relative' as ViewStyle['position'],
+                zIndex: 1,
+                // @ts-ignore - Propriedades CSS apenas para web
+                outlineStyle: 'none',
+                outlineWidth: 0,
+              }
               : {},
           ]}
           value={searchText}
@@ -245,49 +245,49 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
           onSubmitEditing={handleEnterPress}
           {...(Platform.OS === 'web'
             ? {
-                onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleEnterPress();
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (filtered.length > 0) {
-                      const nextIndex = selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
-                      setSelectedIndex(nextIndex);
-                      if (flatListRef.current && nextIndex >= 0) {
-                        setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({ 
-                            index: nextIndex, 
-                            animated: true,
-                            viewOffset: 10,
-                          });
-                        }, 50);
-                      }
-                    }
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (filtered.length > 0) {
-                      const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
-                      setSelectedIndex(prevIndex);
-                      if (flatListRef.current && prevIndex >= 0) {
-                        setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({ 
-                            index: prevIndex, 
-                            animated: true,
-                            viewOffset: 10,
-                          });
-                        }, 50);
-                      }
-                    }
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setShowList(false);
-                    if (inputRef.current) {
-                      inputRef.current.blur();
+              onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleEnterPress();
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  if (filtered.length > 0) {
+                    const nextIndex = selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
+                    setSelectedIndex(nextIndex);
+                    if (flatListRef.current && nextIndex >= 0) {
+                      setTimeout(() => {
+                        flatListRef.current?.scrollToIndex({
+                          index: nextIndex,
+                          animated: true,
+                          viewOffset: 10,
+                        });
+                      }, 50);
                     }
                   }
-                },
-              }
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  if (filtered.length > 0) {
+                    const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
+                    setSelectedIndex(prevIndex);
+                    if (flatListRef.current && prevIndex >= 0) {
+                      setTimeout(() => {
+                        flatListRef.current?.scrollToIndex({
+                          index: prevIndex,
+                          animated: true,
+                          viewOffset: 10,
+                        });
+                      }, 50);
+                    }
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setShowList(false);
+                  if (inputRef.current) {
+                    inputRef.current.blur();
+                  }
+                }
+              },
+            }
             : {})}
         />
 
@@ -323,9 +323,9 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
                       activeOpacity={0.7}
                       {...(Platform.OS === 'web'
                         ? {
-                            onMouseEnter: () => setSelectedIndex(index),
-                            onMouseLeave: () => setSelectedIndex(-1),
-                          }
+                          onMouseEnter: () => setSelectedIndex(index),
+                          onMouseLeave: () => setSelectedIndex(-1),
+                        }
                         : {})}
                     >
                       <Text
@@ -451,7 +451,7 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
         )}
       </View>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };

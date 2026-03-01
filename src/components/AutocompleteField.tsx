@@ -147,7 +147,7 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
         if (inputElement && typeof document !== 'undefined') {
           // Tentar acessar o elemento DOM nativo do React Native Web
           let domElement = null;
-          
+
           // Tentar diferentes formas de acessar o elemento DOM
           if (inputElement._nativeNode) {
             domElement = inputElement._nativeNode;
@@ -163,7 +163,7 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
               domElement = containerElement._nativeNode.querySelector('input');
             }
           }
-          
+
           if (typeof document !== 'undefined' && !domElement) {
             // Tentar encontrar o input no DOM
             const inputs = document.querySelectorAll('input');
@@ -320,26 +320,26 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
   const dropdownZIndex = 999999; // Z-index extremamente alto para garantir que apareça acima de tudo
 
   return (
-      <View
-        style={[
-          styles.container,
-          style,
-          Platform.OS === 'web'
-            ? {
-                position: 'relative' as ViewStyle['position'],
-                overflow: 'visible' as ViewStyle['overflow'],
-                zIndex: containerZIndex,
-              }
-            : {
-                overflow: 'visible' as ViewStyle['overflow'],
-                zIndex: containerZIndex,
-                elevation: isFocused ? 10 : 0,
-              },
-        ]}
-        ref={containerRef}
-        collapsable={false}
-      >
-      {label && <Text style={styles.label}>{label}</Text>}
+    <View
+      style={[
+        styles.container,
+        style,
+        Platform.OS === 'web'
+          ? {
+            position: 'relative' as ViewStyle['position'],
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+          }
+          : {
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+            elevation: isFocused ? 10 : 0,
+          },
+      ]}
+      ref={containerRef}
+      collapsable={false}
+    >
+      {!!label && <Text style={styles.label}>{label}</Text>}
 
       <View
         style={[
@@ -361,11 +361,11 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
             error ? styles.inputError : undefined,
             Platform.OS === 'web'
               ? {
-                  position: 'relative' as ViewStyle['position'],
-                  // @ts-ignore - Propriedades CSS apenas para web
-                  outlineStyle: 'none',
-                  outlineWidth: 0,
-                }
+                position: 'relative' as ViewStyle['position'],
+                // @ts-ignore - Propriedades CSS apenas para web
+                outlineStyle: 'none',
+                outlineWidth: 0,
+              }
               : undefined,
           ].filter(Boolean)}
           value={searchText}
@@ -379,51 +379,51 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
           onSubmitEditing={handleEnterPress}
           {...(Platform.OS === 'web'
             ? {
-                onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleEnterPress();
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (filtered.length > 0) {
-                      const nextIndex =
-                        selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
-                      setSelectedIndex(nextIndex);
-                      if (flatListRef.current && nextIndex >= 0) {
-                        setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({
-                            index: nextIndex,
-                            animated: true,
-                            viewOffset: 10,
-                          });
-                        }, 50);
-                      }
-                    }
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (filtered.length > 0) {
-                      const prevIndex =
-                        selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
-                      setSelectedIndex(prevIndex);
-                      if (flatListRef.current && prevIndex >= 0) {
-                        setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({
-                            index: prevIndex,
-                            animated: true,
-                            viewOffset: 10,
-                          });
-                        }, 50);
-                      }
-                    }
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setShowList(false);
-                    if (inputRef.current) {
-                      inputRef.current.blur();
+              onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleEnterPress();
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  if (filtered.length > 0) {
+                    const nextIndex =
+                      selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
+                    setSelectedIndex(nextIndex);
+                    if (flatListRef.current && nextIndex >= 0) {
+                      setTimeout(() => {
+                        flatListRef.current?.scrollToIndex({
+                          index: nextIndex,
+                          animated: true,
+                          viewOffset: 10,
+                        });
+                      }, 50);
                     }
                   }
-                },
-              }
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  if (filtered.length > 0) {
+                    const prevIndex =
+                      selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
+                    setSelectedIndex(prevIndex);
+                    if (flatListRef.current && prevIndex >= 0) {
+                      setTimeout(() => {
+                        flatListRef.current?.scrollToIndex({
+                          index: prevIndex,
+                          animated: true,
+                          viewOffset: 10,
+                        });
+                      }, 50);
+                    }
+                  }
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setShowList(false);
+                  if (inputRef.current) {
+                    inputRef.current.blur();
+                  }
+                }
+              },
+            }
             : {})}
         />
 
@@ -569,7 +569,7 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
         )}
       </View>
 
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 });

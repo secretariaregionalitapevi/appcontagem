@@ -10,7 +10,6 @@ export interface UserProfile {
   created_at?: string;
   updated_at?: string;
   // Campos legados (para compatibilidade)
-  nome?: string;
 }
 
 export const userProfileService = {
@@ -40,7 +39,7 @@ export const userProfileService = {
           {
             id: userId,
             email,
-            nome: nome || null,
+            name: nome || null,
             role: role || 'user',
             updated_at: new Date().toISOString(),
           },
@@ -78,7 +77,7 @@ export const userProfileService = {
       // 🚨 CORREÇÃO: Buscar campos corretos da tabela profiles (nome, role)
       const result = await supabase
         .from('profiles')
-        .select('id, email, nome, name, role, created_at, updated_at')
+        .select('id, email, name, role, created_at, updated_at')
         .eq('id', userId)
         .single();
 
@@ -96,7 +95,7 @@ export const userProfileService = {
         console.log('✅ Perfil encontrado:', {
           id: result.data.id,
           email: result.data.email,
-          nome: result.data.nome || result.data.name || 'não definido', // Usando 'nome' como principal
+          nome: result.data.name || 'não definido', // Usando 'nome' como principal
           role: result.data.role || 'não definido',
         });
 
@@ -105,7 +104,7 @@ export const userProfileService = {
           profile: {
             id: result.data.id,
             email: result.data.email,
-            nome: result.data.nome || result.data.name || undefined, // Usando 'nome' como principal
+            nome: result.data.name || undefined, // Usando 'nome' como principal
             role: result.data.role || undefined,
             created_at: result.data.created_at || undefined,
             updated_at: result.data.updated_at || undefined,

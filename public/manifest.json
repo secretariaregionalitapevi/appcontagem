@@ -1,6 +1,6 @@
 {
     "name": "CCB Contagem",
-    "short_name": "Contagem",
+    "short_name": "CCB Contagem",
     "description": "Sistema de cadastro de presença com suporte offline",
     "start_url": "/?source=pwa",
     "scope": "/",
@@ -10,7 +10,7 @@
     "theme_color": "#1E88E5",
     "icons": [
         {
-            "src": "/icon.png?v=3",
+            "src": "/icon.png?v=4",
             "sizes": "192x192 512x512",
             "type": "image/png",
             "purpose": "any maskable"

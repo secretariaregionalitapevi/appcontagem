@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
 import { showToast } from '../utils/toast';
@@ -8,11 +8,12 @@ export const useOnlineStatus = () => {
   const previousStatusRef = useRef<boolean | null>(null);
   const onStatusChangeRef = useRef<((isOnline: boolean) => void) | null>(null);
   const alertShownRef = useRef<{ offline: boolean; online: boolean }>({ offline: false, online: false });
+  const isInitialLoad = useRef(true);
 
-  // Função para permitir callback quando status muda
-  const setOnStatusChange = (callback: (isOnline: boolean) => void) => {
+  // Função para permitir callback quando status muda (memoizada para evitar loops de renderização)
+  const setOnStatusChange = useCallback((callback: (isOnline: boolean) => void) => {
     onStatusChangeRef.current = callback;
-  };
+  }, []);
 
   useEffect(() => {
     const handleStatusChange = async (state: any) => {
@@ -21,6 +22,12 @@ export const useOnlineStatus = () => {
       // 🚨 CORREÇÃO: Sempre atualizar estado e chamar callback quando status mudar
       // Não verificar se previousStatusRef.current !== null para garantir que funcione na primeira mudança
       if (previousStatusRef.current !== null && previousStatusRef.current !== newStatus) {
+        // Ignorar alerta se for a primeira carga e a rede reportou false temporariamente
+        if (isInitialLoad.current) {
+          isInitialLoad.current = false;
+          if (!newStatus) return; // Evitar disparar offline alert logo no start
+        }
+
         // Status mudou - mostrar alerta e chamar callback
         if (newStatus) {
           // Conexão restaurada
@@ -80,6 +87,7 @@ export const useOnlineStatus = () => {
       const initialStatus = state.isConnected === true && state.isInternetReachable === true;
       previousStatusRef.current = initialStatus;
       setIsOnline(initialStatus);
+      setTimeout(() => { isInitialLoad.current = false; }, 2000); // Dar 2s de gravação para a carga inicial web
     });
 
     // Para web, também adicionar listeners nativos
