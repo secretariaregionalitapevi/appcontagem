@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { SimpleSelectField } from '../components/SimpleSelectField';
 import { AutocompleteField } from '../components/AutocompleteField';
@@ -76,6 +77,9 @@ export const RegisterScreen: React.FC = () => {
     handleSaveNewRegistration,
   } = controller;
 
+  const { width } = useWindowDimensions();
+  const isMobile = width <= 768;
+
   if (initialLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -120,18 +124,18 @@ export const RegisterScreen: React.FC = () => {
           style={
             Platform.OS === 'web'
               ? {
-                  position: 'relative' as const,
-                  overflow: 'visible' as const,
-                  zIndex: 1,
-                  // @ts-ignore
-                  WebkitOverflowScrolling: 'touch',
-                  // @ts-ignore - Permitir que dropdowns apareçam acima (propriedade CSS apenas para web)
-                  overflowY: 'auto',
-                }
+                position: 'relative' as const,
+                overflow: 'visible' as const,
+                zIndex: 1,
+                // @ts-ignore
+                WebkitOverflowScrolling: 'touch',
+                // @ts-ignore - Permitir que dropdowns apareçam acima (propriedade CSS apenas para web)
+                overflowY: 'auto',
+              }
               : {
-                  flex: 1,
-                  backgroundColor: theme.colors.background,
-                }
+                flex: 1,
+                backgroundColor: theme.colors.background,
+              }
           }
           refreshControl={
             Platform.OS !== 'web' ? (
@@ -158,22 +162,22 @@ export const RegisterScreen: React.FC = () => {
         >
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Registro de Participante</Text>
+              <Text style={[styles.cardTitle, Platform.OS === 'web' && isMobile && { fontSize: theme.fontSize.lg }]}>Registro de Participante</Text>
               <Text style={styles.cardSubtitle}>
                 Preencha os campos abaixo para registrar a presença
               </Text>
             </View>
-            <View style={styles.cardBody}>
+            <View style={[styles.cardBody, Platform.OS === 'web' && isMobile && { padding: theme.spacing.md }]}>
               <View
                 style={
                   Platform.OS === 'web'
                     ? {
-                        position: 'relative' as const,
-                        zIndex: 999999,
-                        overflow: 'visible' as const,
-                        // @ts-ignore
-                        isolation: 'isolate',
-                      }
+                      position: 'relative' as const,
+                      zIndex: 999999,
+                      overflow: 'visible' as const,
+                      // @ts-ignore
+                      isolation: 'isolate',
+                    }
                     : {}
                 }
               >
@@ -271,12 +275,12 @@ export const RegisterScreen: React.FC = () => {
                     styles.field,
                     Platform.OS === 'web'
                       ? {
-                          position: 'relative' as const,
-                          zIndex: 999999,
-                          overflow: 'visible' as const,
-                          // @ts-ignore
-                          isolation: 'isolate',
-                        }
+                        position: 'relative' as const,
+                        zIndex: 999999,
+                        overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
+                      }
                       : {},
                   ]}
                 >
@@ -299,12 +303,12 @@ export const RegisterScreen: React.FC = () => {
                 style={
                   Platform.OS === 'web'
                     ? {
-                        position: 'relative' as const,
-                        zIndex: 1,
-                        overflow: 'visible' as const,
-                        // @ts-ignore
-                        isolation: 'isolate',
-                      }
+                      position: 'relative' as const,
+                      zIndex: 1,
+                      overflow: 'visible' as const,
+                      // @ts-ignore
+                      isolation: 'isolate',
+                    }
                     : {}
                 }
               >
@@ -556,39 +560,39 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     ...(Platform.OS !== 'web'
       ? {
-          height: '100%',
-        }
+        height: '100%',
+      }
       : {}),
   },
   keyboardView: {
     flex: 1,
     ...(Platform.OS !== 'web'
       ? {
-          height: '100%',
-        }
+        height: '100%',
+      }
       : {}),
   },
   scrollContent: {
     flexGrow: 1,
     ...(Platform.OS === 'web'
       ? {
-          padding: theme.spacing.lg,
-          paddingBottom: theme.spacing.xl * 2,
-          overflow: 'visible' as const,
-          minHeight: '100%',
-          // @ts-ignore
-          position: 'relative' as const,
-        }
+        padding: theme.spacing.lg,
+        paddingBottom: theme.spacing.xl * 2,
+        overflow: 'visible' as const,
+        minHeight: '100%',
+        // @ts-ignore
+        position: 'relative' as const,
+      }
       : {
-          // 🚨 CRÍTICO: Para mobile, NÃO usar padding no contentContainerStyle
-          // Isso permite que o pull-to-refresh funcione corretamente
-          // O padding será aplicado no card em vez disso
-          paddingHorizontal: theme.spacing.md,
-          paddingTop: 0, // CRÍTICO: Sem paddingTop para permitir pull-to-refresh
-          paddingBottom: theme.spacing.xl * 2,
-          minHeight: '100%',
-          overflow: 'visible' as const,
-        }),
+        // 🚨 CRÍTICO: Para mobile, NÃO usar padding no contentContainerStyle
+        // Isso permite que o pull-to-refresh funcione corretamente
+        // O padding será aplicado no card em vez disso
+        paddingHorizontal: theme.spacing.md,
+        paddingTop: 0, // CRÍTICO: Sem paddingTop para permitir pull-to-refresh
+        paddingBottom: theme.spacing.xl * 2,
+        minHeight: '100%',
+        overflow: 'visible' as const,
+      }),
   },
   loadingContainer: {
     flex: 1,
@@ -609,9 +613,9 @@ const styles = StyleSheet.create({
     // Isso permite que o pull-to-refresh funcione corretamente
     ...(Platform.OS !== 'web'
       ? {
-          marginTop: theme.spacing.lg,
-          paddingTop: theme.spacing.md,
-        }
+        marginTop: theme.spacing.lg,
+        paddingTop: theme.spacing.md,
+      }
       : {}),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -620,14 +624,14 @@ const styles = StyleSheet.create({
     elevation: Platform.OS === 'web' ? 3 : 4,
     ...(Platform.OS === 'web'
       ? {
-          position: 'relative' as const,
-          zIndex: 1,
-          overflow: 'visible' as const,
-        }
+        position: 'relative' as const,
+        zIndex: 1,
+        overflow: 'visible' as const,
+      }
       : {
-          marginHorizontal: theme.spacing.xs, // Margem horizontal no mobile
-          overflow: 'visible' as const,
-        }),
+        marginHorizontal: theme.spacing.xs, // Margem horizontal no mobile
+        overflow: 'visible' as const,
+      }),
   },
   cardHeader: {
     backgroundColor: theme.colors.surface,
@@ -650,14 +654,14 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
-          overflow: 'visible' as const,
-          position: 'relative' as const,
-          zIndex: 1,
-        }
+        overflow: 'visible' as const,
+        position: 'relative' as const,
+        zIndex: 1,
+      }
       : {
-          overflow: 'visible' as const,
-          padding: theme.spacing.md, // Menos padding no mobile
-        }),
+        overflow: 'visible' as const,
+        padding: theme.spacing.md, // Menos padding no mobile nativo
+      }),
   },
   hint: {
     fontSize: theme.fontSize.xs,
@@ -671,11 +675,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     ...(Platform.OS !== 'web'
       ? {
-          width: '100%', // Botão full width no mobile
-          maxWidth: 400, // Mas com limite máximo
-          paddingVertical: theme.spacing.md, // Mais padding vertical no mobile
-          minHeight: 50, // Altura mínima maior no mobile para melhor toque
-        }
+        width: '100%', // Botão full width no mobile
+        maxWidth: 400, // Mas com limite máximo
+        paddingVertical: theme.spacing.md, // Mais padding vertical no mobile
+        minHeight: 50, // Altura mínima maior no mobile para melhor toque
+      }
       : {}),
   },
   footer: {
@@ -683,14 +687,14 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
-          position: 'relative' as const,
-          zIndex: 0,
-          // @ts-ignore
-          isolation: 'isolate',
-        }
+        position: 'relative' as const,
+        zIndex: 0,
+        // @ts-ignore
+        isolation: 'isolate',
+      }
       : {
-          elevation: 0,
-        }),
+        elevation: 0,
+      }),
   },
   syncIndicator: {
     flexDirection: 'row',
@@ -708,12 +712,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     ...(Platform.OS === 'web'
       ? {
-          cursor: 'pointer',
-          zIndex: 10,
-        }
+        cursor: 'pointer',
+        zIndex: 10,
+      }
       : {
-          zIndex: 10,
-        }),
+        zIndex: 10,
+      }),
   },
   newRegistrationLinkText: {
     fontSize: theme.fontSize.sm,
@@ -722,9 +726,9 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     ...(Platform.OS === 'web'
       ? {
-          cursor: 'pointer',
-          userSelect: 'none',
-        }
+        cursor: 'pointer',
+        userSelect: 'none',
+      }
       : {}),
   },
   field: {

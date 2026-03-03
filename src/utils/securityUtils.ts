@@ -87,11 +87,9 @@ export const escapeHtml = (input: string): string => {
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
-    "'": '&#x27;',
-    '/': '&#x2F;',
   };
 
-  return input.replace(/[&<>"'/]/g, char => map[char] || char);
+  return input.replace(/[&<>"]/g, char => map[char] || char);
 };
 
 /**

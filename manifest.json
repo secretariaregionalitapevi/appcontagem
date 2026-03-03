@@ -1,6 +1,6 @@
 {
   "name": "CCB Contagem",
-  "short_name": "CCB Contagem Regional Itapevi",
+  "short_name": "CCB Contagem",
   "description": "Sistema de cadastro de presença com suporte offline",
   "start_url": "./index.html",
   "scope": "./",

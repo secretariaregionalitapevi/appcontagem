@@ -10,6 +10,7 @@ import {
   Modal,
   SafeAreaView,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -49,6 +50,8 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
   const inputRef = useRef<TextInput>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const { width } = useWindowDimensions();
+  const isMobile = width <= 768; // Consider mobile logic for web if <= 768px
 
   // Normalizar texto (remove acentos, converte para minúscula)
   const normalize = (text: string) => {
@@ -291,10 +294,10 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
             : {})}
         />
 
-        {/* Dropdown - View simples no web, Modal no mobile (igual AutocompleteField) */}
+        {/* Dropdown - View simples no web desktop, Modal no mobile/web mobile */}
         {showList &&
           filtered.length > 0 &&
-          (Platform.OS === 'web' ? (
+          (Platform.OS === 'web' && !isMobile ? (
             <View style={styles.webDropdownContainer}>
               <View style={styles.webDropdown}>
                 <FlatList
@@ -667,6 +670,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+    ...(Platform.OS === 'web' ? {
+      position: 'fixed' as any,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 9999999,
+    } : {})
   },
   modalContainer: {
     flex: 1,
@@ -684,11 +695,12 @@ const styles = StyleSheet.create({
     elevation: 20,
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore
         backgroundColor: '#ffffff',
         // @ts-ignore
-        // @ts-ignore
         opacity: 1,
+        // @ts-ignore
+        maxHeight: '80vh' as any,
+        width: '100%',
       }
       : {}),
   },
