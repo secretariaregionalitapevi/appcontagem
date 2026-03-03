@@ -1,0 +1,10 @@
+﻿src/screens/OrganistasEnsaioScreen.tsx(309,22): error TS2741: Property 'count' is missing in type '{}' but required in type 'OfflineBadgeProps'.
+src/services/offlineSyncService.ts(306,41): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', or 'nodenext'.
+src/services/offlineSyncService.ts(311,44): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', or 'nodenext'.
+src/services/offlineSyncService.ts(335,37): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', or 'nodenext'.
+src/services/offlineSyncService.ts(346,37): error TS1323: Dynamic imports are only supported when the '--module' flag is set to 'es2020', 'es2022', 'esnext', 'commonjs', 'amd', 'system', 'umd', 'node16', or 'nodenext'.
+src/services/supabaseDataService.ts(3087,19): error TS2345: Argument of type '{ status_sincronizacao: string; timestamp: string; tentativas: number; id?: string; pessoa_id: string; comum_id: string; cargo_id: string; instrumento_id?: string; classe_organista?: string; local_ensaio: string; data_hora_registro: string; usuario_responsavel: string; created_at?: string; updated_at?: string; }' is not assignable to parameter of type 'RegistroPresenca'.
+  Types of property 'status_sincronizacao' are incompatible.
+    Type 'string' is not assignable to type '"pending" | "synced"'.
+src/services/supabaseDataService.ts(3105,15): error TS2353: Object literal may only specify known properties, and 'timestamp' does not exist in type 'RegistroPresenca'.
+src/utils/robustStorage.ts(258,7): error TS4104: The type 'readonly string[]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.

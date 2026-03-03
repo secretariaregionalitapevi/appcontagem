@@ -4,7 +4,9 @@ import { Platform } from 'react-native';
 import { env } from '../config/env';
 
 const TABLE_NAME = 'organistas_ensaio';
-const GOOGLE_SHEETS_API_URL = env.SHEETS_ENDPOINT_URL || 'https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec';
+const GOOGLE_SHEETS_API_URL =
+  env.SHEETS_ENDPOINT_URL ||
+  'https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec';
 
 export const organistasEnsaioService = {
   /**
@@ -34,7 +36,9 @@ export const organistasEnsaioService = {
       // 3. Ordenar por data mais recente primeiro
       const { data, error } = await supabase
         .from('presencas')
-        .select('nome_completo, comum, cidade, cargo, instrumento, nivel, local_ensaio, data_ensaio')
+        .select(
+          'nome_completo, comum, cidade, cargo, instrumento, nivel, local_ensaio, data_ensaio'
+        )
         .ilike('local_ensaio', `%${localTrimmed}%`)
         .or('cargo.ilike.%ORGANISTA%,instrumento.ilike.%ÓRGÃO%')
         .order('data_ensaio', { ascending: false })
@@ -127,7 +131,9 @@ export const organistasEnsaioService = {
   /**
    * Salvar ou atualizar registro de organista no ensaio
    */
-  async saveOrganistaEnsaio(registro: OrganistaEnsaio): Promise<{ success: boolean; error?: string }> {
+  async saveOrganistaEnsaio(
+    registro: OrganistaEnsaio
+  ): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured() || !supabase) {
       return { success: false, error: 'Supabase não está configurado' };
     }
@@ -169,18 +175,16 @@ export const organistasEnsaioService = {
         return { success: true };
       } else {
         // Inserir novo registro
-        const { error } = await supabase
-          .from(TABLE_NAME)
-          .insert({
-            organista_nome: registro.organista_nome,
-            organista_comum: registro.organista_comum || null,
-            organista_cidade: registro.organista_cidade || null,
-            local_ensaio: registro.local_ensaio,
-            data_ensaio: registro.data_ensaio,
-            tocou: registro.tocou,
-            usuario_responsavel: registro.usuario_responsavel,
-            observacoes: registro.observacoes || null,
-          });
+        const { error } = await supabase.from(TABLE_NAME).insert({
+          organista_nome: registro.organista_nome,
+          organista_comum: registro.organista_comum || null,
+          organista_cidade: registro.organista_cidade || null,
+          local_ensaio: registro.local_ensaio,
+          data_ensaio: registro.data_ensaio,
+          tocou: registro.tocou,
+          usuario_responsavel: registro.usuario_responsavel,
+          observacoes: registro.observacoes || null,
+        });
 
         if (error) {
           console.error('❌ Erro ao salvar registro de organista:', error);
@@ -211,10 +215,7 @@ export const organistasEnsaioService = {
     try {
       await ensureSessionRestored();
 
-      const { error } = await supabase
-        .from(TABLE_NAME)
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from(TABLE_NAME).delete().eq('id', id);
 
       if (error) {
         console.error('❌ Erro ao deletar registro de organista:', error);
@@ -237,13 +238,13 @@ async function atualizarPlanilhaOrganistas(localEnsaio: string): Promise<void> {
   try {
     // Mapear local para a função correspondente no Google Apps Script
     const localMap: { [key: string]: string } = {
-      'Itapevi': 'exportar_completo_itapevi',
+      Itapevi: 'exportar_completo_itapevi',
       'Caucaia do Alto': 'exportar_completo_caucaia',
-      'Jandira': 'exportar_completo_jandira',
-      'Fazendinha': 'exportar_completo_fazendinha',
-      'Pirapora': 'exportar_completo_pirapora',
+      Jandira: 'exportar_completo_jandira',
+      Fazendinha: 'exportar_completo_fazendinha',
+      Pirapora: 'exportar_completo_pirapora',
       'Vargem Grande': 'exportar_completo_vargemgrande',
-      'Cotia': 'exportar_completo_cotia',
+      Cotia: 'exportar_completo_cotia',
     };
 
     // Normalizar nome do local
@@ -276,4 +277,3 @@ async function atualizarPlanilhaOrganistas(localEnsaio: string): Promise<void> {
     console.warn('⚠️ Erro ao atualizar planilha (não crítico):', error);
   }
 }
-

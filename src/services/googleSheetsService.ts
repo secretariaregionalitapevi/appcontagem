@@ -1,7 +1,10 @@
 import { RegistroPresenca } from '../types/models';
 import { supabaseDataService } from './supabaseDataService';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
-import { normalizarRegistroCargoFeminino, isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
+import {
+  normalizarRegistroCargoFeminino,
+  isCargoFemininoOrganista,
+} from '../utils/normalizeCargoFeminino';
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { uuidv4 } from '../utils/uuid';
 import { normalizarNivel } from '../utils/normalizeNivel';
@@ -90,9 +93,11 @@ export const googleSheetsService = {
       const isOrganista = cargoUpper === 'ORGANISTA';
       const isExaminadora = cargoUpper === 'EXAMINADORA';
       const isInstrutora = cargoUpper === 'INSTRUTORA'; // 🚨 Apenas feminino (Instrutora), NÃO Instrutor
-      const isSecretariaMusica = (cargoUpper.includes('SECRETÁRI') || cargoUpper.includes('SECRETARI')) &&
+      const isSecretariaMusica =
+        (cargoUpper.includes('SECRETÁRI') || cargoUpper.includes('SECRETARI')) &&
         (cargoUpper.includes('MÚSICA') || cargoUpper.includes('MUSICA'));
-      const isOrganistaOuRelacionado = isOrganista || isExaminadora || isInstrutora || isSecretariaMusica;
+      const isOrganistaOuRelacionado =
+        isOrganista || isExaminadora || isInstrutora || isSecretariaMusica;
 
       console.log('🔍 [EXTERNAL] Verificações de cargo:');
       console.log('  - isOrganista:', isOrganista);
@@ -108,14 +113,18 @@ export const googleSheetsService = {
         // 🚨 CRÍTICO: Cargos relacionados a organistas sempre têm instrumento "ÓRGÃO"
         instrumentoFinal = 'ÓRGÃO';
         naipeFinal = 'TECLADO';
-        console.log('✅ [EXTERNAL] Cargo relacionado a organista detectado - definindo instrumento como ÓRGÃO');
+        console.log(
+          '✅ [EXTERNAL] Cargo relacionado a organista detectado - definindo instrumento como ÓRGÃO'
+        );
       } else if (data.instrumento) {
         // Para outros cargos (ex: Músico), usar o instrumento fornecido
         instrumentoFinal = data.instrumento.toUpperCase();
         naipeFinal = getNaipeByInstrumento(data.instrumento).toUpperCase();
         console.log('✅ [EXTERNAL] Usando instrumento fornecido:', instrumentoFinal);
       } else {
-        console.log('ℹ️ [EXTERNAL] Cargo sem instrumento (ex: Encarregado Local, Ancião) - deixando vazio');
+        console.log(
+          'ℹ️ [EXTERNAL] Cargo sem instrumento (ex: Encarregado Local, Ancião) - deixando vazio'
+        );
       }
       // Se não é organista/relacionado e não tem instrumento, deixa vazio (ex: Encarregado Local, Ancião)
 
@@ -128,15 +137,35 @@ export const googleSheetsService = {
       // Músico, Organista, Examinadora, Instrutor, Encarregado Local, etc. - todos devem funcionar igual
       console.log('📋 [EXTERNAL] Preparando dados para envio - TODOS os cargos são aceitos');
       console.log('📋 [EXTERNAL] Cargo que será enviado:', data.cargo.trim().toUpperCase());
-      console.log('📋 [EXTERNAL] Instrumento final:', instrumentoFinal || '(vazio - OK para cargos sem instrumento)');
-      console.log('📋 [EXTERNAL] Naipe final:', naipeFinal || '(vazio - OK para cargos sem instrumento)');
+      console.log(
+        '📋 [EXTERNAL] Instrumento final:',
+        instrumentoFinal || '(vazio - OK para cargos sem instrumento)'
+      );
+      console.log(
+        '📋 [EXTERNAL] Naipe final:',
+        naipeFinal || '(vazio - OK para cargos sem instrumento)'
+      );
 
       // 🛡️ SEGURANÇA: Sanitizar todos os inputs antes de enviar
-      const nomeSanitizado = sanitizeInput(data.nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome });
-      const comumSanitizado = sanitizeInput(data.comum.trim(), { fieldType: 'comum', maxLength: FIELD_LIMITS.comum });
-      const cidadeSanitizada = sanitizeInput(data.cidade.trim(), { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade });
-      const cargoSanitizado = sanitizeInput(data.cargo.trim(), { fieldType: 'cargo', maxLength: FIELD_LIMITS.cargo });
-      const classeSanitizada = data.classe ? sanitizeInput(data.classe.trim(), { fieldType: 'classe', maxLength: FIELD_LIMITS.classe }) : '';
+      const nomeSanitizado = sanitizeInput(data.nome.trim(), {
+        fieldType: 'nome',
+        maxLength: FIELD_LIMITS.nome,
+      });
+      const comumSanitizado = sanitizeInput(data.comum.trim(), {
+        fieldType: 'comum',
+        maxLength: FIELD_LIMITS.comum,
+      });
+      const cidadeSanitizada = sanitizeInput(data.cidade.trim(), {
+        fieldType: 'cidade',
+        maxLength: FIELD_LIMITS.cidade,
+      });
+      const cargoSanitizado = sanitizeInput(data.cargo.trim(), {
+        fieldType: 'cargo',
+        maxLength: FIELD_LIMITS.cargo,
+      });
+      const classeSanitizada = data.classe
+        ? sanitizeInput(data.classe.trim(), { fieldType: 'classe', maxLength: FIELD_LIMITS.classe })
+        : '';
       const localEnsaioSanitizado = sanitizeInput(localEnsaioConvertido, { maxLength: 100 });
 
       // Formato esperado pelo Google Apps Script (igual ao backupcont)
@@ -178,7 +207,7 @@ export const googleSheetsService = {
         SYNCED_AT: new Date().toISOString(),
         ANOTACOES: 'Cadastro fora da Regional',
         DUPLICATA: 'NÃO',
-        'NÍVEL': classeSanitizada.toUpperCase(), // Para externos, NÍVEL = Classe
+        NÍVEL: classeSanitizada.toUpperCase(), // Para externos, NÍVEL = Classe
       };
 
       // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
@@ -234,7 +263,7 @@ export const googleSheetsService = {
         });
 
         console.log('⏱️ [EXTERNAL] Aguardando resposta (timeout: 16s)...');
-        const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+        const response = (await Promise.race([fetchPromise, timeoutPromise])) as Response;
 
         console.log('📥 [EXTERNAL] Resposta recebida!');
         console.log('📥 [EXTERNAL] Status da resposta:', response.status);
@@ -274,7 +303,10 @@ export const googleSheetsService = {
               console.error('❌ [EXTERNAL] Erro:', errorMsg);
               console.error('❌ [EXTERNAL] Cargo que causou erro:', sheetRow.CARGO);
               console.error('❌ [EXTERNAL] Nome que causou erro:', sheetRow['NOME COMPLETO']);
-              console.error('❌ [EXTERNAL] Dados completos que causaram erro:', JSON.stringify(sheetRow, null, 2));
+              console.error(
+                '❌ [EXTERNAL] Dados completos que causaram erro:',
+                JSON.stringify(sheetRow, null, 2)
+              );
               throw new Error(errorMsg);
             }
           } catch (parseError) {
@@ -289,18 +321,20 @@ export const googleSheetsService = {
         if (response.ok) {
           // 🚨 VERIFICAÇÃO ADICIONAL: Verificar se a resposta contém erro (se não foi JSON)
           // Mesmo com status OK, o Google Apps Script pode retornar erro no corpo
-          if (responseBody && !responseJson && (
-            responseBody.toLowerCase().includes('error') ||
-            responseBody.toLowerCase().includes('erro') ||
-            responseBody.toLowerCase().includes('falha') ||
-            responseBody.toLowerCase().includes('rejeitado') ||
-            responseBody.toLowerCase().includes('invalid') ||
-            responseBody.toLowerCase().includes('inválido') ||
-            responseBody.toLowerCase().includes('rejected') ||
-            responseBody.toLowerCase().includes('denied') ||
-            responseBody.toLowerCase().includes('não reconhecida') ||
-            responseBody.toLowerCase().includes('nao reconhecida')
-          )) {
+          if (
+            responseBody &&
+            !responseJson &&
+            (responseBody.toLowerCase().includes('error') ||
+              responseBody.toLowerCase().includes('erro') ||
+              responseBody.toLowerCase().includes('falha') ||
+              responseBody.toLowerCase().includes('rejeitado') ||
+              responseBody.toLowerCase().includes('invalid') ||
+              responseBody.toLowerCase().includes('inválido') ||
+              responseBody.toLowerCase().includes('rejected') ||
+              responseBody.toLowerCase().includes('denied') ||
+              responseBody.toLowerCase().includes('não reconhecida') ||
+              responseBody.toLowerCase().includes('nao reconhecida'))
+          ) {
             console.error('❌ [EXTERNAL] Resposta OK mas contém erro no corpo:', responseBody);
             console.error('❌ [EXTERNAL] Dados que causaram erro:', sheetRow);
             throw new Error(`Google Sheets retornou erro: ${responseBody}`);
@@ -309,7 +343,10 @@ export const googleSheetsService = {
           // 🚨 VERIFICAÇÃO ADICIONAL: Verificar se a resposta está vazia ou muito curta
           // Pode indicar que o Google Apps Script não processou corretamente
           if (responseBody && responseBody.trim().length < 10) {
-            console.warn('⚠️ [EXTERNAL] Resposta muito curta, pode indicar problema:', responseBody);
+            console.warn(
+              '⚠️ [EXTERNAL] Resposta muito curta, pode indicar problema:',
+              responseBody
+            );
           }
 
           // 🚨 VERIFICAÇÃO CRÍTICA: Se é JSON válido e ok: true, confirmar sucesso
@@ -329,18 +366,24 @@ export const googleSheetsService = {
           }
 
           // Se não é JSON válido mas status é OK, verificar indicadores de sucesso no texto
-          if (responseBody && (
-            responseBody.includes('"ok":true') ||
-            responseBody.includes('"inserted":1') ||
-            (responseBody.includes('inserted') && responseBody.includes('1'))
-          )) {
-            console.log('✅ [EXTERNAL] Google Sheets: Dados enviados com sucesso (indicadores no corpo)');
+          if (
+            responseBody &&
+            (responseBody.includes('"ok":true') ||
+              responseBody.includes('"inserted":1') ||
+              (responseBody.includes('inserted') && responseBody.includes('1')))
+          ) {
+            console.log(
+              '✅ [EXTERNAL] Google Sheets: Dados enviados com sucesso (indicadores no corpo)'
+            );
             console.log('✅ [EXTERNAL] Cargo que foi salvo:', sheetRow.CARGO);
             return { success: true };
           }
 
           console.log('✅ [EXTERNAL] Google Sheets: Dados enviados com sucesso (status OK)');
-          console.log('✅ [EXTERNAL] Corpo da resposta confirmado:', responseBody.substring(0, 100));
+          console.log(
+            '✅ [EXTERNAL] Corpo da resposta confirmado:',
+            responseBody.substring(0, 100)
+          );
           console.log('✅ [EXTERNAL] Cargo que foi salvo:', sheetRow.CARGO);
           console.log('✅ [EXTERNAL] Nome que foi salvo:', sheetRow['NOME COMPLETO']);
           console.log('✅ [EXTERNAL] Retornando { success: true }');
@@ -349,19 +392,22 @@ export const googleSheetsService = {
 
         // 🚨 CRÍTICO: Verificar se é erro antes de assumir sucesso em no-cors
         // Se responseBody contém erro, NÃO assumir sucesso mesmo em no-cors
-        const temErroNoCorpo = responseBody && (
-          responseBody.toLowerCase().includes('error') ||
-          responseBody.toLowerCase().includes('erro') ||
-          responseBody.toLowerCase().includes('não reconhecida') ||
-          responseBody.toLowerCase().includes('nao reconhecida') ||
-          responseBody.toLowerCase().includes('operacao nao reconhecida') ||
-          responseBody.toLowerCase().includes('operação não reconhecida') ||
-          responseBody.toLowerCase().includes('operacao nao reconhecida') ||
-          responseBody.toLowerCase().includes('operação não reconhecida')
-        );
+        const temErroNoCorpo =
+          responseBody &&
+          (responseBody.toLowerCase().includes('error') ||
+            responseBody.toLowerCase().includes('erro') ||
+            responseBody.toLowerCase().includes('não reconhecida') ||
+            responseBody.toLowerCase().includes('nao reconhecida') ||
+            responseBody.toLowerCase().includes('operacao nao reconhecida') ||
+            responseBody.toLowerCase().includes('operação não reconhecida') ||
+            responseBody.toLowerCase().includes('operacao nao reconhecida') ||
+            responseBody.toLowerCase().includes('operação não reconhecida'));
 
         if (temErroNoCorpo) {
-          console.error('❌ [EXTERNAL] Erro detectado no corpo da resposta (mesmo em no-cors):', responseBody);
+          console.error(
+            '❌ [EXTERNAL] Erro detectado no corpo da resposta (mesmo em no-cors):',
+            responseBody
+          );
           console.error('❌ [EXTERNAL] Cargo que causou erro:', sheetRow.CARGO);
           console.error('❌ [EXTERNAL] Nome que causou erro:', sheetRow['NOME COMPLETO']);
           throw new Error(`Google Sheets retornou erro: ${responseBody}`);
@@ -370,7 +416,9 @@ export const googleSheetsService = {
         // 🚨 CRÍTICO: Se responseBody contém JSON válido com ok: false, é erro mesmo em no-cors
         if (responseJson && responseJson.ok === false) {
           const errorMsg = responseJson.error || 'Erro desconhecido do Google Apps Script';
-          console.error('❌ [EXTERNAL] Google Apps Script retornou ok: false (mesmo com status OK)');
+          console.error(
+            '❌ [EXTERNAL] Google Apps Script retornou ok: false (mesmo com status OK)'
+          );
           console.error('❌ [EXTERNAL] Erro:', errorMsg);
           console.error('❌ [EXTERNAL] Cargo que causou erro:', sheetRow.CARGO);
           console.error('❌ [EXTERNAL] Nome que causou erro:', sheetRow['NOME COMPLETO']);
@@ -382,7 +430,9 @@ export const googleSheetsService = {
         // MAS só assumir sucesso se não detectamos erro acima
         if (response.type === 'opaque') {
           console.log('✅ [EXTERNAL] Google Sheets: Dados enviados (no-cors - assumindo sucesso)');
-          console.log('⚠️ [EXTERNAL] ATENÇÃO: no-cors não permite verificar resposta, assumindo sucesso');
+          console.log(
+            '⚠️ [EXTERNAL] ATENÇÃO: no-cors não permite verificar resposta, assumindo sucesso'
+          );
           console.log('⚠️ [EXTERNAL] Cargo enviado:', sheetRow.CARGO);
           console.log('⚠️ [EXTERNAL] Se não aparecer na planilha, pode ser erro silencioso');
           return { success: true };
@@ -390,7 +440,9 @@ export const googleSheetsService = {
 
         // Se status é 0, pode ser no-cors também
         if (response.status === 0) {
-          console.log('✅ [EXTERNAL] Google Sheets: Assumindo sucesso (status 0 - provável no-cors)');
+          console.log(
+            '✅ [EXTERNAL] Google Sheets: Assumindo sucesso (status 0 - provável no-cors)'
+          );
           console.log('⚠️ [EXTERNAL] ATENÇÃO: status 0 pode indicar no-cors, assumindo sucesso');
           console.log('⚠️ [EXTERNAL] Cargo enviado:', sheetRow.CARGO);
           console.log('⚠️ [EXTERNAL] Se não aparecer na planilha, pode ser erro silencioso');
@@ -402,10 +454,14 @@ export const googleSheetsService = {
         if (!responseBody) {
           try {
             responseBody = await response.text();
-            console.error('❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:', response.status, responseBody);
+            console.error(
+              '❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:',
+              response.status,
+              responseBody
+            );
           } catch (readError: any) {
             console.error('❌ [EXTERNAL] Erro ao ler resposta:', readError);
-            // 🚨 CORREÇÃO: Se não conseguiu ler erro, mas response não está OK, 
+            // 🚨 CORREÇÃO: Se não conseguiu ler erro, mas response não está OK,
             // pode ser no-cors - assumir sucesso (igual backupcont faz)
             if ((response as any).type === 'opaque' || response.status === 0) {
               console.log('✅ [EXTERNAL] Google Sheets: Assumindo sucesso (no-cors ou status 0)');
@@ -415,7 +471,11 @@ export const googleSheetsService = {
           }
         } else {
           // Já temos o corpo da resposta, apenas logar o erro
-          console.error('❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:', response.status, responseBody);
+          console.error(
+            '❌ [EXTERNAL] Erro HTTP ao enviar para Google Sheets:',
+            response.status,
+            responseBody
+          );
         }
 
         // 🚨 CORREÇÃO CRÍTICA: Tentar parsear JSON do erro para obter mensagem mais clara
@@ -444,12 +504,15 @@ export const googleSheetsService = {
         // 🚨 CORREÇÃO CRÍTICA: Se for erro de rede, pode ser no-cors
         // Em no-cors, fetch pode falhar mas o envio pode ter funcionado
         // Retornar sucesso como fallback (igual backupcont faz)
-        if (fetchError.message && (
-          fetchError.message.includes('Failed to fetch') ||
-          fetchError.message.includes('NetworkError') ||
-          fetchError.message.includes('Network request failed')
-        )) {
-          console.warn('⚠️ [EXTERNAL] Erro de rede detectado, mas pode ser no-cors - assumindo sucesso');
+        if (
+          fetchError.message &&
+          (fetchError.message.includes('Failed to fetch') ||
+            fetchError.message.includes('NetworkError') ||
+            fetchError.message.includes('Network request failed'))
+        ) {
+          console.warn(
+            '⚠️ [EXTERNAL] Erro de rede detectado, mas pode ser no-cors - assumindo sucesso'
+          );
           console.warn('⚠️ [EXTERNAL] Detalhes do erro:', fetchError.message);
           // Em no-cors, fetch pode falhar mas o envio pode ter funcionado
           // Retornar sucesso como fallback (igual backupcont faz)
@@ -466,18 +529,24 @@ export const googleSheetsService = {
       console.error('❌ [EXTERNAL] Stack do erro:', error?.stack);
       console.error('❌ [EXTERNAL] Cargo que causou erro:', data?.cargo);
       console.error('❌ [EXTERNAL] Nome que causou erro:', data?.nome);
-      console.error('❌ [EXTERNAL] Dados completos que causaram erro:', JSON.stringify(data, null, 2));
+      console.error(
+        '❌ [EXTERNAL] Dados completos que causaram erro:',
+        JSON.stringify(data, null, 2)
+      );
 
       if (error.message === 'Timeout' || error.name === 'AbortError') {
         console.error('❌ [EXTERNAL] Erro de timeout');
         return { success: false, error: 'Timeout ao enviar registro. Tente novamente.' };
       }
-      if (error.message && (
-        error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('Network request failed')
-      )) {
-        console.warn('⚠️ [EXTERNAL] Erro de rede detectado, mas pode ser no-cors - assumindo sucesso');
+      if (
+        error.message &&
+        (error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('Network request failed'))
+      ) {
+        console.warn(
+          '⚠️ [EXTERNAL] Erro de rede detectado, mas pode ser no-cors - assumindo sucesso'
+        );
         console.warn('⚠️ [EXTERNAL] Cargo:', data?.cargo);
         return { success: true };
       }
@@ -590,11 +659,8 @@ export const googleSheetsService = {
       let nivelPessoa = '';
       if (!isExternalRegistro && !isNomeManual) {
         const nivelPessoaOriginal = pessoa?.nivel || null;
-        nivelPessoa = normalizarNivel(
-          nivelPessoaOriginal,
-          instrumentoParaUsar?.nome,
-          cargoReal
-        ) || '';
+        nivelPessoa =
+          normalizarNivel(nivelPessoaOriginal, instrumentoParaUsar?.nome, cargoReal) || '';
       }
 
       const cargo = { ...cargoSelecionado, nome: cargoReal };
@@ -670,7 +736,10 @@ export const googleSheetsService = {
           } else if (comumNomeUpper.includes('CAUCAIA')) {
             cidade = 'CAUCAIA DO ALTO';
           }
-          console.log('🔄 [GoogleSheets] Cidade não encontrada na pessoa, inferida da comum:', cidade);
+          console.log(
+            '🔄 [GoogleSheets] Cidade não encontrada na pessoa, inferida da comum:',
+            cidade
+          );
         }
       }
 
@@ -736,22 +805,27 @@ export const googleSheetsService = {
 
       // 🚨 CORREÇÃO CRÍTICA: Para cargos femininos/órgão, classe_organista deve ser igual ao nivel
       // Se for cargo feminino (Organista, Instrutora, Examinadora, Secretária) ou órgão, usar o nivel normalizado como classe_organista
-      const isOrgaoOuCargoFeminino = normalizacao.isNormalizado ||
-        (instrumentoParaUsar?.nome?.toUpperCase() === 'ÓRGÃO' || instrumentoParaUsar?.nome?.toUpperCase() === 'ORGAO') ||
+      const isOrgaoOuCargoFeminino =
+        normalizacao.isNormalizado ||
+        instrumentoParaUsar?.nome?.toUpperCase() === 'ÓRGÃO' ||
+        instrumentoParaUsar?.nome?.toUpperCase() === 'ORGAO' ||
         isCargoFemininoOrganista(cargoReal);
 
-      const classeOrganistaFinal = isOrgaoOuCargoFeminino && nivelPessoa
-        ? nivelPessoa // Usar nivel como classe_organista para cargos femininos/órgão
-        : normalizacao.isNormalizado
-          ? normalizacao.classeOrganista || 'OFICIALIZADA'
-          : registro.classe_organista || '';
+      const classeOrganistaFinal =
+        isOrgaoOuCargoFeminino && nivelPessoa
+          ? nivelPessoa // Usar nivel como classe_organista para cargos femininos/órgão
+          : normalizacao.isNormalizado
+            ? normalizacao.classeOrganista || 'OFICIALIZADA'
+            : registro.classe_organista || '';
 
       // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" nas anotações para nomes manuais de comuns da regional
       // Nomes manuais indicam que o cadastro está desatualizado (pessoa não encontrada na lista)
       let anotacoes = '';
       if (isNomeManualRegional) {
         anotacoes = 'SAM Desatualizado';
-        console.log('✏️ [GoogleSheets] Nome manual de comum da regional detectado - adicionando "SAM Desatualizado" nas anotações');
+        console.log(
+          '✏️ [GoogleSheets] Nome manual de comum da regional detectado - adicionando "SAM Desatualizado" nas anotações'
+        );
       }
 
       // 🚨 CORREÇÃO CRÍTICA: Garantir que formatDateTimeManual funcione mesmo se houver problema de importação
@@ -761,7 +835,9 @@ export const googleSheetsService = {
           dataEnsaioFormatada = formatDateTimeManual(registro.data_hora_registro);
         } else {
           // Fallback: formatar manualmente se função não estiver disponível
-          const data = registro.data_hora_registro ? new Date(registro.data_hora_registro) : new Date();
+          const data = registro.data_hora_registro
+            ? new Date(registro.data_hora_registro)
+            : new Date();
           const dia = String(data.getDate()).padStart(2, '0');
           const mes = String(data.getMonth() + 1).padStart(2, '0');
           const ano = data.getFullYear();
@@ -772,7 +848,9 @@ export const googleSheetsService = {
         }
       } catch (formatError) {
         // Fallback em caso de erro
-        const data = registro.data_hora_registro ? new Date(registro.data_hora_registro) : new Date();
+        const data = registro.data_hora_registro
+          ? new Date(registro.data_hora_registro)
+          : new Date();
         const dia = String(data.getDate()).padStart(2, '0');
         const mes = String(data.getMonth() + 1).padStart(2, '0');
         const ano = data.getFullYear();
@@ -783,14 +861,34 @@ export const googleSheetsService = {
       }
 
       // 🛡️ SEGURANÇA: Sanitizar todos os inputs antes de enviar
-      const nomeCompletoSanitizado = sanitizeInput(nomeCompleto.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome });
-      const comumNomeSanitizado = sanitizeInput(comum.nome, { fieldType: 'comum', maxLength: FIELD_LIMITS.comum });
-      const cidadeSanitizada = sanitizeInput(cidade, { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade });
-      const cargoRealSanitizado = sanitizeInput(cargoReal, { fieldType: 'cargo', maxLength: FIELD_LIMITS.cargo });
-      const nivelPessoaSanitizado = nivelPessoa ? sanitizeInput(nivelPessoa, { maxLength: 50 }) : '';
-      const instrumentoFinalSanitizado = sanitizeInput(instrumentoFinal, { fieldType: 'instrumento', maxLength: FIELD_LIMITS.instrumento });
+      const nomeCompletoSanitizado = sanitizeInput(nomeCompleto.trim(), {
+        fieldType: 'nome',
+        maxLength: FIELD_LIMITS.nome,
+      });
+      const comumNomeSanitizado = sanitizeInput(comum.nome, {
+        fieldType: 'comum',
+        maxLength: FIELD_LIMITS.comum,
+      });
+      const cidadeSanitizada = sanitizeInput(cidade, {
+        fieldType: 'cidade',
+        maxLength: FIELD_LIMITS.cidade,
+      });
+      const cargoRealSanitizado = sanitizeInput(cargoReal, {
+        fieldType: 'cargo',
+        maxLength: FIELD_LIMITS.cargo,
+      });
+      const nivelPessoaSanitizado = nivelPessoa
+        ? sanitizeInput(nivelPessoa, { maxLength: 50 })
+        : '';
+      const instrumentoFinalSanitizado = sanitizeInput(instrumentoFinal, {
+        fieldType: 'instrumento',
+        maxLength: FIELD_LIMITS.instrumento,
+      });
       const naipeInstrumentoSanitizado = sanitizeInput(naipeInstrumento, { maxLength: 50 });
-      const classeOrganistaFinalSanitizada = sanitizeInput(classeOrganistaFinal, { fieldType: 'classe', maxLength: FIELD_LIMITS.classe });
+      const classeOrganistaFinalSanitizada = sanitizeInput(classeOrganistaFinal, {
+        fieldType: 'classe',
+        maxLength: FIELD_LIMITS.classe,
+      });
       const localEnsaioNomeSanitizado = sanitizeInput(localEnsaioNome, { maxLength: 100 });
       const registradoPorNomeSanitizado = sanitizeInput(registradoPorNome, { maxLength: 200 });
       const anotacoesSanitizadas = sanitizeInput(anotacoes, { maxLength: 500 });
@@ -802,7 +900,7 @@ export const googleSheetsService = {
         COMUM: comumNomeSanitizado.toUpperCase(),
         CIDADE: cidadeSanitizada.toUpperCase(),
         CARGO: cargoRealSanitizado.toUpperCase(),
-        'NÍVEL': nivelPessoaSanitizado.toUpperCase(),
+        NÍVEL: nivelPessoaSanitizado.toUpperCase(),
         INSTRUMENTO: instrumentoFinalSanitizado.toUpperCase(),
         NAIPE_INSTRUMENTO: naipeInstrumentoSanitizado.toUpperCase(),
         CLASSE_ORGANISTA: (classeOrganistaFinalSanitizada || nivelPessoaSanitizado).toUpperCase(),
@@ -811,7 +909,9 @@ export const googleSheetsService = {
         REGISTRADO_POR: registradoPorNomeSanitizado.toUpperCase(),
         SYNC_STATUS: 'ATUALIZADO',
         SYNCED_AT: new Date().toISOString(),
-        ANOTACOES: (anotacoesSanitizadas || (isNomeManualRegional ? 'SAM Desatualizado' : '')).toUpperCase(),
+        ANOTACOES: (
+          anotacoesSanitizadas || (isNomeManualRegional ? 'SAM Desatualizado' : '')
+        ).toUpperCase(),
         DUPLICATA: 'NÃO',
       };
       // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)

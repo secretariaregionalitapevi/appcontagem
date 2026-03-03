@@ -1,4 +1,11 @@
 {
   "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+  "extends": "expo/tsconfig.base",
+  "exclude": [
+    "scripts",
+    "node_modules",
+    "NameSelectField_github.tsx",
+    "NameSelectField_online.tsx",
+    "temp_*.tsx"
+  ]
 }

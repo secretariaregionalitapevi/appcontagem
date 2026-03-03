@@ -23,18 +23,54 @@ export const removeAccents = (str: string): string => {
 
     // Método 2: Fallback manual para navegadores antigos
     const accentMap: { [key: string]: string } = {
-      'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a', 'ä': 'a',
-      'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-      'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
-      'ó': 'o', 'ò': 'o', 'õ': 'o', 'ô': 'o', 'ö': 'o',
-      'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
-      'ç': 'c', 'ñ': 'n',
-      'Á': 'A', 'À': 'A', 'Ã': 'A', 'Â': 'A', 'Ä': 'A',
-      'É': 'E', 'È': 'E', 'Ê': 'E', 'Ë': 'E',
-      'Í': 'I', 'Ì': 'I', 'Î': 'I', 'Ï': 'I',
-      'Ó': 'O', 'Ò': 'O', 'Õ': 'O', 'Ô': 'O', 'Ö': 'O',
-      'Ú': 'U', 'Ù': 'U', 'Û': 'U', 'Ü': 'U',
-      'Ç': 'C', 'Ñ': 'N',
+      á: 'a',
+      à: 'a',
+      ã: 'a',
+      â: 'a',
+      ä: 'a',
+      é: 'e',
+      è: 'e',
+      ê: 'e',
+      ë: 'e',
+      í: 'i',
+      ì: 'i',
+      î: 'i',
+      ï: 'i',
+      ó: 'o',
+      ò: 'o',
+      õ: 'o',
+      ô: 'o',
+      ö: 'o',
+      ú: 'u',
+      ù: 'u',
+      û: 'u',
+      ü: 'u',
+      ç: 'c',
+      ñ: 'n',
+      Á: 'A',
+      À: 'A',
+      Ã: 'A',
+      Â: 'A',
+      Ä: 'A',
+      É: 'E',
+      È: 'E',
+      Ê: 'E',
+      Ë: 'E',
+      Í: 'I',
+      Ì: 'I',
+      Î: 'I',
+      Ï: 'I',
+      Ó: 'O',
+      Ò: 'O',
+      Õ: 'O',
+      Ô: 'O',
+      Ö: 'O',
+      Ú: 'U',
+      Ù: 'U',
+      Û: 'U',
+      Ü: 'U',
+      Ç: 'C',
+      Ñ: 'N',
     };
 
     return str
@@ -57,10 +93,7 @@ export const normalizeForSearch = (str: string): string => {
   }
 
   try {
-    return removeAccents(str)
-      .toUpperCase()
-      .replace(/\s+/g, ' ')
-      .trim();
+    return removeAccents(str).toUpperCase().replace(/\s+/g, ' ').trim();
   } catch (error) {
     console.warn('⚠️ Erro ao normalizar string para busca:', error);
     return str.trim().toUpperCase();
@@ -98,16 +131,16 @@ export const normalizeString = (str: string): string => {
 
   try {
     let normalized = str.trim();
-    
+
     // Remover caracteres de controle
     normalized = removeControlChars(normalized);
-    
+
     // Remover acentos
     normalized = removeAccents(normalized);
-    
+
     // Normalizar espaços múltiplos
     normalized = normalized.replace(/\s+/g, ' ').trim();
-    
+
     return normalized;
   } catch (error) {
     console.warn('⚠️ Erro ao normalizar string completa:', error);
@@ -163,7 +196,3 @@ export const sanitizeString = (str: string): string => {
     return str.trim();
   }
 };
-
-
-
-

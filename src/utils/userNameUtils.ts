@@ -16,7 +16,7 @@ export const extractFirstAndLastName = (fullName: string): string => {
   if (!nomeProcessado.includes(' ') && nomeProcessado.length > 8) {
     // Converter para minúscula para processar uniformemente
     const nomeLower = nomeProcessado.toLowerCase();
-    
+
     // Tentar detectar padrão camelCase primeiro (ricardoGrangeiro)
     const matchCamelCase = nomeProcessado.match(/^([a-z]+)([A-Z][a-z]+)$/);
     if (matchCamelCase) {
@@ -26,7 +26,7 @@ export const extractFirstAndLastName = (fullName: string): string => {
       // Nomes brasileiros geralmente têm primeiro nome com 6-8 caracteres
       // "ricardograngeiro" (17 chars) -> dividir em "ricardo" (7) e "grangeiro" (9)
       let posicaoDivisao = 7; // Posição padrão para nomes longos (primeiro nome ~7 chars)
-      
+
       // Ajustar baseado no tamanho total - usar porcentagem que funciona bem
       if (nomeLower.length <= 12) {
         // Nomes curtos: primeiro nome ~5-6 chars
@@ -41,7 +41,7 @@ export const extractFirstAndLastName = (fullName: string): string => {
         // Nomes muito longos: primeiro nome ~7-8 chars
         posicaoDivisao = Math.floor(nomeLower.length * 0.42); // ~42% do tamanho
       }
-      
+
       // Garantir limites razoáveis (mínimo 5, máximo nome.length - 4)
       // Mas garantir que para 17 caracteres sempre seja 7
       if (nomeLower.length === 17) {
@@ -49,7 +49,7 @@ export const extractFirstAndLastName = (fullName: string): string => {
       } else {
         posicaoDivisao = Math.max(5, Math.min(nomeLower.length - 4, posicaoDivisao));
       }
-      
+
       // Adicionar espaço entre as partes
       nomeProcessado = `${nomeLower.substring(0, posicaoDivisao)} ${nomeLower.substring(posicaoDivisao)}`;
     }
@@ -83,4 +83,3 @@ export const extractFirstAndLastName = (fullName: string): string => {
 export const formatRegistradoPor = (fullName: string): string => {
   return extractFirstAndLastName(fullName).toUpperCase();
 };
-

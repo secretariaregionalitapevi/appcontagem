@@ -113,7 +113,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
     setLoadingOrganistas(true);
     try {
       const data = await organistasEnsaioService.fetchOrganistasByLocalEnsaio(localEnsaio);
-      
+
       // Converter para formato de opções do NameSelectField
       const opcoes = data.map((org, index) => ({
         id: `organista_${index}_${org.nome.toLowerCase().replace(/\s+/g, '_')}`,
@@ -163,9 +163,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
     if (typeof option.value === 'string') {
       setSelectedOrganista(option.value);
       // Verificar se já existe registro para esta organista
-      const registroExistente = organistasRegistradas.find(
-        reg => reg.nome === option.value
-      );
+      const registroExistente = organistasRegistradas.find(reg => reg.nome === option.value);
       if (registroExistente) {
         setTocou(registroExistente.tocou || false);
       } else {
@@ -203,9 +201,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
 
     try {
       // Buscar dados completos da organista selecionada
-      const organistaSelecionada = organistas.find(
-        opt => opt.value === selectedOrganista
-      )?.data;
+      const organistaSelecionada = organistas.find(opt => opt.value === selectedOrganista)?.data;
 
       // Preparar nome do usuário
       let nomeCompletoUsuario = user.nome;
@@ -232,13 +228,13 @@ export const OrganistasEnsaioScreen: React.FC = () => {
           'Salvo!',
           `${selectedOrganista} ${tocou ? 'tocou' : 'não tocou'} no ensaio`
         );
-        
+
         // Limpar seleção IMEDIATAMENTE usando função helper
         clearOrganistaField();
-        
+
         // Recarregar registros para atualizar a lista
         await loadRegistros();
-        
+
         // NÃO recarregar a página - permanecer na mesma tela para novos registros
       } else {
         Alert.alert('Erro', result.error || 'Não foi possível salvar o registro');
@@ -276,10 +272,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
 
       organistasEnsaioService.saveOrganistaEnsaio(registroAtualizado).then(result => {
         if (result.success) {
-          showToast.success(
-            'Atualizado!',
-            `${nome} ${valor ? 'tocou' : 'não tocou'} no ensaio`
-          );
+          showToast.success('Atualizado!', `${nome} ${valor ? 'tocou' : 'não tocou'} no ensaio`);
           loadRegistros();
         } else {
           showToast.error('Erro', result.error || 'Não foi possível atualizar');
@@ -311,19 +304,14 @@ export const OrganistasEnsaioScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <AppHeader
-        title="Organistas no Ensaio"
-        onBackPress={handleBack}
-      />
-      
+      <AppHeader title="Organistas no Ensaio" onBackPress={handleBack} />
+
       {!isOnline && <OfflineBadge />}
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.content}>
           {/* Informações do Ensaio */}
@@ -340,7 +328,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
                 <input
                   type="date"
                   value={dataEnsaio}
-                  onChange={(e) => {
+                  onChange={e => {
                     const novaData = e.target.value;
                     if (novaData) {
                       setDataEnsaio(novaData);
@@ -365,7 +353,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
                   style={styles.dateInput}
                   value={formatDate(new Date(dataEnsaio))}
                   placeholder="DD/MM/AAAA"
-                  onChangeText={(text) => {
+                  onChangeText={text => {
                     // Converter DD/MM/AAAA para YYYY-MM-DD
                     const partes = text.split('/');
                     if (partes.length === 3) {
@@ -391,14 +379,21 @@ export const OrganistasEnsaioScreen: React.FC = () => {
           {/* Buscar e Registrar Nova Organista */}
           <View style={[styles.section, styles.registrarSection]}>
             <Text style={styles.sectionTitle}>Registrar Organista</Text>
-            
-            <View style={[styles.nameSelectWrapper, Platform.OS === 'web' ? {
-              // @ts-ignore - Propriedades CSS apenas para web
-              position: 'relative' as const,
-              zIndex: 10000,
-              // @ts-ignore
-              isolation: 'isolate',
-            } : {}]}>
+
+            <View
+              style={[
+                styles.nameSelectWrapper,
+                Platform.OS === 'web'
+                  ? {
+                    // @ts-ignore - Propriedades CSS apenas para web
+                    position: 'relative' as const,
+                    zIndex: 10000,
+                    // @ts-ignore
+                    isolation: 'isolate',
+                  }
+                  : {},
+              ]}
+            >
               <NameSelectField
                 key={organistaFieldKey} // Key para forçar remontagem quando limpar
                 label="Organista"
@@ -441,9 +436,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
             </Text>
 
             {organistasRegistradas.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Nenhuma organista registrada para este ensaio
-              </Text>
+              <Text style={styles.emptyText}>Nenhuma organista registrada para este ensaio</Text>
             ) : (
               organistasRegistradas.map((org, index) => (
                 <View key={index} style={styles.organistaItem}>
@@ -464,7 +457,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
                       </Text>
                       <Switch
                         value={org.tocou || false}
-                        onValueChange={(value) => handleToggleTocou(org.nome, value)}
+                        onValueChange={value => handleToggleTocou(org.nome, value)}
                         trackColor={{ false: '#767577', true: theme.colors.primary }}
                         thumbColor={org.tocou ? '#fff' : '#f4f3f4'}
                         disabled={!isOnline}
@@ -552,10 +545,12 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
     minHeight: 80,
     overflow: 'visible' as any,
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      isolation: 'isolate',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        // @ts-ignore - Propriedades CSS apenas para web
+        isolation: 'isolate',
+      }
+      : {}),
   },
   sectionTitle: {
     fontSize: theme.fontSize.md,
@@ -624,10 +619,12 @@ const styles = StyleSheet.create({
     zIndex: 100, // 🚀 Aumentado para garantir que o dropdown apareça acima
     position: 'relative' as any,
     overflow: 'visible' as any, // 🚀 CRÍTICO: overflow visible para permitir que dropdown apareça
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      isolation: 'isolate',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        // @ts-ignore - Propriedades CSS apenas para web
+        isolation: 'isolate',
+      }
+      : {}),
   },
   organistasSection: {
     zIndex: 1, // 🚀 Reduzido para ficar abaixo do dropdown
@@ -635,4 +632,3 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xl,
   },
 });
-

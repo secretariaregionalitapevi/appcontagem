@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.23.7",
+    "@types/jest": "^30.0.0",
     "@types/react": "~18.2.45",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",

@@ -29,8 +29,11 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
 
   try {
     // 🚨 CORREÇÃO: Verificar se já há sessão ativa primeiro
-    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-    
+    const {
+      data: { session: currentSession },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
     if (currentSession && currentSession.user && !sessionError) {
       // Verificar se a sessão ainda é válida (não expirou)
       const expiresAt = currentSession.expires_at;
@@ -42,30 +45,36 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
     // 🚨 CORREÇÃO: Tentar restaurar do authService apenas se não houver sessão válida
     try {
       const sessionData = await authService.getSession();
-      
+
       if (sessionData && sessionData.access_token && sessionData.refresh_token) {
         // Tentar definir a sessão
-        const { data: { session }, error: setSessionError } = await supabase.auth.setSession({
+        const {
+          data: { session },
+          error: setSessionError,
+        } = await supabase.auth.setSession({
           access_token: sessionData.access_token,
           refresh_token: sessionData.refresh_token,
         });
-        
+
         if (session && !setSessionError) {
           return true;
         }
-        
+
         // 🚨 CORREÇÃO: Se o token expirou ou é inválido, tentar refresh APENAS se tiver refresh_token válido
         if (setSessionError && sessionData.refresh_token) {
           // Verificar se o refresh_token não está muito antigo (mais de 30 dias)
-          const tokenAge = sessionData.expires_at ? (Date.now() - sessionData.expires_at * 1000) : 0;
+          const tokenAge = sessionData.expires_at ? Date.now() - sessionData.expires_at * 1000 : 0;
           const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 dias em ms
-          
+
           if (tokenAge < maxAge) {
             try {
-              const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession({
+              const {
+                data: { session: refreshedSession },
+                error: refreshError,
+              } = await supabase.auth.refreshSession({
                 refresh_token: sessionData.refresh_token,
               });
-              
+
               if (refreshedSession && !refreshError) {
                 // Salvar nova sessão
                 await authService.saveSession({
@@ -92,7 +101,7 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
     } catch (authServiceError) {
       console.warn('⚠️ Erro ao buscar sessão do authService:', authServiceError);
     }
-    
+
     // 🚨 CORREÇÃO: Se não conseguiu restaurar, retornar false mas não bloquear operações
     // (RLS pode permitir algumas operações sem autenticação)
     return false;

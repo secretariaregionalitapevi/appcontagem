@@ -222,7 +222,3 @@ export const logDeviceInfo = () => {
   console.log('📱 Informações do Dispositivo:', diagnostics);
   return diagnostics;
 };
-
-
-
-

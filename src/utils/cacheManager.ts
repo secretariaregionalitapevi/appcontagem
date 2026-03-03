@@ -1,6 +1,6 @@
 /**
  * 🚀 Sistema de Cache com TTL para Otimização de Performance
- * 
+ *
  * Gerencia cache de dados de referência (comuns, cargos, instrumentos)
  * com TTL configurável para reduzir queries desnecessárias ao Supabase
  */
@@ -16,11 +16,11 @@ interface CacheEntry<T> {
 
 // 🚀 CONFIGURAÇÃO: TTL para diferentes tipos de dados
 const CACHE_TTL = {
-  comuns: 60 * 60 * 1000,      // 1 hora (dados raramente mudam)
-  cargos: 60 * 60 * 1000,       // 1 hora (lista fixa)
+  comuns: 60 * 60 * 1000, // 1 hora (dados raramente mudam)
+  cargos: 60 * 60 * 1000, // 1 hora (lista fixa)
   instrumentos: 60 * 60 * 1000, // 1 hora (lista fixa)
-  pessoas: 5 * 60 * 1000,       // 5 minutos (podem mudar mais frequentemente)
-  default: 30 * 60 * 1000,      // 30 minutos (padrão)
+  pessoas: 5 * 60 * 1000, // 5 minutos (podem mudar mais frequentemente)
+  default: 30 * 60 * 1000, // 30 minutos (padrão)
 };
 
 class CacheManager {
@@ -52,7 +52,7 @@ class CacheManager {
         const entry: CacheEntry<T> = JSON.parse(cached);
         const now = Date.now();
         const age = now - entry.timestamp;
-        
+
         if (age < entry.ttl) {
           // Cache válido, também salvar em memória
           this.memoryCache.set(key, entry);
@@ -119,7 +119,7 @@ class CacheManager {
   isValid(key: string): boolean {
     const entry = this.memoryCache.get(key);
     if (!entry) return false;
-    
+
     const now = Date.now();
     const age = now - entry.timestamp;
     return age < entry.ttl;
@@ -128,4 +128,3 @@ class CacheManager {
 
 // Singleton
 export const cacheManager = new CacheManager();
-

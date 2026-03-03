@@ -215,7 +215,9 @@ export const EditRegistrosScreen: React.FC = () => {
     setEditCidade(registro.cidade || '');
 
     // Encontrar o ID do cargo pelo nome
-    const cargoEncontrado = cargos.find(c => c.nome.toUpperCase() === (registro.cargo || '').toUpperCase());
+    const cargoEncontrado = cargos.find(
+      c => c.nome.toUpperCase() === (registro.cargo || '').toUpperCase()
+    );
     setEditCargo(cargoEncontrado?.id || '');
 
     setEditInstrumento(registro.instrumento || '');
@@ -269,7 +271,10 @@ export const EditRegistrosScreen: React.FC = () => {
 
       // Atualizar no Google Sheets PRIMEIRO (como backupcont)
       console.log('📤 ETAPA 1: Atualizando no Google Sheets...');
-      const sheetsResult = await googleSheetsService.updateRegistroInSheet(editingRegistro.uuid, updateData);
+      const sheetsResult = await googleSheetsService.updateRegistroInSheet(
+        editingRegistro.uuid,
+        updateData
+      );
 
       if (!sheetsResult.success) {
         console.warn('⚠️ Google Sheets falhou, mas continuando com Supabase:', sheetsResult.error);
@@ -434,7 +439,12 @@ export const EditRegistrosScreen: React.FC = () => {
 
           {/* Campo de busca */}
           <View style={styles.searchContainer}>
-            <FontAwesome5 name="search" size={16} color={theme.colors.textSecondary} style={styles.searchIcon} />
+            <FontAwesome5
+              name="search"
+              size={16}
+              color={theme.colors.textSecondary}
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="Pesquisar por nome, cargo ou comum..."
@@ -491,11 +501,7 @@ export const EditRegistrosScreen: React.FC = () => {
                       </View>
 
                       <View style={styles.detailRow}>
-                        <FontAwesome5
-                          name="user"
-                          size={12}
-                          color={theme.colors.textSecondary}
-                        />
+                        <FontAwesome5 name="user" size={12} color={theme.colors.textSecondary} />
                         <Text style={styles.detailText}>{registro.cargo || 'Não informado'}</Text>
                       </View>
 
@@ -508,7 +514,11 @@ export const EditRegistrosScreen: React.FC = () => {
 
                       {registro.classe_organista && (
                         <View style={styles.detailRow}>
-                          <FontAwesome5 name="keyboard" size={12} color={theme.colors.textSecondary} />
+                          <FontAwesome5
+                            name="keyboard"
+                            size={12}
+                            color={theme.colors.textSecondary}
+                          />
                           <Text style={styles.detailText}>Classe: {registro.classe_organista}</Text>
                         </View>
                       )}
@@ -519,7 +529,9 @@ export const EditRegistrosScreen: React.FC = () => {
                           size={12}
                           color={theme.colors.textSecondary}
                         />
-                        <Text style={styles.detailText}>{registro.local_ensaio || 'Não informado'}</Text>
+                        <Text style={styles.detailText}>
+                          {registro.local_ensaio || 'Não informado'}
+                        </Text>
                       </View>
 
                       <View style={styles.detailRow}>
@@ -531,7 +543,11 @@ export const EditRegistrosScreen: React.FC = () => {
 
                       {registro.anotacoes && (
                         <View style={styles.detailRow}>
-                          <FontAwesome5 name="sticky-note" size={12} color={theme.colors.textSecondary} />
+                          <FontAwesome5
+                            name="sticky-note"
+                            size={12}
+                            color={theme.colors.textSecondary}
+                          />
                           <Text style={styles.detailText}>{registro.anotacoes}</Text>
                         </View>
                       )}
@@ -626,7 +642,14 @@ export const EditRegistrosScreen: React.FC = () => {
                       />
                     </View>
 
-                    <View style={[styles.formField, Platform.OS === 'web' ? { zIndex: 99, position: 'relative', isolation: 'isolate' } as any : { zIndex: 99 }]}>
+                    <View
+                      style={[
+                        styles.formField,
+                        Platform.OS === 'web'
+                          ? ({ zIndex: 99, position: 'relative', isolation: 'isolate' } as any)
+                          : { zIndex: 99 },
+                      ]}
+                    >
                       <Text style={styles.formLabel}>Cargo/Ministério *</Text>
                       <AutocompleteField
                         value={editCargo}
@@ -699,10 +722,7 @@ export const EditRegistrosScreen: React.FC = () => {
 
                   <View style={styles.modalFooter}>
                     <TouchableOpacity
-                      style={[
-                        styles.cancelButton,
-                        saving && { opacity: 0.6 },
-                      ]}
+                      style={[styles.cancelButton, saving && { opacity: 0.6 }]}
                       onPress={() => {
                         if (!saving) {
                           setEditFormVisible(false);
@@ -905,14 +925,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    ...(Platform.OS === 'web' ? {
-      position: 'fixed' as any,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 99999,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'fixed' as any,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 99999,
+        }
+      : {}),
   },
   modalOverlay: {
     position: 'absolute',
@@ -921,10 +943,12 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    ...(Platform.OS === 'web' ? {
-      position: 'fixed' as any,
-      zIndex: 99998,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'fixed' as any,
+          zIndex: 99998,
+        }
+      : {}),
   },
   modalContentWrapper: {
     flex: 1,
@@ -933,10 +957,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: theme.spacing.lg,
     zIndex: 99999,
-    ...(Platform.OS === 'web' ? {
-      position: 'relative' as const,
-      zIndex: 99999,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'relative' as const,
+          zIndex: 99999,
+        }
+      : {}),
   },
   modalContent: {
     backgroundColor: theme.colors.surface,
@@ -949,13 +975,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 10,
     zIndex: 100000,
-    ...(Platform.OS === 'web' ? {
-      maxWidth: '800px' as any,
-      maxHeight: '90%' as any,
-      width: '90%',
-      position: 'relative' as const,
-      zIndex: 100000,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          maxWidth: '800px' as any,
+          maxHeight: '90%' as any,
+          width: '90%',
+          position: 'relative' as const,
+          zIndex: 100000,
+        }
+      : {}),
   },
   modalHeader: {
     flexDirection: 'row',
@@ -976,9 +1004,11 @@ const styles = StyleSheet.create({
   modalBody: {
     padding: theme.spacing.xl,
     maxHeight: 500,
-    ...(Platform.OS === 'web' ? {
-      maxHeight: '60vh' as any,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          maxHeight: '60vh' as any,
+        }
+      : {}),
   },
   formField: {
     marginBottom: theme.spacing.md,
@@ -1015,10 +1045,12 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
     gap: theme.spacing.md,
-    ...(Platform.OS === 'web' ? {
-      position: 'sticky' as any,
-      bottom: 0,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          position: 'sticky' as any,
+          bottom: 0,
+        }
+      : {}),
   },
   cancelButton: {
     flex: 1,
@@ -1031,12 +1063,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
-    ...(Platform.OS === 'web' ? {
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-    } : {
-      elevation: 0,
-    }),
+    ...(Platform.OS === 'web'
+      ? {
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }
+      : {
+          elevation: 0,
+        }),
   },
   cancelButtonText: {
     fontSize: theme.fontSize.md,

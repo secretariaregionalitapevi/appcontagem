@@ -15,11 +15,10 @@ const PROCESS_COOLDOWN = 2000; // 2 segundos de cooldown entre processamentos
 
 export const offlineSyncService = {
   async isOnline(): Promise<boolean> {
-    if (Platform.OS === 'web') {
-      // Na web, o NetInfo tenta dar ping no localhost via HEAD, o que pode falhar em dev
-      return navigator.onLine;
-    }
-    const state = await NetInfo.fetch();
+    let NetInfoModule = NetInfo;
+    // NetInfo is already imported at the top of the file, no need for dynamic require
+    // The try-catch block for dynamic import is no longer necessary.
+    const state = await NetInfoModule.fetch();
     return state.isConnected === true && state.isInternetReachable !== false;
   },
 
@@ -387,8 +386,10 @@ export const offlineSyncService = {
 
     // 🚀 OTIMIZAÇÃO: Verificar status online de forma rápida (sem logs desnecessários)
     let isOnline = false;
+    let NetInfoModule = NetInfo;
     try {
-      isOnline = await this.isOnline();
+      const state = await NetInfoModule.fetch();
+      isOnline = state.isConnected === true && state.isInternetReachable !== false;
     } catch (error) {
       // Se houver erro na verificação, assumir offline para garantir que salve localmente
       isOnline = false;

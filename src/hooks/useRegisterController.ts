@@ -40,9 +40,7 @@ import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { generateExternalUUID } from '../utils/uuid';
 
-
 export const useRegisterController = () => {
-
   const { user } = useAuthContext();
 
   // Definir título da página na web
@@ -106,9 +104,8 @@ export const useRegisterController = () => {
     }
 
     // Verificar se está online antes de sincronizar
-    const isOnlineNow = Platform.OS === 'web'
-      ? (typeof navigator !== 'undefined' && navigator.onLine)
-      : isOnline;
+    const isOnlineNow =
+      Platform.OS === 'web' ? typeof navigator !== 'undefined' && navigator.onLine : isOnline;
 
     if (!isOnlineNow) {
       console.log('📴 Sem conexão - não é possível sincronizar agora');
@@ -135,16 +132,19 @@ export const useRegisterController = () => {
       // Sincronizar apenas registros pendentes (mais eficiente)
       const result = await offlineSyncService.syncPendingRegistros();
 
-      console.log(`📊 [SYNC] Resultado: ${result.successCount} de ${result.totalCount} registros enviados`);
+      console.log(
+        `📊 [SYNC] Resultado: ${result.successCount} de ${result.totalCount} registros enviados`
+      );
 
       // Atualizar contador após sincronizar
       await refreshCount();
 
       // Mostrar toast se registros foram sincronizados (igual ao contpedras)
       if (result.successCount > 0) {
-        const mensagem = result.successCount === 1
-          ? '1 item sincronizado'
-          : `${result.successCount} itens sincronizados`;
+        const mensagem =
+          result.successCount === 1
+            ? '1 item sincronizado'
+            : `${result.successCount} itens sincronizados`;
         // Mostrar apenas mensagem, sem título (igual ao contpedras)
         showToast.success(mensagem);
       }
@@ -180,31 +180,36 @@ export const useRegisterController = () => {
         console.log('🌐 Conexão restaurada - iniciando sincronização automática...');
 
         // Verificar se há registros pendentes antes de sincronizar
-        supabaseDataService.getRegistrosPendentesFromLocal().then((registros) => {
-          if (registros.length > 0) {
-            console.log(`🔄 ${registros.length} registro(s) pendente(s) encontrado(s) - iniciando sincronização...`);
-            // Aguardar um pouco para garantir que a conexão está estável
+        supabaseDataService
+          .getRegistrosPendentesFromLocal()
+          .then(registros => {
+            if (registros.length > 0) {
+              console.log(
+                `🔄 ${registros.length} registro(s) pendente(s) encontrado(s) - iniciando sincronização...`
+              );
+              // Aguardar um pouco para garantir que a conexão está estável
+              setTimeout(() => {
+                if (!syncing) {
+                  syncData().catch(error => {
+                    console.error('❌ Erro na sincronização automática ao voltar online:', error);
+                  });
+                }
+              }, 1500); // Reduzido para 1.5s para ser mais rápido
+            } else {
+              console.log('📭 Nenhum registro pendente para sincronizar');
+            }
+          })
+          .catch(error => {
+            console.error('❌ Erro ao verificar registros pendentes:', error);
+            // Tentar sincronizar mesmo assim
             setTimeout(() => {
               if (!syncing) {
-                syncData().catch(error => {
-                  console.error('❌ Erro na sincronização automática ao voltar online:', error);
+                syncData().catch(err => {
+                  console.error('❌ Erro na sincronização automática:', err);
                 });
               }
-            }, 1500); // Reduzido para 1.5s para ser mais rápido
-          } else {
-            console.log('📭 Nenhum registro pendente para sincronizar');
-          }
-        }).catch(error => {
-          console.error('❌ Erro ao verificar registros pendentes:', error);
-          // Tentar sincronizar mesmo assim
-          setTimeout(() => {
-            if (!syncing) {
-              syncData().catch(err => {
-                console.error('❌ Erro na sincronização automática:', err);
-              });
-            }
-          }, 1500);
-        });
+            }, 1500);
+          });
       }
     });
   }, [setOnStatusChange, syncing, syncData]);
@@ -418,9 +423,9 @@ export const useRegisterController = () => {
           if (comunsDiretas.length > 0) {
             finalComuns = comunsDiretas;
             // Salvar no cache em background
-            supabaseDataService.syncComunsToLocal().catch(err =>
-              console.warn('⚠️ Erro ao salvar comuns no cache:', err)
-            );
+            supabaseDataService
+              .syncComunsToLocal()
+              .catch(err => console.warn('⚠️ Erro ao salvar comuns no cache:', err));
           }
         } catch (error) {
           console.warn('⚠️ Erro ao buscar comuns diretamente:', error);
@@ -434,7 +439,6 @@ export const useRegisterController = () => {
       if (finalComuns.length === 0) {
         console.warn('⚠️ Nenhuma comum encontrada após todas as tentativas');
       }
-
     } catch (error) {
       console.error('❌ Erro crítico ao carregar dados iniciais:', error);
       Alert.alert('Erro', 'Não foi possível carregar os dados base. Verifique sua conexão.');
@@ -462,7 +466,6 @@ export const useRegisterController = () => {
       }
     }, 100);
   }, []);
-
 
   // 🚀 FOCO AUTOMÁTICO: Focar no campo de comum após carregar a página (web e mobile)
   useEffect(() => {
@@ -531,9 +534,10 @@ export const useRegisterController = () => {
     // Buscar nomes de comum e cargo rapidamente (já estão em memória)
     const comumObj = comuns.find(c => c.id === selectedComum);
     const cargoObj = cargos.find(c => c.id === selectedCargo);
-    const instrumentoObj = showInstrumento && selectedInstrumento
-      ? instrumentos.find(i => i.id === selectedInstrumento)
-      : undefined;
+    const instrumentoObj =
+      showInstrumento && selectedInstrumento
+        ? instrumentos.find(i => i.id === selectedInstrumento)
+        : undefined;
 
     if (!comumObj || !cargoObj) {
       setPessoas([]);
@@ -550,12 +554,18 @@ export const useRegisterController = () => {
 
       if (cached && cached.length > 0) {
         // 🚀 Cache encontrado - aplicar filtro de cargo e converter
-        console.log(`✅ [loadPessoas] Cache encontrado: ${cached.length} pessoas - aplicando filtros`);
+        console.log(
+          `✅ [loadPessoas] Cache encontrado: ${cached.length} pessoas - aplicando filtros`
+        );
 
         // 🚨 CORREÇÃO: Aplicar filtro de cargo também nos dados do cache (mesma lógica do fetchPessoasFromCadastro)
         let filteredCached = cached;
         const cargoBusca = cargoObj.nome.trim().toUpperCase();
-        if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+        if (
+          cargoBusca !== 'ORGANISTA' &&
+          cargoBusca !== 'MÚSICO' &&
+          !cargoBusca.includes('MÚSICO')
+        ) {
           const cargoBuscaNormalizado = normalizeString(cargoBusca);
           filteredCached = cached.filter((item: any) => {
             if (!item.cargo) return false;
@@ -563,15 +573,23 @@ export const useRegisterController = () => {
 
             if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
             if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
-              const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
-              const isSubstring = cargosConhecidos.some(c =>
-                c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+              const cargosConhecidos = [
+                'ORGANISTA',
+                'MÚSICO',
+                'INSTRUTOR',
+                'INSTRUTORA',
+                'EXAMINADORA',
+              ];
+              const isSubstring = cargosConhecidos.some(
+                c => c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
               );
               return !isSubstring;
             }
             return false;
           });
-          console.log(`🔍 [loadPessoas] Filtro aplicado no cache: ${cached.length} → ${filteredCached.length} resultados`);
+          console.log(
+            `🔍 [loadPessoas] Filtro aplicado no cache: ${cached.length} → ${filteredCached.length} resultados`
+          );
         }
 
         // Converter dados do cache para formato Pessoa[]
@@ -597,7 +615,11 @@ export const useRegisterController = () => {
             updated_at: new Date().toISOString(),
           };
 
-          if (p.nivel && (p.nivel.toUpperCase().includes('OFICIALIZADA') || p.nivel.toUpperCase().includes('CLASSE'))) {
+          if (
+            p.nivel &&
+            (p.nivel.toUpperCase().includes('OFICIALIZADA') ||
+              p.nivel.toUpperCase().includes('CLASSE'))
+          ) {
             pessoa.classe_organista = p.nivel.toUpperCase().trim();
           }
 
@@ -608,7 +630,10 @@ export const useRegisterController = () => {
         return; // Retornar imediatamente - não precisa buscar do banco
       }
     } catch (error) {
-      console.warn('⚠️ [loadPessoas] Erro ao verificar cache, continuando com busca normal:', error);
+      console.warn(
+        '⚠️ [loadPessoas] Erro ao verificar cache, continuando com busca normal:',
+        error
+      );
     }
 
     // Se não encontrou cache, mostrar loading e buscar do banco
@@ -709,12 +734,13 @@ export const useRegisterController = () => {
       let netInfoOffline = false;
       try {
         const netState = await NetInfo.fetch();
-        const isReallyOnline = netState.isConnected === true && netState.isInternetReachable === true;
+        const isReallyOnline =
+          netState.isConnected === true && netState.isInternetReachable === true;
         netInfoOffline = !isReallyOnline;
         console.log(`📡 [${Platform.OS}] NetInfo:`, {
           isConnected: netState.isConnected,
           isInternetReachable: netState.isInternetReachable,
-          isReallyOnline
+          isReallyOnline,
         });
       } catch (netError) {
         console.warn(`⚠️ [${Platform.OS}] NetInfo falhou:`, netError);
@@ -723,18 +749,29 @@ export const useRegisterController = () => {
       }
 
       // 3. Verificar navigator.onLine (se disponível)
-      const navigatorOffline = typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
+      const navigatorOffline =
+        typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
 
       // 🚨 ESTRATÉGIA: Se QUALQUER verificação indicar offline, considerar offline
       // No iOS, ser mais conservador - se houver qualquer dúvida, salvar na fila
       if (Platform.OS === 'ios') {
         // iOS: Se NetInfo OU hook indicar offline, salvar na fila
         isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-        console.log(`🍎 [iOS] Status offline:`, { netInfoOffline, hookOffline, navigatorOffline, isOfflineNow });
+        console.log(`🍎 [iOS] Status offline:`, {
+          netInfoOffline,
+          hookOffline,
+          navigatorOffline,
+          isOfflineNow,
+        });
       } else if (Platform.OS === 'android') {
         // Android: Se NetInfo OU hook indicar offline, salvar na fila
         isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-        console.log(`🤖 [Android] Status offline:`, { netInfoOffline, hookOffline, navigatorOffline, isOfflineNow });
+        console.log(`🤖 [Android] Status offline:`, {
+          netInfoOffline,
+          hookOffline,
+          navigatorOffline,
+          isOfflineNow,
+        });
       } else {
         // Web: Usar navigator.onLine diretamente
         isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : hookOffline;
@@ -801,7 +838,7 @@ export const useRegisterController = () => {
           cargo_id: selectedCargo,
           instrumento_id: isCandidato
             ? instrumentoCandidato
-            : (showInstrumento && selectedInstrumento)
+            : showInstrumento && selectedInstrumento
               ? selectedInstrumento
               : null,
           classe_organista: classeOrganistaDB,
@@ -838,7 +875,10 @@ export const useRegisterController = () => {
 
         // 🚨 CRÍTICO: Salvar na fila com tratamento robusto de erros
         console.log(`💾 [${Platform.OS}] Salvando registro na fila offline...`);
-        console.log(`📋 [${Platform.OS}] Dados completos do registro:`, JSON.stringify(registro, null, 2));
+        console.log(
+          `📋 [${Platform.OS}] Dados completos do registro:`,
+          JSON.stringify(registro, null, 2)
+        );
 
         try {
           await supabaseDataService.saveRegistroToLocal(registro);
@@ -851,20 +891,26 @@ export const useRegisterController = () => {
         // Verificar se foi realmente salvo (especialmente importante no iOS/Android)
         console.log(`🔍 [${Platform.OS}] Verificando se registro foi salvo...`);
         const registrosAposSalvar = await supabaseDataService.getRegistrosPendentesFromLocal();
-        console.log(`📊 [${Platform.OS}] Total de registros na fila após salvar:`, registrosAposSalvar.length);
+        console.log(
+          `📊 [${Platform.OS}] Total de registros na fila após salvar:`,
+          registrosAposSalvar.length
+        );
 
-        const foiSalvo = registrosAposSalvar.some(r =>
-          r.pessoa_id === registro.pessoa_id &&
-          r.comum_id === registro.comum_id &&
-          r.cargo_id === registro.cargo_id &&
-          r.status_sincronizacao === 'pending'
+        const foiSalvo = registrosAposSalvar.some(
+          r =>
+            r.pessoa_id === registro.pessoa_id &&
+            r.comum_id === registro.comum_id &&
+            r.cargo_id === registro.cargo_id &&
+            r.status_sincronizacao === 'pending'
         );
 
         console.log(`✅ [${Platform.OS}] Registro foi salvo?`, foiSalvo);
 
         if (!foiSalvo) {
           // Se não foi salvo, tentar novamente com novo ID
-          console.warn(`⚠️ [${Platform.OS}] Registro não encontrado após salvar, tentando novamente com novo ID...`);
+          console.warn(
+            `⚠️ [${Platform.OS}] Registro não encontrado após salvar, tentando novamente com novo ID...`
+          );
           const registroComNovoId = {
             ...registro,
             id: generateExternalUUID(),
@@ -930,7 +976,7 @@ export const useRegisterController = () => {
             cargo_id: selectedCargo,
             instrumento_id: isCandidato
               ? instrumentoCandidato
-              : (showInstrumento && selectedInstrumento)
+              : showInstrumento && selectedInstrumento
                 ? selectedInstrumento
                 : null,
             classe_organista: classeOrganistaDB,
@@ -1003,7 +1049,7 @@ export const useRegisterController = () => {
       cargo_id: selectedCargo,
       instrumento_id: isCandidato
         ? instrumentoCandidatoOnline
-        : (showInstrumento && selectedInstrumento)
+        : showInstrumento && selectedInstrumento
           ? selectedInstrumento
           : null,
       classe_organista: classeOrganistaDBOnline,
@@ -1050,8 +1096,9 @@ export const useRegisterController = () => {
               if (Swal) {
                 const SwalConf = Swal.default || Swal;
                 SwalConf.fire({
-                  title: '<span style="font-family: \'Inter\', \'Segoe UI\', sans-serif; font-weight: 600; color: #333; font-size: 22px;">Registro Enviado!</span>',
-                  html: '<span style="font-family: \'Inter\', \'Segoe UI\', sans-serif; color: #555;">A presença foi registrada com sucesso.</span>',
+                  title:
+                    "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 600; color: #333; font-size: 22px;\">Registro Enviado!</span>",
+                  html: "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; color: #555;\">A presença foi registrada com sucesso.</span>",
                   icon: 'success',
                   showConfirmButton: false,
                   timer: 1500,
@@ -1060,16 +1107,17 @@ export const useRegisterController = () => {
                   padding: '16px 12px',
                   backdrop: false,
                   customClass: {
-                    popup: 'swal-success-popup'
+                    popup: 'swal-success-popup',
                   },
                   didOpen: () => {
                     // Injetando css direto caso não exista no app
                     const popup = SwalConf.getPopup();
                     if (popup) {
-                      popup.style.fontFamily = "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-                      popup.style.borderRadius = "8px"; // Menos arredondado
+                      popup.style.fontFamily =
+                        "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+                      popup.style.borderRadius = '8px'; // Menos arredondado
                     }
-                  }
+                  },
                 });
               } else {
                 showToast.success('Registro enviado com sucesso');
@@ -1089,21 +1137,18 @@ export const useRegisterController = () => {
             showToast.info('Salvo offline', 'Enviado quando voltar online');
           } else {
             // Online mas erro de conectividade - mostrar mensagem informativa
-            showToast.warning(
-              'Salvo localmente',
-              'Será enviado automaticamente quando possível'
-            );
+            showToast.warning('Salvo localmente', 'Será enviado automaticamente quando possível');
           }
           // Não limpar formulário se foi salvo localmente (usuário pode querer tentar novamente)
         }
       } else {
         // Verificar se é erro de duplicata
-        const isDuplicateError = result.error && (
-          result.error.includes('DUPLICATA') ||
-          result.error.includes('duplicat') ||
-          result.error.includes('já foi cadastrado hoje') ||
-          result.error.includes('DUPLICATA_BLOQUEADA')
-        );
+        const isDuplicateError =
+          result.error &&
+          (result.error.includes('DUPLICATA') ||
+            result.error.includes('duplicat') ||
+            result.error.includes('já foi cadastrado hoje') ||
+            result.error.includes('DUPLICATA_BLOQUEADA'));
 
         console.log('❌ Registro falhou - Verificando se é duplicata...');
         console.log('   Error:', result.error);
@@ -1121,8 +1166,12 @@ export const useRegisterController = () => {
           nome = isNomeManual
             ? selectedPessoa
             : pessoas.find(p => p.id === selectedPessoa)?.nome_completo ||
-            (pessoas.find(p => p.id === selectedPessoa)?.nome + ' ' +
-              (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')).trim() || '';
+              (
+                pessoas.find(p => p.id === selectedPessoa)?.nome +
+                ' ' +
+                (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')
+              ).trim() ||
+              '';
           comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
 
           // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario
@@ -1141,7 +1190,9 @@ export const useRegisterController = () => {
             } else {
               // Tentar formato sem pipes: DUPLICATA: nome comum data/horario
               // Exemplo: "DUPLICATA: ADRIANO MOTA BR-22-1739 - JARDIM MIRANDA 21/11/2025/13:18"
-              const match = errorPart.match(/^(.+?)\s+(BR-\d+-\d+\s*-\s*.+?)\s+(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/);
+              const match = errorPart.match(
+                /^(.+?)\s+(BR-\d+-\d+\s*-\s*.+?)\s+(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/
+              );
               if (match) {
                 nome = match[1].trim() || nome;
                 comumNome = match[2].trim() || comumNome;
@@ -1175,7 +1226,12 @@ export const useRegisterController = () => {
 
           const nomeExibicao = obterNomeCurto(nome);
 
-          console.log('📋 Informações extraídas:', { nome: nomeExibicao, comumNome, dataFormatada, horarioFormatado });
+          console.log('📋 Informações extraídas:', {
+            nome: nomeExibicao,
+            comumNome,
+            dataFormatada,
+            horarioFormatado,
+          });
 
           // Mostrar alerta de duplicata usando SweetAlert2 (igual ao backupcont)
           if (Platform.OS === 'web') {
@@ -1204,9 +1260,10 @@ export const useRegisterController = () => {
                 </div>
               `;
 
-              const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                typeof navigator !== 'undefined' ? navigator.userAgent : ''
-              );
+              const isMobileDevice =
+                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                  typeof navigator !== 'undefined' ? navigator.userAgent : ''
+                );
 
               // Garantir que FontAwesome está carregado
               if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -1215,7 +1272,8 @@ export const useRegisterController = () => {
                   const link = document.createElement('link');
                   link.id = linkId;
                   link.rel = 'stylesheet';
-                  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+                  link.href =
+                    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
                   document.head.appendChild(link);
                 }
               }
@@ -1243,12 +1301,13 @@ export const useRegisterController = () => {
                 customClass: {
                   confirmButton: 'swal-duplicity-confirm',
                   cancelButton: 'swal-duplicity-cancel',
-                  title: 'swal-duplicity-title'
+                  title: 'swal-duplicity-title',
                 },
                 didOpen: () => {
                   const popupEl = Swal.getPopup();
                   if (popupEl) {
-                    popupEl.style.fontFamily = "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+                    popupEl.style.fontFamily =
+                      "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
                   }
 
                   const titleEl = Swal.getTitle();
@@ -1261,7 +1320,9 @@ export const useRegisterController = () => {
               }).then(async (result: any) => {
                 if (!result.isConfirmed) {
                   // Usuário cancelou - limpar campos e recarregar página
-                  console.log('❌ Usuário cancelou registro por duplicata - limpando campos e recarregando página...');
+                  console.log(
+                    '❌ Usuário cancelou registro por duplicata - limpando campos e recarregando página...'
+                  );
                   setSelectedComum('');
                   setSelectedCargo('');
                   setSelectedInstrumento('');
@@ -1276,7 +1337,10 @@ export const useRegisterController = () => {
                 setLoading(true);
                 try {
                   const registroForce = { ...registroOnline };
-                  const resultForce = await (offlineSyncService as any).createRegistro(registroForce, true);
+                  const resultForce = await (offlineSyncService as any).createRegistro(
+                    registroForce,
+                    true
+                  );
 
                   if (resultForce.success) {
                     if (isOnline && !syncing) {
@@ -1291,7 +1355,6 @@ export const useRegisterController = () => {
                     // Limpar formulário ANTES de recarregar
                     clearAllFields();
                     // Recarregar página após sucesso
-
                   } else {
                     showToast.error(
                       'Erro',
@@ -1304,7 +1367,6 @@ export const useRegisterController = () => {
                     setSelectedPessoa('');
                     setIsNomeManual(false);
                     // Recarregar página mesmo em caso de erro
-
                   }
                 } catch (error) {
                   showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
@@ -1316,7 +1378,6 @@ export const useRegisterController = () => {
                   setSelectedPessoa('');
                   setIsNomeManual(false);
                   // Recarregar página mesmo em caso de erro
-
                 } finally {
                   setLoading(false);
                 }
@@ -1385,13 +1446,15 @@ export const useRegisterController = () => {
             const emailSemDominio = user?.email?.split('@')[0] || '';
             nomeCompletoUsuarioFallback = emailSemDominio.replace(/[._]/g, ' ').trim();
           }
-          const nomeUsuarioFallback = formatRegistradoPor(nomeCompletoUsuarioFallback || user?.id || '');
+          const nomeUsuarioFallback = formatRegistradoPor(
+            nomeCompletoUsuarioFallback || user?.id || ''
+          );
 
           registroFallback = {
             pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
             comum_id: selectedComum,
             cargo_id: selectedCargo,
-            instrumento_id: (showInstrumento && selectedInstrumento) ? selectedInstrumento : null,
+            instrumento_id: showInstrumento && selectedInstrumento ? selectedInstrumento : null,
             local_ensaio: localEnsaioFallback || 'Não definido',
             data_hora_registro: getCurrentDateTimeISO(),
             usuario_responsavel: nomeUsuarioFallback,
@@ -1406,7 +1469,10 @@ export const useRegisterController = () => {
         showToast.warning('Salvo offline', 'Registro salvo na fila. Será enviado quando possível.');
         await refreshCount();
       } catch (fallbackError) {
-        console.error('❌ ERRO CRÍTICO: Não foi possível salvar registro nem localmente:', fallbackError);
+        console.error(
+          '❌ ERRO CRÍTICO: Não foi possível salvar registro nem localmente:',
+          fallbackError
+        );
         Alert.alert(
           'Erro Crítico',
           'Não foi possível salvar o registro. Tente novamente ou verifique sua conexão.'
@@ -1484,7 +1550,9 @@ export const useRegisterController = () => {
   };
 
   const handleOrganistasEnsaio = () => {
-    console.log('🎹 [handleOrganistasEnsaio] Iniciando navegação para tela de Organistas no Ensaio');
+    console.log(
+      '🎹 [handleOrganistasEnsaio] Iniciando navegação para tela de Organistas no Ensaio'
+    );
     console.log('🎹 [handleOrganistasEnsaio] Navigation disponível?', !!navigation);
     console.log('🎹 [handleOrganistasEnsaio] Tipo do navigation:', typeof navigation);
     console.log('🎹 [handleOrganistasEnsaio] Navigation object:', navigation);
@@ -1507,7 +1575,10 @@ export const useRegisterController = () => {
       // Verificar se podemos obter o estado atual da navegação
       const state = (navigation as any).getState?.();
       console.log('🎹 [handleOrganistasEnsaio] Estado atual da navegação:', state);
-      console.log('🎹 [handleOrganistasEnsaio] Rotas disponíveis:', state?.routes?.map((r: any) => r.name));
+      console.log(
+        '🎹 [handleOrganistasEnsaio] Rotas disponíveis:',
+        state?.routes?.map((r: any) => r.name)
+      );
 
       // Verificar se a rota existe
       const routeExists = state?.routes?.some((r: any) => r.name === 'OrganistasEnsaio');
@@ -1619,7 +1690,9 @@ export const useRegisterController = () => {
         nome: cargoObj.nome,
       });
 
-      const instrumentoObj = data.instrumento ? instrumentos.find(i => i.id === data.instrumento) : null;
+      const instrumentoObj = data.instrumento
+        ? instrumentos.find(i => i.id === data.instrumento)
+        : null;
 
       // Criar registro com dados do modal
       // 🚨 CRÍTICO: Usar cargoObj.id (ID do cargo), não data.cargo (nome)
@@ -1674,7 +1747,6 @@ export const useRegisterController = () => {
 
           // Recarregar página após salvar (apenas web)
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
-
           }
           return;
         } catch (filaError) {
@@ -1687,7 +1759,9 @@ export const useRegisterController = () => {
       // 🚨 CRÍTICO: Para registros externos (modal de novo registro), enviar DIRETAMENTE para Google Sheets
       // NÃO usar createRegistro que tenta validar contra listas locais
       // Seguir o mesmo padrão do backupcont: enviar direto para Google Sheets, NÃO para Supabase
-      console.log('📤 [MODAL] Enviando registro externo diretamente para Google Sheets (sem validação local)');
+      console.log(
+        '📤 [MODAL] Enviando registro externo diretamente para Google Sheets (sem validação local)'
+      );
       console.log('📤 [MODAL] Dados do registro:', {
         nome: data.nome,
         comum: data.comum,
@@ -1720,7 +1794,11 @@ export const useRegisterController = () => {
         registradoPor: nomeUsuario,
         userId: user.id,
       });
-      console.log('✅ [MODAL] CONFIRMAÇÃO: localEnsaio que será enviado é:', localEnsaioNome, '(deve ser nome, não ID)');
+      console.log(
+        '✅ [MODAL] CONFIRMAÇÃO: localEnsaio que será enviado é:',
+        localEnsaioNome,
+        '(deve ser nome, não ID)'
+      );
       let result;
       try {
         console.log('🔄 [MODAL] ANTES de chamar sendExternalRegistroToSheet');
@@ -1788,7 +1866,10 @@ export const useRegisterController = () => {
 
           await supabaseDataService.saveRegistroToLocal(registroFallback);
           console.log('✅ [MODAL] Registro salvo como fallback');
-          showToast.warning('Salvo na fila', 'Erro ao enviar. Registro será enviado quando possível.');
+          showToast.warning(
+            'Salvo na fila',
+            'Erro ao enviar. Registro será enviado quando possível.'
+          );
 
           // Limpar formulário ANTES de recarregar
           setSelectedComum('');
@@ -1798,7 +1879,6 @@ export const useRegisterController = () => {
           setIsNomeManual(false);
 
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
-
           }
           return;
         } catch (fallbackError) {
@@ -1864,18 +1944,16 @@ export const useRegisterController = () => {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         // Aumentado de 1500ms para 2000ms para dar tempo do toast aparecer
       }
-
     } catch (error) {
       console.error('❌ [MODAL] Erro ao salvar novo registro:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar registro. Tente novamente.';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro ao salvar registro. Tente novamente.';
       showToast.error('Erro', errorMessage);
       throw error; // Re-lançar para o modal tratar
     }
   };
 
   // 🚨 REMOVIDO: Log desnecessário que estava causando loop - função já está definida e funcionando
-
-
 
   return {
     user,
@@ -1888,22 +1966,33 @@ export const useRegisterController = () => {
     instrumentos,
     pessoas,
     loadingPessoas,
-    selectedComum, setSelectedComum,
-    selectedCargo, setSelectedCargo,
-    selectedInstrumento, setSelectedInstrumento,
-    selectedPessoa, setSelectedPessoa,
-    isNomeManual, setIsNomeManual,
-    nameFieldKey, setNameFieldKey,
-    loading, setLoading,
+    selectedComum,
+    setSelectedComum,
+    selectedCargo,
+    setSelectedCargo,
+    selectedInstrumento,
+    setSelectedInstrumento,
+    selectedPessoa,
+    setSelectedPessoa,
+    isNomeManual,
+    setIsNomeManual,
+    nameFieldKey,
+    setNameFieldKey,
+    loading,
+    setLoading,
     initialLoading,
     syncing,
     refreshing,
     onRefresh,
     comumFieldRef,
-    duplicateModalVisible, setDuplicateModalVisible,
-    duplicateInfo, setDuplicateInfo,
-    pendingRegistro, setPendingRegistro,
-    newRegistrationModalVisible, setNewRegistrationModalVisible,
+    duplicateModalVisible,
+    setDuplicateModalVisible,
+    duplicateInfo,
+    setDuplicateInfo,
+    pendingRegistro,
+    setPendingRegistro,
+    newRegistrationModalVisible,
+    setNewRegistrationModalVisible,
     isOrganista,
     isCandidato,
     showInstrumento,
@@ -1918,6 +2007,6 @@ export const useRegisterController = () => {
     pessoasOptions,
     handleEditRegistros,
     handleOrganistasEnsaio,
-    handleSaveNewRegistration
+    handleSaveNewRegistration,
   };
 };

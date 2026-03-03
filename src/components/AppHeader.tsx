@@ -1,5 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Image, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  Image,
+  Dimensions,
+} from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
@@ -33,7 +41,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   React.useEffect(() => {
     loadLocalEnsaio();
   }, []);
-
 
   const loadLocalEnsaio = async () => {
     try {
@@ -114,7 +121,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const userName = getUserDisplayName();
 
-
   return (
     <View style={styles.header}>
       {/* Primeira linha: Logo, Título e Botões */}
@@ -122,20 +128,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <View style={styles.headerLeftSection}>
           <View style={styles.brandSection}>
             <View style={[styles.brandLogo, IS_SMALL_SCREEN && styles.brandLogoSmall]}>
-              <Image 
-                source={require('../img/ccb.png')} 
+              <Image
+                source={require('../img/ccb.png')}
                 style={styles.brandLogoImage}
                 resizeMode="contain"
               />
             </View>
             <View style={styles.brandText}>
-              <Text style={[styles.brandTitle, IS_SMALL_SCREEN && styles.brandTitleSmall]} numberOfLines={1}>
+              <Text
+                style={[styles.brandTitle, IS_SMALL_SCREEN && styles.brandTitleSmall]}
+                numberOfLines={1}
+              >
                 {title || 'Registro de Presença'}
               </Text>
               {!IS_SMALL_SCREEN && (
                 <View style={styles.brandSubtitleContainer}>
                   <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
-                  <Text style={styles.brandSubtitle} numberOfLines={1}>{localEnsaio}</Text>
+                  <Text style={styles.brandSubtitle} numberOfLines={1}>
+                    {localEnsaio}
+                  </Text>
                 </View>
               )}
             </View>
@@ -155,11 +166,21 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           {onOrganistasEnsaioPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall, styles.organistaBtn]}
-              onPress={(e) => {
+              style={[
+                styles.actionBtn,
+                IS_SMALL_SCREEN && styles.actionBtnSmall,
+                styles.organistaBtn,
+              ]}
+              onPress={e => {
                 console.log('🎹 [AppHeader] Botão de organistas clicado!');
-                console.log('🎹 [AppHeader] onOrganistasEnsaioPress disponível?', !!onOrganistasEnsaioPress);
-                console.log('🎹 [AppHeader] Tipo de onOrganistasEnsaioPress:', typeof onOrganistasEnsaioPress);
+                console.log(
+                  '🎹 [AppHeader] onOrganistasEnsaioPress disponível?',
+                  !!onOrganistasEnsaioPress
+                );
+                console.log(
+                  '🎹 [AppHeader] Tipo de onOrganistasEnsaioPress:',
+                  typeof onOrganistasEnsaioPress
+                );
                 try {
                   if (onOrganistasEnsaioPress) {
                     onOrganistasEnsaioPress();
@@ -194,9 +215,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <FontAwesome5 name="cog" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]} 
-            onPress={handleLogout} 
+          <TouchableOpacity
+            style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+            onPress={handleLogout}
             activeOpacity={0.6}
           >
             <FontAwesome5 name="sign-out-alt" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
@@ -210,12 +231,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <View style={styles.headerSecondRowContent}>
             <View style={styles.brandSubtitleContainer}>
               <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
-              <Text style={styles.brandSubtitle} numberOfLines={1}>{localEnsaio}</Text>
+              <Text style={styles.brandSubtitle} numberOfLines={1}>
+                {localEnsaio}
+              </Text>
             </View>
           </View>
         </View>
       )}
-
     </View>
   );
 };
@@ -383,21 +405,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 107, 107, 0.2)', // Cor destacada para organistas
     borderWidth: 1,
     borderColor: 'rgba(255, 107, 107, 0.4)',
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      cursor: 'pointer',
-      // @ts-ignore
-      userSelect: 'none',
-      // @ts-ignore
-      WebkitUserSelect: 'none',
-      // @ts-ignore
-      MozUserSelect: 'none',
-      // @ts-ignore
-      msUserSelect: 'none',
-      // @ts-ignore
-      pointerEvents: 'auto',
-      // @ts-ignore
-      zIndex: 1000,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore - Propriedades CSS apenas para web
+          cursor: 'pointer',
+          // @ts-ignore
+          userSelect: 'none',
+          // @ts-ignore
+          WebkitUserSelect: 'none',
+          // @ts-ignore
+          MozUserSelect: 'none',
+          // @ts-ignore
+          msUserSelect: 'none',
+          // @ts-ignore
+          pointerEvents: 'auto',
+          // @ts-ignore
+          zIndex: 1000,
+        }
+      : {}),
   },
 });

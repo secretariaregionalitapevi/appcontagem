@@ -1,9 +1,9 @@
 /**
  * 🛡️ UTILITÁRIOS DE SEGURANÇA
- * 
+ *
  * Este módulo fornece funções centralizadas para validação, sanitização
  * e proteção contra vulnerabilidades comuns de segurança.
- * 
+ *
  * IMPORTANTE: Não altera a funcionalidade existente, apenas adiciona camadas de segurança.
  */
 
@@ -91,7 +91,7 @@ export const escapeHtml = (input: string): string => {
     '/': '&#x2F;',
   };
 
-  return input.replace(/[&<>"'/]/g, (char) => map[char] || char);
+  return input.replace(/[&<>"'/]/g, char => map[char] || char);
 };
 
 /**
@@ -222,7 +222,7 @@ export const sanitizeObject = <T extends Record<string, any>>(
     }
 
     if (Array.isArray(value)) {
-      return value.map((item) => sanitizeRecursive(item, depth + 1));
+      return value.map(item => sanitizeRecursive(item, depth + 1));
     }
 
     if (value && typeof value === 'object') {
@@ -271,14 +271,14 @@ export const sanitizeForLogging = (data: any): any => {
   }
 
   if (Array.isArray(data)) {
-    return data.map((item) => sanitizeForLogging(item));
+    return data.map(item => sanitizeForLogging(item));
   }
 
   const sanitized: any = {};
   for (const key in data) {
     if (Object.prototype.hasOwnProperty.call(data, key)) {
       const lowerKey = key.toLowerCase();
-      const isSensitive = sensitiveKeys.some((sk) => lowerKey.includes(sk));
+      const isSensitive = sensitiveKeys.some(sk => lowerKey.includes(sk));
 
       if (isSensitive) {
         sanitized[key] = '***REDACTED***';
@@ -315,9 +315,7 @@ class RateLimiter {
     const userRequests = this.requests.get(identifier) || [];
 
     // Remover requisições antigas (fora da janela)
-    const recentRequests = userRequests.filter(
-      (timestamp) => now - timestamp < this.windowMs
-    );
+    const recentRequests = userRequests.filter(timestamp => now - timestamp < this.windowMs);
 
     if (recentRequests.length >= this.maxRequests) {
       return false;
@@ -342,9 +340,7 @@ class RateLimiter {
   private cleanup(): void {
     const now = Date.now();
     for (const [key, requests] of this.requests.entries()) {
-      const recentRequests = requests.filter(
-        (timestamp) => now - timestamp < this.windowMs
-      );
+      const recentRequests = requests.filter(timestamp => now - timestamp < this.windowMs);
       if (recentRequests.length === 0) {
         this.requests.delete(key);
       } else {
@@ -390,4 +386,3 @@ export const checkRateLimit = (
     error: 'Muitas requisições. Tente novamente em alguns instantes.',
   };
 };
-

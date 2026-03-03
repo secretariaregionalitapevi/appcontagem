@@ -129,7 +129,6 @@ export const LoginScreen: React.FC = () => {
     return msg;
   };
 
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -204,13 +203,18 @@ export const LoginScreen: React.FC = () => {
 
             <View style={styles.inputGroup}>
               <View style={styles.inputGroupText}>
-                <FontAwesome5 name="map-marker-alt" size={theme.fontSize.md} color={theme.colors.icon} style={styles.icon} />
+                <FontAwesome5
+                  name="map-marker-alt"
+                  size={theme.fontSize.md}
+                  color={theme.colors.icon}
+                  style={styles.icon}
+                />
               </View>
               {Platform.OS === 'web' ? (
                 <select
                   style={styles.selectWeb}
                   value={localEnsaio}
-                  onChange={(e) => setLocalEnsaio(e.target.value)}
+                  onChange={e => setLocalEnsaio(e.target.value)}
                   required
                 >
                   <option value="">Local do Ensaio</option>
@@ -222,7 +226,11 @@ export const LoginScreen: React.FC = () => {
                 </select>
               ) : (
                 <View style={styles.selectNative}>
-                  <Text style={styles.selectText}>{localEnsaio ? locaisEnsaio.find(l => l.id === localEnsaio)?.nome || 'Local do Ensaio' : 'Local do Ensaio'}</Text>
+                  <Text style={styles.selectText}>
+                    {localEnsaio
+                      ? locaisEnsaio.find(l => l.id === localEnsaio)?.nome || 'Local do Ensaio'
+                      : 'Local do Ensaio'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -246,7 +254,10 @@ export const LoginScreen: React.FC = () => {
                     navigation.navigate('SignUp');
                   } catch (error) {
                     console.error('❌ Erro ao navegar para SignUp:', error);
-                    Alert.alert('Erro', 'Não foi possível abrir a tela de cadastro. Tente novamente.');
+                    Alert.alert(
+                      'Erro',
+                      'Não foi possível abrir a tela de cadastro. Tente novamente.'
+                    );
                   }
                 }}
                 activeOpacity={0.7}

@@ -5,12 +5,29 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuidv4 } from '../utils/uuid';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
-import { normalizarRegistroCargoFeminino, isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
+import {
+  normalizarRegistroCargoFeminino,
+  isCargoFemininoOrganista,
+} from '../utils/normalizeCargoFeminino';
 import { extractFirstAndLastName } from '../utils/userNameUtils';
 import { normalizarNivel } from '../utils/normalizeNivel';
-import { robustGetItem, robustSetItem, robustRemoveItem, initializeStorage, robustGetAllKeys } from '../utils/robustStorage';
-import { normalizeForSearch, normalizeString, sanitizeString, isValidString } from '../utils/stringNormalization';
-import { normalizeInstrumentoForSearch, expandInstrumentoSearch } from '../utils/normalizeInstrumento';
+import {
+  robustGetItem,
+  robustSetItem,
+  robustRemoveItem,
+  initializeStorage,
+  robustGetAllKeys,
+} from '../utils/robustStorage';
+import {
+  normalizeForSearch,
+  normalizeString,
+  sanitizeString,
+  isValidString,
+} from '../utils/stringNormalization';
+import {
+  normalizeInstrumentoForSearch,
+  expandInstrumentoSearch,
+} from '../utils/normalizeInstrumento';
 import { getDeviceInfo, logDeviceInfo, isXiaomiDevice } from '../utils/deviceDetection';
 import { formatDate, formatTime } from '../utils/dateUtils';
 import { cacheManager } from '../utils/cacheManager';
@@ -400,12 +417,12 @@ export const supabaseDataService = {
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
-          const validComuns = comuns.filter((c: any) =>
-            isValidString(c.id) && isValidString(c.nome)
-          ).map((c: any) => ({
-            ...c,
-            nome: sanitizeString(c.nome),
-          }));
+          const validComuns = comuns
+            .filter((c: any) => isValidString(c.id) && isValidString(c.nome))
+            .map((c: any) => ({
+              ...c,
+              nome: sanitizeString(c.nome),
+            }));
 
           memoryCache.comuns = validComuns;
           console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto`);
@@ -550,12 +567,12 @@ export const supabaseDataService = {
         if (cached) {
           const cargos = JSON.parse(cached);
           // Validar e sanitizar dados
-          const validCargos = cargos.filter((c: any) =>
-            isValidString(c.id) && isValidString(c.nome)
-          ).map((c: any) => ({
-            ...c,
-            nome: sanitizeString(c.nome),
-          }));
+          const validCargos = cargos
+            .filter((c: any) => isValidString(c.id) && isValidString(c.nome))
+            .map((c: any) => ({
+              ...c,
+              nome: sanitizeString(c.nome),
+            }));
           // Reordenar conforme lista fixa
           const cargosOrdenados = CARGOS_FIXED.map(nome => {
             const cargo = validCargos.find((c: any) => c.nome === nome);
@@ -761,12 +778,12 @@ export const supabaseDataService = {
         if (cached) {
           const instrumentos = JSON.parse(cached);
           // Validar e sanitizar dados
-          const validInstrumentos = instrumentos.filter((i: any) =>
-            isValidString(i.id) && isValidString(i.nome)
-          ).map((i: any) => ({
-            ...i,
-            nome: sanitizeString(i.nome),
-          }));
+          const validInstrumentos = instrumentos
+            .filter((i: any) => isValidString(i.id) && isValidString(i.nome))
+            .map((i: any) => ({
+              ...i,
+              nome: sanitizeString(i.nome),
+            }));
           memoryCache.instrumentos = validInstrumentos;
           console.log(`✅ Retornando ${validInstrumentos.length} instrumentos do cache robusto`);
           return validInstrumentos;
@@ -841,16 +858,24 @@ export const supabaseDataService = {
           if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
           if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
             // Verificar se não é substring de outro cargo conhecido
-            const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
-            const isSubstring = cargosConhecidos.some(c =>
-              c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+            const cargosConhecidos = [
+              'ORGANISTA',
+              'MÚSICO',
+              'INSTRUTOR',
+              'INSTRUTORA',
+              'EXAMINADORA',
+            ];
+            const isSubstring = cargosConhecidos.some(
+              c => c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
             );
             return !isSubstring;
           }
           return false;
         });
 
-        console.log(`🔍 [fetchPessoasFromCadastro] Filtro aplicado no cache: ${cached.length} → ${filteredCached.length} resultados`);
+        console.log(
+          `🔍 [fetchPessoasFromCadastro] Filtro aplicado no cache: ${cached.length} → ${filteredCached.length} resultados`
+        );
         return filteredCached;
       }
 
@@ -862,7 +887,7 @@ export const supabaseDataService = {
       // Aguardar apenas o mínimo necessário (timeout de 500ms para resposta mais rápida)
       const sessionPromise = Promise.race([
         ensureSessionRestored(),
-        new Promise(resolve => setTimeout(resolve, 500)) // Timeout de 500ms (reduzido de 2s)
+        new Promise(resolve => setTimeout(resolve, 500)), // Timeout de 500ms (reduzido de 2s)
       ]).catch(() => {
         // Se falhar, continuar mesmo assim
       });
@@ -926,7 +951,11 @@ export const supabaseDataService = {
 
         // 🚨 CORREÇÃO CRÍTICA: Para SAXOFONE SOPRANO, fazer múltiplas queries e combinar resultados
         // (como o backupcont faz para garantir robustez)
-        if (instrumentoBusca && instrumentoBusca.includes('SAXOFONE') && instrumentoBusca.includes('SOPRANO')) {
+        if (
+          instrumentoBusca &&
+          instrumentoBusca.includes('SAXOFONE') &&
+          instrumentoBusca.includes('SOPRANO')
+        ) {
           console.log('🔍 Buscando SAXOFONE SOPRANO com múltiplas variações...');
 
           // Criar queries separadas para cada variação (mais confiável que OR)
@@ -986,7 +1015,7 @@ export const supabaseDataService = {
         // 🚨 CORREÇÃO CRÍTICA: Fazer múltiplas buscas para garantir que encontre mesmo com acentos diferentes
         // O Supabase ilike não normaliza acentos automaticamente, então precisamos buscar:
         // 1. Nome normalizado (sem acentos): "JARDIM LAVAPES DAS GRACAS"
-        // 2. Nome original (com acentos): "JARDIM LAVAPÉS DAS GRAÇAS"  
+        // 2. Nome original (com acentos): "JARDIM LAVAPÉS DAS GRAÇAS"
         // 3. Nome completo (com código): "BR-22-1804 - JARDIM LAVAPÉS DAS GRAÇAS"
         console.log('🔍 [fetchPessoasFromCadastro] Construindo query com:', {
           comumBuscaNormalizado: comumBusca,
@@ -1035,10 +1064,12 @@ export const supabaseDataService = {
           } else {
             const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
             if (isBuscandoSecretarioDaMusica) {
-              query1 = query1.ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
+              query1 = query1
+                .ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
                 .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
             } else {
-              query1 = query1.ilike('cargo', '%MÚSICO%')
+              query1 = query1
+                .ilike('cargo', '%MÚSICO%')
                 .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
                 .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
             }
@@ -1050,7 +1081,9 @@ export const supabaseDataService = {
         }
 
         query1 = query1.order('nome', { ascending: true }).range(from, to);
-        console.log(`🔍 [fetchPessoasFromCadastro] Query1 construída com filtro de cargo: ${cargoBusca}`);
+        console.log(
+          `🔍 [fetchPessoasFromCadastro] Query1 construída com filtro de cargo: ${cargoBusca}`
+        );
 
         const result1 = await query1;
 
@@ -1070,16 +1103,26 @@ export const supabaseDataService = {
           if (combinedDataComum.length > 0) {
             // Aplicar filtro de cargo se necessário (já vem filtrado da query, mas garantir)
             let filteredData = combinedDataComum;
-            if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+            if (
+              cargoBusca !== 'ORGANISTA' &&
+              cargoBusca !== 'MÚSICO' &&
+              !cargoBusca.includes('MÚSICO')
+            ) {
               const cargoBuscaNormalizado = normalizeString(cargoBusca.toUpperCase());
               filteredData = combinedDataComum.filter((item: any) => {
                 if (!item.cargo) return false;
                 const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
                 if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
                 if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
-                  const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
-                  const isSubstring = cargosConhecidos.some(c =>
-                    c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+                  const cargosConhecidos = [
+                    'ORGANISTA',
+                    'MÚSICO',
+                    'INSTRUTOR',
+                    'INSTRUTORA',
+                    'EXAMINADORA',
+                  ];
+                  const isSubstring = cargosConhecidos.some(
+                    c => c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
                   );
                   return !isSubstring;
                 }
@@ -1117,10 +1160,12 @@ export const supabaseDataService = {
               } else {
                 const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
                 if (isBuscandoSecretarioDaMusica) {
-                  q = q.ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
+                  q = q
+                    .ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
                     .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
                 } else {
-                  q = q.ilike('cargo', '%MÚSICO%')
+                  q = q
+                    .ilike('cargo', '%MÚSICO%')
                     .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
                     .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
                 }
@@ -1140,7 +1185,7 @@ export const supabaseDataService = {
 
           const resultsComum = await Promise.all(queriesComum);
 
-          resultsComum.forEach((result) => {
+          resultsComum.forEach(result => {
             if (result.data && !result.error) {
               result.data.forEach((item: any) => {
                 const key = `${item.nome}_${item.comum}`.toUpperCase();
@@ -1160,7 +1205,11 @@ export const supabaseDataService = {
           let filteredData = combinedDataComum;
 
           // Se não é ORGANISTA nem MÚSICO, fazer filtro adicional mais rigoroso
-          if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
+          if (
+            cargoBusca !== 'ORGANISTA' &&
+            cargoBusca !== 'MÚSICO' &&
+            !cargoBusca.includes('MÚSICO')
+          ) {
             const cargoBuscaNormalizado = normalizeString(cargoBusca.toUpperCase());
             filteredData = combinedDataComum.filter((item: any) => {
               if (!item.cargo) return false;
@@ -1172,16 +1221,24 @@ export const supabaseDataService = {
               if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
               if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
                 // Verificar se não é substring de outro cargo conhecido
-                const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
-                const isSubstring = cargosConhecidos.some(c =>
-                  c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+                const cargosConhecidos = [
+                  'ORGANISTA',
+                  'MÚSICO',
+                  'INSTRUTOR',
+                  'INSTRUTORA',
+                  'EXAMINADORA',
+                ];
+                const isSubstring = cargosConhecidos.some(
+                  c => c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
                 );
                 return !isSubstring;
               }
               return false;
             });
 
-            console.log(`🔍 [fetchPessoasFromCadastro] Filtro adicional aplicado: ${combinedDataComum.length} → ${filteredData.length} resultados`);
+            console.log(
+              `🔍 [fetchPessoasFromCadastro] Filtro adicional aplicado: ${combinedDataComum.length} → ${filteredData.length} resultados`
+            );
           }
 
           return {
@@ -1247,7 +1304,6 @@ export const supabaseDataService = {
             });
 
             if (comumEncontrada) {
-
               // Fazer busca com o nome EXATO do banco (sem normalizar)
               let queryExata = supabase
                 .from(table)
@@ -1271,7 +1327,9 @@ export const supabaseDataService = {
                   // O cargo real será capturado do banco de dados quando o registro for salvo.
                   const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
                   if (variacoesBusca.length > 1) {
-                    const conditions = variacoesBusca.map(v => `instrumento.ilike.%${v}%`).join(',');
+                    const conditions = variacoesBusca
+                      .map(v => `instrumento.ilike.%${v}%`)
+                      .join(',');
                     queryFinal = queryFinal.or(conditions);
                   } else {
                     queryFinal = queryFinal.ilike('instrumento', `%${instrumentoBusca}%`);
@@ -1280,11 +1338,13 @@ export const supabaseDataService = {
                 } else {
                   // 🚨 CORREÇÃO: Se está buscando Secretário da Música, buscar diretamente por esse cargo
                   if (isBuscandoSecretarioDaMusica) {
-                    queryFinal = queryFinal.ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
+                    queryFinal = queryFinal
+                      .ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
                       .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
                   } else {
                     // Caso contrário, excluir apenas Secretário da Música, mas incluir Secretário do GEM (tratado como Instrutor)
-                    queryFinal = queryFinal.ilike('cargo', '%MÚSICO%')
+                    queryFinal = queryFinal
+                      .ilike('cargo', '%MÚSICO%')
                       .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
                       .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
                   }
@@ -1350,11 +1410,13 @@ export const supabaseDataService = {
             // Se não tem instrumento, buscar apenas por cargo MÚSICO
             // 🚨 CORREÇÃO: Se está buscando Secretário da Música, buscar diretamente por esse cargo
             if (isBuscandoSecretarioDaMusica) {
-              query = query.ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
+              query = query
+                .ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
                 .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
             } else {
               // Caso contrário, excluir apenas Secretário da Música, mas incluir Secretário do GEM (tratado como Instrutor)
-              query = query.ilike('cargo', '%MÚSICO%')
+              query = query
+                .ilike('cargo', '%MÚSICO%')
                 .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
                 .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
             }
@@ -1429,16 +1491,24 @@ export const supabaseDataService = {
           if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
           if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
             // Verificar se não é substring de outro cargo conhecido
-            const cargosConhecidos = ['ORGANISTA', 'MÚSICO', 'INSTRUTOR', 'INSTRUTORA', 'EXAMINADORA'];
-            const isSubstring = cargosConhecidos.some(c =>
-              c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
+            const cargosConhecidos = [
+              'ORGANISTA',
+              'MÚSICO',
+              'INSTRUTOR',
+              'INSTRUTORA',
+              'EXAMINADORA',
+            ];
+            const isSubstring = cargosConhecidos.some(
+              c => c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
             );
             return !isSubstring;
           }
           return false;
         });
 
-        console.log(`🔍 [fetchPessoasFromCadastro] Filtro de cargo aplicado: ${allData.length} → ${dataFiltrada.length} resultados`);
+        console.log(
+          `🔍 [fetchPessoasFromCadastro] Filtro de cargo aplicado: ${allData.length} → ${dataFiltrada.length} resultados`
+        );
       }
 
       // Remover duplicatas baseado em nome + comum
@@ -1467,9 +1537,7 @@ export const supabaseDataService = {
   },
 
   // Buscar candidatos da tabela candidatos (CÓPIA EXATA de fetchPessoasFromCadastro, só muda a tabela)
-  async fetchCandidatosFromSupabase(
-    comumNome?: string
-  ): Promise<any[]> {
+  async fetchCandidatosFromSupabase(comumNome?: string): Promise<any[]> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Supabase não está configurado');
     }
@@ -1483,7 +1551,10 @@ export const supabaseDataService = {
       const sessionRestaurada = await ensureSessionRestored();
 
       // Verificar autenticação após restaurar
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       console.log('🔐 Verificação de autenticação:', {
         user: user ? { id: user.id, email: user.email } : null,
         authError: authError?.message,
@@ -1493,7 +1564,9 @@ export const supabaseDataService = {
 
       // Se ainda não há usuário autenticado, logar aviso mas continuar (RLS pode permitir)
       if (!user) {
-        console.warn('⚠️ Nenhum usuário autenticado encontrado. Verifique se RLS permite acesso sem autenticação.');
+        console.warn(
+          '⚠️ Nenhum usuário autenticado encontrado. Verifique se RLS permite acesso sem autenticação.'
+        );
       }
 
       console.log('📚 Buscando candidatos da tabela candidatos:', {
@@ -1540,7 +1613,9 @@ export const supabaseDataService = {
         let query = supabase
           .from(table)
           .select('nome, comum, cidade, instrumento, cargo, nivel')
-          .or(`comum.ilike.%${comumBusca}%,comum.ilike.%${comumBuscaSemHifen}%,comum.ilike.%${comumBuscaComHifen}%`)
+          .or(
+            `comum.ilike.%${comumBusca}%,comum.ilike.%${comumBuscaSemHifen}%,comum.ilike.%${comumBuscaComHifen}%`
+          )
           .order('nome', { ascending: true });
 
         // Aplicar range para paginação
@@ -1746,7 +1821,8 @@ export const supabaseDataService = {
             const instrumentoNomeOriginal = (p.instrumento || '').trim();
 
             // 🚨 CORREÇÃO: Normalizar instrumento expandindo abreviações (ex: "RET" → "RETO")
-            const instrumentoNomeNormalizado = normalizeInstrumentoForSearch(instrumentoNomeOriginal);
+            const instrumentoNomeNormalizado =
+              normalizeInstrumentoForSearch(instrumentoNomeOriginal);
 
             // 🚨 CORREÇÃO: Criar variações de busca para encontrar mesmo com abreviações
             const variacoesBusca = expandInstrumentoSearch(instrumentoNomeOriginal);
@@ -1755,7 +1831,10 @@ export const supabaseDataService = {
             // Primeiro tentar busca exata com nome normalizado (mais rápida)
             let instrumentoEncontrado = instrumentos.find(inst => {
               const instNomeUpper = inst.nome.toUpperCase();
-              return instNomeUpper === instrumentoNomeNormalizado || variacoesBusca.includes(instNomeUpper);
+              return (
+                instNomeUpper === instrumentoNomeNormalizado ||
+                variacoesBusca.includes(instNomeUpper)
+              );
             });
 
             // Se não encontrou, tentar busca normalizada (sem acentos)
@@ -1835,10 +1914,14 @@ export const supabaseDataService = {
         instrumentoNome
       );
 
-      console.log(`✅ [getPessoasFromLocal] ${pessoasData.length} pessoas retornadas de fetchPessoasFromCadastro`);
+      console.log(
+        `✅ [getPessoasFromLocal] ${pessoasData.length} pessoas retornadas de fetchPessoasFromCadastro`
+      );
 
       if (pessoasData.length === 0) {
-        console.warn('⚠️ [getPessoasFromLocal] Nenhuma pessoa encontrada - verificar logs de fetchPessoasFromCadastro');
+        console.warn(
+          '⚠️ [getPessoasFromLocal] Nenhuma pessoa encontrada - verificar logs de fetchPessoasFromCadastro'
+        );
       }
 
       // Converter para formato Pessoa[]
@@ -1867,7 +1950,11 @@ export const supabaseDataService = {
 
         // Incluir classe_organista se existir (para Organistas) - usar campo 'nivel' da tabela apenas se for classe
         // Nota: nivel agora é um campo separado, classe_organista é apenas para organistas
-        if (p.nivel && (p.nivel.toUpperCase().includes('OFICIALIZADA') || p.nivel.toUpperCase().includes('CLASSE'))) {
+        if (
+          p.nivel &&
+          (p.nivel.toUpperCase().includes('OFICIALIZADA') ||
+            p.nivel.toUpperCase().includes('CLASSE'))
+        ) {
           pessoa.classe_organista = p.nivel.toUpperCase().trim();
         }
 
@@ -1925,7 +2012,7 @@ export const supabaseDataService = {
     try {
       const sessionPromise = Promise.race([
         ensureSessionRestored(),
-        new Promise(resolve => setTimeout(() => resolve(false), 1000)) // Timeout de 1s
+        new Promise(resolve => setTimeout(() => resolve(false), 1000)), // Timeout de 1s
       ]).catch(() => false);
 
       const sessionRestored = await sessionPromise;
@@ -1934,17 +2021,24 @@ export const supabaseDataService = {
         // 🚀 OTIMIZAÇÃO: Verificar autenticação com timeout também (não bloquear)
         const authPromise = Promise.race([
           supabase.auth.getUser(),
-          new Promise(resolve => setTimeout(() => resolve({ data: { user: null }, error: null }), 500))
+          new Promise(resolve =>
+            setTimeout(() => resolve({ data: { user: null }, error: null }), 500)
+          ),
         ]).catch(() => ({ data: { user: null }, error: null }));
 
-        const { data: { user }, error: authError } = await authPromise as any;
+        const {
+          data: { user },
+          error: authError,
+        } = (await authPromise) as any;
         if (authError) {
           console.warn('⚠️ Erro ao verificar autenticação:', authError.message);
         } else if (user) {
           console.log('🔐 Sessão restaurada com sucesso:', { userId: user.id });
         }
       } else {
-        console.warn('⚠️ Não foi possível restaurar sessão. Tentando inserir mesmo assim (RLS pode permitir).');
+        console.warn(
+          '⚠️ Não foi possível restaurar sessão. Tentando inserir mesmo assim (RLS pode permitir).'
+        );
       }
     } catch (sessionError) {
       console.warn('⚠️ Erro ao restaurar sessão (continuando...):', sessionError);
@@ -1997,6 +2091,17 @@ export const supabaseDataService = {
       : null;
 
     if (!comum || !cargoSelecionado) {
+      const dataParaEnviar = {
+        pessoa_id: registro.pessoa_id,
+        comum_id: registro.comum_id,
+        cargo_id: registro.cargo_id,
+        instrumento_id: registro.instrumento_id,
+        classe_organista: registro.classe_organista,
+        local_ensaio: registro.local_ensaio,
+        data_hora_registro: registro.data_hora_registro,
+        usuario_responsavel: registro.usuario_responsavel,
+        status_sincronizacao: 'pending' as 'pending' | 'synced',
+      };
       console.error('❌ Erro ao encontrar comum ou cargo:', {
         comum_id: registro.comum_id,
         cargo_id: registro.cargo_id,
@@ -2177,15 +2282,18 @@ export const supabaseDataService = {
 
     // 🚨 CORREÇÃO CRÍTICA: Para cargos femininos/órgão, classe_organista deve ser igual ao nivel
     // Se for cargo feminino (Organista, Instrutora, Examinadora, Secretária) ou órgão, usar o nivel normalizado como classe_organista
-    const isOrgaoOuCargoFeminino = normalizacao.isNormalizado ||
-      (instrumentoParaSalvar?.nome?.toUpperCase() === 'ÓRGÃO' || instrumentoParaSalvar?.nome?.toUpperCase() === 'ORGAO') ||
+    const isOrgaoOuCargoFeminino =
+      normalizacao.isNormalizado ||
+      instrumentoParaSalvar?.nome?.toUpperCase() === 'ÓRGÃO' ||
+      instrumentoParaSalvar?.nome?.toUpperCase() === 'ORGAO' ||
       isCargoFemininoOrganista(cargoReal);
 
-    const classeOrganistaFinal = isOrgaoOuCargoFeminino && nivelPessoa
-      ? nivelPessoa // Usar nivel como classe_organista para cargos femininos/órgão
-      : normalizacao.isNormalizado
-        ? normalizacao.classeOrganista || 'OFICIALIZADA'
-        : registro.classe_organista || null;
+    const classeOrganistaFinal =
+      isOrgaoOuCargoFeminino && nivelPessoa
+        ? nivelPessoa // Usar nivel como classe_organista para cargos femininos/órgão
+        : normalizacao.isNormalizado
+          ? normalizacao.classeOrganista || 'OFICIALIZADA'
+          : registro.classe_organista || null;
 
     // Converter para formato da tabela presencas (nomes em maiúscula)
     const row = {
@@ -2254,15 +2362,18 @@ export const supabaseDataService = {
           setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
         );
 
-        const { data: duplicatas, error: duplicataError } = await Promise.race([
+        const { data: duplicatas, error: duplicataError } = (await Promise.race([
           duplicataPromise,
-          timeoutPromise
-        ]) as any;
+          timeoutPromise,
+        ])) as any;
 
         if (duplicataError) {
           // Se for timeout, continuar (não bloquear)
           if (duplicataError.message?.includes('Timeout')) {
-            console.warn('⚠️ Timeout na verificação de duplicatas (continuando...):', duplicataError.message);
+            console.warn(
+              '⚠️ Timeout na verificação de duplicatas (continuando...):',
+              duplicataError.message
+            );
           } else {
             console.warn('⚠️ Erro ao verificar duplicatas:', duplicataError);
           }
@@ -2287,19 +2398,28 @@ export const supabaseDataService = {
             if (typeof formatDate === 'function') {
               dataFormatada = formatDate(dataExistente);
             } else {
-              dataFormatada = dataExistente.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+              dataFormatada = dataExistente.toLocaleDateString('pt-BR', {
+                timeZone: 'America/Sao_Paulo',
+              });
             }
 
             if (typeof formatTime === 'function') {
               horarioFormatado = formatTime(dataExistente);
             } else {
-              horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+              horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
+                timeZone: 'America/Sao_Paulo',
+              });
             }
           } catch (formatError) {
             console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
             const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
-            dataFormatada = dataExistente.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-            horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour12: false });
+            dataFormatada = dataExistente.toLocaleDateString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+            });
+            horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+              hour12: false,
+            });
           }
 
           // Lançar erro para bloquear inserção com informações formatadas
@@ -2363,7 +2483,9 @@ export const supabaseDataService = {
             error.message?.includes('presencas_pkey');
 
           if (isConstraintError) {
-            console.log(`✅ Registro já existe no Supabase (constraint ${error.code}) - tratado como sucesso`);
+            console.log(
+              `✅ Registro já existe no Supabase (constraint ${error.code}) - tratado como sucesso`
+            );
             // Retornar registro como se tivesse sido inserido com sucesso
             return {
               ...registro,
@@ -2382,7 +2504,10 @@ export const supabaseDataService = {
 
           // Se for erro de autenticação ou sessão, tentar restaurar sessão e tentar novamente
           if (
-            (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('session') || error.message?.includes('permission')) &&
+            (error.code === 'PGRST301' ||
+              error.message?.includes('JWT') ||
+              error.message?.includes('session') ||
+              error.message?.includes('permission')) &&
             tentativas < maxTentativas
           ) {
             console.log('🔄 Tentando restaurar sessão e tentar novamente...');
@@ -2398,7 +2523,10 @@ export const supabaseDataService = {
           }
         } else {
           const tempoTotal = performance.now() - inicioTempo;
-          console.log(`✅✅✅ Registro salvo no Supabase com sucesso ✅✅✅ (${tempoTotal.toFixed(2)}ms):`, data);
+          console.log(
+            `✅✅✅ Registro salvo no Supabase com sucesso ✅✅✅ (${tempoTotal.toFixed(2)}ms):`,
+            data
+          );
           // Retornar registro atualizado
           return {
             ...registro,
@@ -2460,11 +2588,13 @@ export const supabaseDataService = {
         if (cached) {
           const cachedRegistros = JSON.parse(cached);
           // Validar e sanitizar dados
-          const validRegistros = cachedRegistros.filter((r: any) =>
-            isValidString(r.id) && r.status_sincronizacao
+          const validRegistros = cachedRegistros.filter(
+            (r: any) => isValidString(r.id) && r.status_sincronizacao
           );
           memoryCache.registros = validRegistros;
-          const pendingFromCache = validRegistros.filter((r: RegistroPresenca) => r.status_sincronizacao === 'pending');
+          const pendingFromCache = validRegistros.filter(
+            (r: RegistroPresenca) => r.status_sincronizacao === 'pending'
+          );
           // Adicionar apenas se não estiverem já na lista
           for (const r of pendingFromCache) {
             if (!registros.find(existing => existing.id === r.id)) {
@@ -2485,7 +2615,10 @@ export const supabaseDataService = {
             const data = await robustGetItem(key);
             if (data) {
               const registro = JSON.parse(data);
-              if (registro.status_sincronizacao === 'pending' && !registros.find(r => r.id === registro.id)) {
+              if (
+                registro.status_sincronizacao === 'pending' &&
+                !registros.find(r => r.id === registro.id)
+              ) {
                 registros.push(registro);
               }
             }
@@ -2526,8 +2659,8 @@ export const supabaseDataService = {
         if (cached) {
           const registros = JSON.parse(cached);
           // Validar e sanitizar dados
-          const validRegistros = registros.filter((r: any) =>
-            isValidString(r.id) && r.status_sincronizacao
+          const validRegistros = registros.filter(
+            (r: any) => isValidString(r.id) && r.status_sincronizacao
           );
           memoryCache.registros = validRegistros;
           return validRegistros;
@@ -2618,14 +2751,12 @@ export const supabaseDataService = {
     // 🚨 CORREÇÃO: Ajustar lógica de bloqueio para ser menos restritiva
     // Bloquear apenas se for EXATAMENTE o mesmo registro sendo salvo simultaneamente
     // Reduzir tempo de bloqueio de 3s para 1s para não bloquear salvamentos legítimos
-    if (savingLock &&
-      lastSaveKey === saveKey &&
-      (now - lastSaveTimestamp) < 1000) {
+    if (savingLock && lastSaveKey === saveKey && now - lastSaveTimestamp < 1000) {
       console.warn('🚨 [BLOQUEIO] Salvamento duplicado bloqueado (mesmo registro em menos de 1s)');
       // Em vez de retornar silenciosamente, aguardar um pouco e tentar novamente
       await new Promise(resolve => setTimeout(resolve, 500));
       // Verificar novamente após aguardar
-      if (savingLock && lastSaveKey === saveKey && (Date.now() - lastSaveTimestamp) < 1000) {
+      if (savingLock && lastSaveKey === saveKey && Date.now() - lastSaveTimestamp < 1000) {
         console.warn('🚨 [BLOQUEIO] Ainda bloqueado após aguardar - retornando');
         return;
       }
@@ -2641,7 +2772,10 @@ export const supabaseDataService = {
     try {
       registrosPendentes = await this.getRegistrosPendentesFromLocal();
     } catch (error) {
-      console.warn('⚠️ Erro ao buscar registros pendentes, continuando sem validação de duplicata:', error);
+      console.warn(
+        '⚠️ Erro ao buscar registros pendentes, continuando sem validação de duplicata:',
+        error
+      );
       registrosPendentes = []; // Garantir que está definida
     }
 
@@ -2670,7 +2804,9 @@ export const supabaseDataService = {
       });
 
       if (isDuplicataRapida) {
-        console.warn('🚨 [BLOQUEIO] Duplicata detectada na verificação rápida - verificando novamente...');
+        console.warn(
+          '🚨 [BLOQUEIO] Duplicata detectada na verificação rápida - verificando novamente...'
+        );
         // 🚨 CORREÇÃO: Em vez de bloquear imediatamente, fazer verificação mais detalhada
         // Pode ser falso positivo se o registro anterior foi sincronizado
         const registrosPendentesAtualizados = await this.getRegistrosPendentesFromLocal();
@@ -2739,11 +2875,16 @@ export const supabaseDataService = {
 
         if (isManualRegistro) {
           // Para registros manuais, usar o nome do pessoa_id
-          nomeBusca = registro.pessoa_id.replace(/^manual_/, '').trim().toUpperCase();
+          nomeBusca = registro.pessoa_id
+            .replace(/^manual_/, '')
+            .trim()
+            .toUpperCase();
           comumBusca = comum?.nome.toUpperCase() || '';
           cargoBusca = cargo?.nome.toUpperCase() || '';
         } else if (comum && cargo && pessoa) {
-          nomeBusca = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`).trim().toUpperCase();
+          nomeBusca = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`)
+            .trim()
+            .toUpperCase();
           comumBusca = comum.nome.toUpperCase();
           cargoBusca = (pessoa.cargo_real || cargo.nome).toUpperCase();
         } else {
@@ -2792,7 +2933,10 @@ export const supabaseDataService = {
               let rCargoBusca = '';
 
               if (rIsManual) {
-                rNome = r.pessoa_id.replace(/^manual_/, '').trim().toUpperCase();
+                rNome = r.pessoa_id
+                  .replace(/^manual_/, '')
+                  .trim()
+                  .toUpperCase();
                 rComumBusca = rComum?.nome.toUpperCase() || '';
                 rCargoBusca = rCargo?.nome.toUpperCase() || '';
               } else {
@@ -2804,7 +2948,9 @@ export const supabaseDataService = {
                 const rPessoa = rPessoas.find(p => p.id === r.pessoa_id);
 
                 if (rComum && rCargo && rPessoa) {
-                  rNome = (rPessoa.nome_completo || `${rPessoa.nome} ${rPessoa.sobrenome}`).trim().toUpperCase();
+                  rNome = (rPessoa.nome_completo || `${rPessoa.nome} ${rPessoa.sobrenome}`)
+                    .trim()
+                    .toUpperCase();
                   rComumBusca = rComum.nome.toUpperCase();
                   rCargoBusca = (rPessoa.cargo_real || rCargo.nome).toUpperCase();
                 }
@@ -2822,13 +2968,16 @@ export const supabaseDataService = {
                   rDataStr === dataRegistroStr &&
                   r.id !== registro.id // Não é o mesmo registro
                 ) {
-                  console.warn('🚨 [DUPLICATA BLOQUEADA] Registro duplicado detectado na fila - NÃO será salvo:', {
-                    nome: nomeBusca,
-                    comum: comumBusca,
-                    cargo: cargoBusca,
-                    data: dataRegistroStr,
-                    registroExistente: r.id,
-                  });
+                  console.warn(
+                    '🚨 [DUPLICATA BLOQUEADA] Registro duplicado detectado na fila - NÃO será salvo:',
+                    {
+                      nome: nomeBusca,
+                      comum: comumBusca,
+                      cargo: cargoBusca,
+                      data: dataRegistroStr,
+                      registroExistente: r.id,
+                    }
+                  );
                   // BLOQUEAR salvamento - retornar imediatamente
                   return;
                 }
@@ -2853,9 +3002,11 @@ export const supabaseDataService = {
       }
 
       // Sempre usar UUID v4 válido
-      const id = registro.id && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(registro.id)
-        ? registro.id
-        : uuidv4();
+      const id =
+        registro.id &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(registro.id)
+          ? registro.id
+          : uuidv4();
 
       // 🚨 VERIFICAÇÃO CRÍTICA: Verificar se UUID já existe na fila (garantir que registrosPendentes está definida)
       if (registrosPendentes && Array.isArray(registrosPendentes)) {
@@ -2930,7 +3081,7 @@ export const supabaseDataService = {
           ...registroCompleto,
           status_sincronizacao: 'pending', // Garantir que seja pending
           timestamp: new Date().toISOString(),
-          tentativas: 0
+          tentativas: 0,
         };
 
         fila.push(registroParaFila);
@@ -2941,18 +3092,20 @@ export const supabaseDataService = {
         console.log('✅ Registro salvo na fila (mobile):', {
           totalItens: fila.length,
           ultimoItem: registroCompleto.pessoa_id,
-          filaKey
+          filaKey,
         });
       } catch (error) {
         console.error('❌ Erro ao salvar na fila:', error);
         // 🚨 CRÍTICO: Tentar salvar novamente com fallback
         try {
-          const filaFallback: RegistroPresenca[] = [{
-            ...registroCompleto,
-            status_sincronizacao: 'pending',
-            timestamp: new Date().toISOString(),
-            tentativas: 0
-          }];
+          const filaFallback: RegistroPresenca[] = [
+            {
+              ...registroCompleto,
+              status_sincronizacao: 'pending',
+              timestamp: new Date().toISOString(),
+              tentativas: 0,
+            },
+          ];
           await robustSetItem(filaKey, JSON.stringify(filaFallback));
           console.log('✅ Registro salvo na fila (fallback):', registroCompleto.pessoa_id);
         } catch (fallbackError) {
@@ -3042,11 +3195,13 @@ export const supabaseDataService = {
         if (cached) {
           const registros = JSON.parse(cached);
           // Validar e sanitizar dados
-          const validRegistros = registros.filter((r: any) =>
-            isValidString(r.id) && r.status_sincronizacao
+          const validRegistros = registros.filter(
+            (r: any) => isValidString(r.id) && r.status_sincronizacao
           );
           memoryCache.registros = validRegistros;
-          return validRegistros.filter((r: RegistroPresenca) => r.status_sincronizacao === 'pending').length;
+          return validRegistros.filter(
+            (r: RegistroPresenca) => r.status_sincronizacao === 'pending'
+          ).length;
         }
       } catch (error) {
         console.warn('⚠️ Erro ao contar registros do cache robusto:', error);
@@ -3088,10 +3243,7 @@ export const supabaseDataService = {
    * Busca registros da tabela presencas do Supabase filtrados por local_ensaio
    * Permite busca por nome, cargo ou comum
    */
-  async fetchRegistrosFromSupabase(
-    localEnsaio: string,
-    searchTerm?: string
-  ): Promise<any[]> {
+  async fetchRegistrosFromSupabase(localEnsaio: string, searchTerm?: string): Promise<any[]> {
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Supabase não está configurado');
     }
@@ -3156,7 +3308,8 @@ export const supabaseDataService = {
         if (result && result.data && Array.isArray(result.data)) {
           console.log(`🔍 Resultado da query ${idx + 1}:`, result.data.length, 'registros');
           result.data.forEach(item => {
-            const uuid = item.uuid || item.UUID || `${item.nome_completo || ''}_${item.comum || ''}`;
+            const uuid =
+              item.uuid || item.UUID || `${item.nome_completo || ''}_${item.comum || ''}`;
             if (!seenUUIDs.has(uuid)) {
               seenUUIDs.add(uuid);
               allData.push(item);

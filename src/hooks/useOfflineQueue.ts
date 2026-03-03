@@ -10,7 +10,9 @@ export const useOfflineQueue = () => {
       setLoading(true);
       const count = await supabaseDataService.countRegistrosPendentes();
       setPendingCount(count);
-      console.log(`📊 Fila atualizada: ${count} ${count === 1 ? 'item' : 'itens'} pendente${count === 1 ? '' : 's'}`);
+      console.log(
+        `📊 Fila atualizada: ${count} ${count === 1 ? 'item' : 'itens'} pendente${count === 1 ? '' : 's'}`
+      );
     } catch (error) {
       console.error('Erro ao contar registros pendentes:', error);
     } finally {
@@ -21,10 +23,10 @@ export const useOfflineQueue = () => {
   useEffect(() => {
     // Atualizar imediatamente ao montar
     refreshCount();
-    
+
     // Atualizar a cada 3 segundos (mais frequente para melhor UX)
     const interval = setInterval(refreshCount, 3000);
-    
+
     return () => clearInterval(interval);
   }, [refreshCount]);
 

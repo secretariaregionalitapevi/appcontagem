@@ -66,36 +66,36 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     ...(Platform.OS === 'web'
       ? {
-        backgroundImage: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)`,
-        boxShadow: '0 2px 8px rgba(3, 61, 96, 0.3)',
-        transition: 'all 0.2s ease',
-        cursor: 'pointer',
-        minHeight: 44, // Web pode ser um pouco menor
-        paddingVertical: 10,
-      }
+          backgroundImage: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)`,
+          boxShadow: '0 2px 8px rgba(3, 61, 96, 0.3)',
+          transition: 'all 0.2s ease',
+          cursor: 'pointer',
+          minHeight: 44, // Web pode ser um pouco menor
+          paddingVertical: 10,
+        }
       : {
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.4,
-        shadowRadius: 6,
-        elevation: 4, // Elevação maior no mobile para melhor feedback visual
-        minHeight: 52, // Aumentado para 52px no mobile (melhor que 48px)
-        paddingVertical: 14, // Mais padding vertical no mobile
-      }),
+          shadowColor: theme.colors.primary,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.4,
+          shadowRadius: 6,
+          elevation: 4, // Elevação maior no mobile para melhor feedback visual
+          minHeight: 52, // Aumentado para 52px no mobile (melhor que 48px)
+          paddingVertical: 14, // Mais padding vertical no mobile
+        }),
   },
   buttonDisabled: {
     backgroundColor: theme.colors.disabled,
     ...(Platform.OS === 'web'
       ? {
-        backgroundColor: theme.colors.disabled,
-        boxShadow: 'none',
-        cursor: 'not-allowed',
-        transform: 'none',
-      }
+          backgroundColor: theme.colors.disabled,
+          boxShadow: 'none',
+          cursor: 'not-allowed',
+          transform: 'none',
+        }
       : {
-        shadowOpacity: 0,
-        elevation: 0,
-      }),
+          shadowOpacity: 0,
+          elevation: 0,
+        }),
   },
   buttonContent: {
     flexDirection: 'row',

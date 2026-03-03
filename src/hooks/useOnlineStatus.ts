@@ -7,7 +7,10 @@ export const useOnlineStatus = () => {
   const [isOnline, setIsOnline] = useState(true);
   const previousStatusRef = useRef<boolean | null>(null);
   const onStatusChangeRef = useRef<((isOnline: boolean) => void) | null>(null);
-  const alertShownRef = useRef<{ offline: boolean; online: boolean }>({ offline: false, online: false });
+  const alertShownRef = useRef<{ offline: boolean; online: boolean }>({
+    offline: false,
+    online: false,
+  });
   const isInitialLoad = useRef(true);
 
   // Função para permitir callback quando status muda (memoizada para evitar loops de renderização)
@@ -33,8 +36,8 @@ export const useOnlineStatus = () => {
           // Conexão restaurada
           console.log('🌐 [useOnlineStatus] Conexão restaurada');
           // Importar serviço dinamicamente para evitar dependência circular
-          const { offlineSyncService } = await import('../services/offlineSyncService');
-          const { supabaseDataService } = await import('../services/supabaseDataService');
+          const offlineSyncService = require('../services/offlineSyncService').offlineSyncService;
+          const supabaseDataService = require('../services/supabaseDataService').supabaseDataService;
 
           // Verificar se há registros pendentes
           try {
@@ -71,7 +74,9 @@ export const useOnlineStatus = () => {
 
         // Chamar callback se existir
         if (onStatusChangeRef.current) {
-          console.log(`🔄 [useOnlineStatus] Status mudou: ${previousStatusRef.current} -> ${newStatus}`);
+          console.log(
+            `🔄 [useOnlineStatus] Status mudou: ${previousStatusRef.current} -> ${newStatus}`
+          );
           onStatusChangeRef.current(newStatus);
         }
       }
@@ -87,7 +92,9 @@ export const useOnlineStatus = () => {
       const initialStatus = state.isConnected === true && state.isInternetReachable === true;
       previousStatusRef.current = initialStatus;
       setIsOnline(initialStatus);
-      setTimeout(() => { isInitialLoad.current = false; }, 2000); // Dar 2s de gravação para a carga inicial web
+      setTimeout(() => {
+        isInitialLoad.current = false;
+      }, 2000); // Dar 2s de gravação para a carga inicial web
     });
 
     // Para web, também adicionar listeners nativos
@@ -100,39 +107,46 @@ export const useOnlineStatus = () => {
 
           // 🚨 CORREÇÃO: Sempre chamar callback quando status mudar (não verificar null)
           if (previousStatusRef.current !== null && previousStatusRef.current !== newStatus) {
-            console.log(`🔄 [useOnlineStatus] Status mudou (web): ${previousStatusRef.current} -> ${newStatus}`);
+            console.log(
+              `🔄 [useOnlineStatus] Status mudou (web): ${previousStatusRef.current} -> ${newStatus}`
+            );
 
             if (newStatus) {
               // Importar serviços dinamicamente
-              const { offlineSyncService } = await import('../services/offlineSyncService');
-              const { supabaseDataService } = await import('../services/supabaseDataService');
+              const offlineSyncService = require('../services/offlineSyncService').offlineSyncService;
+              const supabaseDataService = require('../services/supabaseDataService').supabaseDataService;
 
               try {
                 const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
                 if (registros.length > 0) {
                   // showToast.success('Conexão restaurada', `${registros.length} registro(s) será(ão) enviado(s)`);
-                  console.log(`🌐 Conexão restaurada (web): ${registros.length} registro(s) pendente(s)`);
+                  console.log(
+                    `🌐 Conexão restaurada (web): ${registros.length} registro(s) pendente(s)`
+                  );
+                  // O timeout foi mantido do processo original
                   setTimeout(async () => {
                     try {
                       await offlineSyncService.processarFilaLocal();
+                      console.log('✅ Sincronização automática concluída (web)');
                     } catch (error) {
-                      console.error('❌ Erro ao processar fila:', error);
+                      console.error('❌ Erro na sincronização automática (web):', error);
                     }
                   }, 2000);
                 } else {
-                  // showToast.info('Conexão restaurada', 'Você está online novamente');
                   console.log('🌐 Conexão restaurada (web, sem registros pendentes)');
                 }
               } catch (error) {
-                console.error('❌ Erro ao verificar registros pendentes:', error);
-                // showToast.info('Conexão restaurada', 'Você está online novamente');
+                console.error('Erro ao verificar/processar fila (web):', error);
               }
             }
 
-            if (onStatusChangeRef.current) {
-              onStatusChangeRef.current(newStatus);
-            }
+            // Atualizar onlineRef para a próxima verificação (se formos usar um timer)
           }
+
+          if (onStatusChangeRef.current) {
+            onStatusChangeRef.current(newStatus);
+          }
+
           previousStatusRef.current = newStatus;
           setIsOnline(newStatus);
         }, 1000);
@@ -164,7 +178,7 @@ export const useOnlineStatus = () => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [setOnStatusChange]);
 
   return { isOnline, setOnStatusChange };
 };

@@ -1,6 +1,11 @@
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
-import { robustGetItem, robustSetItem, robustRemoveItem, robustGetAllKeys } from '../utils/robustStorage';
+import {
+  robustGetItem,
+  robustSetItem,
+  robustRemoveItem,
+  robustGetAllKeys,
+} from '../utils/robustStorage';
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -17,7 +22,7 @@ const getWebDatabase = async (): Promise<any> => {
 
   // Verificar se IndexedDB está disponível
   const hasIndexedDB = typeof window !== 'undefined' && 'indexedDB' in window;
-  
+
   if (hasIndexedDB) {
     // Implementação com IndexedDB (mais robusta)
     return createIndexedDBDatabase();
@@ -37,16 +42,16 @@ const createIndexedDBDatabase = (): any => {
   const openDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
-      
+
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         dbInstance = request.result;
         resolve(dbInstance);
       };
-      
-      request.onupgradeneeded = (event) => {
+
+      request.onupgradeneeded = event => {
         const db = (event.target as IDBOpenDBRequest).result;
-        
+
         // Criar object stores para cada tabela
         if (!db.objectStoreNames.contains('comuns')) {
           db.createObjectStore('comuns', { keyPath: 'id' });
@@ -67,7 +72,10 @@ const createIndexedDBDatabase = (): any => {
     });
   };
 
-  const getStore = async (tableName: string, mode: IDBTransactionMode = 'readonly'): Promise<IDBObjectStore> => {
+  const getStore = async (
+    tableName: string,
+    mode: IDBTransactionMode = 'readonly'
+  ): Promise<IDBObjectStore> => {
     if (!dbInstance) {
       await openDB();
     }
@@ -85,19 +93,19 @@ const createIndexedDBDatabase = (): any => {
     },
     runAsync: async (sql: string, params: any[]) => {
       await openDB();
-      
+
       // Parse SQL para identificar tipo de operação
       const insertMatch = sql.match(/INSERT OR REPLACE INTO (\w+)/i);
       const updateMatch = sql.match(/UPDATE (\w+) SET/i);
       const deleteMatch = sql.match(/DELETE FROM (\w+)/i);
-      
+
       if (insertMatch) {
         const tableName = insertMatch[1];
         const store = await getStore(tableName, 'readwrite');
-        
+
         // Mapear parâmetros para objeto (assumindo ordem: id, pessoa_id, comum_id, cargo_id, instrumento_id, local_ensaio, data_hora_registro, usuario_responsavel, status_sincronizacao, created_at, updated_at)
         const record: any = {};
-        
+
         // Para registros_presenca
         if (tableName === 'registros_presenca' && params.length >= 11) {
           record.id = params[0];
@@ -119,7 +127,7 @@ const createIndexedDBDatabase = (): any => {
             record[`field_${i}`] = params[i];
           }
         }
-        
+
         return new Promise((resolve, reject) => {
           const request = store.put(record);
           request.onerror = () => reject(request.error);
@@ -128,7 +136,7 @@ const createIndexedDBDatabase = (): any => {
       } else if (updateMatch) {
         const tableName = updateMatch[1];
         const store = await getStore(tableName, 'readwrite');
-        
+
         // Para UPDATE, precisaríamos de uma implementação mais complexa
         // Por enquanto, usar put com o ID do primeiro parâmetro
         if (params.length > 0) {
@@ -136,7 +144,7 @@ const createIndexedDBDatabase = (): any => {
           for (let i = 1; i < params.length; i++) {
             record[`field_${i}`] = params[i];
           }
-          
+
           return new Promise((resolve, reject) => {
             const request = store.put(record);
             request.onerror = () => reject(request.error);
@@ -146,7 +154,7 @@ const createIndexedDBDatabase = (): any => {
       } else if (deleteMatch) {
         const tableName = deleteMatch[1];
         const store = await getStore(tableName, 'readwrite');
-        
+
         // DELETE - usar primeiro parâmetro como ID
         if (params.length > 0) {
           return new Promise((resolve, reject) => {
@@ -160,26 +168,26 @@ const createIndexedDBDatabase = (): any => {
     getAllAsync: async (sql: string, params?: any[]): Promise<any[]> => {
       try {
         await openDB();
-        
+
         // Parse básico de SELECT
         const match = sql.match(/FROM\s+(\w+)/i);
         if (!match) return [];
-        
+
         const tableName = match[1];
         const store = await getStore(tableName, 'readonly');
-        
+
         return new Promise((resolve, reject) => {
           const request = store.getAll();
           request.onerror = () => reject(request.error);
           request.onsuccess = () => {
             let results = request.result || [];
-            
+
             // Aplicar WHERE básico se houver params
             if (params && params.length > 0) {
               // Implementação básica de filtro
               // Por enquanto, retornar tudo
             }
-            
+
             resolve(results);
           };
         });
@@ -237,14 +245,14 @@ const createLocalStorageDatabase = (): any => {
       const insertMatch = sql.match(/INSERT OR REPLACE INTO (\w+)/i);
       const updateMatch = sql.match(/UPDATE (\w+) SET/i);
       const deleteMatch = sql.match(/DELETE FROM (\w+)/i);
-      
+
       if (insertMatch) {
         const tableName = insertMatch[1];
         const data = getTableData(tableName);
-        
+
         // Mapear parâmetros para objeto
         const record: any = {};
-        
+
         // Para registros_presenca
         if (tableName === 'registros_presenca' && params.length >= 11) {
           record.id = params[0];
@@ -265,7 +273,7 @@ const createLocalStorageDatabase = (): any => {
             record[`field_${i}`] = params[i];
           }
         }
-        
+
         // Remover registro existente se houver (INSERT OR REPLACE)
         const existingIndex = data.findIndex((r: any) => r.id === record.id);
         if (existingIndex >= 0) {
@@ -273,16 +281,16 @@ const createLocalStorageDatabase = (): any => {
         } else {
           data.push(record);
         }
-        
+
         saveTableData(tableName, data);
       } else if (updateMatch) {
         const tableName = updateMatch[1];
         const data = getTableData(tableName);
-        
+
         if (params.length > 0) {
           const recordId = params[0];
           const existingIndex = data.findIndex((r: any) => r.id === recordId);
-          
+
           if (existingIndex >= 0) {
             const record: any = { ...data[existingIndex], id: recordId };
             for (let i = 1; i < params.length; i++) {
@@ -295,7 +303,7 @@ const createLocalStorageDatabase = (): any => {
       } else if (deleteMatch) {
         const tableName = deleteMatch[1];
         const data = getTableData(tableName);
-        
+
         if (params.length > 0) {
           const recordId = params[0];
           const filteredData = data.filter((r: any) => r.id !== recordId);
@@ -306,7 +314,7 @@ const createLocalStorageDatabase = (): any => {
     getAllAsync: async (sql: string, params?: any[]): Promise<any[]> => {
       const match = sql.match(/FROM\s+(\w+)/i);
       if (!match) return [];
-      
+
       const tableName = match[1];
       return getTableData(tableName);
     },
@@ -324,7 +332,53 @@ const createLocalStorageDatabase = (): any => {
 
 let isInitializing = false;
 
-export const getDatabase = async (): Promise<SQLite.SQLiteDatabase | any> => {
+// Wrapper for classic expo-sqlite (SDK 50) to match the SDK 51+ Async API
+const createClassicSQLiteWrapper = (dbName: string): any => {
+  const sqliteDb = SQLite.openDatabase(dbName);
+
+  const execAsync = (sql: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      sqliteDb.transaction(tx => {
+        tx.executeSql(sql, [], () => resolve(), (_, err) => { reject(err); return true; });
+      });
+    });
+  };
+
+  const runAsync = (sql: string, params: any[] = []): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      sqliteDb.transaction(tx => {
+        tx.executeSql(sql, params, (_, result) => resolve(result), (_, err) => { reject(err); return true; });
+      });
+    });
+  };
+
+  const getAllAsync = (sql: string, params: any[] = []): Promise<any[]> => {
+    return new Promise((resolve, reject) => {
+      sqliteDb.transaction(tx => {
+        tx.executeSql(sql, params, (_, result) => resolve(result.rows._array), (_, err) => { reject(err); return true; });
+      });
+    });
+  };
+
+  const getFirstAsync = async (sql: string, params: any[] = []): Promise<any | null> => {
+    const all = await getAllAsync(sql, params);
+    return all.length > 0 ? all[0] : null;
+  };
+
+  const withTransactionAsync = async (callback: () => Promise<void>) => {
+    await callback();
+  };
+
+  return {
+    execAsync,
+    runAsync,
+    getAllAsync,
+    getFirstAsync,
+    withTransactionAsync
+  };
+};
+
+export const getDatabase = async (): Promise<any> => {
   if (Platform.OS === 'web') {
     return getWebDatabase();
   }
@@ -332,8 +386,8 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase | any> => {
   if (!db && !isInitializing) {
     isInitializing = true;
     try {
-      db = await SQLite.openDatabaseAsync('sac.db');
-      await initializeDatabase(db);
+      db = createClassicSQLiteWrapper('sac.db');
+      await initializeDatabase(db as any);
     } catch (error) {
       console.error('Erro ao inicializar banco de dados:', error);
       isInitializing = false;
@@ -349,7 +403,7 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase | any> => {
   return db;
 };
 
-const initializeDatabase = async (database: SQLite.SQLiteDatabase): Promise<void> => {
+const initializeDatabase = async (database: any): Promise<void> => {
   try {
     // Tabela de comuns
     await database.execAsync(`

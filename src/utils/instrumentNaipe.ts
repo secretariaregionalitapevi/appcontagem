@@ -75,7 +75,10 @@ export function getNaipeByInstrumento(instrumento: string | null | undefined): s
   // Busca parcial normalizada (sem acentos)
   for (const [instrumentoKey, naipe] of Object.entries(INSTRUMENT_NAIPES)) {
     const keyNormalizado = normalizeString(instrumentoKey);
-    if (instrumentoNormalizado.includes(keyNormalizado) || keyNormalizado.includes(instrumentoNormalizado)) {
+    if (
+      instrumentoNormalizado.includes(keyNormalizado) ||
+      keyNormalizado.includes(instrumentoNormalizado)
+    ) {
       return naipe;
     }
   }

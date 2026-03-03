@@ -20,16 +20,16 @@ const testStorage = async (): Promise<boolean> => {
     try {
       const testKey = `__storage_test_${Date.now()}`;
       const testValue = `test_${Math.random()}`;
-      
+
       localStorage.setItem(testKey, testValue);
       const retrieved = localStorage.getItem(testKey);
       localStorage.removeItem(testKey);
-      
+
       if (retrieved !== testValue) {
         console.warn('⚠️ localStorage falhou no teste de escrita/leitura');
         return false;
       }
-      
+
       // Teste de quota (algumas versões MIUI têm problemas)
       try {
         const largeValue = 'x'.repeat(1024 * 1024); // 1MB
@@ -44,7 +44,7 @@ const testStorage = async (): Promise<boolean> => {
           return false;
         }
       }
-      
+
       return true;
     } catch (error) {
       console.warn('⚠️ localStorage não está disponível:', error);
@@ -55,16 +55,16 @@ const testStorage = async (): Promise<boolean> => {
     try {
       const testKey = `__storage_test_${Date.now()}`;
       const testValue = `test_${Math.random()}`;
-      
+
       await AsyncStorage.setItem(testKey, testValue);
       const retrieved = await AsyncStorage.getItem(testKey);
       await AsyncStorage.removeItem(testKey);
-      
+
       if (retrieved !== testValue) {
         console.warn('⚠️ AsyncStorage falhou no teste de escrita/leitura');
         return false;
       }
-      
+
       return true;
     } catch (error) {
       console.warn('⚠️ AsyncStorage não está disponível:', error);
@@ -78,12 +78,12 @@ const testStorage = async (): Promise<boolean> => {
  */
 export const initializeStorage = async (): Promise<void> => {
   const deviceInfo = getDeviceInfo();
-  
+
   // Para Xiaomi/MIUI, fazer teste mais rigoroso
   if (isXiaomiDevice()) {
     console.log('📱 Dispositivo Xiaomi/Redmi detectado, testando storage...');
     const storageWorks = await testStorage();
-    
+
     if (!storageWorks) {
       console.warn('⚠️ Storage não funciona corretamente, usando cache em memória');
       useMemoryStorage = true;
@@ -116,19 +116,19 @@ export const robustGetItem = async (key: string): Promise<string | null> => {
     }
   } catch (error) {
     console.warn(`⚠️ Erro ao ler ${key} do storage, tentando cache em memória:`, error);
-    
+
     // Fallback para memória
     const memoryValue = memoryStorage[key];
     if (memoryValue) {
       return memoryValue;
     }
-    
+
     // Se é Xiaomi e falhou, ativar modo memória
     if (isXiaomiDevice()) {
       useMemoryStorage = true;
       console.warn('⚠️ Ativando modo memória devido a falha no storage (Xiaomi)');
     }
-    
+
     return null;
   }
 };
@@ -148,12 +148,12 @@ export const robustSetItem = async (key: string, value: string): Promise<void> =
     } else {
       await AsyncStorage.setItem(key, value);
     }
-    
+
     // Também salvar em memória como backup
     memoryStorage[key] = value;
   } catch (error: any) {
     console.warn(`⚠️ Erro ao salvar ${key} no storage:`, error);
-    
+
     // Se erro de quota, tentar limpar cache antigo
     if (error.name === 'QuotaExceededError' || error.code === 22) {
       console.warn('⚠️ Quota excedida, limpando cache antigo...');
@@ -171,10 +171,10 @@ export const robustSetItem = async (key: string, value: string): Promise<void> =
         console.warn('⚠️ Falha ao limpar cache, usando memória');
       }
     }
-    
+
     // Fallback para memória
     memoryStorage[key] = value;
-    
+
     // Se é Xiaomi e falhou múltiplas vezes, ativar modo memória
     if (isXiaomiDevice()) {
       useMemoryStorage = true;
@@ -189,7 +189,7 @@ export const robustSetItem = async (key: string, value: string): Promise<void> =
 export const robustRemoveItem = async (key: string): Promise<void> => {
   // Remover de ambos (storage e memória)
   delete memoryStorage[key];
-  
+
   if (!useMemoryStorage) {
     try {
       if (Platform.OS === 'web') {
@@ -208,33 +208,34 @@ export const robustRemoveItem = async (key: string): Promise<void> => {
  */
 const clearOldCache = async (): Promise<void> => {
   try {
-    const keys = Platform.OS === 'web' 
-      ? Object.keys(localStorage)
-      : await AsyncStorage.getAllKeys();
-    
+    const allKeys = Platform.OS === 'web' ? Object.keys(localStorage) : await AsyncStorage.getAllKeys() as string[];
+
+    if (allKeys.length === 0) return;
+
+    const keysToProcess = allKeys.filter(key => key.startsWith('app_config_') || key.startsWith('cached_'));
+
     const now = Date.now();
-    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 dias
-    
-    for (const key of keys) {
-      if (key.startsWith('cache_') || key.startsWith('cached_')) {
-        try {
-          const value = Platform.OS === 'web'
-            ? localStorage.getItem(key)
-            : await AsyncStorage.getItem(key);
-          
-          if (value) {
-            try {
-              const parsed = JSON.parse(value);
-              if (parsed.timestamp && (now - parsed.timestamp > maxAge)) {
-                await robustRemoveItem(key);
-              }
-            } catch {
-              // Se não tem timestamp, manter
+    const maxAge = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
+
+    for (const key of keysToProcess) {
+      try {
+        const value = Platform.OS === 'web' ? localStorage.getItem(key) : await AsyncStorage.getItem(key);
+
+        if (value) {
+          try {
+            const parsed = JSON.parse(value);
+            if (parsed.timestamp && now - parsed.timestamp > maxAge) {
+              await robustRemoveItem(key);
+              console.log(`🧹 Cache expirado removido: ${key}`);
             }
+          } catch (e) {
+            // Se não conseguir fazer o parse, remove por segurança
+            await robustRemoveItem(key);
+            console.log(`🧹 Cache inválido removido: ${key}`);
           }
-        } catch (error) {
-          // Ignorar erros individuais
         }
+      } catch (e) {
+        console.warn(`Erro ao lidar com a chave de cache obsoleta: ${key}, erro:`, e);
       }
     }
   } catch (error) {
@@ -270,7 +271,7 @@ export const robustClear = async (): Promise<void> => {
   Object.keys(memoryStorage).forEach(key => {
     delete memoryStorage[key];
   });
-  
+
   if (!useMemoryStorage) {
     try {
       if (Platform.OS === 'web') {
@@ -283,7 +284,3 @@ export const robustClear = async (): Promise<void> => {
     }
   }
 };
-
-
-
-

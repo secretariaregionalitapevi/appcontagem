@@ -84,7 +84,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   const cargosOficializadaAutomatica = [
     'Instrutora', // Feminino = organista
     'Secretária da Música',
-    'Examinadora'
+    'Examinadora',
   ];
   const isCargoOficializadaAutomatica = cargosOficializadaAutomatica.includes(cargoNome);
 
@@ -103,14 +103,32 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   // 🚨 CARGOS ESPECÍFICOS PARA O MODAL DE NOVO REGISTRO
   // Usar lista completa de cargos do window ou lista padrão
   const cargosCompletosModal = React.useMemo(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && (window as any).CARGOS_COMPLETOS_MODAL) {
+    if (
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      (window as any).CARGOS_COMPLETOS_MODAL
+    ) {
       return (window as any).CARGOS_COMPLETOS_MODAL;
     }
     return [
-      'Músico', 'Organista', 'Instrutor', 'Instrutora', 'Examinadora',
-      'Encarregado Local', 'Encarregado Regional', 'Secretário da Música', 'Secretária da Música',
-      'Irmandade', 'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
-      'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)'
+      'Músico',
+      'Organista',
+      'Instrutor',
+      'Instrutora',
+      'Examinadora',
+      'Encarregado Local',
+      'Encarregado Regional',
+      'Secretário da Música',
+      'Secretária da Música',
+      'Irmandade',
+      'Ancião',
+      'Diácono',
+      'Cooperador do Ofício',
+      'Cooperador de Jovens',
+      'Porteiro (a)',
+      'Bombeiro (a)',
+      'Médico (a)',
+      'Enfermeiro (a)',
     ];
   }, []);
 
@@ -166,14 +184,17 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
 
     console.log('✅ [MODAL] Validação passou, iniciando salvamento...');
     // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
-    console.log('📋 [MODAL] Dados do formulário:', sanitizeForLogging({
-      comum: comum.trim(),
-      cidade: cidade.trim(),
-      cargo: selectedCargo,
-      instrumento: showInstrumento ? selectedInstrumento : undefined,
-      classe: showClasse ? selectedClasse : undefined,
-      nome: nome.trim(),
-    }));
+    console.log(
+      '📋 [MODAL] Dados do formulário:',
+      sanitizeForLogging({
+        comum: comum.trim(),
+        cidade: cidade.trim(),
+        cargo: selectedCargo,
+        instrumento: showInstrumento ? selectedInstrumento : undefined,
+        classe: showClasse ? selectedClasse : undefined,
+        nome: nome.trim(),
+      })
+    );
 
     setLoading(true);
     try {
@@ -191,14 +212,22 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
       // 🛡️ SEGURANÇA: Sanitizar dados antes de enviar
       const dadosSanitizados = {
         comum: sanitizeInput(comum.trim(), { fieldType: 'comum', maxLength: FIELD_LIMITS.comum }),
-        cidade: sanitizeInput(cidade.trim(), { fieldType: 'cidade', maxLength: FIELD_LIMITS.cidade }),
+        cidade: sanitizeInput(cidade.trim(), {
+          fieldType: 'cidade',
+          maxLength: FIELD_LIMITS.cidade,
+        }),
         cargo: selectedCargo,
         instrumento: showInstrumento ? selectedInstrumento : undefined,
-        classe: classeFinal ? sanitizeInput(classeFinal, { fieldType: 'classe', maxLength: FIELD_LIMITS.classe }) : undefined,
+        classe: classeFinal
+          ? sanitizeInput(classeFinal, { fieldType: 'classe', maxLength: FIELD_LIMITS.classe })
+          : undefined,
         nome: sanitizeInput(nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome }),
       };
 
-      console.log('📤 [MODAL] Chamando onSave com dados sanitizados:', sanitizeForLogging(dadosSanitizados));
+      console.log(
+        '📤 [MODAL] Chamando onSave com dados sanitizados:',
+        sanitizeForLogging(dadosSanitizados)
+      );
 
       // 🚨 CRÍTICO: Aguardar resultado do onSave e tratar erros
       try {
@@ -270,18 +299,16 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   const modalContent = (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+      behavior={
+        Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined
+      }
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : Platform.OS === 'android' ? 20 : 0}
     >
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity
           style={styles.modalContent}
           activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
+          onPress={e => e.stopPropagation()}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -311,7 +338,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
               <TextInput
                 style={[styles.input, errors.comum ? styles.inputError : undefined]}
                 value={comum}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setComum(text);
                   if (errors.comum) {
                     setErrors({ ...errors, comum: '' });
@@ -331,7 +358,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
               <TextInput
                 style={[styles.input, errors.cidade ? styles.inputError : undefined]}
                 value={cidade}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setCidade(text);
                   if (errors.cidade) {
                     setErrors({ ...errors, cidade: '' });
@@ -344,21 +371,34 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
             </View>
 
             {/* Cargo */}
-            <View style={[styles.field, Platform.OS === 'web' ? { zIndex: 99, position: 'relative' as const } : { zIndex: 99 }]}>
+            <View
+              style={[
+                styles.field,
+                Platform.OS === 'web'
+                  ? { zIndex: 99, position: 'relative' as const }
+                  : { zIndex: 99 },
+              ]}
+            >
               <Text style={styles.label}>
                 Cargo/Ministério <Text style={styles.required}>*</Text>
               </Text>
-              <View style={Platform.OS === 'web' ? {
-                position: 'relative' as const,
-                zIndex: 99999,
-                overflow: 'visible' as const,
-                // @ts-ignore
-                isolation: 'isolate',
-              } : {}}>
+              <View
+                style={
+                  Platform.OS === 'web'
+                    ? {
+                        position: 'relative' as const,
+                        zIndex: 99999,
+                        overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
+                      }
+                    : {}
+                }
+              >
                 <SimpleSelectField
                   value={selectedCargo}
                   options={cargosOptions}
-                  onSelect={(option) => {
+                  onSelect={option => {
                     const novoCargo = String(option.value);
                     setSelectedCargo(novoCargo);
                     setSelectedInstrumento('');
@@ -369,7 +409,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                     const cargosOficializadaAutomatica = [
                       'Instrutora', // Feminino = organista
                       'Secretária da Música',
-                      'Examinadora'
+                      'Examinadora',
                     ];
                     if (cargosOficializadaAutomatica.includes(novoCargo)) {
                       setSelectedClasse('Oficializada');
@@ -396,7 +436,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                 <SimpleSelectField
                   value={selectedInstrumento}
                   options={instrumentosOptions}
-                  onSelect={(option) => {
+                  onSelect={option => {
                     setSelectedInstrumento(String(option.value));
                     if (errors.instrumento) {
                       setErrors({ ...errors, instrumento: '' });
@@ -417,7 +457,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                 <SimpleSelectField
                   value={selectedClasse}
                   options={classesOptions}
-                  onSelect={(option) => {
+                  onSelect={option => {
                     setSelectedClasse(String(option.value));
                     if (errors.classe) {
                       setErrors({ ...errors, classe: '' });
@@ -430,24 +470,27 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
             )}
 
             {/* Nome */}
-            <View style={Platform.OS === 'web' ? {
-              position: 'relative' as const,
-              zIndex: 0,
-              overflow: 'visible' as const,
-              // @ts-ignore
-              isolation: 'isolate',
-            } : {}}>
+            <View
+              style={
+                Platform.OS === 'web'
+                  ? {
+                      position: 'relative' as const,
+                      zIndex: 0,
+                      overflow: 'visible' as const,
+                      // @ts-ignore
+                      isolation: 'isolate',
+                    }
+                  : {}
+              }
+            >
               <View style={styles.field}>
                 <Text style={styles.label}>
                   Nome completo <Text style={styles.required}>*</Text>
                 </Text>
                 <TextInput
-                  style={[
-                    styles.input,
-                    errors.nome ? styles.inputError : undefined,
-                  ]}
+                  style={[styles.input, errors.nome ? styles.inputError : undefined]}
                   value={nome}
-                  onChangeText={(text) => {
+                  onChangeText={text => {
                     setNome(text);
                     if (errors.nome) {
                       setErrors({ ...errors, nome: '' });
@@ -517,24 +560,26 @@ const styles = StyleSheet.create({
   // @ts-ignore - container usa propriedades CSS específicas do web
   container: {
     flex: 1,
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      zIndex: 999999,
-      // @ts-ignore
-      position: 'fixed',
-      // @ts-ignore
-      top: 0,
-      // @ts-ignore
-      left: 0,
-      // @ts-ignore
-      right: 0,
-      // @ts-ignore
-      bottom: 0,
-      // @ts-ignore
-      isolation: 'isolate',
-    } : {
-      zIndex: 999999,
-    }),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore - Propriedades CSS apenas para web
+          zIndex: 999999,
+          // @ts-ignore
+          position: 'fixed',
+          // @ts-ignore
+          top: 0,
+          // @ts-ignore
+          left: 0,
+          // @ts-ignore
+          right: 0,
+          // @ts-ignore
+          bottom: 0,
+          // @ts-ignore
+          isolation: 'isolate',
+        }
+      : {
+          zIndex: 999999,
+        }),
   },
   // @ts-ignore - overlay usa propriedades CSS específicas do web
   overlay: {
@@ -546,30 +591,30 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     ...(Platform.OS === 'web'
       ? {
-        backdropFilter: 'blur(4px)',
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-        // @ts-ignore - Propriedades CSS apenas para web
-        zIndex: 999999,
-        // @ts-ignore
-        position: 'fixed',
-        // @ts-ignore
-        top: 0,
-        // @ts-ignore
-        left: 0,
-        // @ts-ignore
-        right: 0,
-        // @ts-ignore
-        bottom: 0,
-        // @ts-ignore
-        width: '100%',
-        // @ts-ignore
-        height: '100%',
-        // @ts-ignore
-        isolation: 'isolate',
-      }
+          backdropFilter: 'blur(4px)',
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+          // @ts-ignore - Propriedades CSS apenas para web
+          zIndex: 999999,
+          // @ts-ignore
+          position: 'fixed',
+          // @ts-ignore
+          top: 0,
+          // @ts-ignore
+          left: 0,
+          // @ts-ignore
+          right: 0,
+          // @ts-ignore
+          bottom: 0,
+          // @ts-ignore
+          width: '100%',
+          // @ts-ignore
+          height: '100%',
+          // @ts-ignore
+          isolation: 'isolate',
+        }
       : {}),
   },
   modalContent: {
@@ -581,26 +626,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-        // @ts-ignore - Propriedades CSS apenas para web
-        zIndex: 999999,
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-        // @ts-ignore
-        zIndex: 1000000,
-        // @ts-ignore
-        position: 'relative',
-        // @ts-ignore
-        isolation: 'isolate',
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+          // @ts-ignore - Propriedades CSS apenas para web
+          zIndex: 999999,
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+          // @ts-ignore
+          zIndex: 1000000,
+          // @ts-ignore
+          position: 'relative',
+          // @ts-ignore
+          isolation: 'isolate',
+        }
       : {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 24,
-        elevation: 999999,
-      }),
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.25,
+          shadowRadius: 24,
+          elevation: 999999,
+        }),
   },
   header: {
     alignItems: 'center',
@@ -610,12 +655,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: '#ffffff',
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      backgroundColor: '#ffffff',
-      // @ts-ignore - Propriedades CSS apenas para web
-      opacity: 1,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
+      : {}),
   },
   headerIcon: {
     marginBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.sm,
@@ -637,33 +684,39 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     backgroundColor: '#ffffff',
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      backgroundColor: '#ffffff',
-      // @ts-ignore - Propriedades CSS apenas para web
-      opacity: 1,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
+      : {}),
   },
   bodyContent: {
     padding: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.md,
     paddingBottom: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.md,
     paddingTop: Platform.OS === 'web' ? theme.spacing.lg : theme.spacing.sm,
     backgroundColor: '#ffffff',
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      backgroundColor: '#ffffff',
-      // @ts-ignore - Propriedades CSS apenas para web
-      opacity: 1,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
+      : {}),
   },
   field: {
     marginBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore
-      position: 'relative',
-      // @ts-ignore
-      zIndex: 1,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore
+          position: 'relative',
+          // @ts-ignore
+          zIndex: 1,
+        }
+      : {}),
   },
   label: {
     fontSize: Platform.OS === 'web' ? theme.fontSize.sm : theme.fontSize.sm,
@@ -686,14 +739,14 @@ const styles = StyleSheet.create({
     minHeight: Platform.OS === 'web' ? 44 : 50, // Aumentado para melhor toque no mobile
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        outlineStyle: 'none',
-        outlineWidth: 0,
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: '#ffffff',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
       : {}),
   },
   inputError: {
@@ -715,12 +768,14 @@ const styles = StyleSheet.create({
     borderTopColor: theme.colors.border,
     backgroundColor: '#ffffff',
     gap: theme.spacing.sm,
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      backgroundColor: '#ffffff',
-      // @ts-ignore - Propriedades CSS apenas para web
-      opacity: 1,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
+      : {}),
   },
   cancelButton: {
     flexDirection: 'row',
@@ -745,10 +800,11 @@ const styles = StyleSheet.create({
     flex: Platform.OS === 'web' ? 0 : 1,
     minWidth: Platform.OS === 'web' ? 200 : 0,
     maxWidth: Platform.OS === 'web' ? 300 : '100%',
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore - Propriedades CSS apenas para web
-      flexShrink: 0,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+          // @ts-ignore - Propriedades CSS apenas para web
+          flexShrink: 0,
+        }
+      : {}),
   },
 });
-

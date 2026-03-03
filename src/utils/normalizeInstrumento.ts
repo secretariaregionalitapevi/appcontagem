@@ -53,7 +53,11 @@ export function normalizeInstrumentoForSearch(instrumento: string): string {
   normalized = expandInstrumentoAbbreviations(normalized);
 
   // Normalizar formato: garantir que "(RETO)" esteja correto
-  if (normalized.includes('SAXOFONE SOPRANO') && normalized.includes('RETO') && !normalized.includes('(RETO)')) {
+  if (
+    normalized.includes('SAXOFONE SOPRANO') &&
+    normalized.includes('RETO') &&
+    !normalized.includes('(RETO)')
+  ) {
     normalized = normalized.replace(/RETO/g, '(RETO)');
   }
 
@@ -75,7 +79,7 @@ export function expandInstrumentoSearch(instrumento: string): string[] {
 
   // Adicionar versão original (pode ter abreviação)
   variations.push(instrumentoUpper);
-  
+
   // Adicionar versão normalizada (com abreviações expandidas)
   variations.push(normalized);
 
@@ -122,4 +126,3 @@ export function expandInstrumentoSearch(instrumento: string): string[] {
   // Remover duplicatas e retornar
   return [...new Set(variations)];
 }
-

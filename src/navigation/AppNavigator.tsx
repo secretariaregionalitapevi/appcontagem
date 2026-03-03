@@ -80,24 +80,20 @@ export const AppNavigator: React.FC = () => {
         }}
         initialRouteName={user ? 'Register' : 'Login'}
       >
-        <Stack.Screen 
-          name="Login" 
-          component={LoginScreen}
-          options={{ title: 'CCB | Login' }}
-        />
-        <Stack.Screen 
-          name="SignUp" 
+        <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'CCB | Login' }} />
+        <Stack.Screen
+          name="SignUp"
           component={SignUpScreen}
           options={{ title: 'CCB | Cadastro' }}
         />
-        <Stack.Screen 
-          name="Register" 
+        <Stack.Screen
+          name="Register"
           component={RegisterScreen}
           options={{ title: 'CCB | Contagem EnR' }}
         />
         <Stack.Screen name="EditRegistros" component={EditRegistrosScreen} />
-        <Stack.Screen 
-          name="OrganistasEnsaio" 
+        <Stack.Screen
+          name="OrganistasEnsaio"
           component={OrganistasEnsaioScreen}
           options={{ title: 'CCB | Organistas no Ensaio' }}
         />

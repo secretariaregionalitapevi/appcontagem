@@ -42,7 +42,6 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
   const containerRef = useRef<View>(null);
   const [layout, setLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
-
   const selectedOption = options.find(opt => opt.id === value);
 
   const handleSelect = (option: DropdownOption) => {
@@ -56,15 +55,16 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
     }
 
     if (containerRef.current) {
-        containerRef.current.measure((x, y, width, height, pageX, pageY) => {
-        const newLayout = Platform.OS === 'web'
-          ? (pageX !== undefined && pageY !== undefined
+      containerRef.current.measure((x, y, width, height, pageX, pageY) => {
+        const newLayout =
+          Platform.OS === 'web'
+            ? pageX !== undefined && pageY !== undefined
               ? { x: pageX, y: pageY, width: width || 300, height: height || 48 }
-              : { x: 0, y: 0, width: width || 300, height: height || 48 })
-          : (pageX !== undefined && pageY !== undefined
+              : { x: 0, y: 0, width: width || 300, height: height || 48 }
+            : pageX !== undefined && pageY !== undefined
               ? { x: pageX, y: pageY, width, height }
-              : { x: 0, y: 0, width: width || 300, height: height || 48 });
-        
+              : { x: 0, y: 0, width: width || 300, height: height || 48 };
+
         setLayout(newLayout);
         setIsOpen(true);
       });
@@ -85,15 +85,15 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
         activeOpacity={0.7}
         {...(Platform.OS === 'web'
           ? {
-              onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
-                if (!isOpen) {
-                  (e.currentTarget as HTMLElement).style.cursor = 'pointer';
-                }
-              },
-              onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
-                (e.currentTarget as HTMLElement).style.cursor = 'default';
-              },
-            }
+            onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
+              if (!isOpen) {
+                (e.currentTarget as HTMLElement).style.cursor = 'pointer';
+              }
+            },
+            onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
+              (e.currentTarget as HTMLElement).style.cursor = 'default';
+            },
+          }
           : {})}
       >
         {selectedOption && (
@@ -119,111 +119,113 @@ export const DropdownField: React.FC<DropdownFieldProps> = ({
       </TouchableOpacity>
 
       {isOpen && options.length > 0 && (
-      <Modal
+        <Modal
           visible={true}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
-        statusBarTranslucent
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setIsOpen(false)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsOpen(false)}
+          statusBarTranslucent
         >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setIsOpen(false)}
+          >
             <TouchableOpacity
               activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-            style={[
-              styles.dropdownContainer,
-              {
-                top: layout.y + layout.height + 2,
-                left: layout.x || 0,
-                width: layout.width || '100%',
-                maxHeight: maxHeight,
+              onPress={e => e.stopPropagation()}
+              style={[
+                styles.dropdownContainer,
+                {
+                  top: layout.y + layout.height + 2,
+                  left: layout.x || 0,
+                  width: layout.width || '100%',
+                  maxHeight: maxHeight,
                   ...(Platform.OS === 'web'
                     ? {
-                        position: 'fixed' as const,
-                        zIndex: 9999,
-                      }
+                      position: 'fixed' as ViewStyle['position'],
+                      zIndex: 9999,
+                    }
                     : {}),
-              },
-            ]}
+                },
+              ]}
             >
-            {options.length === 0 ? (
-              <View style={styles.optionItem}>
-                <Text style={styles.optionText}>Nenhuma opção disponível</Text>
-              </View>
-            ) : (
-            <FlatList
-              data={options}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.optionItem,
-                    selectedOption?.id === item.id && styles.optionItemSelected,
-                  ]}
-                  onPress={() => handleSelect(item)}
-                  activeOpacity={0.6}
-                  {...(Platform.OS === 'web'
-                    ? {
-                        onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            theme.colors.primary + '15';
-                          (e.currentTarget as HTMLElement).style.cursor = 'pointer';
-                        },
-                        onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            selectedOption?.id === item.id
-                              ? theme.colors.primary + '08'
-                              : theme.colors.surface;
-                          (e.currentTarget as HTMLElement).style.cursor = 'default';
-                        },
-                        onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            theme.colors.primary + '25';
-                        },
-                        onMouseUp: (e: React.MouseEvent<HTMLDivElement>) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor =
-                            theme.colors.primary + '15';
-                        },
-                      }
-                    : {})}
-                >
-                  <FontAwesome5
-                    name={item.icon || icon}
-                    size={16}
-                    color={selectedOption?.id === item.id ? iconColor : theme.colors.textSecondary}
-                    style={styles.optionIcon}
-                  />
-                  <Text
-                    style={[
-                      styles.optionText,
-                      selectedOption?.id === item.id && styles.optionTextSelected,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.label}
-                  </Text>
-                  {selectedOption?.id === item.id && (
-                    <FontAwesome5
-                      name="check"
-                      size={14}
-                      color={iconColor}
-                      style={styles.checkIcon}
-                    />
+              {options.length === 0 ? (
+                <View style={styles.optionItem}>
+                  <Text style={styles.optionText}>Nenhuma opção disponível</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={options}
+                  keyExtractor={item => item.id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.optionItem,
+                        selectedOption?.id === item.id && styles.optionItemSelected,
+                      ]}
+                      onPress={() => handleSelect(item)}
+                      activeOpacity={0.6}
+                      {...(Platform.OS === 'web'
+                        ? {
+                          onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor =
+                              theme.colors.primary + '15';
+                            (e.currentTarget as HTMLElement).style.cursor = 'pointer';
+                          },
+                          onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor =
+                              selectedOption?.id === item.id
+                                ? theme.colors.primary + '08'
+                                : theme.colors.surface;
+                            (e.currentTarget as HTMLElement).style.cursor = 'default';
+                          },
+                          onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor =
+                              theme.colors.primary + '25';
+                          },
+                          onMouseUp: (e: React.MouseEvent<HTMLDivElement>) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor =
+                              theme.colors.primary + '15';
+                          },
+                        }
+                        : {})}
+                    >
+                      <FontAwesome5
+                        name={item.icon || icon}
+                        size={16}
+                        color={
+                          selectedOption?.id === item.id ? iconColor : theme.colors.textSecondary
+                        }
+                        style={styles.optionIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.optionText,
+                          selectedOption?.id === item.id && styles.optionTextSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.label}
+                      </Text>
+                      {selectedOption?.id === item.id && (
+                        <FontAwesome5
+                          name="check"
+                          size={14}
+                          color={iconColor}
+                          style={styles.checkIcon}
+                        />
+                      )}
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                  ItemSeparatorComponent={() => <View style={styles.separator} />}
+                  showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
+                />
               )}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
-            />
-            )}
             </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+          </TouchableOpacity>
+        </Modal>
       )}
     </View>
   );

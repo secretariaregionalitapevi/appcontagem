@@ -4,7 +4,7 @@
  * - Para órgão: substituir "oficializado(a)" por "oficializada"
  * - Para cargos femininos (Organista, Instrutora, Examinadora, Secretária da Música): substituir "oficializado(a)" por "oficializada"
  * - Se tiver prefixo "rjm /": manter o prefixo e substituir apenas "oficializado(a)"
- * 
+ *
  * Exemplos:
  * - "oficializado(a)" + violino → "oficializado"
  * - "oficializado(a)" + órgão → "oficializada"
@@ -43,12 +43,12 @@ export function normalizarNivel(
 
   // Verificar se tem prefixo "rjm /" ou similar
   const matchPrefix = nivelUpper.match(/^(.+?)\s*\/\s*(.+)$/);
-  
+
   if (matchPrefix) {
     // Tem prefixo (ex: "rjm / oficializado(a)")
     const prefixo = matchPrefix[1].trim();
     const sufixo = matchPrefix[2].trim();
-    
+
     // Verificar se o sufixo contém "oficializado(a)"
     if (sufixo.includes('OFICIALIZADO') || sufixo.includes('OFICIALIZADA')) {
       // Remover "(a)" do sufixo
@@ -56,7 +56,7 @@ export function normalizarNivel(
         .replace(/\s*\(a\)\s*/gi, '')
         .replace(/\s*\(A\)\s*/g, '')
         .trim();
-      
+
       // Se for feminino (órgão ou organista), usar "OFICIALIZADA"
       if (isFeminino) {
         sufixoNormalizado = sufixoNormalizado.replace(/OFICIALIZADO/gi, 'OFICIALIZADA');
@@ -67,16 +67,16 @@ export function normalizarNivel(
         return `${prefixo} / ${sufixoNormalizado}`;
       }
     }
-    
+
     // 🚨 CORREÇÃO CRÍTICA: Se o sufixo não contém "oficializado" mas é cargo feminino e o sufixo é "OFICIALIZADO", converter
     if (isFeminino && sufixo.toUpperCase().trim() === 'OFICIALIZADO') {
       return `${prefixo} / OFICIALIZADA`;
     }
-    
+
     // Se o sufixo não contém "oficializado", manter como está
     return nivelOriginal.trim();
   }
-  
+
   // Não tem prefixo - normalizar diretamente
   if (nivelUpper.includes('OFICIALIZADO') || nivelUpper.includes('OFICIALIZADA')) {
     // Remover "(a)"
@@ -84,7 +84,7 @@ export function normalizarNivel(
       .replace(/\s*\(a\)\s*/gi, '')
       .replace(/\s*\(A\)\s*/g, '')
       .trim();
-    
+
     // Se for feminino (órgão ou cargo feminino), usar "OFICIALIZADA"
     if (isFeminino) {
       nivelNormalizado = nivelNormalizado.replace(/OFICIALIZADO/gi, 'OFICIALIZADA');
@@ -95,13 +95,12 @@ export function normalizarNivel(
       return nivelNormalizado;
     }
   }
-  
+
   // 🚨 CORREÇÃO CRÍTICA: Se não contém "oficializado" mas é cargo feminino e o nivel é exatamente "OFICIALIZADO", converter para "OFICIALIZADA"
   if (isFeminino && nivelUpper === 'OFICIALIZADO') {
     return 'OFICIALIZADA';
   }
-  
+
   // Se não contém "oficializado", retornar original
   return nivelOriginal.trim();
 }
-

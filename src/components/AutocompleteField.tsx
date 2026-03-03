@@ -54,535 +54,540 @@ export interface AutocompleteFieldRef {
   blur: () => void;
 }
 
-export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFieldProps>(({
-  label,
-  value,
-  options,
-  onSelect,
-  placeholder = 'Digite para buscar...',
-  icon = 'map-marker-alt',
-  error,
-  style,
-}, ref) => {
-  const [searchText, setSearchText] = useState('');
-  const [showList, setShowList] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [isFocused, setIsFocused] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
-  const containerRef = useRef<View>(null);
-  const inputRef = useRef<TextInput>(null);
-  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const flatListRef = useRef<FlatList>(null);
-  const positionCalculatedRef = useRef(false);
+export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFieldProps>(
+  (
+    {
+      label,
+      value,
+      options,
+      onSelect,
+      placeholder = 'Digite para buscar...',
+      icon = 'map-marker-alt',
+      error,
+      style,
+    },
+    ref
+  ) => {
+    const [searchText, setSearchText] = useState('');
+    const [showList, setShowList] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [isFocused, setIsFocused] = useState(false);
+    const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+    const containerRef = useRef<View>(null);
+    const inputRef = useRef<TextInput>(null);
+    const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const flatListRef = useRef<FlatList>(null);
+    const positionCalculatedRef = useRef(false);
 
-  // Normalizar texto (remove acentos, converte para minúscula)
-  const normalize = (text: string) => {
-    if (!text) return '';
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim();
-  };
+    // Normalizar texto (remove acentos, converte para minúscula)
+    const normalize = (text: string) => {
+      if (!text) return '';
+      return text
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    };
 
-  // Filtrar opções baseado no texto digitado
-  const filtered = React.useMemo(() => {
-    if (!searchText.trim()) {
-      return [];
-    }
-
-    // Mostrar resultados mesmo com 1 caractere para melhor UX
-    const query = normalize(searchText);
-    const results = options.filter(opt => {
-      const labelNorm = normalize(opt.label);
-      const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
-      return labelNorm.includes(query) || nomeNorm.includes(query);
-    });
-    console.log('🔍 AutocompleteField - Filtro:', {
-      searchText,
-      query,
-      totalOptions: options.length,
-      filteredCount: results.length,
-      firstResults: results.slice(0, 5).map(r => r.label)
-    });
-    return results;
-  }, [searchText, options]);
-
-  // Sincronizar searchText com value quando muda externamente
-  useEffect(() => {
-    const currentOption = options.find(opt => opt.id === value);
-    if (currentOption) {
-      setSearchText(currentOption.label);
-    } else if (!value) {
-      setSearchText('');
-    }
-  }, [value, options]);
-
-  // Não precisa mais calcular posição - usando position absolute relativo ao container
-
-  // Quando o usuário digita
-  const handleChange = (text: string) => {
-    setSearchText(text);
-    setSelectedIndex(-1); // Reset seleção ao digitar
-    // Cancelar blur pendente ao digitar
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-      blurTimeoutRef.current = null;
-    }
-    // Mostrar lista mesmo com 1 caractere se houver resultados
-    if (text.trim().length >= 1) {
-      setShowList(true);
-      console.log('🔍 AutocompleteField - Texto digitado:', text, 'Mostrando lista');
-    } else {
-      setShowList(false);
-    }
-  };
-
-  // Calcular posição do dropdown no web
-  const updateDropdownPosition = () => {
-    if (Platform.OS === 'web' && inputRef.current) {
-      try {
-        // @ts-ignore
-        const inputElement = inputRef.current as any;
-        if (inputElement && typeof document !== 'undefined') {
-          // Tentar acessar o elemento DOM nativo do React Native Web
-          let domElement = null;
-
-          // Tentar diferentes formas de acessar o elemento DOM
-          if (inputElement._nativeNode) {
-            domElement = inputElement._nativeNode;
-          } else if (inputElement._internalFiberInstanceHandleDEV) {
-            domElement = inputElement._internalFiberInstanceHandleDEV.stateNode;
-          } else if (inputElement.getBoundingClientRect) {
-            domElement = inputElement;
-          } else if (containerRef.current) {
-            // Tentar usar o containerRef
-            // @ts-ignore
-            const containerElement = containerRef.current as any;
-            if (containerElement && containerElement._nativeNode) {
-              domElement = containerElement._nativeNode.querySelector('input');
-            }
-          }
-
-          if (typeof document !== 'undefined' && !domElement) {
-            // Tentar encontrar o input no DOM
-            const inputs = document.querySelectorAll('input');
-            if (inputs.length > 0) {
-              // Pegar o último input (provavelmente é o nosso)
-              domElement = inputs[inputs.length - 1];
-            }
-          }
-
-          if (domElement && domElement.getBoundingClientRect) {
-            const rect = domElement.getBoundingClientRect();
-            const newPosition = {
-              top: rect.bottom + 4, // Sem scrollY para position fixed
-              left: rect.left, // Sem scrollX para position fixed
-              width: rect.width || 300,
-            };
-            console.log('📍 Posição calculada (getBoundingClientRect):', newPosition);
-            setDropdownPosition(newPosition);
-            return;
-          }
-        }
-        // Fallback: usar measureInWindow do container
-        if (containerRef.current) {
-          // @ts-ignore
-          containerRef.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-            const newPosition = {
-              top: y + height + 4,
-              left: x,
-              width: width || 300,
-            };
-            console.log('📍 Posição calculada (measureInWindow):', newPosition);
-            setDropdownPosition(newPosition);
-          });
-          return;
-        }
-      } catch (error) {
-        console.warn('Erro ao calcular posição:', error);
+    // Filtrar opções baseado no texto digitado
+    const filtered = React.useMemo(() => {
+      if (!searchText.trim()) {
+        return [];
       }
-      // Se chegou aqui, não conseguiu calcular - usar valores padrão
-      console.warn('⚠️ Não conseguiu calcular posição, usando valores padrão');
-      setDropdownPosition({
-        top: 200,
-        left: 50,
-        width: 400,
+
+      // Mostrar resultados mesmo com 1 caractere para melhor UX
+      const query = normalize(searchText);
+      const results = options.filter(opt => {
+        const labelNorm = normalize(opt.label);
+        const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
+        return labelNorm.includes(query) || nomeNorm.includes(query);
       });
-    }
-  };
+      console.log('🔍 AutocompleteField - Filtro:', {
+        searchText,
+        query,
+        totalOptions: options.length,
+        filteredCount: results.length,
+        firstResults: results.slice(0, 5).map(r => r.label),
+      });
+      return results;
+    }, [searchText, options]);
 
-  // Quando o campo recebe foco
-  const handleFocus = () => {
-    setIsFocused(true);
-    // Cancelar blur pendente
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-      blurTimeoutRef.current = null;
-    }
-    // Mostrar lista se houver texto digitado
-    if (searchText.trim().length >= 1) {
-      setShowList(true);
-    }
-  };
-
-  // Quando o campo perde foco
-  const handleBlur = () => {
-    setIsFocused(false);
-    // Delay muito maior no web para permitir clique com mouse
-    // O mouse precisa de mais tempo porque o blur acontece antes do click
-    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 500 : 300;
-    blurTimeoutRef.current = setTimeout(() => {
-      setShowList(false);
-      blurTimeoutRef.current = null;
-    }, delay);
-  };
-
-  // Quando seleciona um item
-  const handleSelect = (option: AutocompleteOption) => {
-    // Cancelar blur pendente
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current);
-      blurTimeoutRef.current = null;
-    }
-
-    setSearchText(option.label);
-    setShowList(false);
-    setSelectedIndex(-1);
-    onSelect(option);
-
-    // Blur do input após seleção
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.blur();
+    // Sincronizar searchText com value quando muda externamente
+    useEffect(() => {
+      const currentOption = options.find(opt => opt.id === value);
+      if (currentOption) {
+        setSearchText(currentOption.label);
+      } else if (!value) {
+        setSearchText('');
       }
-    }, 100);
-  };
+    }, [value, options]);
 
-  // Handler para tecla Enter (web) ou submit (mobile)
-  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-    // Web: verificar tecla Enter
-    if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter') {
-      e.preventDefault();
-      handleEnterPress();
-    }
-  };
+    // Não precisa mais calcular posição - usando position absolute relativo ao container
 
-  // Handler para Enter/Submit
-  const handleEnterPress = () => {
-    // Se há lista visível e resultados filtrados
-    if (showList && filtered.length > 0) {
-      // Selecionar primeiro item se nenhum estiver selecionado
-      const indexToSelect = selectedIndex >= 0 ? selectedIndex : 0;
-      const optionToSelect = filtered[indexToSelect];
-
-      if (optionToSelect) {
-        handleSelect(optionToSelect);
-      }
-    }
-  };
-
-
-
-
-  // Limpar timeouts ao desmontar
-  useEffect(() => {
-    return () => {
+    // Quando o usuário digita
+    const handleChange = (text: string) => {
+      setSearchText(text);
+      setSelectedIndex(-1); // Reset seleção ao digitar
+      // Cancelar blur pendente ao digitar
       if (blurTimeoutRef.current) {
         clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
       }
-    };
-  }, []);
-
-  // 🚀 EXPOR MÉTODOS VIA REF: Permitir que componentes pais controlem o foco
-  useImperativeHandle(ref, () => ({
-    focus: () => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-        setIsFocused(true);
-        // Mostrar lista se houver texto
-        if (searchText.trim().length >= 1) {
-          setShowList(true);
-        }
-      }
-    },
-    blur: () => {
-      if (inputRef.current) {
-        inputRef.current.blur();
-        setIsFocused(false);
+      // Mostrar lista mesmo com 1 caractere se houver resultados
+      if (text.trim().length >= 1) {
+        setShowList(true);
+        console.log('🔍 AutocompleteField - Texto digitado:', text, 'Mostrando lista');
+      } else {
         setShowList(false);
       }
-    },
-  }));
+    };
 
-  // Z-index MUITO ALTO para aparecer acima de TUDO em TODAS as plataformas
-  const containerZIndex = isFocused ? 99999 : 1;
-  const dropdownZIndex = 999999; // Z-index extremamente alto para garantir que apareça acima de tudo
+    // Calcular posição do dropdown no web
+    const updateDropdownPosition = () => {
+      if (Platform.OS === 'web' && inputRef.current) {
+        try {
+          // @ts-ignore
+          const inputElement = inputRef.current as any;
+          if (inputElement && typeof document !== 'undefined') {
+            // Tentar acessar o elemento DOM nativo do React Native Web
+            let domElement = null;
 
-  return (
-    <View
-      style={[
-        styles.container,
-        style,
-        Platform.OS === 'web'
-          ? {
-            position: 'relative' as ViewStyle['position'],
-            overflow: 'visible' as ViewStyle['overflow'],
-            zIndex: containerZIndex,
+            // Tentar diferentes formas de acessar o elemento DOM
+            if (inputElement._nativeNode) {
+              domElement = inputElement._nativeNode;
+            } else if (inputElement._internalFiberInstanceHandleDEV) {
+              domElement = inputElement._internalFiberInstanceHandleDEV.stateNode;
+            } else if (inputElement.getBoundingClientRect) {
+              domElement = inputElement;
+            } else if (containerRef.current) {
+              // Tentar usar o containerRef
+              // @ts-ignore
+              const containerElement = containerRef.current as any;
+              if (containerElement && containerElement._nativeNode) {
+                domElement = containerElement._nativeNode.querySelector('input');
+              }
+            }
+
+            if (typeof document !== 'undefined' && !domElement) {
+              // Tentar encontrar o input no DOM
+              const inputs = document.querySelectorAll('input');
+              if (inputs.length > 0) {
+                // Pegar o último input (provavelmente é o nosso)
+                domElement = inputs[inputs.length - 1];
+              }
+            }
+
+            if (domElement && domElement.getBoundingClientRect) {
+              const rect = domElement.getBoundingClientRect();
+              const newPosition = {
+                top: rect.bottom + 4, // Sem scrollY para position fixed
+                left: rect.left, // Sem scrollX para position fixed
+                width: rect.width || 300,
+              };
+              console.log('📍 Posição calculada (getBoundingClientRect):', newPosition);
+              setDropdownPosition(newPosition);
+              return;
+            }
           }
-          : {
-            overflow: 'visible' as ViewStyle['overflow'],
-            zIndex: containerZIndex,
-            elevation: isFocused ? 10 : 0,
-          },
-      ]}
-      ref={containerRef}
-      collapsable={false}
-    >
-      {!!label && <Text style={styles.label}>{label}</Text>}
+          // Fallback: usar measureInWindow do container
+          if (containerRef.current) {
+            // @ts-ignore
+            containerRef.current.measureInWindow(
+              (x: number, y: number, width: number, height: number) => {
+                const newPosition = {
+                  top: y + height + 4,
+                  left: x,
+                  width: width || 300,
+                };
+                console.log('📍 Posição calculada (measureInWindow):', newPosition);
+                setDropdownPosition(newPosition);
+              }
+            );
+            return;
+          }
+        } catch (error) {
+          console.warn('Erro ao calcular posição:', error);
+        }
+        // Se chegou aqui, não conseguiu calcular - usar valores padrão
+        console.warn('⚠️ Não conseguiu calcular posição, usando valores padrão');
+        setDropdownPosition({
+          top: 200,
+          left: 50,
+          width: 400,
+        });
+      }
+    };
 
+    // Quando o campo recebe foco
+    const handleFocus = () => {
+      setIsFocused(true);
+      // Cancelar blur pendente
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+      }
+      // Mostrar lista se houver texto digitado
+      if (searchText.trim().length >= 1) {
+        setShowList(true);
+      }
+    };
+
+    // Quando o campo perde foco
+    const handleBlur = () => {
+      setIsFocused(false);
+      // Delay muito maior no web para permitir clique com mouse
+      // O mouse precisa de mais tempo porque o blur acontece antes do click
+      const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 500 : 300;
+      blurTimeoutRef.current = setTimeout(() => {
+        setShowList(false);
+        blurTimeoutRef.current = null;
+      }, delay);
+    };
+
+    // Quando seleciona um item
+    const handleSelect = (option: AutocompleteOption) => {
+      // Cancelar blur pendente
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = null;
+      }
+
+      setSearchText(option.label);
+      setShowList(false);
+      setSelectedIndex(-1);
+      onSelect(option);
+
+      // Blur do input após seleção
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.blur();
+        }
+      }, 100);
+    };
+
+    // Handler para tecla Enter (web) ou submit (mobile)
+    const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+      // Web: verificar tecla Enter
+      if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter') {
+        e.preventDefault();
+        handleEnterPress();
+      }
+    };
+
+    // Handler para Enter/Submit
+    const handleEnterPress = () => {
+      // Se há lista visível e resultados filtrados
+      if (showList && filtered.length > 0) {
+        // Selecionar primeiro item se nenhum estiver selecionado
+        const indexToSelect = selectedIndex >= 0 ? selectedIndex : 0;
+        const optionToSelect = filtered[indexToSelect];
+
+        if (optionToSelect) {
+          handleSelect(optionToSelect);
+        }
+      }
+    };
+
+    // Limpar timeouts ao desmontar
+    useEffect(() => {
+      return () => {
+        if (blurTimeoutRef.current) {
+          clearTimeout(blurTimeoutRef.current);
+        }
+      };
+    }, []);
+
+    // 🚀 EXPOR MÉTODOS VIA REF: Permitir que componentes pais controlem o foco
+    useImperativeHandle(ref, () => ({
+      focus: () => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          setIsFocused(true);
+          // Mostrar lista se houver texto
+          if (searchText.trim().length >= 1) {
+            setShowList(true);
+          }
+        }
+      },
+      blur: () => {
+        if (inputRef.current) {
+          inputRef.current.blur();
+          setIsFocused(false);
+          setShowList(false);
+        }
+      },
+    }));
+
+    // Z-index MUITO ALTO para aparecer acima de TUDO em TODAS as plataformas
+    const containerZIndex = isFocused ? 99999 : 1;
+    const dropdownZIndex = 999999; // Z-index extremamente alto para garantir que apareça acima de tudo
+
+    return (
       <View
         style={[
-          styles.inputContainer,
-          {
-            position: 'relative' as ViewStyle['position'],
-            overflow: 'visible' as ViewStyle['overflow'],
-            zIndex: containerZIndex,
-            ...(Platform.OS === 'web' ? {
-              backgroundColor: '#ffffff',
-            } : {}),
-          },
-        ]}
-      >
-        <TextInput
-          ref={inputRef}
-          style={[
-            styles.input,
-            error ? styles.inputError : undefined,
-            Platform.OS === 'web'
-              ? {
-                position: 'relative' as ViewStyle['position'],
-                // @ts-ignore - Propriedades CSS apenas para web
-                outlineStyle: 'none',
-                outlineWidth: 0,
-              }
-              : undefined,
-          ].filter(Boolean)}
-          value={searchText}
-          onChangeText={handleChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onKeyPress={handleKeyPress}
-          placeholder={placeholder}
-          placeholderTextColor={theme.colors.textSecondary}
-          returnKeyType="done"
-          onSubmitEditing={handleEnterPress}
-          {...(Platform.OS === 'web'
+          styles.container,
+          style,
+          Platform.OS === 'web'
             ? {
-              onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleEnterPress();
-                } else if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  if (filtered.length > 0) {
-                    const nextIndex =
-                      selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
-                    setSelectedIndex(nextIndex);
-                    if (flatListRef.current && nextIndex >= 0) {
-                      setTimeout(() => {
-                        flatListRef.current?.scrollToIndex({
-                          index: nextIndex,
-                          animated: true,
-                          viewOffset: 10,
-                        });
-                      }, 50);
-                    }
-                  }
-                } else if (e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  if (filtered.length > 0) {
-                    const prevIndex =
-                      selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
-                    setSelectedIndex(prevIndex);
-                    if (flatListRef.current && prevIndex >= 0) {
-                      setTimeout(() => {
-                        flatListRef.current?.scrollToIndex({
-                          index: prevIndex,
-                          animated: true,
-                          viewOffset: 10,
-                        });
-                      }, 50);
-                    }
-                  }
-                } else if (e.key === 'Escape') {
-                  e.preventDefault();
-                  setShowList(false);
-                  if (inputRef.current) {
-                    inputRef.current.blur();
-                  }
-                }
-              },
+              position: 'relative' as ViewStyle['position'],
+              overflow: 'visible' as ViewStyle['overflow'],
+              zIndex: containerZIndex,
             }
-            : {})}
-        />
+            : {
+              overflow: 'visible' as ViewStyle['overflow'],
+              zIndex: containerZIndex,
+              elevation: isFocused ? 10 : 0,
+            },
+        ]}
+        ref={containerRef}
+        collapsable={false}
+      >
+        {!!label && <Text style={styles.label}>{label}</Text>}
 
-        {/* Dropdown - View simples no web, Modal no mobile */}
-        {showList && filtered.length > 0 && (
-          Platform.OS === 'web' ? (
-            <View
-              style={styles.webDropdownContainer}
-            >
-              <View style={styles.webDropdown}>
-                <ScrollView
-                  style={styles.webDropdownList}
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {filtered.map((item, index) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.item,
-                        index === selectedIndex && styles.itemSelected,
-                      ]}
-                      onPress={() => {
-                        if (blurTimeoutRef.current) {
-                          clearTimeout(blurTimeoutRef.current);
-                          blurTimeoutRef.current = null;
-                        }
-                        setSelectedIndex(index);
-                        handleSelect(item);
-                        setShowList(false);
-                        if (inputRef.current) {
-                          inputRef.current.blur();
-                        }
-                      }}
-                      activeOpacity={0.7}
-                      {...(Platform.OS === 'web' ? {
-                        onMouseEnter: () => setSelectedIndex(index),
-                      } : {})}
-                    >
-                      <FontAwesome5
-                        name={icon}
-                        size={12}
-                        color={theme.colors.textSecondary}
-                        style={styles.icon}
-                      />
-                      <Text style={styles.itemText}>{item.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-          ) : (
-            // MOBILE: Usar Modal
-            <Modal
-              visible={true}
-              transparent={true}
-              animationType="slide"
-              onRequestClose={() => {
-                setShowList(false);
-                if (inputRef.current) {
-                  inputRef.current.blur();
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              position: 'relative' as ViewStyle['position'],
+              overflow: 'visible' as ViewStyle['overflow'],
+              zIndex: containerZIndex,
+              ...(Platform.OS === 'web'
+                ? {
+                  backgroundColor: '#ffffff',
                 }
-              }}
-              statusBarTranslucent={true}
-            >
-              <TouchableOpacity
-                style={styles.modalOverlay}
-                activeOpacity={1}
-                onPress={() => {
+                : {}),
+            },
+          ]}
+        >
+          <TextInput
+            ref={inputRef}
+            style={[
+              styles.input,
+              error ? styles.inputError : undefined,
+              Platform.OS === 'web'
+                ? {
+                  position: 'relative' as ViewStyle['position'],
+                  // @ts-ignore - Propriedades CSS apenas para web
+                  outlineStyle: 'none',
+                  outlineWidth: 0,
+                }
+                : undefined,
+            ].filter(Boolean)}
+            value={searchText}
+            onChangeText={handleChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onKeyPress={handleKeyPress}
+            placeholder={placeholder}
+            placeholderTextColor={theme.colors.textSecondary}
+            returnKeyType="done"
+            onSubmitEditing={handleEnterPress}
+            {...(Platform.OS === 'web'
+              ? {
+                onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleEnterPress();
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (filtered.length > 0) {
+                      const nextIndex =
+                        selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
+                      setSelectedIndex(nextIndex);
+                      if (flatListRef.current && nextIndex >= 0) {
+                        setTimeout(() => {
+                          flatListRef.current?.scrollToIndex({
+                            index: nextIndex,
+                            animated: true,
+                            viewOffset: 10,
+                          });
+                        }, 50);
+                      }
+                    }
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (filtered.length > 0) {
+                      const prevIndex =
+                        selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
+                      setSelectedIndex(prevIndex);
+                      if (flatListRef.current && prevIndex >= 0) {
+                        setTimeout(() => {
+                          flatListRef.current?.scrollToIndex({
+                            index: prevIndex,
+                            animated: true,
+                            viewOffset: 10,
+                          });
+                        }, 50);
+                      }
+                    }
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowList(false);
+                    if (inputRef.current) {
+                      inputRef.current.blur();
+                    }
+                  }
+                },
+              }
+              : {})}
+          />
+
+          {/* Dropdown - View simples no web, Modal no mobile */}
+          {showList &&
+            filtered.length > 0 &&
+            (Platform.OS === 'web' ? (
+              <View style={styles.webDropdownContainer}>
+                <View style={styles.webDropdown}>
+                  <ScrollView
+                    style={styles.webDropdownList}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {filtered.map((item, index) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.item, index === selectedIndex && styles.itemSelected]}
+                        onPress={() => {
+                          if (blurTimeoutRef.current) {
+                            clearTimeout(blurTimeoutRef.current);
+                            blurTimeoutRef.current = null;
+                          }
+                          setSelectedIndex(index);
+                          handleSelect(item);
+                          setShowList(false);
+                          if (inputRef.current) {
+                            inputRef.current.blur();
+                          }
+                        }}
+                        activeOpacity={0.7}
+                        {...(Platform.OS === 'web'
+                          ? {
+                            onMouseEnter: () => setSelectedIndex(index),
+                          }
+                          : {})}
+                      >
+                        <FontAwesome5
+                          name={icon}
+                          size={12}
+                          color={theme.colors.textSecondary}
+                          style={styles.icon}
+                        />
+                        <Text style={styles.itemText}>{item.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            ) : (
+              // MOBILE: Usar Modal
+              <Modal
+                visible={true}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => {
                   setShowList(false);
                   if (inputRef.current) {
                     inputRef.current.blur();
                   }
                 }}
+                statusBarTranslucent={true}
               >
-                <SafeAreaView style={styles.modalContainer}>
-                  <TouchableOpacity
-                    activeOpacity={1}
-                    onPress={(e) => e.stopPropagation()}
-                  >
-                    <View style={styles.modalDropdown}>
-                      <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
-                        <TouchableOpacity
-                          onPress={() => {
-                            setShowList(false);
-                            if (inputRef.current) {
-                              inputRef.current.blur();
-                            }
-                          }}
-                          style={styles.modalCloseButton}
-                        >
-                          <FontAwesome5 name="times" size={20} color={theme.colors.text} />
-                        </TouchableOpacity>
-                      </View>
-                      <FlatList
-                        ref={flatListRef}
-                        data={filtered}
-                        keyExtractor={item => item.id}
-                        renderItem={({ item, index }) => (
+                <TouchableOpacity
+                  style={styles.modalOverlay}
+                  activeOpacity={1}
+                  onPress={() => {
+                    setShowList(false);
+                    if (inputRef.current) {
+                      inputRef.current.blur();
+                    }
+                  }}
+                >
+                  <SafeAreaView style={styles.modalContainer}>
+                    <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
+                      <View style={styles.modalDropdown}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
                           <TouchableOpacity
-                            style={[styles.modalItem, index === selectedIndex && styles.itemSelected]}
                             onPress={() => {
-                              setSelectedIndex(index);
-                              handleSelect(item);
                               setShowList(false);
                               if (inputRef.current) {
                                 inputRef.current.blur();
                               }
                             }}
-                            activeOpacity={0.7}
+                            style={styles.modalCloseButton}
                           >
-                            <FontAwesome5
-                              name={icon}
-                              size={14}
-                              color={theme.colors.textSecondary}
-                              style={styles.icon}
-                            />
-                            <Text style={styles.modalItemText}>{item.label}</Text>
+                            <FontAwesome5 name="times" size={20} color={theme.colors.text} />
                           </TouchableOpacity>
-                        )}
-                        style={styles.modalList}
-                        keyboardShouldPersistTaps="handled"
-                        initialNumToRender={20}
-                        maxToRenderPerBatch={20}
-                        windowSize={10}
-                      />
-                    </View>
-                  </TouchableOpacity>
-                </SafeAreaView>
-              </TouchableOpacity>
-            </Modal>
-          )
-        )}
+                        </View>
+                        <FlatList
+                          ref={flatListRef}
+                          data={filtered}
+                          keyExtractor={item => item.id}
+                          renderItem={({ item, index }) => (
+                            <TouchableOpacity
+                              style={[
+                                styles.modalItem,
+                                index === selectedIndex && styles.itemSelected,
+                              ]}
+                              onPress={() => {
+                                setSelectedIndex(index);
+                                handleSelect(item);
+                                setShowList(false);
+                                if (inputRef.current) {
+                                  inputRef.current.blur();
+                                }
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <FontAwesome5
+                                name={icon}
+                                size={14}
+                                color={theme.colors.textSecondary}
+                                style={styles.icon}
+                              />
+                              <Text style={styles.modalItemText}>{item.label}</Text>
+                            </TouchableOpacity>
+                          )}
+                          style={styles.modalList}
+                          keyboardShouldPersistTaps="handled"
+                          initialNumToRender={20}
+                          maxToRenderPerBatch={20}
+                          windowSize={10}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  </SafeAreaView>
+                </TouchableOpacity>
+              </Modal>
+            ))}
 
-        {/* Mensagem quando não há resultados */}
-        {showList && filtered.length === 0 && searchText.trim().length >= 1 && (
-          <View style={styles.dropdown}>
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
+          {/* Mensagem quando não há resultados */}
+          {showList && filtered.length === 0 && searchText.trim().length >= 1 && (
+            <View style={styles.dropdown}>
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
+              </View>
             </View>
-          </View>
-        )}
-      </View>
+          )}
+        </View>
 
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
-});
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
+      </View>
+    );
+  }
+);
 
 AutocompleteField.displayName = 'AutocompleteField';
 
 const styles = StyleSheet.create({
   container: {
     marginBottom: theme.spacing.md,
-    ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-      position: 'relative' as ViewStyle['position'],
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        backgroundColor: '#ffffff',
+        position: 'relative' as ViewStyle['position'],
+      }
+      : {}),
   },
   label: {
     fontSize: theme.fontSize.sm,
@@ -595,13 +600,15 @@ const styles = StyleSheet.create({
   inputContainer: {
     position: 'relative' as ViewStyle['position'],
     zIndex: 1,
-    ...(Platform.OS === 'web' ? {
-      position: 'relative' as any,
-      overflow: 'visible' as any,
-      zIndex: 1,
-      // @ts-ignore
-      isolation: 'isolate',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        position: 'relative' as any,
+        overflow: 'visible' as any,
+        zIndex: 1,
+        // @ts-ignore
+        isolation: 'isolate',
+      }
+      : {}),
   },
   input: {
     borderWidth: 1,
@@ -613,13 +620,15 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
     minHeight: Platform.OS === 'web' ? 48 : 52, // Aumentado no mobile
-    ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-      opacity: 1,
-      // @ts-ignore - Propriedades CSS apenas para web
-      outlineStyle: 'none',
-      outlineWidth: 0,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        backgroundColor: '#ffffff',
+        opacity: 1,
+        // @ts-ignore - Propriedades CSS apenas para web
+        outlineStyle: 'none',
+        outlineWidth: 0,
+      }
+      : {}),
   },
   inputError: {
     borderColor: theme.colors.error,
@@ -642,39 +651,45 @@ const styles = StyleSheet.create({
     elevation: 999999,
     overflow: 'hidden',
     zIndex: 999999,
-    ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-      opacity: 1,
-      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-      zIndex: 999999,
-      // @ts-ignore
-      backgroundImage: 'none',
-      // @ts-ignore
-      willChange: 'transform',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        backgroundColor: '#ffffff',
+        opacity: 1,
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+        zIndex: 999999,
+        // @ts-ignore
+        backgroundImage: 'none',
+        // @ts-ignore
+        willChange: 'transform',
+      }
+      : {}),
   },
   dropdownWrapper: {
     backgroundColor: '#ffffff',
     width: '100%',
     minHeight: '100%',
-    ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-      opacity: 1,
-      // @ts-ignore
-      backgroundImage: 'none',
-      // @ts-ignore
-      position: 'relative',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        backgroundColor: '#ffffff',
+        opacity: 1,
+        // @ts-ignore
+        backgroundImage: 'none',
+        // @ts-ignore
+        position: 'relative',
+      }
+      : {}),
   },
   dropdownInner: {
     backgroundColor: '#ffffff',
     maxHeight: 300,
     overflow: 'scroll',
     width: '100%',
-    ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-      opacity: 1,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        backgroundColor: '#ffffff',
+        opacity: 1,
+      }
+      : {}),
   },
   list: {
     maxHeight: 300,
@@ -688,14 +703,16 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
     minHeight: Platform.OS === 'web' ? 48 : 52, // Aumentado no mobile
     backgroundColor: '#ffffff',
-    ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-      opacity: 1,
-      // @ts-ignore
-      position: 'relative',
-      // @ts-ignore
-      zIndex: 99999,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        backgroundColor: '#ffffff',
+        opacity: 1,
+        // @ts-ignore
+        position: 'relative',
+        // @ts-ignore
+        zIndex: 99999,
+      }
+      : {}),
   },
   itemSelected: {
     backgroundColor: theme.colors.primary + '15',
@@ -734,14 +751,16 @@ const styles = StyleSheet.create({
     justifyContent: Platform.OS === 'web' ? 'flex-start' : 'flex-end',
     zIndex: 99999,
     elevation: 99999,
-    ...(Platform.OS === 'web' ? {
-      position: 'fixed' as any,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      pointerEvents: 'auto' as any,
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        position: 'fixed' as any,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'auto' as any,
+      }
+      : {}),
   },
   webDropdownContainer: {
     position: 'absolute' as any,
@@ -750,19 +769,21 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 99999,
     marginTop: 4,
-    ...(Platform.OS === 'web' ? {
-      // @ts-ignore
-      display: 'block',
-      // @ts-ignore
-      visibility: 'visible',
-      opacity: 1,
-      // @ts-ignore
-      zIndex: 99999,
-      // @ts-ignore
-      pointerEvents: 'auto',
-      // @ts-ignore
-      isolation: 'isolate',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        // @ts-ignore
+        display: 'flex',
+        // @ts-ignore
+        visibility: 'visible',
+        opacity: 1,
+        // @ts-ignore
+        zIndex: 99999,
+        // @ts-ignore
+        pointerEvents: 'auto',
+        // @ts-ignore
+        isolation: 'isolate',
+      }
+      : {}),
   },
   webDropdown: {
     backgroundColor: '#ffffff',
@@ -776,30 +797,34 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 99999,
     overflow: 'hidden',
-    ...(Platform.OS === 'web' ? {
-      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-      backgroundColor: '#ffffff',
-      // @ts-ignore
-      display: 'block',
-      // @ts-ignore
-      visibility: 'visible',
-      opacity: 1,
-      // @ts-ignore
-      backgroundImage: 'none',
-      // @ts-ignore
-      isolation: 'isolate',
-      // @ts-ignore
-      zIndex: 99999,
-      // @ts-ignore
-      position: 'relative',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+        backgroundColor: '#ffffff',
+        // @ts-ignore
+        display: 'flex',
+        // @ts-ignore
+        visibility: 'visible',
+        opacity: 1,
+        // @ts-ignore
+        backgroundImage: 'none',
+        // @ts-ignore
+        isolation: 'isolate',
+        // @ts-ignore
+        zIndex: 99999,
+        // @ts-ignore
+        position: 'relative',
+      }
+      : {}),
   },
   webDropdownList: {
     maxHeight: 300,
     backgroundColor: '#ffffff',
-    ...(Platform.OS === 'web' ? {
-      backgroundColor: '#ffffff',
-    } : {}),
+    ...(Platform.OS === 'web'
+      ? {
+        backgroundColor: '#ffffff',
+      }
+      : {}),
   },
   modalContainer: {
     flex: 1,

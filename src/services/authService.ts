@@ -3,7 +3,13 @@ import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Usuario } from '../types/models';
 import { userProfileService } from './userProfileService';
-import { sanitizeInput, validateEmail, sanitizeForLogging, checkRateLimit, FIELD_LIMITS } from '../utils/securityUtils';
+import {
+  sanitizeInput,
+  validateEmail,
+  sanitizeForLogging,
+  checkRateLimit,
+  FIELD_LIMITS,
+} from '../utils/securityUtils';
 
 // Polyfill para web
 const getSecureStore = () => {
@@ -67,7 +73,9 @@ export const authService = {
     if (!rateLimitCheck.allowed) {
       return {
         user: null,
-        error: new Error(rateLimitCheck.error || 'Muitas tentativas. Tente novamente em alguns instantes.'),
+        error: new Error(
+          rateLimitCheck.error || 'Muitas tentativas. Tente novamente em alguns instantes.'
+        ),
       };
     }
 
@@ -80,8 +88,13 @@ export const authService = {
       };
     }
 
-    const emailSanitizado = sanitizeInput(email.trim().toLowerCase(), { fieldType: 'email', maxLength: FIELD_LIMITS.email });
-    const nomeSanitizado = nome ? sanitizeInput(nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome }) : undefined;
+    const emailSanitizado = sanitizeInput(email.trim().toLowerCase(), {
+      fieldType: 'email',
+      maxLength: FIELD_LIMITS.email,
+    });
+    const nomeSanitizado = nome
+      ? sanitizeInput(nome.trim(), { fieldType: 'nome', maxLength: FIELD_LIMITS.nome })
+      : undefined;
 
     // 🛡️ SEGURANÇA: Validar senha (mínimo 6 caracteres - padrão Supabase)
     if (!password || password.length < 6) {
@@ -105,11 +118,14 @@ export const authService = {
       });
 
       // 🛡️ SEGURANÇA: Log sanitizado (sem dados sensíveis)
-      console.log('📡 Resposta do Supabase:', sanitizeForLogging({
-        hasUser: !!data.user,
-        hasSession: !!data.session,
-        error: error?.message,
-      }));
+      console.log(
+        '📡 Resposta do Supabase:',
+        sanitizeForLogging({
+          hasUser: !!data.user,
+          hasSession: !!data.session,
+          error: error?.message,
+        })
+      );
 
       if (error) {
         console.error('❌ Erro do Supabase:', error);
@@ -137,7 +153,9 @@ export const authService = {
           data.user.user_metadata?.full_name ||
           data.user.user_metadata?.name ||
           undefined;
-        const nomeFinal = nomeFinalRaw ? sanitizeInput(nomeFinalRaw, { fieldType: 'nome', maxLength: FIELD_LIMITS.nome }) : undefined;
+        const nomeFinal = nomeFinalRaw
+          ? sanitizeInput(nomeFinalRaw, { fieldType: 'nome', maxLength: FIELD_LIMITS.nome })
+          : undefined;
 
         console.log('✅ Nome final a ser salvo:', nomeFinal);
 
@@ -226,7 +244,9 @@ export const authService = {
     if (!rateLimitCheck.allowed) {
       return {
         user: null,
-        error: new Error(rateLimitCheck.error || 'Muitas tentativas. Tente novamente em alguns instantes.'),
+        error: new Error(
+          rateLimitCheck.error || 'Muitas tentativas. Tente novamente em alguns instantes.'
+        ),
       };
     }
 
@@ -239,7 +259,10 @@ export const authService = {
       };
     }
 
-    const emailSanitizado = sanitizeInput(email.trim().toLowerCase(), { fieldType: 'email', maxLength: FIELD_LIMITS.email });
+    const emailSanitizado = sanitizeInput(email.trim().toLowerCase(), {
+      fieldType: 'email',
+      maxLength: FIELD_LIMITS.email,
+    });
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
