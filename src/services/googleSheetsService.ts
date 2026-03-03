@@ -744,7 +744,7 @@ export const googleSheetsService = {
       }
 
       if (!cidade || cidade.trim() === '') {
-        console.warn('⚠️ [GoogleSheets] Cidade vazia detectada, usando fallback da comum');
+        console.warn('⚠️ [GoogleSheets] Cidade vazia detectada, tentado inferir da comum');
         const comumNomeUpper = comum.nome.toUpperCase();
         if (comumNomeUpper.includes('ITAPEVI')) {
           cidade = 'ITAPEVI';
@@ -754,10 +754,10 @@ export const googleSheetsService = {
           cidade = 'JANDIRA';
         } else if (comumNomeUpper.includes('CAUCAIA')) {
           cidade = 'CAUCAIA DO ALTO';
-        } else {
-          cidade = comum.nome.split(' ')[0].toUpperCase();
         }
-        console.log('🔄 [GoogleSheets] Cidade definida como fallback:', cidade);
+        // Removido o fallback genérico (split(' ')[0]) para evitar que códigos como BR-22-0674
+        // sejam salvos como cidade caso não haja match com as regionais.
+        console.log('🔄 [GoogleSheets] Cidade definida como fallback (ou mantida vazia):', cidade);
       }
 
       // Buscar nome do local de ensaio (se for ID, converter para nome)
