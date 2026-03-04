@@ -173,7 +173,7 @@ export const showToast = {
           toast: false,
           position: 'center',
           customClass: {
-            popup: 'swal2-popup-inspinia',
+            popup: 'swal2-toast-modern',
             confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
@@ -211,7 +211,7 @@ export const showToast = {
           toast: false,
           position: 'center',
           customClass: {
-            popup: 'swal2-popup-inspinia',
+            popup: 'swal2-toast-modern',
             confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
@@ -253,7 +253,7 @@ export const showToast = {
           toast: false,
           position: 'center',
           customClass: {
-            popup: 'swal2-popup-inspinia',
+            popup: 'swal2-toast-modern',
             confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
@@ -298,10 +298,7 @@ export const showToast = {
           timer: title === 'Atenção' && message?.includes('fila') ? 4500 : undefined,
           timerProgressBar: title === 'Atenção' && message?.includes('fila') ? true : false,
           customClass: {
-            popup:
-              title === 'Atenção' && message?.includes('fila')
-                ? 'swal2-toast-modern'
-                : 'swal2-popup-inspinia',
+            popup: 'swal2-toast-modern',
             confirmButton: 'swal2-inspinia-confirm-btn',
           },
         });
