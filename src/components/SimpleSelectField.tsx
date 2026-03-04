@@ -359,7 +359,7 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
             <Modal
               visible={showList}
               transparent={true}
-              animationType="fade"
+              animationType="slide"
               onRequestClose={() => {
                 setShowList(false);
                 if (inputRef.current) {
@@ -379,6 +379,9 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
               >
                 <SafeAreaView style={styles.modalContainer}>
                   <View style={styles.modalDropdown}>
+                    <View style={styles.dragHandleContainer}>
+                      <View style={styles.dragHandle} />
+                    </View>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
                       <TouchableOpacity
@@ -703,6 +706,17 @@ const styles = StyleSheet.create({
         width: '100%',
       }
       : {}),
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
   },
   modalHeader: {
     flexDirection: 'row',

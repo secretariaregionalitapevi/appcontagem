@@ -19,6 +19,7 @@ import { OfflineBadge } from '../components/OfflineBadge';
 import { AppHeader } from '../components/AppHeader';
 import { DuplicateModal } from '../components/DuplicateModal';
 import { NewRegistrationModal } from '../components/NewRegistrationModal';
+import { Skeleton } from '../components/Skeleton';
 import { theme } from '../theme';
 import { useRegisterController } from '../hooks/useRegisterController';
 import { offlineSyncService } from '../services/offlineSyncService';
@@ -82,9 +83,32 @@ export const RegisterScreen: React.FC = () => {
 
   if (initialLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Carregando dados...</Text>
+      <View style={styles.container}>
+        <AppHeader />
+        <View style={styles.scrollContent}>
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Skeleton width={200} height={28} borderRadius={4} style={{ marginBottom: 8 }} />
+              <Skeleton width={'80%'} height={16} borderRadius={4} />
+            </View>
+            <View style={styles.cardBody}>
+              <View style={styles.field}>
+                <Skeleton width={150} height={14} borderRadius={4} style={{ marginBottom: 8 }} />
+                <Skeleton width={'100%'} height={52} borderRadius={8} />
+              </View>
+              <View style={styles.field}>
+                <Skeleton width={130} height={14} borderRadius={4} style={{ marginBottom: 8 }} />
+                <Skeleton width={'100%'} height={52} borderRadius={8} />
+              </View>
+              <View style={styles.field}>
+                <Skeleton width={180} height={14} borderRadius={4} style={{ marginBottom: 8 }} />
+                <Skeleton width={'100%'} height={52} borderRadius={8} />
+              </View>
+
+              <Skeleton width={220} height={52} borderRadius={8} style={styles.submitButton} />
+            </View>
+          </View>
+        </View>
       </View>
     );
   }

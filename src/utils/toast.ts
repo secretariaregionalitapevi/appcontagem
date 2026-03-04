@@ -1,4 +1,5 @@
 import { Platform, Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
 
 // Importar Toast apenas para plataformas nativas (não web)
 let Toast: any = null;
@@ -180,6 +181,9 @@ export const showToast = {
         console.log(`✅ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
+      if ((Platform.OS as string) !== 'web') {
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) { }
+      }
       Toast.show({
         type: 'success',
         text1: title,
@@ -219,6 +223,9 @@ export const showToast = {
         }
       }
     } else if (Toast) {
+      if ((Platform.OS as string) !== 'web') {
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch (e) { }
+      }
       Toast.show({
         type: 'error',
         text1: title,
@@ -255,6 +262,9 @@ export const showToast = {
         console.info(`ℹ️ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
+      if ((Platform.OS as string) !== 'web') {
+        try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (e) { }
+      }
       Toast.show({
         type: 'info',
         text1: title,
@@ -303,6 +313,9 @@ export const showToast = {
         }
       }
     } else if (Toast) {
+      if ((Platform.OS as string) !== 'web') {
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch (e) { }
+      }
       Toast.show({
         type: 'info', // react-native-toast-message usa 'info' para warning às vezes, dependendo da config
         text1: title,

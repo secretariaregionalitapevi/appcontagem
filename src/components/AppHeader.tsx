@@ -13,6 +13,7 @@ import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
 import { LocalEnsaio } from '../types/models';
+import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_SMALL_SCREEN = SCREEN_WIDTH < 400;
@@ -121,6 +122,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const userName = getUserDisplayName();
 
+  const handlePressWithHaptic = (action: () => void) => {
+    if ((Platform.OS as string) !== 'web') {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch (e) { }
+    }
+    action();
+  };
+
   return (
     <View style={styles.header}>
       {/* Primeira linha: Logo, Título e Botões */}
@@ -158,7 +168,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {onBackPress && (
             <TouchableOpacity
               style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={onBackPress}
+              onPress={() => handlePressWithHaptic(onBackPress)}
               activeOpacity={0.7}
             >
               <FontAwesome5 name="arrow-left" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
@@ -172,25 +182,27 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 styles.organistaBtn,
               ]}
               onPress={e => {
-                console.log('🎹 [AppHeader] Botão de organistas clicado!');
-                console.log(
-                  '🎹 [AppHeader] onOrganistasEnsaioPress disponível?',
-                  !!onOrganistasEnsaioPress
-                );
-                console.log(
-                  '🎹 [AppHeader] Tipo de onOrganistasEnsaioPress:',
-                  typeof onOrganistasEnsaioPress
-                );
-                try {
-                  if (onOrganistasEnsaioPress) {
-                    onOrganistasEnsaioPress();
-                    console.log('✅ [AppHeader] onOrganistasEnsaioPress chamado com sucesso');
-                  } else {
-                    console.error('❌ [AppHeader] onOrganistasEnsaioPress é null/undefined');
+                handlePressWithHaptic(() => {
+                  console.log('🎹 [AppHeader] Botão de organistas clicado!');
+                  console.log(
+                    '🎹 [AppHeader] onOrganistasEnsaioPress disponível?',
+                    !!onOrganistasEnsaioPress
+                  );
+                  console.log(
+                    '🎹 [AppHeader] Tipo de onOrganistasEnsaioPress:',
+                    typeof onOrganistasEnsaioPress
+                  );
+                  try {
+                    if (onOrganistasEnsaioPress) {
+                      onOrganistasEnsaioPress();
+                      console.log('✅ [AppHeader] onOrganistasEnsaioPress chamado com sucesso');
+                    } else {
+                      console.error('❌ [AppHeader] onOrganistasEnsaioPress é null/undefined');
+                    }
+                  } catch (error) {
+                    console.error('❌ [AppHeader] Erro ao chamar onOrganistasEnsaioPress:', error);
                   }
-                } catch (error) {
-                  console.error('❌ [AppHeader] Erro ao chamar onOrganistasEnsaioPress:', error);
-                }
+                });
               }}
               activeOpacity={0.7}
             >
@@ -200,7 +212,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {isMaster && onEditRegistrosPress && (
             <TouchableOpacity
               style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={onEditRegistrosPress}
+              onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
               activeOpacity={0.7}
             >
               <FontAwesome5 name="edit" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
@@ -209,7 +221,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {onSettingsPress && (
             <TouchableOpacity
               style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={onSettingsPress}
+              onPress={() => handlePressWithHaptic(onSettingsPress)}
               activeOpacity={0.7}
             >
               <FontAwesome5 name="cog" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
@@ -217,7 +229,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           <TouchableOpacity
             style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-            onPress={handleLogout}
+            onPress={() => handlePressWithHaptic(handleLogout)}
             activeOpacity={0.6}
           >
             <FontAwesome5 name="sign-out-alt" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
@@ -407,21 +419,21 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 107, 107, 0.4)',
     ...(Platform.OS === 'web'
       ? {
-          // @ts-ignore - Propriedades CSS apenas para web
-          cursor: 'pointer',
-          // @ts-ignore
-          userSelect: 'none',
-          // @ts-ignore
-          WebkitUserSelect: 'none',
-          // @ts-ignore
-          MozUserSelect: 'none',
-          // @ts-ignore
-          msUserSelect: 'none',
-          // @ts-ignore
-          pointerEvents: 'auto',
-          // @ts-ignore
-          zIndex: 1000,
-        }
+        // @ts-ignore - Propriedades CSS apenas para web
+        cursor: 'pointer',
+        // @ts-ignore
+        userSelect: 'none',
+        // @ts-ignore
+        WebkitUserSelect: 'none',
+        // @ts-ignore
+        MozUserSelect: 'none',
+        // @ts-ignore
+        msUserSelect: 'none',
+        // @ts-ignore
+        pointerEvents: 'auto',
+        // @ts-ignore
+        zIndex: 1000,
+      }
       : {}),
   },
 });
