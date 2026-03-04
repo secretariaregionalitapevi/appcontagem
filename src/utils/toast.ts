@@ -109,50 +109,49 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 
       .swal2-toast-modern .swal2-success-ring { width: 32px !important; height: 32px !important; }
 
-      /* Modais estilo Inspinia Classic */
-      .swal2-popup-inspinia {
-        font-family: "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
-        border-radius: 4px !important;
-        padding: 20px !important;
-        width: 440px !important;
+      /* Modais Centrais Modernos */
+      .swal2-popup-modern {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        border-radius: 16px !important;
+        padding: 24px 20px !important;
+        width: 340px !important;
         max-width: 90% !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+        background: #ffffff !important;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
         border: none !important;
       }
       
-      .swal2-popup-inspinia .swal2-title {
-        font-size: 24px !important;
-        font-weight: 400 !important;
-        color: #575757 !important;
-        margin-top: 10px !important;
-        margin-bottom: 5px !important;
+      .swal2-popup-modern .swal2-title {
+        font-size: 20px !important;
+        font-weight: 600 !important;
+        color: #1f2937 !important;
+        margin-top: 16px !important;
+        margin-bottom: 8px !important;
       }
       
-      .swal2-popup-inspinia .swal2-html-container {
-        font-size: 16px !important;
-        font-weight: 300 !important;
-        color: #797979 !important;
-        margin-top: 10px !important;
-        line-height: normal !important;
-      }
-
-      .swal2-inspinia-confirm-btn {
-        background-color: #1ab394 !important; /* Inspinia Green/Turquoise */
-        border-color: #1ab394 !important;
-        color: #fff !important;
-        font-size: 14px !important;
+      .swal2-popup-modern .swal2-html-container {
+        font-size: 15px !important;
         font-weight: 400 !important;
-        border-radius: 3px !important;
-        padding: 8px 16px !important;
-        margin-top: 20px !important;
-        min-width: 60px !important;
-        box-shadow: none !important;
-        transition: background-color 0.2s !important;
+        color: #4b5563 !important;
+        margin-top: 0 !important;
+        line-height: 1.5 !important;
       }
 
-      .swal2-inspinia-confirm-btn:hover {
-        background-color: #18a689 !important;
-        border-color: #18a689 !important;
+      .swal2-modern-confirm-btn {
+        background-color: #0ea5e9 !important; /* Primary Blue */
+        border-radius: 8px !important;
+        color: #fff !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        padding: 12px 24px !important;
+        border: none !important;
+        box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.2) !important;
+        margin-top: 24px !important;
+        min-width: 100px !important;
+      }
+
+      .swal2-modern-confirm-btn:hover {
+        background-color: #0284c7 !important;
       }
     `;
     document.head.appendChild(customStyle);
@@ -173,8 +172,8 @@ export const showToast = {
           toast: false,
           position: 'center',
           customClass: {
-            popup: 'swal2-toast-modern',
-            confirmButton: 'swal2-inspinia-confirm-btn',
+            popup: 'swal2-popup-modern',
+            confirmButton: 'swal2-modern-confirm-btn',
           },
         });
       } else {
@@ -211,8 +210,8 @@ export const showToast = {
           toast: false,
           position: 'center',
           customClass: {
-            popup: 'swal2-toast-modern',
-            confirmButton: 'swal2-inspinia-confirm-btn',
+            popup: 'swal2-popup-modern',
+            confirmButton: 'swal2-modern-confirm-btn',
           },
         });
       } else {
@@ -253,8 +252,8 @@ export const showToast = {
           toast: false,
           position: 'center',
           customClass: {
-            popup: 'swal2-toast-modern',
-            confirmButton: 'swal2-inspinia-confirm-btn',
+            popup: 'swal2-popup-modern',
+            confirmButton: 'swal2-modern-confirm-btn',
           },
         });
       } else {
@@ -298,8 +297,11 @@ export const showToast = {
           timer: title === 'Atenção' && message?.includes('fila') ? 4500 : undefined,
           timerProgressBar: title === 'Atenção' && message?.includes('fila') ? true : false,
           customClass: {
-            popup: 'swal2-toast-modern',
-            confirmButton: 'swal2-inspinia-confirm-btn',
+            popup:
+              title === 'Atenção' && message?.includes('fila')
+                ? 'swal2-toast-modern'
+                : 'swal2-popup-modern',
+            confirmButton: 'swal2-modern-confirm-btn',
           },
         });
       } else {
