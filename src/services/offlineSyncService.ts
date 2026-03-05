@@ -24,13 +24,16 @@ export const offlineSyncService = {
         return false;
       }
       try {
-        // Ping rápido a um serviço confiável para garantir que não é apenas cache de rede local
-        const response = await fetch('https://clients3.google.com/generate_204', {
-          method: 'HEAD',
+        // Ping rápido a um serviço confiável (modo no-cors para evitar bloqueios)
+        // Se a promise resolver (mesmo sendo opaca com status 0), significa que a rede fisicamente alcançou a internet
+        await fetch('https://clients3.google.com/generate_204', {
+          method: 'GET',
+          mode: 'no-cors',
           cache: 'no-store'
         });
-        return response.ok || response.status === 204;
+        return true;
       } catch (error) {
+        // failed to fetch = sem internet real
         return false;
       }
     }

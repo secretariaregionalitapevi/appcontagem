@@ -45,10 +45,18 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         fetch(event.request).then((networkResponse) => {
             // Se a rede respondeu com sucesso, armazena no cache e retorna
-            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            // Só armazenar requests com esquema suportado (http/https)
+            if (
+                networkResponse &&
+                networkResponse.status === 200 &&
+                networkResponse.type === 'basic' &&
+                event.request.url.startsWith('http')
+            ) {
                 const responseToCache = networkResponse.clone();
                 caches.open(RUNTIME_CACHE).then((cache) => {
-                    cache.put(event.request, responseToCache);
+                    cache.put(event.request, responseToCache).catch(err => {
+                        console.warn('[Service Worker] Erro ao armazenar em cache:', err);
+                    });
                 });
             }
             return networkResponse;
