@@ -745,21 +745,17 @@ export const useRegisterController = () => {
       // 1. Verificar hook primeiro (mais confiável)
       const hookOffline = !isOnline;
 
-      // 2. Verificar NetInfo diretamente (mais preciso)
+      // 2. Verificar nossa função robusta (engloba NetInfo e Fallbacks Web)
       let netInfoOffline = false;
       try {
-        const netState = await NetInfo.fetch();
-        const isReallyOnline =
-          netState.isConnected === true && netState.isInternetReachable === true;
+        const isReallyOnline = await offlineSyncService.isOnline();
         netInfoOffline = !isReallyOnline;
-        console.log(`📡 [${Platform.OS}] NetInfo:`, {
-          isConnected: netState.isConnected,
-          isInternetReachable: netState.isInternetReachable,
+        console.log(`📡 [${Platform.OS}] Serviço OfflineSync:`, {
           isReallyOnline,
         });
       } catch (netError) {
-        console.warn(`⚠️ [${Platform.OS}] NetInfo falhou:`, netError);
-        // Se NetInfo falhar, confiar no hook
+        console.warn(`⚠️ [${Platform.OS}] Serviço OfflineSync falhou:`, netError);
+        // Se falhar, confiar no hook
         netInfoOffline = hookOffline;
       }
 

@@ -88,10 +88,9 @@ export const useOnlineStatus = () => {
     const unsubscribe = NetInfo.addEventListener(handleStatusChange);
 
     // Verificar status inicial
-    NetInfo.fetch().then(state => {
-      const initialStatus = state.isConnected === true && state.isInternetReachable === true;
-      previousStatusRef.current = initialStatus;
-      setIsOnline(initialStatus);
+    require('../services/offlineSyncService').offlineSyncService.isOnline().then((isReallyOnline: boolean) => {
+      previousStatusRef.current = isReallyOnline;
+      setIsOnline(isReallyOnline);
       setTimeout(() => {
         isInitialLoad.current = false;
       }, 2000); // Dar 2s de gravação para a carga inicial web
@@ -102,8 +101,8 @@ export const useOnlineStatus = () => {
       const handleOnline = async () => {
         console.log('🌐 [useOnlineStatus] Evento online do navegador detectado');
         setTimeout(async () => {
-          const state = await NetInfo.fetch();
-          const newStatus = state.isConnected === true && state.isInternetReachable === true;
+          const offlineSyncService = require('../services/offlineSyncService').offlineSyncService;
+          const newStatus = await offlineSyncService.isOnline();
 
           // 🚨 CORREÇÃO: Sempre chamar callback quando status mudar (não verificar null)
           if (previousStatusRef.current !== null && previousStatusRef.current !== newStatus) {
