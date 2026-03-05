@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { theme } from '../theme';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from '../utils/haptics';
 
 interface PrimaryButtonProps {
   title: string;
@@ -31,11 +31,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
 }) => {
   const handlePress = () => {
     if (disabled || loading) return;
-    if (Platform.OS !== 'web') {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } catch (e) { }
-    }
+    triggerHaptic('light');
     onPress();
   };
 

@@ -12,8 +12,9 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
+import { theme } from '../theme';
+import { triggerHaptic } from '../utils/haptics';
 import { LocalEnsaio } from '../types/models';
-import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_SMALL_SCREEN = SCREEN_WIDTH < 400;
@@ -122,12 +123,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const userName = getUserDisplayName();
 
+  // Helper para feedback tátil universal
   const handlePressWithHaptic = (action: () => void) => {
-    if ((Platform.OS as string) !== 'web') {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      } catch (e) { }
-    }
+    triggerHaptic('light');
     action();
   };
 

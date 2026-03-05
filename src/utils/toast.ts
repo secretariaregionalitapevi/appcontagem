@@ -1,5 +1,5 @@
 import { Platform, Alert } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from './haptics'; // Importar a função triggerHaptic
 
 // Importar Toast apenas para plataformas nativas (não web)
 let Toast: any = null;
@@ -180,9 +180,7 @@ export const showToast = {
         console.log(`✅ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
-      if ((Platform.OS as string) !== 'web') {
-        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) { }
-      }
+      triggerHaptic('success');
       Toast.show({
         type: 'success',
         text1: title,
@@ -222,9 +220,7 @@ export const showToast = {
         }
       }
     } else if (Toast) {
-      if ((Platform.OS as string) !== 'web') {
-        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch (e) { }
-      }
+      triggerHaptic('error');
       Toast.show({
         type: 'error',
         text1: title,
@@ -261,9 +257,7 @@ export const showToast = {
         console.info(`ℹ️ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
-      if ((Platform.OS as string) !== 'web') {
-        try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch (e) { }
-      }
+      triggerHaptic('light');
       Toast.show({
         type: 'info',
         text1: title,
@@ -312,9 +306,7 @@ export const showToast = {
         }
       }
     } else if (Toast) {
-      if ((Platform.OS as string) !== 'web') {
-        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } catch (e) { }
-      }
+      triggerHaptic('warning');
       Toast.show({
         type: 'info', // react-native-toast-message usa 'info' para warning às vezes, dependendo da config
         text1: title,

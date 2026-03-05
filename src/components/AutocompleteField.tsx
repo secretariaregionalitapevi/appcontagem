@@ -235,9 +235,14 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
     // Quando o campo perde foco
     const handleBlur = () => {
       setIsFocused(false);
-      // Delay muito maior no web para permitir clique com mouse
-      // O mouse precisa de mais tempo porque o blur acontece antes do click
-      const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 500 : 300;
+
+      // Usando nativo, não fechamos automaticamente por blur.
+      // O Modal interceptará toques externos e não brigará com o foco.
+      if (Platform.OS !== 'web') {
+        return;
+      }
+
+      const delay = 500;
       blurTimeoutRef.current = setTimeout(() => {
         setShowList(false);
         blurTimeoutRef.current = null;
@@ -483,7 +488,7 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
               <Modal
                 visible={true}
                 transparent={true}
-                animationType="fade"
+                animationType="slide"
                 onRequestClose={() => {
                   setShowList(false);
                   if (inputRef.current) {
@@ -505,6 +510,9 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
                   <SafeAreaView style={styles.modalContainer}>
                     <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
                       <View style={styles.modalDropdown}>
+                        <View style={styles.dragHandleContainer}>
+                          <View style={styles.dragHandle} />
+                        </View>
                         <View style={styles.modalHeader}>
                           <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
                           <TouchableOpacity
@@ -843,6 +851,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 99999,
     zIndex: 99999,
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
   },
   modalHeader: {
     flexDirection: 'row',
