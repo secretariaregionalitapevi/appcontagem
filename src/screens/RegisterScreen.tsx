@@ -737,11 +737,8 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
         cursor: 'pointer',
-        zIndex: 10,
       }
-      : {
-        zIndex: 10,
-      }),
+      : {}),
   },
   newRegistrationLinkText: {
     fontSize: theme.fontSize.sm,

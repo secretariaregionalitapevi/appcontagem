@@ -188,9 +188,12 @@ export const sanitizeString = (str: string): string => {
   }
 
   try {
-    return normalizeString(str)
-      .replace(/[<>]/g, '') // Remove < e >
-      .trim();
+    let sanitized = str.trim();
+    sanitized = removeControlChars(sanitized);
+    // Normalizar espaços múltiplos
+    sanitized = sanitized.replace(/\s+/g, ' ').trim();
+
+    return sanitized.replace(/[<>]/g, ''); // Remove < e >
   } catch (error) {
     console.warn('⚠️ Erro ao sanitizar string:', error);
     return str.trim();

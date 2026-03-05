@@ -26,11 +26,15 @@ export const offlineSyncService = {
       try {
         // Ping rápido a um serviço confiável (modo no-cors para evitar bloqueios)
         // Se a promise resolver (mesmo sendo opaca com status 0), significa que a rede fisicamente alcançou a internet
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
         await fetch('https://clients3.google.com/generate_204', {
           method: 'GET',
           mode: 'no-cors',
-          cache: 'no-store'
+          cache: 'no-store',
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
         return true;
       } catch (error) {
         // failed to fetch = sem internet real
@@ -489,9 +493,9 @@ export const offlineSyncService = {
               .lt('data_ensaio', dataFim.toISOString())
               .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
 
-            // 🚀 OTIMIZAÇÃO: Timeout de 8 segundos para redes lentas
+            // 🚀 OTIMIZAÇÃO: Timeout de 3 segundos para redes lentas
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 8000)
+              setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 3000)
             );
 
             const { data: duplicatas, error: duplicataError } = await Promise.race([

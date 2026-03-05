@@ -1178,9 +1178,17 @@ export const supabaseDataService = {
             return q.order('nome', { ascending: true }).range(from, to);
           };
 
+          const buildAccentWildcard = (str: string) => {
+            return str.replace(/[AEIOUÁÉÍÓÚÂÊÎÔÛÃÕÄËÏÖÜCÇaeiouáéíóúâêîôûãõäëïöücç]/g, '_');
+          };
+
           const queriesComum = [
             buildFallbackQuery(`%${comumNomeSemCodigo.toUpperCase()}%`), // Nome original (com acentos)
             buildFallbackQuery(`%${comumNome.trim()}%`), // Nome completo (com código)
+            // 🚨 CORREÇÃO CRÍTICA PARA ACENTOS: Busca com wildcards (_) onde há vogais ou C
+            // Pois o banco pode ter CHÁCARA e a busca ser CHACARA (o ilike não ignora acentos sem extensão)
+            buildFallbackQuery(`%${buildAccentWildcard(comumBusca)}%`),
+            buildFallbackQuery(`%${buildAccentWildcard(comumNomeSemCodigo.toUpperCase())}%`),
           ];
 
           const resultsComum = await Promise.all(queriesComum);
@@ -2357,9 +2365,9 @@ export const supabaseDataService = {
           .lt('data_ensaio', dataFim.toISOString())
           .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
 
-        // 🚀 OTIMIZAÇÃO: Timeout de 8 segundos para não bloquear muito tempo
+        // 🚀 OTIMIZAÇÃO: Timeout de 3 segundos para não bloquear muito tempo
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 8000)
+          setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 3000)
         );
 
         const { data: duplicatas, error: duplicataError } = (await Promise.race([

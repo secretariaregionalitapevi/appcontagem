@@ -819,12 +819,23 @@ export const googleSheetsService = {
             : registro.classe_organista || '';
 
       // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" nas anotações para nomes manuais de comuns da regional
-      // Nomes manuais indicam que o cadastro está desatualizado (pessoa não encontrada na lista)
+      // APENAS para músicos, organistas e cargos musicais
       let anotacoes = '';
-      if (isNomeManualRegional) {
+
+      const cargoUpperForSam = cargoReal.toUpperCase();
+      const isCargoMusicalParaSam =
+        cargoUpperForSam.includes('MÚSIC') ||
+        cargoUpperForSam.includes('MUSIC') ||
+        cargoUpperForSam.includes('ORGANISTA') ||
+        cargoUpperForSam.includes('CANDIDAT') ||
+        cargoUpperForSam.includes('EXAMINADORA') ||
+        cargoUpperForSam.includes('INSTRUTOR') ||
+        isCargoFemininoOrganista(cargoReal);
+
+      if (isNomeManualRegional && isCargoMusicalParaSam) {
         anotacoes = 'SAM Desatualizado';
         console.log(
-          '✏️ [GoogleSheets] Nome manual de comum da regional detectado - adicionando "SAM Desatualizado" nas anotações'
+          '✏️ [GoogleSheets] Nome manual de comum da regional (cargo musical) detectado - adicionando "SAM Desatualizado"'
         );
       }
 
@@ -910,7 +921,7 @@ export const googleSheetsService = {
         SYNC_STATUS: 'ATUALIZADO',
         SYNCED_AT: new Date().toISOString(),
         ANOTACOES: (
-          anotacoesSanitizadas || (isNomeManualRegional ? 'SAM Desatualizado' : '')
+          anotacoesSanitizadas || (isNomeManualRegional && isCargoMusicalParaSam ? 'SAM Desatualizado' : '')
         ).toUpperCase(),
         DUPLICATA: 'NÃO',
       };

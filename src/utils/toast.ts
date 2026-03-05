@@ -56,164 +56,46 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
     fontStyle.rel = 'stylesheet';
     document.head.appendChild(fontStyle);
 
-    // 🚀 MELHORIA: Estilos customizados mais elegantes e modernos (Toast e Glassmorphism)
-    const customStyle = document.createElement('style');
-    customStyle.id = 'sweetalert2-custom-styles';
-    customStyle.textContent = `
-      /* Font-family global para todos os alertas customizados */
-      .swal2-popup-modern,
-      .swal2-popup-modern .swal2-title,
-      .swal2-popup-modern .swal2-html-container,
-      .swal2-toast-modern,
-      .swal2-toast-modern .swal2-title,
-      .swal2-toast-modern .swal2-html-container {
-        font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-      }
-
-      /* Toasts unificados e modernos */
-      .swal2-toast-modern {
-        background: rgba(255, 255, 255, 0.95) !important;
-        backdrop-filter: blur(10px) !important;
-        -webkit-backdrop-filter: blur(10px) !important;
-        border-radius: 12px !important;
-        padding: 12px 16px !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        display: flex !important;
-        align-items: center !important;
-        width: auto !important;
-        max-width: 400px !important;
-      }
-      
-      .swal2-toast-modern .swal2-title {
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        color: #1f2937 !important;
-        margin: 0 0 2px 0 !important;
-        line-height: 1.4 !important;
-        flex: auto !important;
-      }
-      
-      .swal2-toast-modern .swal2-html-container {
-        font-size: 14px !important;
-        font-weight: 400 !important;
-        color: #6b7280 !important;
-        margin: 0 !important;
-        line-height: 1.4 !important;
-        text-align: left !important;
-      }
-
-      .swal2-toast-modern .swal2-icon {
-        width: 32px !important;
-        height: 32px !important;
-        margin: 0 12px 0 0 !important;
-        flex-shrink: 0 !important;
-        border-width: 2px !important;
-      }
-      
-      .swal2-toast-modern .swal2-icon.swal2-success { border-color: #10b981 !important; color: #10b981 !important; }
-      .swal2-toast-modern .swal2-icon.swal2-error { border-color: #ef4444 !important; color: #ef4444 !important; }
-      .swal2-toast-modern .swal2-icon.swal2-warning { border-color: #f59e0b !important; color: #f59e0b !important; }
-      .swal2-toast-modern .swal2-icon.swal2-info { border-color: #033D60 !important; color: #033D60 !important; }
-
-      .swal2-toast-modern .swal2-success-ring { width: 32px !important; height: 32px !important; }
-
-      /* Modais Centrais Estilo App Nativo */
-      .swal2-popup.swal2-popup-modern {
-        border-radius: 16px !important;
-        padding: 0 !important;
-        width: 340px !important;
-        max-width: 90% !important;
-        background: rgba(255, 255, 255, 0.98) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12) !important;
-        border: 1px solid rgba(0, 0, 0, 0.05) !important;
-        overflow: hidden !important;
-      }
-
-      .swal2-popup-modern .swal2-icon {
-        margin-top: 28px !important;
-        width: 64px !important;
-        height: 64px !important;
-        border-width: 3px !important;
-        background-color: transparent !important;
-      }
-      .swal2-popup-modern .swal2-success::before,
-      .swal2-popup-modern .swal2-success::after,
-      .swal2-popup-modern .swal2-success [class^="swal2-success-circular-line"],
-      .swal2-popup-modern .swal2-success [class*="swal2-success-circular-line"],
-      .swal2-popup-modern .swal2-success .swal2-success-fix {
-        display: none !important;
-        background-color: transparent !important;
-      }
-      
-      .swal2-popup-modern .swal2-title {
-        font-size: 20px !important;
-        font-weight: 700 !important;
-        color: #111827 !important;
-        margin: 20px 24px 8px 24px !important;
-        text-align: center !important;
-      }
-      
-      .swal2-popup-modern .swal2-html-container {
-        font-size: 15px !important;
-        font-weight: 400 !important;
-        color: #4b5563 !important;
-        margin: 0 24px 28px 24px !important;
-        line-height: 1.5 !important;
-        text-align: center !important;
-      }
-
-      /* Container de botões nativo do Swal */
-      .swal2-popup-modern .swal2-actions {
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
-        margin-top: auto !important;
-      }
-
-      .swal2-modern-confirm-btn {
-        background-color: transparent !important;
-        color: #007aff !important; /* iOS Blue */
-        font-size: 17px !important;
-        font-weight: 600 !important;
-        padding: 16px !important;
-        margin: 0 !important;
-        width: 100% !important;
-        border: none !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        display: block !important;
-      }
-
-      .swal2-modern-confirm-btn:active {
-        background-color: rgba(0, 0, 0, 0.05) !important;
-      }
-    `;
-    document.head.appendChild(customStyle);
+    // Removido CSS customizado que estava quebrando os ícones do SweetAlert
   }
 }
+
+// Configuração base de layout idêntica ao alerta de "Registro Enviado"
+const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 3500, position: any = 'center', toast = false) => {
+  return {
+    icon: icon,
+    title: `<span style="font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 600; color: #333; font-size: ${toast ? '16px' : '22px'};">${title}</span>`,
+    html: message ? `<span style="font-family: 'Inter', 'Segoe UI', sans-serif; color: #555; font-size: ${toast ? '14px' : '16px'};">${message}</span>` : '',
+    showConfirmButton: showConfirm,
+    confirmButtonText: 'OK',
+    confirmButtonColor: '#0ea5e9',
+    timer: timer,
+    timerProgressBar: !!timer,
+    width: toast ? 'auto' : '260px',
+    padding: '16px 12px',
+    backdrop: false,
+    position: position,
+    toast: toast,
+    didOpen: () => {
+      const Swal = getSwal();
+      if (!Swal) return;
+      const popup = Swal.getPopup();
+      if (popup) {
+        popup.style.fontFamily = "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        popup.style.borderRadius = '12px';
+        popup.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)';
+        popup.style.border = '1px solid rgba(0,0,0,0.05)';
+      }
+    },
+  };
+};
 
 export const showToast = {
   success: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire({
-          icon: 'success',
-          title: title,
-          html: message ? `<div>${message}</div>` : '',
-          showConfirmButton: false,
-          timer: 3500,
-          timerProgressBar: true,
-          toast: false,
-          position: 'center',
-          customClass: {
-            popup: 'swal2-popup-modern',
-          },
-        });
+        Swal.fire(getSwalOptions(title, message, 'success', false, 3500));
       } else {
         console.log(`✅ ${title}: ${message || ''}`);
       }
@@ -237,23 +119,8 @@ export const showToast = {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire({
-          icon: 'error',
-          title: title,
-          html: message ? `<div>${message}</div>` : '',
-          showConfirmButton: true, // Erros requerem confirmação explícita
-          confirmButtonText: 'OK',
-          timer: 5000,
-          timerProgressBar: true,
-          toast: false,
-          position: 'center',
-          customClass: {
-            popup: 'swal2-popup-modern',
-            confirmButton: 'swal2-modern-confirm-btn',
-          },
-        });
+        Swal.fire(getSwalOptions(title, message, 'error', true, 5000));
       } else {
-        // Fallback para alert nativo
         console.error(`❌ ${title}: ${message || ''}`);
         if (typeof window !== 'undefined' && window.alert) {
           alert(`${title}\n${message || ''}`);
@@ -279,21 +146,8 @@ export const showToast = {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire({
-          icon: 'info',
-          title: title,
-          html: message ? `<div>${message}</div>` : '',
-          showConfirmButton: false,
-          timer: 3500,
-          timerProgressBar: true,
-          toast: false,
-          position: 'center',
-          customClass: {
-            popup: 'swal2-popup-modern',
-          },
-        });
+        Swal.fire(getSwalOptions(title, message, 'info', false, 3500));
       } else {
-        // Fallback para console
         console.info(`ℹ️ ${title}: ${message || ''}`);
       }
     } else if (Toast) {
@@ -316,30 +170,11 @@ export const showToast = {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire({
-          icon: 'warning',
-          title: title,
-          html: message ? `<div>${message}</div>` : '',
-          showConfirmButton: true,
-          confirmButtonText: 'OK',
-          toast: false,
-          // Exceção: O usuário mencionou não mexer no alerta de duplicidade,
-          // que usa showToast.warning. Porém o SweetAlert base não sabe de onde veio.
-          // Como o alert de duplicidade ("Atenção", "Este registro já está na fila") usa warning,
-          // se quisermos que ele continue toast, precisamos checar o title.
-          position: title === 'Atenção' && message?.includes('fila') ? 'top-end' : 'center',
-          timer: title === 'Atenção' && message?.includes('fila') ? 4500 : undefined,
-          timerProgressBar: title === 'Atenção' && message?.includes('fila') ? true : false,
-          customClass: {
-            popup:
-              title === 'Atenção' && message?.includes('fila')
-                ? 'swal2-toast-modern'
-                : 'swal2-popup-modern',
-            confirmButton: 'swal2-modern-confirm-btn',
-          },
-        });
+        // Exceção do alerta de duplicidade pedida em contexto anterior
+        const isDuplicidade = title === 'Atenção' && message?.includes('fila');
+        const swalOpts = getSwalOptions(title, message, 'warning', !isDuplicidade, isDuplicidade ? 4500 : 3500, isDuplicidade ? 'top-end' : 'center', isDuplicidade);
+        Swal.fire(swalOpts);
       } else {
-        // Fallback para console
         console.warn(`⚠️ ${title}: ${message || ''}`);
         if (typeof window !== 'undefined' && window.alert) {
           alert(`${title}\n${message || ''}`);
@@ -348,7 +183,7 @@ export const showToast = {
     } else if (Toast) {
       triggerHaptic('warning');
       Toast.show({
-        type: 'info', // react-native-toast-message usa 'info' para warning às vezes, dependendo da config
+        type: 'info',
         text1: title,
         text2: message,
         position: 'top',
@@ -361,25 +196,22 @@ export const showToast = {
     }
   },
 
-  // 🚀 NOVO: Toast de progresso compacto para envio de registros
   progress: (title: string, message?: string) => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire({
-          title: title,
-          html: message ? `<div>${message}</div>` : 'Aguarde...',
-          timerProgressBar: false,
-          showConfirmButton: false,
-          toast: true,
-          position: 'top-end',
-          customClass: {
-            popup: 'swal2-toast-modern',
-          },
-          didOpen: () => {
-            Swal.showLoading();
-          },
-        });
+        let opts = getSwalOptions(title, message, null, false, undefined, 'top-end', true);
+        opts.didOpen = () => {
+          Swal.showLoading();
+          const popup = Swal.getPopup();
+          if (popup) {
+            popup.style.fontFamily = "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+            popup.style.borderRadius = '12px';
+            popup.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+            popup.style.border = '1px solid rgba(0,0,0,0.05)';
+          }
+        };
+        Swal.fire(opts);
       }
     } else if (Toast) {
       Toast.show({
@@ -393,7 +225,6 @@ export const showToast = {
     }
   },
 
-  // 🚀 NOVO: Fechar toast de progresso
   hide: () => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();

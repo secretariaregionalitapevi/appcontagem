@@ -8,7 +8,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
@@ -151,7 +151,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               </Text>
               {!IS_SMALL_SCREEN && (
                 <View style={styles.brandSubtitleContainer}>
-                  <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
+                  <Feather name="map-pin" size={12} color="#ff6b6b" />
                   <Text style={styles.brandSubtitle} numberOfLines={1}>
                     {localEnsaio}
                   </Text>
@@ -169,7 +169,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               onPress={() => handlePressWithHaptic(onBackPress)}
               activeOpacity={0.7}
             >
-              <FontAwesome5 name="arrow-left" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+              <Feather name="arrow-left" size={IS_SMALL_SCREEN ? 16 : 18} color="#a7b1c2" />
             </TouchableOpacity>
           )}
           {onOrganistasEnsaioPress && (
@@ -204,7 +204,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               }}
               activeOpacity={0.7}
             >
-              <FontAwesome5 name="music" size={IS_SMALL_SCREEN ? 16 : 18} color="#ffffff" />
+              <Feather name="music" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
             </TouchableOpacity>
           )}
           {isMaster && onEditRegistrosPress && (
@@ -213,7 +213,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
               activeOpacity={0.7}
             >
-              <FontAwesome5 name="edit" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+              <Feather name="edit-3" size={IS_SMALL_SCREEN ? 16 : 18} color="#cdd5e0" />
             </TouchableOpacity>
           )}
           {onSettingsPress && (
@@ -222,7 +222,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               onPress={() => handlePressWithHaptic(onSettingsPress)}
               activeOpacity={0.7}
             >
-              <FontAwesome5 name="cog" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+              <Feather name="settings" size={IS_SMALL_SCREEN ? 16 : 18} color="#cdd5e0" />
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -230,7 +230,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             onPress={() => handlePressWithHaptic(handleLogout)}
             activeOpacity={0.6}
           >
-            <FontAwesome5 name="sign-out-alt" size={IS_SMALL_SCREEN ? 12 : 14} color="#a7b1c2" />
+            <Feather name="log-out" size={IS_SMALL_SCREEN ? 16 : 18} color="#cdd5e0" />
           </TouchableOpacity>
         </View>
       </View>
@@ -240,7 +240,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <View style={styles.headerSecondRow}>
           <View style={styles.headerSecondRowContent}>
             <View style={styles.brandSubtitleContainer}>
-              <FontAwesome5 name="map-marker-alt" size={10} color="#ff6b6b" />
+              <Feather name="map-pin" size={12} color="#ff6b6b" />
               <Text style={styles.brandSubtitle} numberOfLines={1}>
                 {localEnsaio}
               </Text>
@@ -397,8 +397,10 @@ const styles = StyleSheet.create({
   actionBtn: {
     width: 44,
     height: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 44,
@@ -409,12 +411,12 @@ const styles = StyleSheet.create({
     height: 36,
     minWidth: 36,
     minHeight: 36,
-    borderRadius: 6,
+    borderRadius: 10,
   },
   organistaBtn: {
-    backgroundColor: 'rgba(255, 107, 107, 0.2)', // Cor destacada para organistas
+    backgroundColor: 'rgba(255, 107, 107, 0.15)', // Cor destacada para organistas
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.4)',
+    borderColor: 'rgba(255, 107, 107, 0.3)',
     ...(Platform.OS === 'web'
       ? {
         // @ts-ignore - Propriedades CSS apenas para web
