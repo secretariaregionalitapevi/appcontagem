@@ -219,7 +219,25 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js');
+        navigator.serviceWorker.register('./sw.js')
+          .then((registration) => {
+            // Verifica atualização quando a página voltar ao foco (usuário abre o app)
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible') {
+                registration.update();
+              }
+            });
+          });
+      });
+
+      // Forçar reload da página quando um novo Service Worker assumir o controle (nova versão)
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          console.log('🔄 Nova versão detectada, recarregando o aplicativo...');
+          window.location.reload();
+        }
       });
     }
   </script>

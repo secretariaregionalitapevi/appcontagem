@@ -55,10 +55,27 @@
                 navigator.serviceWorker.register('/sw.js')
                     .then((registration) => {
                         console.log('✅ ServiceWorker registrado com sucesso com escopo: ', registration.scope);
+                        
+                        // Check for update when page regains visibility (e.g. user opens app again)
+                        document.addEventListener('visibilitychange', () => {
+                            if (document.visibilityState === 'visible') {
+                                registration.update();
+                            }
+                        });
                     })
                     .catch((err) => {
                         console.error('❌ Registro do ServiceWorker falhou: ', err);
                     });
+            });
+
+            // Forçar reload da página quando um novo Service Worker assumir o controle (nova versão)
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    console.log('🔄 Nova versão detectada, recarregando o aplicativo...');
+                    window.location.reload();
+                }
             });
         }
     </script>
