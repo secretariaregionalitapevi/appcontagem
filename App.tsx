@@ -20,8 +20,12 @@ import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
-import { initializeStorage } from './src/utils/robustStorage';
+import { initializeStorage, robustGetItem, robustSetItem } from './src/utils/robustStorage';
 import { logDeviceInfo } from './src/utils/deviceDetection';
+import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
+import { showToast } from './src/utils/toast';
+
+const CURRENT_APP_VERSION = '1.2.1';
 
 // Importar SpeedInsights apenas para web
 // Para React/React Native, usar injectSpeedInsights ao invés de componente
@@ -60,10 +64,39 @@ export default function App() {
       try {
         // Logar informações do dispositivo
         logDeviceInfo();
-        
+
         // Inicializar storage robusto
         await initializeStorage();
-        
+
+        // Verificação de Versão
+        const storedVersion = await robustGetItem('@app_version');
+        if (storedVersion !== CURRENT_APP_VERSION) {
+          await robustSetItem('@app_version', CURRENT_APP_VERSION);
+
+          // Agendar notificação de atualização para logo após o app renderizar
+          setTimeout(() => {
+            if (Platform.OS === 'web') {
+              const Swal = require('sweetalert2');
+              Swal.fire({
+                icon: 'success',
+                title: 'App Atualizado!',
+                html: '<div>Bem-vindo à nova versão 1.2.1 do sistema da Secretaria Regional da Música.</div>',
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+                customClass: {
+                  popup: 'swal2-popup-modern',
+                },
+              });
+            } else {
+              showToast.success(
+                'App Atualizado!',
+                `Bem-vindo à nova versão ${CURRENT_APP_VERSION} do sistema da Secretaria Regional da Música.`
+              );
+            }
+          }, 1500);
+        }
+
         console.log('✅ Sistema inicializado com sucesso');
       } catch (error) {
         console.error('⚠️ Erro ao inicializar sistema:', error);
@@ -94,11 +127,7 @@ export default function App() {
   // Garantir que o app sempre renderize algo, mesmo com erros
   try {
     if (!isReady) {
-      return (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Inicializando...</Text>
-        </View>
-      );
+      return <AnimatedSplashScreen />;
     }
 
     return (

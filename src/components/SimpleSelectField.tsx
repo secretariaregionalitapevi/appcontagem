@@ -300,10 +300,9 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
             : {})}
         />
 
-        {/* Dropdown - View simples no web desktop, Modal no mobile/web mobile */}
+        {/* Dropdown - View absoluta universal  */}
         {showList &&
-          filtered.length > 0 &&
-          (Platform.OS === 'web' && !isMobile ? (
+          filtered.length > 0 && (
             <View style={styles.webDropdownContainer}>
               <View style={styles.webDropdown}>
                 <FlatList
@@ -361,111 +360,11 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
                 />
               </View>
             </View>
-          ) : (
-            <Modal
-              visible={showList}
-              transparent={true}
-              animationType="slide"
-              onRequestClose={() => {
-                setShowList(false);
-                if (inputRef.current) {
-                  inputRef.current.blur();
-                }
-              }}
-            >
-              <TouchableOpacity
-                style={styles.modalOverlay}
-                activeOpacity={1}
-                onPress={() => {
-                  setShowList(false);
-                  if (inputRef.current) {
-                    inputRef.current.blur();
-                  }
-                }}
-              >
-                <SafeAreaView style={styles.modalContainer}>
-                  <View style={styles.modalDropdown}>
-                    <View style={styles.dragHandleContainer}>
-                      <View style={styles.dragHandle} />
-                    </View>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setShowList(false);
-                          if (inputRef.current) {
-                            inputRef.current.blur();
-                          }
-                        }}
-                        style={styles.modalCloseButton}
-                      >
-                        <FontAwesome5 name="times" size={20} color={theme.colors.text} />
-                      </TouchableOpacity>
-                    </View>
-                    <FlatList
-                      ref={flatListRef}
-                      data={filtered}
-                      keyExtractor={item => item.id}
-                      renderItem={({ item, index }) => (
-                        <TouchableOpacity
-                          style={[
-                            styles.modalItem,
-                            selectedIndex === index && styles.itemHighlighted,
-                            value === item.id && styles.itemSelected,
-                          ]}
-                          onPress={() => {
-                            handleSelect(item);
-                            setShowList(false);
-                            if (inputRef.current) {
-                              inputRef.current.blur();
-                            }
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            style={[
-                              styles.modalItemText,
-                              value === item.id && styles.itemTextSelected,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {item.label}
-                          </Text>
-                          {value === item.id && (
-                            <FontAwesome5
-                              name="check"
-                              size={14}
-                              color={theme.colors.primary}
-                              style={styles.checkIcon}
-                            />
-                          )}
-                        </TouchableOpacity>
-                      )}
-                      style={styles.modalList}
-                      keyboardShouldPersistTaps="handled"
-                      initialNumToRender={20}
-                      maxToRenderPerBatch={20}
-                      windowSize={10}
-                      removeClippedSubviews={true}
-                    />
-                  </View>
-                </SafeAreaView>
-              </TouchableOpacity>
-            </Modal>
-          ))}
-
-        {/* Mensagem quando não há resultados */}
-        {showList && filtered.length === 0 && searchText.trim().length > 0 && (
-          <View style={styles.dropdown}>
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
-            </View>
-          </View>
-        )}
+          )}
       </View>
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
+    </View >
   );
 };
 

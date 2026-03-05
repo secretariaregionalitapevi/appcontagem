@@ -105,53 +105,83 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
       .swal2-toast-modern .swal2-icon.swal2-success { border-color: #10b981 !important; color: #10b981 !important; }
       .swal2-toast-modern .swal2-icon.swal2-error { border-color: #ef4444 !important; color: #ef4444 !important; }
       .swal2-toast-modern .swal2-icon.swal2-warning { border-color: #f59e0b !important; color: #f59e0b !important; }
-      .swal2-toast-modern .swal2-icon.swal2-info { border-color: #3b82f6 !important; color: #3b82f6 !important; }
+      .swal2-toast-modern .swal2-icon.swal2-info { border-color: #033D60 !important; color: #033D60 !important; }
 
       .swal2-toast-modern .swal2-success-ring { width: 32px !important; height: 32px !important; }
 
-      /* Modais Centrais Modernos */
-      .swal2-popup-modern {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        border-radius: 16px !important;
-        padding: 24px 20px !important;
-        width: 340px !important;
-        max-width: 90% !important;
-        background: #ffffff !important;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-        border: none !important;
+      /* Modais Centrais Estilo App Nativo */
+      .swal2-popup.swal2-popup-modern {
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif !important;
+        border-radius: 14px !important;
+        padding: 0 !important;
+        width: 320px !important;
+        max-width: 85% !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+        border: 1px solid rgba(255, 255, 255, 0.5) !important;
+        overflow: hidden !important;
+      }
+
+      .swal2-popup-modern .swal2-icon {
+        margin-top: 24px !important;
+        width: 60px !important;
+        height: 60px !important;
+        border-width: 3px !important;
+        background-color: transparent !important;
+      }
+      .swal2-popup-modern .swal2-success::before,
+      .swal2-popup-modern .swal2-success::after,
+      .swal2-popup-modern .swal2-success [class^="swal2-success-circular-line"],
+      .swal2-popup-modern .swal2-success [class*="swal2-success-circular-line"],
+      .swal2-popup-modern .swal2-success .swal2-success-fix {
+        display: none !important;
+        background-color: transparent !important;
       }
       
       .swal2-popup-modern .swal2-title {
-        font-size: 20px !important;
+        font-size: 18px !important;
         font-weight: 600 !important;
-        color: #1f2937 !important;
-        margin-top: 16px !important;
-        margin-bottom: 8px !important;
+        color: #000 !important;
+        margin: 16px 20px 8px 20px !important;
+        text-align: center !important;
       }
       
       .swal2-popup-modern .swal2-html-container {
-        font-size: 15px !important;
+        font-size: 14px !important;
         font-weight: 400 !important;
-        color: #4b5563 !important;
-        margin-top: 0 !important;
-        line-height: 1.5 !important;
+        color: #333 !important;
+        margin: 0 20px 20px 20px !important;
+        line-height: 1.4 !important;
+        text-align: center !important;
+      }
+
+      /* Container de botões nativo do Swal */
+      .swal2-popup-modern .swal2-actions {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+        margin-top: auto !important;
       }
 
       .swal2-modern-confirm-btn {
-        background-color: #0ea5e9 !important; /* Primary Blue */
-        border-radius: 8px !important;
-        color: #fff !important;
-        font-size: 15px !important;
+        background-color: transparent !important;
+        color: #007aff !important; /* iOS Blue */
+        font-size: 17px !important;
         font-weight: 600 !important;
-        padding: 12px 24px !important;
+        padding: 16px !important;
+        margin: 0 !important;
+        width: 100% !important;
         border: none !important;
-        box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.2) !important;
-        margin-top: 24px !important;
-        min-width: 100px !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        display: block !important;
       }
 
-      .swal2-modern-confirm-btn:hover {
-        background-color: #0284c7 !important;
+      .swal2-modern-confirm-btn:active {
+        background-color: rgba(0, 0, 0, 0.05) !important;
       }
     `;
     document.head.appendChild(customStyle);
@@ -167,13 +197,13 @@ export const showToast = {
           icon: 'success',
           title: title,
           html: message ? `<div>${message}</div>` : '',
-          showConfirmButton: true,
-          confirmButtonText: 'OK',
+          showConfirmButton: false,
+          timer: 3500,
+          timerProgressBar: true,
           toast: false,
           position: 'center',
           customClass: {
             popup: 'swal2-popup-modern',
-            confirmButton: 'swal2-modern-confirm-btn',
           },
         });
       } else {
@@ -203,8 +233,10 @@ export const showToast = {
           icon: 'error',
           title: title,
           html: message ? `<div>${message}</div>` : '',
-          showConfirmButton: true,
+          showConfirmButton: true, // Erros requerem confirmação explícita
           confirmButtonText: 'OK',
+          timer: 5000,
+          timerProgressBar: true,
           toast: false,
           position: 'center',
           customClass: {
@@ -243,13 +275,13 @@ export const showToast = {
           icon: 'info',
           title: title,
           html: message ? `<div>${message}</div>` : '',
-          showConfirmButton: true,
-          confirmButtonText: 'OK',
+          showConfirmButton: false,
+          timer: 3500,
+          timerProgressBar: true,
           toast: false,
           position: 'center',
           customClass: {
             popup: 'swal2-popup-modern',
-            confirmButton: 'swal2-modern-confirm-btn',
           },
         });
       } else {

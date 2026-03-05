@@ -437,137 +437,51 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
               : {})}
           />
 
-          {/* Dropdown - View simples no web, Modal no mobile */}
-          {showList &&
-            filtered.length > 0 &&
-            (Platform.OS === 'web' ? (
-              <View style={styles.webDropdownContainer}>
-                <View style={styles.webDropdown}>
-                  <ScrollView
-                    style={styles.webDropdownList}
-                    nestedScrollEnabled
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {filtered.map((item, index) => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={[styles.item, index === selectedIndex && styles.itemSelected]}
-                        onPress={() => {
-                          if (blurTimeoutRef.current) {
-                            clearTimeout(blurTimeoutRef.current);
-                            blurTimeoutRef.current = null;
-                          }
-                          setSelectedIndex(index);
-                          handleSelect(item);
-                          setShowList(false);
-                          if (inputRef.current) {
-                            inputRef.current.blur();
-                          }
-                        }}
-                        activeOpacity={0.7}
-                        {...(Platform.OS === 'web'
-                          ? {
-                            onMouseEnter: () => setSelectedIndex(index),
-                          }
-                          : {})}
-                      >
-                        <FontAwesome5
-                          name={icon}
-                          size={12}
-                          color={theme.colors.textSecondary}
-                          style={styles.icon}
-                        />
-                        <Text style={styles.itemText}>{item.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-            ) : (
-              // MOBILE: Usar Modal
-              <Modal
-                visible={true}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => {
-                  setShowList(false);
-                  if (inputRef.current) {
-                    inputRef.current.blur();
-                  }
-                }}
-                statusBarTranslucent={true}
-              >
-                <TouchableOpacity
-                  style={styles.modalOverlay}
-                  activeOpacity={1}
-                  onPress={() => {
-                    setShowList(false);
-                    if (inputRef.current) {
-                      inputRef.current.blur();
-                    }
-                  }}
+          {/* Dropdown - View absoluta universal */}
+          {showList && filtered.length > 0 && (
+            <View style={styles.webDropdownContainer}>
+              <View style={styles.webDropdown}>
+                <ScrollView
+                  style={styles.webDropdownList}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
                 >
-                  <SafeAreaView style={styles.modalContainer}>
-                    <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()}>
-                      <View style={styles.modalDropdown}>
-                        <View style={styles.dragHandleContainer}>
-                          <View style={styles.dragHandle} />
-                        </View>
-                        <View style={styles.modalHeader}>
-                          <Text style={styles.modalTitle}>{label || 'Selecione uma opção'}</Text>
-                          <TouchableOpacity
-                            onPress={() => {
-                              setShowList(false);
-                              if (inputRef.current) {
-                                inputRef.current.blur();
-                              }
-                            }}
-                            style={styles.modalCloseButton}
-                          >
-                            <FontAwesome5 name="times" size={20} color={theme.colors.text} />
-                          </TouchableOpacity>
-                        </View>
-                        <FlatList
-                          ref={flatListRef}
-                          data={filtered}
-                          keyExtractor={item => item.id}
-                          renderItem={({ item, index }) => (
-                            <TouchableOpacity
-                              style={[
-                                styles.modalItem,
-                                index === selectedIndex && styles.itemSelected,
-                              ]}
-                              onPress={() => {
-                                setSelectedIndex(index);
-                                handleSelect(item);
-                                setShowList(false);
-                                if (inputRef.current) {
-                                  inputRef.current.blur();
-                                }
-                              }}
-                              activeOpacity={0.7}
-                            >
-                              <FontAwesome5
-                                name={icon}
-                                size={14}
-                                color={theme.colors.textSecondary}
-                                style={styles.icon}
-                              />
-                              <Text style={styles.modalItemText}>{item.label}</Text>
-                            </TouchableOpacity>
-                          )}
-                          style={styles.modalList}
-                          keyboardShouldPersistTaps="handled"
-                          initialNumToRender={20}
-                          maxToRenderPerBatch={20}
-                          windowSize={10}
-                        />
-                      </View>
+                  {filtered.map((item, index) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.item, index === selectedIndex && styles.itemSelected]}
+                      onPress={() => {
+                        if (blurTimeoutRef.current) {
+                          clearTimeout(blurTimeoutRef.current);
+                          blurTimeoutRef.current = null;
+                        }
+                        setSelectedIndex(index);
+                        handleSelect(item);
+                        setShowList(false);
+                        if (inputRef.current) {
+                          inputRef.current.blur();
+                        }
+                      }}
+                      activeOpacity={0.7}
+                      {...(Platform.OS === 'web'
+                        ? {
+                          onMouseEnter: () => setSelectedIndex(index),
+                        }
+                        : {})}
+                    >
+                      <FontAwesome5
+                        name={icon}
+                        size={12}
+                        color={theme.colors.textSecondary}
+                        style={styles.icon}
+                      />
+                      <Text style={styles.itemText}>{item.label}</Text>
                     </TouchableOpacity>
-                  </SafeAreaView>
-                </TouchableOpacity>
-              </Modal>
-            ))}
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          )}
 
           {/* Mensagem quando não há resultados */}
           {showList && filtered.length === 0 && searchText.trim().length >= 1 && (
