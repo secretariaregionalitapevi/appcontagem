@@ -667,295 +667,156 @@ export const useRegisterController = () => {
     }
 
     isSubmittingRef.current = true;
-    console.log('🔘 [SUBMIT] Botão ENVIAR REGISTRO clicado');
-    console.log('🔍 [SUBMIT] Estado atual:', {
-      selectedComum,
-      selectedCargo,
-      selectedPessoa,
-      isNomeManual,
-      selectedPessoaType: typeof selectedPessoa,
-      selectedPessoaLength: selectedPessoa?.length,
-      selectedPessoaTrimmed: selectedPessoa?.trim(),
-      selectedPessoaValue: selectedPessoa,
-    });
 
-    // Validar campos obrigatórios (permitir nome manual para candidatos também)
-    if (!selectedComum || !selectedCargo) {
-      console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
-      Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
-      isSubmittingRef.current = false;
-      return;
-    }
-
-    // 🚨 CORREÇÃO CRÍTICA: Se selectedPessoa está vazio mas há pessoas carregadas,
-    // verificar se o texto digitado no campo corresponde a alguma opção
-    // Se não corresponder, tratar como nome manual
-    if (!selectedPessoa || selectedPessoa.trim() === '') {
-      // Tentar buscar o texto do campo NameSelectField através do ref ou estado
-      // Por enquanto, apenas mostrar erro - o handleBlur deve ter tratado isso
-      console.warn('⚠️ [SUBMIT] Nome não selecionado', {
-        selectedPessoa,
-        isNomeManual,
-        selectedPessoaTrimmed: selectedPessoa?.trim(),
-        pessoasCount: pessoas.length,
-      });
-      Alert.alert('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
-      isSubmittingRef.current = false;
-      return;
-    }
-
-    // Verificar se é nome manual e se tem valor válido
-    if (isNomeManual && (!selectedPessoa || selectedPessoa.trim().length < 3)) {
-      console.warn('⚠️ [SUBMIT] Nome manual muito curto', {
-        selectedPessoa,
-        isNomeManual,
-        length: selectedPessoa?.trim().length,
-      });
-      Alert.alert('Erro', 'O nome deve ter pelo menos 3 caracteres');
-      isSubmittingRef.current = false;
-      return;
-    }
-
-    // Validar instrumento apenas para Músico (obrigatório)
-    // Organista não precisa de instrumento (sempre toca órgão)
-    const cargoNome = cargos.find(c => c.id === selectedCargo)?.nome || '';
-    const instrumentoObrigatorio = cargoNome === 'Músico'; // Organista removido
-    if (instrumentoObrigatorio && !selectedInstrumento) {
-      console.warn('⚠️ [SUBMIT] Instrumento não selecionado para Músico');
-      Alert.alert('Erro', 'Selecione o instrumento para Músico');
-      isSubmittingRef.current = false;
-      return;
-    }
-
-    if (!user) {
-      console.error('❌ [SUBMIT] Usuário não autenticado');
-      Alert.alert('Erro', 'Usuário não autenticado');
-      isSubmittingRef.current = false;
-      return;
-    }
-
-    console.log('✅ [SUBMIT] Validações passaram, iniciando processamento...');
-    setLoading(true);
-
-    // 🚨 ESTRATÉGIA SIMPLIFICADA: Verificar status de conexão de forma mais confiável
-    let isOfflineNow = false;
-
-    // Verificar status de conexão de forma mais robusta
+    // 🚨 GARANTIA ABSOLUTA DE DESTRAVAMENTO: Try global da função
     try {
-      // 1. Verificar hook primeiro (mais confiável)
-      const hookOffline = !isOnline;
-
-      // 2. Verificar nossa função robusta (engloba NetInfo e Fallbacks Web)
-      let netInfoOffline = false;
-      try {
-        const isReallyOnline = await offlineSyncService.isOnline();
-        netInfoOffline = !isReallyOnline;
-        console.log(`📡 [${Platform.OS}] Serviço OfflineSync:`, {
-          isReallyOnline,
-        });
-      } catch (netError) {
-        console.warn(`⚠️ [${Platform.OS}] Serviço OfflineSync falhou:`, netError);
-        // Se falhar, confiar no hook
-        netInfoOffline = hookOffline;
-      }
-
-      // 3. Verificar navigator.onLine (se disponível)
-      const navigatorOffline =
-        typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
-
-      // 🚨 ESTRATÉGIA: Se QUALQUER verificação indicar offline, considerar offline
-      // No iOS, ser mais conservador - se houver qualquer dúvida, salvar na fila
-      if (Platform.OS === 'ios') {
-        // iOS: Se NetInfo OU hook indicar offline, salvar na fila
-        isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-        console.log(`🍎 [iOS] Status offline:`, {
-          netInfoOffline,
-          hookOffline,
-          navigatorOffline,
-          isOfflineNow,
-        });
-      } else if (Platform.OS === 'android') {
-        // Android: Se NetInfo OU hook indicar offline, salvar na fila
-        isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-        console.log(`🤖 [Android] Status offline:`, {
-          netInfoOffline,
-          hookOffline,
-          navigatorOffline,
-          isOfflineNow,
-        });
-      } else {
-        // Web: Usar navigator.onLine diretamente
-        isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : hookOffline;
-        console.log(`🌐 [Web] Status offline:`, { navigatorOffline, hookOffline, isOfflineNow });
-      }
-    } catch (error) {
-      console.error('❌ Erro ao verificar status de conexão:', error);
-      // Em caso de erro, assumir offline para segurança
-      isOfflineNow = true;
-    }
-
-    // 🚨 CRÍTICO: Se estiver offline, salvar IMEDIATAMENTE na fila (SEM tentar online)
-    if (isOfflineNow) {
-      // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar alerta quando fica offline
-      showToast.warning('Modo offline', 'Registros serão salvos na fila');
-
-      console.log(`📴 [${Platform.OS}] Modo offline detectado - salvando diretamente na fila`);
-      console.log(`📊 [${Platform.OS}] Dados do registro:`, {
-        pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
-        comum_id: selectedComum,
-        cargo_id: selectedCargo,
-        instrumento_id: selectedInstrumento,
+      console.log('🔘 [SUBMIT] Botão ENVIAR REGISTRO clicado');
+      console.log('🔍 [SUBMIT] Estado atual:', {
+        selectedComum,
+        selectedCargo,
+        selectedPessoa,
+        isNomeManual,
+        selectedPessoaType: typeof selectedPessoa,
+        selectedPessoaLength: selectedPessoa?.length,
+        selectedPessoaTrimmed: selectedPessoa?.trim(),
+        selectedPessoaValue: selectedPessoa,
       });
 
-      // 🚨 CORREÇÃO: Modal pode permanecer aberto - não precisa fechar antes de salvar offline
-
-      try {
-        // Preparar registro para salvar na fila
-        const localEnsaio = await localStorageService.getLocalEnsaio();
-
-        // Usar nome do usuário ao invés do ID
-        let nomeCompletoUsuario = user.nome;
-        if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
-          const emailSemDominio = user.email?.split('@')[0] || '';
-          nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
-        }
-        const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
-
-        // Buscar classe da organista do banco de dados se for Organista
-        let classeOrganistaDB: string | undefined = undefined;
-        if (isOrganista && !isNomeManual) {
-          const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-          if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-            classeOrganistaDB = pessoaSelecionada.classe_organista;
-          } else {
-            classeOrganistaDB = 'OFICIALIZADA';
-          }
-        }
-
-        // Para Candidatos: buscar instrumento da pessoa selecionada
-        let instrumentoCandidato: string | null = null;
-        if (isCandidato && !isNomeManual) {
-          const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-          if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
-            instrumentoCandidato = pessoaSelecionada.instrumento_id;
-          }
-        }
-
-        const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
-
-        const registro: RegistroPresenca = {
-          pessoa_id: pessoaIdFinal,
-          comum_id: selectedComum,
-          cargo_id: selectedCargo,
-          instrumento_id: isCandidato
-            ? instrumentoCandidato
-            : showInstrumento && selectedInstrumento
-              ? selectedInstrumento
-              : null,
-          classe_organista: classeOrganistaDB,
-          local_ensaio: localEnsaio || 'Não definido',
-          data_hora_registro: getCurrentDateTimeISO(),
-          usuario_responsavel: nomeUsuario,
-          status_sincronizacao: 'pending',
-        };
-
-        // 🚨 VERIFICAÇÃO CRÍTICA: Verificar duplicata ANTES de salvar
-        const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
-        const dataRegistro = new Date(registro.data_hora_registro);
-        const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
-
-        // Verificação rápida de duplicata
-        const isDuplicata = registrosPendentes.some(r => {
-          const rData = new Date(r.data_hora_registro);
-          const rDataStr = rData.toISOString().split('T')[0];
-          return (
-            r.pessoa_id === registro.pessoa_id &&
-            r.comum_id === registro.comum_id &&
-            r.cargo_id === registro.cargo_id &&
-            rDataStr === dataRegistroStr &&
-            r.status_sincronizacao === 'pending'
-          );
-        });
-
-        if (isDuplicata) {
-          console.warn('🚨 Registro duplicado - já está na fila');
-          showToast.warning('Atenção', 'Este registro já está na fila');
-          setLoading(false);
-          isSubmittingRef.current = false;
-          return;
-        }
-
-        // 🚨 CRÍTICO: Salvar na fila com tratamento robusto de erros
-        console.log(`💾 [${Platform.OS}] Salvando registro na fila offline...`);
-        console.log(
-          `📋 [${Platform.OS}] Dados completos do registro:`,
-          JSON.stringify(registro, null, 2)
-        );
-
-        try {
-          await supabaseDataService.saveRegistroToLocal(registro);
-          console.log(`✅ [${Platform.OS}] saveRegistroToLocal executado com sucesso`);
-        } catch (saveError) {
-          console.error(`❌ [${Platform.OS}] Erro ao chamar saveRegistroToLocal:`, saveError);
-          throw saveError; // Re-lançar para ser tratado no catch externo
-        }
-
-        // Verificar se foi realmente salvo (especialmente importante no iOS/Android)
-        console.log(`🔍 [${Platform.OS}] Verificando se registro foi salvo...`);
-        const registrosAposSalvar = await supabaseDataService.getRegistrosPendentesFromLocal();
-        console.log(
-          `📊 [${Platform.OS}] Total de registros na fila após salvar:`,
-          registrosAposSalvar.length
-        );
-
-        const foiSalvo = registrosAposSalvar.some(
-          r =>
-            r.pessoa_id === registro.pessoa_id &&
-            r.comum_id === registro.comum_id &&
-            r.cargo_id === registro.cargo_id &&
-            r.status_sincronizacao === 'pending'
-        );
-
-        console.log(`✅ [${Platform.OS}] Registro foi salvo?`, foiSalvo);
-
-        if (!foiSalvo) {
-          // Se não foi salvo, tentar novamente com novo ID
-          console.warn(
-            `⚠️ [${Platform.OS}] Registro não encontrado após salvar, tentando novamente com novo ID...`
-          );
-          const registroComNovoId = {
-            ...registro,
-            id: generateExternalUUID(),
-          };
-          try {
-            await supabaseDataService.saveRegistroToLocal(registroComNovoId);
-            console.log(`✅ [${Platform.OS}] Registro salvo com novo ID`);
-          } catch (retryError) {
-            console.error(`❌ [${Platform.OS}] Erro ao salvar com novo ID:`, retryError);
-            throw retryError;
-          }
-        }
-
-        console.log(`🔄 [${Platform.OS}] Atualizando contador da fila...`);
-        await refreshCount();
-        console.log(`✅ [${Platform.OS}] Contador atualizado`);
-
-        showToast.success('Salvo offline', 'Será enviado quando voltar online');
-        console.log(`✅ [${Platform.OS}] Toast de sucesso exibido`);
-
-        // Limpar apenas formulário de nome para digitação pesada
-        clearAllFields();
-
-        console.log(`✅ [${Platform.OS}] Formulário limpo, finalizando...`);
-        setLoading(false);
+      // Validar campos obrigatórios (permitir nome manual para candidatos também)
+      if (!selectedComum || !selectedCargo) {
+        console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
+        Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
         isSubmittingRef.current = false;
         return;
-      } catch (error) {
-        console.error(`❌ [${Platform.OS}] Erro crítico ao salvar registro offline:`, error);
+      }
 
-        // Tentar novamente com novo ID
+      // 🚨 CORREÇÃO CRÍTICA: Se selectedPessoa está vazio mas há pessoas carregadas,
+      // verificar se o texto digitado no campo corresponde a alguma opção
+      // Se não corresponder, tratar como nome manual
+      if (!selectedPessoa || selectedPessoa.trim() === '') {
+        // Tentar buscar o texto do campo NameSelectField através do ref ou estado
+        // Por enquanto, apenas mostrar erro - o handleBlur deve ter tratado isso
+        console.warn('⚠️ [SUBMIT] Nome não selecionado', {
+          selectedPessoa,
+          isNomeManual,
+          selectedPessoaTrimmed: selectedPessoa?.trim(),
+          pessoasCount: pessoas.length,
+        });
+        Alert.alert('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
+        isSubmittingRef.current = false;
+        return;
+      }
+
+      // Verificar se é nome manual e se tem valor válido
+      if (isNomeManual && (!selectedPessoa || selectedPessoa.trim().length < 3)) {
+        console.warn('⚠️ [SUBMIT] Nome manual muito curto', {
+          selectedPessoa,
+          isNomeManual,
+          length: selectedPessoa?.trim().length,
+        });
+        Alert.alert('Erro', 'O nome deve ter pelo menos 3 caracteres');
+        isSubmittingRef.current = false;
+        return;
+      }
+
+      // Validar instrumento apenas para Músico (obrigatório)
+      // Organista não precisa de instrumento (sempre toca órgão)
+      const cargoNome = cargos.find(c => c.id === selectedCargo)?.nome || '';
+      const instrumentoObrigatorio = cargoNome === 'Músico'; // Organista removido
+      if (instrumentoObrigatorio && !selectedInstrumento) {
+        console.warn('⚠️ [SUBMIT] Instrumento não selecionado para Músico');
+        Alert.alert('Erro', 'Selecione o instrumento para Músico');
+        isSubmittingRef.current = false;
+        return;
+      }
+
+      if (!user) {
+        console.error('❌ [SUBMIT] Usuário não autenticado');
+        Alert.alert('Erro', 'Usuário não autenticado');
+        isSubmittingRef.current = false;
+        return;
+      }
+
+      console.log('✅ [SUBMIT] Validações passaram, iniciando processamento...');
+      setLoading(true);
+
+      // 🚨 ESTRATÉGIA SIMPLIFICADA: Verificar status de conexão de forma mais confiável
+      let isOfflineNow = false;
+
+      // Verificar status de conexão de forma mais robusta
+      try {
+        // 1. Verificar hook primeiro (mais confiável)
+        const hookOffline = !isOnline;
+
+        // 2. Verificar nossa função robusta (engloba NetInfo e Fallbacks Web)
+        let netInfoOffline = false;
         try {
+          const isReallyOnline = await offlineSyncService.isOnline();
+          netInfoOffline = !isReallyOnline;
+          console.log(`📡 [${Platform.OS}] Serviço OfflineSync:`, {
+            isReallyOnline,
+          });
+        } catch (netError) {
+          console.warn(`⚠️ [${Platform.OS}] Serviço OfflineSync falhou:`, netError);
+          // Se falhar, confiar no hook
+          netInfoOffline = hookOffline;
+        }
+
+        // 3. Verificar navigator.onLine (se disponível)
+        const navigatorOffline =
+          typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
+
+        // 🚨 ESTRATÉGIA: Se QUALQUER verificação indicar offline, considerar offline
+        // No iOS, ser mais conservador - se houver qualquer dúvida, salvar na fila
+        if (Platform.OS === 'ios') {
+          // iOS: Se NetInfo OU hook indicar offline, salvar na fila
+          isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
+          console.log(`🍎 [iOS] Status offline:`, {
+            netInfoOffline,
+            hookOffline,
+            navigatorOffline,
+            isOfflineNow,
+          });
+        } else if (Platform.OS === 'android') {
+          // Android: Se NetInfo OU hook indicar offline, salvar na fila
+          isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
+          console.log(`🤖 [Android] Status offline:`, {
+            netInfoOffline,
+            hookOffline,
+            navigatorOffline,
+            isOfflineNow,
+          });
+        } else {
+          // Web: Usar navigator.onLine diretamente
+          isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : hookOffline;
+          console.log(`🌐 [Web] Status offline:`, { navigatorOffline, hookOffline, isOfflineNow });
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar status de conexão:', error);
+        // Em caso de erro, assumir offline para segurança
+        isOfflineNow = true;
+      }
+
+      // 🚨 CRÍTICO: Se estiver offline, salvar IMEDIATAMENTE na fila (SEM tentar online)
+      if (isOfflineNow) {
+        // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar alerta quando fica offline
+        showToast.warning('Modo offline', 'Registros serão salvos na fila');
+
+        console.log(`📴 [${Platform.OS}] Modo offline detectado - salvando diretamente na fila`);
+        console.log(`📊 [${Platform.OS}] Dados do registro:`, {
+          pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
+          comum_id: selectedComum,
+          cargo_id: selectedCargo,
+          instrumento_id: selectedInstrumento,
+        });
+
+        // 🚨 CORREÇÃO: Modal pode permanecer aberto - não precisa fechar antes de salvar offline
+
+        try {
+          // Preparar registro para salvar na fila
           const localEnsaio = await localStorageService.getLocalEnsaio();
+
+          // Usar nome do usuário ao invés do ID
           let nomeCompletoUsuario = user.nome;
           if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
             const emailSemDominio = user.email?.split('@')[0] || '';
@@ -963,6 +824,7 @@ export const useRegisterController = () => {
           }
           const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
 
+          // Buscar classe da organista do banco de dados se for Organista
           let classeOrganistaDB: string | undefined = undefined;
           if (isOrganista && !isNomeManual) {
             const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
@@ -973,6 +835,7 @@ export const useRegisterController = () => {
             }
           }
 
+          // Para Candidatos: buscar instrumento da pessoa selecionada
           let instrumentoCandidato: string | null = null;
           if (isCandidato && !isNomeManual) {
             const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
@@ -983,7 +846,7 @@ export const useRegisterController = () => {
 
           const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
 
-          const registroComNovoId: RegistroPresenca = {
+          const registro: RegistroPresenca = {
             pessoa_id: pessoaIdFinal,
             comum_id: selectedComum,
             cargo_id: selectedCargo,
@@ -997,274 +860,414 @@ export const useRegisterController = () => {
             data_hora_registro: getCurrentDateTimeISO(),
             usuario_responsavel: nomeUsuario,
             status_sincronizacao: 'pending',
-            id: generateExternalUUID(),
           };
 
-          await supabaseDataService.saveRegistroToLocal(registroComNovoId);
+          // 🚨 VERIFICAÇÃO CRÍTICA: Verificar duplicata ANTES de salvar
+          const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
+          const dataRegistro = new Date(registro.data_hora_registro);
+          const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
+
+          // Verificação rápida de duplicata
+          const isDuplicata = registrosPendentes.some(r => {
+            const rData = new Date(r.data_hora_registro);
+            const rDataStr = rData.toISOString().split('T')[0];
+            return (
+              r.pessoa_id === registro.pessoa_id &&
+              r.comum_id === registro.comum_id &&
+              r.cargo_id === registro.cargo_id &&
+              rDataStr === dataRegistroStr &&
+              r.status_sincronizacao === 'pending'
+            );
+          });
+
+          if (isDuplicata) {
+            console.warn('🚨 Registro duplicado - já está na fila');
+            showToast.warning('Atenção', 'Este registro já está na fila');
+            setLoading(false);
+            isSubmittingRef.current = false;
+            return;
+          }
+
+          // 🚨 CRÍTICO: Salvar na fila com tratamento robusto de erros
+          console.log(`💾 [${Platform.OS}] Salvando registro na fila offline...`);
+          console.log(
+            `📋 [${Platform.OS}] Dados completos do registro:`,
+            JSON.stringify(registro, null, 2)
+          );
+
+          try {
+            await supabaseDataService.saveRegistroToLocal(registro);
+            console.log(`✅ [${Platform.OS}] saveRegistroToLocal executado com sucesso`);
+          } catch (saveError) {
+            console.error(`❌ [${Platform.OS}] Erro ao chamar saveRegistroToLocal:`, saveError);
+            throw saveError; // Re-lançar para ser tratado no catch externo
+          }
+
+          // Verificar se foi realmente salvo (especialmente importante no iOS/Android)
+          console.log(`🔍 [${Platform.OS}] Verificando se registro foi salvo...`);
+          const registrosAposSalvar = await supabaseDataService.getRegistrosPendentesFromLocal();
+          console.log(
+            `📊 [${Platform.OS}] Total de registros na fila após salvar:`,
+            registrosAposSalvar.length
+          );
+
+          const foiSalvo = registrosAposSalvar.some(
+            r =>
+              r.pessoa_id === registro.pessoa_id &&
+              r.comum_id === registro.comum_id &&
+              r.cargo_id === registro.cargo_id &&
+              r.status_sincronizacao === 'pending'
+          );
+
+          console.log(`✅ [${Platform.OS}] Registro foi salvo?`, foiSalvo);
+
+          if (!foiSalvo) {
+            // Se não foi salvo, tentar novamente com novo ID
+            console.warn(
+              `⚠️ [${Platform.OS}] Registro não encontrado após salvar, tentando novamente com novo ID...`
+            );
+            const registroComNovoId = {
+              ...registro,
+              id: generateExternalUUID(),
+            };
+            try {
+              await supabaseDataService.saveRegistroToLocal(registroComNovoId);
+              console.log(`✅ [${Platform.OS}] Registro salvo com novo ID`);
+            } catch (retryError) {
+              console.error(`❌ [${Platform.OS}] Erro ao salvar com novo ID:`, retryError);
+              throw retryError;
+            }
+          }
+
+          console.log(`🔄 [${Platform.OS}] Atualizando contador da fila...`);
           await refreshCount();
+          console.log(`✅ [${Platform.OS}] Contador atualizado`);
+
           showToast.success('Salvo offline', 'Será enviado quando voltar online');
+          console.log(`✅ [${Platform.OS}] Toast de sucesso exibido`);
 
-          // Limpar formulário
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
+          // Limpar apenas formulário de nome para digitação pesada
+          clearAllFields();
 
+          console.log(`✅ [${Platform.OS}] Formulário limpo, finalizando...`);
           setLoading(false);
           isSubmittingRef.current = false;
           return;
-        } catch (retryError) {
-          console.error(`❌ [${Platform.OS}] Erro mesmo na segunda tentativa:`, retryError);
-          showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
-          setLoading(false);
-          isSubmittingRef.current = false;
-          return;
+        } catch (error) {
+          console.error(`❌ [${Platform.OS}] Erro crítico ao salvar registro offline:`, error);
+
+          // Tentar novamente com novo ID
+          try {
+            const localEnsaio = await localStorageService.getLocalEnsaio();
+            let nomeCompletoUsuario = user.nome;
+            if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
+              const emailSemDominio = user.email?.split('@')[0] || '';
+              nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
+            }
+            const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
+
+            let classeOrganistaDB: string | undefined = undefined;
+            if (isOrganista && !isNomeManual) {
+              const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+              if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+                classeOrganistaDB = pessoaSelecionada.classe_organista;
+              } else {
+                classeOrganistaDB = 'OFICIALIZADA';
+              }
+            }
+
+            let instrumentoCandidato: string | null = null;
+            if (isCandidato && !isNomeManual) {
+              const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+              if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
+                instrumentoCandidato = pessoaSelecionada.instrumento_id;
+              }
+            }
+
+            const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
+
+            const registroComNovoId: RegistroPresenca = {
+              pessoa_id: pessoaIdFinal,
+              comum_id: selectedComum,
+              cargo_id: selectedCargo,
+              instrumento_id: isCandidato
+                ? instrumentoCandidato
+                : showInstrumento && selectedInstrumento
+                  ? selectedInstrumento
+                  : null,
+              classe_organista: classeOrganistaDB,
+              local_ensaio: localEnsaio || 'Não definido',
+              data_hora_registro: getCurrentDateTimeISO(),
+              usuario_responsavel: nomeUsuario,
+              status_sincronizacao: 'pending',
+              id: generateExternalUUID(),
+            };
+
+            await supabaseDataService.saveRegistroToLocal(registroComNovoId);
+            await refreshCount();
+            showToast.success('Salvo offline', 'Será enviado quando voltar online');
+
+            // Limpar formulário
+            setSelectedComum('');
+            setSelectedCargo('');
+            setSelectedInstrumento('');
+            setSelectedPessoa('');
+            setIsNomeManual(false);
+
+            setLoading(false);
+            isSubmittingRef.current = false;
+            return;
+          } catch (retryError) {
+            console.error(`❌ [${Platform.OS}] Erro mesmo na segunda tentativa:`, retryError);
+            showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
+            setLoading(false);
+            isSubmittingRef.current = false;
+            return;
+          }
         }
       }
-    }
 
-    // Preparar registro ANTES do try/catch para estar disponível em todo o escopo
-    // Isso garante que o registro esteja disponível mesmo no catch
-    const localEnsaioOnline = await localStorageService.getLocalEnsaio();
+      // Preparar registro ANTES do try/catch para estar disponível em todo o escopo
+      // Isso garante que o registro esteja disponível mesmo no catch
+      const localEnsaioOnline = await localStorageService.getLocalEnsaio();
 
-    // Usar nome do usuário ao invés do ID
-    let nomeCompletoUsuarioOnline = user.nome;
-    if (!nomeCompletoUsuarioOnline || nomeCompletoUsuarioOnline.trim() === '') {
-      const emailSemDominio = user.email?.split('@')[0] || '';
-      nomeCompletoUsuarioOnline = emailSemDominio.replace(/[._]/g, ' ').trim();
-    }
-    const nomeUsuarioOnline = formatRegistradoPor(nomeCompletoUsuarioOnline || user.id);
-
-    // Buscar classe da organista do banco de dados se for Organista
-    let classeOrganistaDBOnline: string | undefined = undefined;
-    if (isOrganista && !isNomeManual) {
-      const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-      if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-        classeOrganistaDBOnline = pessoaSelecionada.classe_organista;
-      } else {
-        classeOrganistaDBOnline = 'OFICIALIZADA';
+      // Usar nome do usuário ao invés do ID
+      let nomeCompletoUsuarioOnline = user.nome;
+      if (!nomeCompletoUsuarioOnline || nomeCompletoUsuarioOnline.trim() === '') {
+        const emailSemDominio = user.email?.split('@')[0] || '';
+        nomeCompletoUsuarioOnline = emailSemDominio.replace(/[._]/g, ' ').trim();
       }
-    }
+      const nomeUsuarioOnline = formatRegistradoPor(nomeCompletoUsuarioOnline || user.id);
 
-    // Para Candidatos: buscar instrumento da pessoa selecionada
-    let instrumentoCandidatoOnline: string | null = null;
-    if (isCandidato && !isNomeManual) {
-      const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-      if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
-        instrumentoCandidatoOnline = pessoaSelecionada.instrumento_id;
+      // Buscar classe da organista do banco de dados se for Organista
+      let classeOrganistaDBOnline: string | undefined = undefined;
+      if (isOrganista && !isNomeManual) {
+        const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+        if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+          classeOrganistaDBOnline = pessoaSelecionada.classe_organista;
+        } else {
+          classeOrganistaDBOnline = 'OFICIALIZADA';
+        }
       }
-    }
 
-    const pessoaIdFinalOnline = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
+      // Para Candidatos: buscar instrumento da pessoa selecionada
+      let instrumentoCandidatoOnline: string | null = null;
+      if (isCandidato && !isNomeManual) {
+        const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+        if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
+          instrumentoCandidatoOnline = pessoaSelecionada.instrumento_id;
+        }
+      }
 
-    const registroOnline: RegistroPresenca = {
-      pessoa_id: pessoaIdFinalOnline,
-      comum_id: selectedComum,
-      cargo_id: selectedCargo,
-      instrumento_id: isCandidato
-        ? instrumentoCandidatoOnline
-        : showInstrumento && selectedInstrumento
-          ? selectedInstrumento
-          : null,
-      classe_organista: classeOrganistaDBOnline,
-      local_ensaio: localEnsaioOnline || 'Não definido',
-      data_hora_registro: getCurrentDateTimeISO(),
-      usuario_responsavel: nomeUsuarioOnline,
-      status_sincronizacao: 'pending',
-    };
+      const pessoaIdFinalOnline = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
 
-    // Se estiver offline, já foi tratado acima - não chegará aqui
-    // Se chegou aqui, está online - tentar enviar online
-    try {
-      console.log('🚀 [ONLINE] Iniciando envio de registro online...', {
-        isOnline,
-        isOfflineNow,
-        pessoa_id: registroOnline.pessoa_id,
-        comum_id: registroOnline.comum_id,
-        cargo_id: registroOnline.cargo_id,
-      });
+      const registroOnline: RegistroPresenca = {
+        pessoa_id: pessoaIdFinalOnline,
+        comum_id: selectedComum,
+        cargo_id: selectedCargo,
+        instrumento_id: isCandidato
+          ? instrumentoCandidatoOnline
+          : showInstrumento && selectedInstrumento
+            ? selectedInstrumento
+            : null,
+        classe_organista: classeOrganistaDBOnline,
+        local_ensaio: localEnsaioOnline || 'Não definido',
+        data_hora_registro: getCurrentDateTimeISO(),
+        usuario_responsavel: nomeUsuarioOnline,
+        status_sincronizacao: 'pending',
+      };
 
-      const result = await (offlineSyncService as any).createRegistro(registroOnline);
-
-      console.log('📋 Resultado do createRegistro:', result);
-      console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
-
-      // Atualizar contador da fila após criar registro (sempre, mesmo se houver erro)
+      // Se estiver offline, já foi tratado acima - não chegará aqui
+      // Se chegou aqui, está online - tentar enviar online
       try {
-        await refreshCount();
-        console.log('✅ Contador da fila atualizado');
-      } catch (countError) {
-        console.warn('⚠️ Erro ao atualizar contador da fila:', countError);
-        // Não bloquear o fluxo por erro no contador
-      }
+        console.log('🚀 [ONLINE] Iniciando envio de registro online...', {
+          isOnline,
+          isOfflineNow,
+          pessoa_id: registroOnline.pessoa_id,
+          comum_id: registroOnline.comum_id,
+          cargo_id: registroOnline.cargo_id,
+        });
 
-      if (result.success) {
-        // Verificar se foi enviado com sucesso ou salvo localmente
-        const foiEnviado = !result.error || !result.error.includes('salvo localmente');
+        const result = await (offlineSyncService as any).createRegistro(registroOnline);
 
-        if (foiEnviado) {
-          // 🚀 MELHORIA: Alerta de sucesso centralizado estilo SweetAlert2 para Web
-          if (Platform.OS === 'web') {
-            try {
-              const Swal = typeof window !== 'undefined' ? require('sweetalert2') : null;
-              if (Swal) {
-                const SwalConf = Swal.default || Swal;
-                SwalConf.fire({
-                  title:
-                    "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 600; color: #333; font-size: 22px;\">Registro Enviado!</span>",
-                  html: "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; color: #555;\">A presença foi registrada com sucesso.</span>",
-                  icon: 'success',
-                  showConfirmButton: false,
-                  timer: 1500,
-                  timerProgressBar: true,
-                  width: '260px',
-                  padding: '16px 12px',
-                  backdrop: false,
-                  customClass: {
-                    popup: 'swal-success-popup',
-                  },
-                  didOpen: () => {
-                    // Injetando css direto caso não exista no app
-                    const popup = SwalConf.getPopup();
-                    if (popup) {
-                      popup.style.fontFamily =
-                        "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-                      popup.style.borderRadius = '8px'; // Menos arredondado
-                    }
-                  },
-                });
-              } else {
+        console.log('📋 Resultado do createRegistro:', result);
+        console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
+
+        // Atualizar contador da fila após criar registro (sempre, mesmo se houver erro)
+        try {
+          await refreshCount();
+          console.log('✅ Contador da fila atualizado');
+        } catch (countError) {
+          console.warn('⚠️ Erro ao atualizar contador da fila:', countError);
+          // Não bloquear o fluxo por erro no contador
+        }
+
+        if (result.success) {
+          // Verificar se foi enviado com sucesso ou salvo localmente
+          const foiEnviado = !result.error || !result.error.includes('salvo localmente');
+
+          if (foiEnviado) {
+            // 🚀 MELHORIA: Alerta de sucesso centralizado estilo SweetAlert2 para Web
+            if (Platform.OS === 'web') {
+              try {
+                const Swal = typeof window !== 'undefined' ? require('sweetalert2') : null;
+                if (Swal) {
+                  const SwalConf = Swal.default || Swal;
+                  SwalConf.fire({
+                    title:
+                      "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 600; color: #333; font-size: 22px;\">Registro Enviado!</span>",
+                    html: "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; color: #555;\">A presença foi registrada com sucesso.</span>",
+                    icon: 'success',
+                    showConfirmButton: false,
+                    timer: 1500,
+                    timerProgressBar: true,
+                    width: '260px',
+                    padding: '16px 12px',
+                    backdrop: false,
+                    customClass: {
+                      popup: 'swal-success-popup',
+                    },
+                    didOpen: () => {
+                      // Injetando css direto caso não exista no app
+                      const popup = SwalConf.getPopup();
+                      if (popup) {
+                        popup.style.fontFamily =
+                          "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+                        popup.style.borderRadius = '8px'; // Menos arredondado
+                      }
+                    },
+                  });
+                } else {
+                  showToast.success('Registro enviado com sucesso');
+                }
+              } catch (e) {
                 showToast.success('Registro enviado com sucesso');
               }
-            } catch (e) {
+            } else {
               showToast.success('Registro enviado com sucesso');
             }
+            // Limpar formulário usando função helper
+            clearAllFields();
           } else {
-            showToast.success('Registro enviado com sucesso');
-          }
-          // Limpar formulário usando função helper
-          clearAllFields();
-        } else {
-          // Registro foi salvo localmente (sem internet ou erro de conectividade)
-          if (!isOnline) {
-            // Modo offline - mostrar mensagem informativa
-            showToast.info('Salvo offline', 'Enviado quando voltar online');
-          } else {
-            // Online mas erro de conectividade - mostrar mensagem informativa
-            showToast.warning('Salvo localmente', 'Será enviado automaticamente quando possível');
-          }
-          // Não limpar formulário se foi salvo localmente (usuário pode querer tentar novamente)
-        }
-      } else {
-        // Verificar se é erro de duplicata
-        const isDuplicateError =
-          result.error &&
-          (result.error.includes('DUPLICATA') ||
-            result.error.includes('duplicat') ||
-            result.error.includes('já foi cadastrado hoje') ||
-            result.error.includes('DUPLICATA_BLOQUEADA'));
-
-        console.log('❌ Registro falhou - Verificando se é duplicata...');
-        console.log('   Error:', result.error);
-        console.log('   É duplicata?:', isDuplicateError);
-
-        if (isDuplicateError) {
-          console.log('✅ DUPLICATA DETECTADA! Processando erro:', result.error);
-
-          let nome = '';
-          let comumNome = '';
-          let dataFormatada = '';
-          let horarioFormatado = '';
-
-          // SEMPRE usar dados do formulário primeiro (mais confiável)
-          nome = isNomeManual
-            ? selectedPessoa
-            : pessoas.find(p => p.id === selectedPessoa)?.nome_completo ||
-            (
-              pessoas.find(p => p.id === selectedPessoa)?.nome +
-              ' ' +
-              (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')
-            ).trim() ||
-            '';
-          comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
-
-          // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario
-          if (result.error && result.error.includes('DUPLICATA:')) {
-            const errorPart = result.error.split('DUPLICATA:')[1]?.trim() || '';
-
-            // Tentar formato com pipes primeiro: DUPLICATA:nome|comum|data|horario
-            if (errorPart.includes('|')) {
-              const parts = errorPart.split('|');
-              if (parts.length >= 4) {
-                nome = parts[0].trim() || nome;
-                comumNome = parts[1].trim() || comumNome;
-                dataFormatada = parts[2].trim();
-                horarioFormatado = parts[3].trim();
-              }
+            // Registro foi salvo localmente (sem internet ou erro de conectividade)
+            if (!isOnline) {
+              // Modo offline - mostrar mensagem informativa
+              showToast.info('Salvo offline', 'Enviado quando voltar online');
             } else {
-              // Tentar formato sem pipes: DUPLICATA: nome comum data/horario
-              // Exemplo: "DUPLICATA: ADRIANO MOTA BR-22-1739 - JARDIM MIRANDA 21/11/2025/13:18"
-              const match = errorPart.match(
-                /^(.+?)\s+(BR-\d+-\d+\s*-\s*.+?)\s+(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/
-              );
-              if (match) {
-                nome = match[1].trim() || nome;
-                comumNome = match[2].trim() || comumNome;
-                dataFormatada = match[3].trim();
-                horarioFormatado = match[4].trim();
+              // Online mas erro de conectividade - mostrar mensagem informativa
+              showToast.warning('Salvo localmente', 'Será enviado automaticamente quando possível');
+            }
+            // Não limpar formulário se foi salvo localmente (usuário pode querer tentar novamente)
+          }
+        } else {
+          // Verificar se é erro de duplicata
+          const isDuplicateError =
+            result.error &&
+            (result.error.includes('DUPLICATA') ||
+              result.error.includes('duplicat') ||
+              result.error.includes('já foi cadastrado hoje') ||
+              result.error.includes('DUPLICATA_BLOQUEADA'));
+
+          console.log('❌ Registro falhou - Verificando se é duplicata...');
+          console.log('   Error:', result.error);
+          console.log('   É duplicata?:', isDuplicateError);
+
+          if (isDuplicateError) {
+            console.log('✅ DUPLICATA DETECTADA! Processando erro:', result.error);
+
+            let nome = '';
+            let comumNome = '';
+            let dataFormatada = '';
+            let horarioFormatado = '';
+
+            // SEMPRE usar dados do formulário primeiro (mais confiável)
+            nome = isNomeManual
+              ? selectedPessoa
+              : pessoas.find(p => p.id === selectedPessoa)?.nome_completo ||
+              (
+                pessoas.find(p => p.id === selectedPessoa)?.nome +
+                ' ' +
+                (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')
+              ).trim() ||
+              '';
+            comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
+
+            // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario
+            if (result.error && result.error.includes('DUPLICATA:')) {
+              const errorPart = result.error.split('DUPLICATA:')[1]?.trim() || '';
+
+              // Tentar formato com pipes primeiro: DUPLICATA:nome|comum|data|horario
+              if (errorPart.includes('|')) {
+                const parts = errorPart.split('|');
+                if (parts.length >= 4) {
+                  nome = parts[0].trim() || nome;
+                  comumNome = parts[1].trim() || comumNome;
+                  dataFormatada = parts[2].trim();
+                  horarioFormatado = parts[3].trim();
+                }
               } else {
-                // Tentar extrair apenas data e horário do formato: ... data/horario
-                const dataHorarioMatch = errorPart.match(/(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/);
-                if (dataHorarioMatch) {
-                  dataFormatada = dataHorarioMatch[1];
-                  horarioFormatado = dataHorarioMatch[2];
+                // Tentar formato sem pipes: DUPLICATA: nome comum data/horario
+                // Exemplo: "DUPLICATA: ADRIANO MOTA BR-22-1739 - JARDIM MIRANDA 21/11/2025/13:18"
+                const match = errorPart.match(
+                  /^(.+?)\s+(BR-\d+-\d+\s*-\s*.+?)\s+(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/
+                );
+                if (match) {
+                  nome = match[1].trim() || nome;
+                  comumNome = match[2].trim() || comumNome;
+                  dataFormatada = match[3].trim();
+                  horarioFormatado = match[4].trim();
+                } else {
+                  // Tentar extrair apenas data e horário do formato: ... data/horario
+                  const dataHorarioMatch = errorPart.match(/(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/);
+                  if (dataHorarioMatch) {
+                    dataFormatada = dataHorarioMatch[1];
+                    horarioFormatado = dataHorarioMatch[2];
+                  }
                 }
               }
             }
-          }
 
-          // Se não conseguiu extrair data/horário, usar data/horário atual via nosso utils (com timezone America/Sao_Paulo fixado)
-          if (!dataFormatada || !horarioFormatado) {
-            dataFormatada = formatDate();
-            horarioFormatado = formatTime();
-          }
+            // Se não conseguiu extrair data/horário, usar data/horário atual via nosso utils (com timezone America/Sao_Paulo fixado)
+            if (!dataFormatada || !horarioFormatado) {
+              dataFormatada = formatDate();
+              horarioFormatado = formatTime();
+            }
 
-          // ---- NOVA FUNÇÃO AUXILIAR PARA O NOME ----
-          // Pega apenas "PRIMEIRONOME ÚLTIMONOME"
-          const obterNomeCurto = (nc: string): string => {
-            if (!nc) return '';
-            const pedacos = nc.trim().split(/\s+/);
-            if (pedacos.length <= 1) return pedacos[0] || '';
-            return `${pedacos[0]} ${pedacos[pedacos.length - 1]}`;
-          };
-
-          const nomeExibicao = obterNomeCurto(nome);
-
-          console.log('📋 Informações extraídas:', {
-            nome: nomeExibicao,
-            comumNome,
-            dataFormatada,
-            horarioFormatado,
-          });
-
-          // Mostrar alerta de duplicata usando SweetAlert2 (igual ao backupcont)
-          if (Platform.OS === 'web') {
-            // Usar SweetAlert2 na web (igual ao backupcont)
-            const getSwal = (): any => {
-              if (typeof window === 'undefined') return null;
-              try {
-                const sweetalert2 = require('sweetalert2');
-                return sweetalert2.default || sweetalert2;
-              } catch (error) {
-                console.warn('SweetAlert2 não disponível:', error);
-                return null;
-              }
+            // ---- NOVA FUNÇÃO AUXILIAR PARA O NOME ----
+            // Pega apenas "PRIMEIRONOME ÚLTIMONOME"
+            const obterNomeCurto = (nc: string): string => {
+              if (!nc) return '';
+              const pedacos = nc.trim().split(/\s+/);
+              if (pedacos.length <= 1) return pedacos[0] || '';
+              return `${pedacos[0]} ${pedacos[pedacos.length - 1]}`;
             };
 
-            const Swal = getSwal();
-            if (Swal) {
-              const mensagem = `
+            const nomeExibicao = obterNomeCurto(nome);
+
+            console.log('📋 Informações extraídas:', {
+              nome: nomeExibicao,
+              comumNome,
+              dataFormatada,
+              horarioFormatado,
+            });
+
+            // Mostrar alerta de duplicata usando SweetAlert2 (igual ao backupcont)
+            if (Platform.OS === 'web') {
+              // Usar SweetAlert2 na web (igual ao backupcont)
+              const getSwal = (): any => {
+                if (typeof window === 'undefined') return null;
+                try {
+                  const sweetalert2 = require('sweetalert2');
+                  return sweetalert2.default || sweetalert2;
+                } catch (error) {
+                  console.warn('SweetAlert2 não disponível:', error);
+                  return null;
+                }
+              };
+
+              const Swal = getSwal();
+              if (Swal) {
+                const mensagem = `
                 <div style="color: #545454; font-size: 16px; margin-top: 5px;">
                   <strong style="color: #545454;">${nomeExibicao || 'Nome não encontrado'}</strong> de <strong style="color: #545454;">${comumNome || 'Comum não encontrada'}</strong><br>
                   já foi cadastrado(a).<br><br>
@@ -1275,106 +1278,117 @@ export const useRegisterController = () => {
                 </div>
               `;
 
-              const isMobileDevice =
-                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                  typeof navigator !== 'undefined' ? navigator.userAgent : ''
-                );
-
-              // Garantir que FontAwesome está carregado
-              if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-                const linkId = 'fontawesome-css';
-                if (!document.getElementById(linkId)) {
-                  const link = document.createElement('link');
-                  link.id = linkId;
-                  link.rel = 'stylesheet';
-                  link.href =
-                    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-                  document.head.appendChild(link);
-                }
-              }
-
-              Swal.fire({
-                title: 'Cadastro Duplicado!',
-                html: mensagem,
-                icon: 'warning',
-                iconColor: '#f8bb86',
-                showCancelButton: true,
-                confirmButtonText: '<i class="fas fa-check"></i> Cadastrar Mesmo Assim',
-                cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#6e7881',
-                reverseButtons: true,
-                width: isMobileDevice ? '90%' : '500px',
-                padding: isMobileDevice ? '1.5rem' : '2rem',
-                position: 'center',
-                backdrop: true,
-                allowOutsideClick: false,
-                allowEscapeKey: true,
-                focusConfirm: false,
-                focusCancel: false,
-                buttonsStyling: true,
-                customClass: {
-                  confirmButton: 'swal-duplicity-confirm',
-                  cancelButton: 'swal-duplicity-cancel',
-                  title: 'swal-duplicity-title',
-                },
-                didOpen: () => {
-                  const popupEl = Swal.getPopup();
-                  if (popupEl) {
-                    popupEl.style.fontFamily =
-                      "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-                  }
-
-                  const titleEl = Swal.getTitle();
-                  if (titleEl) {
-                    titleEl.style.color = '#545454';
-                    titleEl.style.fontSize = '26px';
-                    titleEl.style.fontWeight = '600';
-                  }
-                },
-              }).then(async (result: any) => {
-                if (!result.isConfirmed) {
-                  // Usuário cancelou - limpar campos e recarregar página
-                  console.log(
-                    '❌ Usuário cancelou registro por duplicata - limpando campos e recarregando página...'
-                  );
-                  setSelectedComum('');
-                  setSelectedCargo('');
-                  setSelectedInstrumento('');
-                  setSelectedPessoa('');
-                  setIsNomeManual(false);
-
-                  return;
-                }
-
-                // Usuário confirmou - criar registro mesmo assim
-                console.log('✅ Usuário confirmou registro mesmo com duplicata');
-                setLoading(true);
-                try {
-                  const registroForce = { ...registroOnline };
-                  const resultForce = await (offlineSyncService as any).createRegistro(
-                    registroForce,
-                    true
+                const isMobileDevice =
+                  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                    typeof navigator !== 'undefined' ? navigator.userAgent : ''
                   );
 
-                  if (resultForce.success) {
-                    if (isOnline && !syncing) {
-                      setTimeout(() => {
-                        syncData();
-                      }, 500);
+                // Garantir que FontAwesome está carregado
+                if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+                  const linkId = 'fontawesome-css';
+                  if (!document.getElementById(linkId)) {
+                    const link = document.createElement('link');
+                    link.id = linkId;
+                    link.rel = 'stylesheet';
+                    link.href =
+                      'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+                    document.head.appendChild(link);
+                  }
+                }
+
+                Swal.fire({
+                  title: 'Cadastro Duplicado!',
+                  html: mensagem,
+                  icon: 'warning',
+                  iconColor: '#f8bb86',
+                  showCancelButton: true,
+                  confirmButtonText: '<i class="fas fa-check"></i> Cadastrar Mesmo Assim',
+                  cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+                  confirmButtonColor: '#d33',
+                  cancelButtonColor: '#6e7881',
+                  reverseButtons: true,
+                  width: isMobileDevice ? '90%' : '500px',
+                  padding: isMobileDevice ? '1.5rem' : '2rem',
+                  position: 'center',
+                  backdrop: true,
+                  allowOutsideClick: false,
+                  allowEscapeKey: true,
+                  focusConfirm: false,
+                  focusCancel: false,
+                  buttonsStyling: true,
+                  customClass: {
+                    confirmButton: 'swal-duplicity-confirm',
+                    cancelButton: 'swal-duplicity-cancel',
+                    title: 'swal-duplicity-title',
+                  },
+                  didOpen: () => {
+                    const popupEl = Swal.getPopup();
+                    if (popupEl) {
+                      popupEl.style.fontFamily =
+                        "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
                     }
-                    showToast.success(
-                      'Registro enviado!',
-                      'Registro duplicado cadastrado com sucesso!'
+
+                    const titleEl = Swal.getTitle();
+                    if (titleEl) {
+                      titleEl.style.color = '#545454';
+                      titleEl.style.fontSize = '26px';
+                      titleEl.style.fontWeight = '600';
+                    }
+                  },
+                }).then(async (result: any) => {
+                  if (!result.isConfirmed) {
+                    // Usuário cancelou - limpar campos e recarregar página
+                    console.log(
+                      '❌ Usuário cancelou registro por duplicata - limpando campos e recarregando página...'
                     );
-                    // Limpar formulário ANTES de recarregar
-                    clearAllFields();
-                    // Recarregar página após sucesso
-                  } else {
-                    showToast.error(
-                      'Erro',
-                      resultForce.error || 'Erro ao cadastrar registro duplicado'
+                    setSelectedComum('');
+                    setSelectedCargo('');
+                    setSelectedInstrumento('');
+                    setSelectedPessoa('');
+                    setIsNomeManual(false);
+
+                    return;
+                  }
+
+                  // Usuário confirmou - criar registro mesmo assim
+                  console.log('✅ Usuário confirmou registro mesmo com duplicata');
+                  setLoading(true);
+                  try {
+                    const registroForce = { ...registroOnline };
+                    const resultForce = await (offlineSyncService as any).createRegistro(
+                      registroForce,
+                      true
                     );
+
+                    if (resultForce.success) {
+                      if (isOnline && !syncing) {
+                        setTimeout(() => {
+                          syncData();
+                        }, 500);
+                      }
+                      showToast.success(
+                        'Registro enviado!',
+                        'Registro duplicado cadastrado com sucesso!'
+                      );
+                      // Limpar formulário ANTES de recarregar
+                      clearAllFields();
+                      // Recarregar página após sucesso
+                    } else {
+                      showToast.error(
+                        'Erro',
+                        resultForce.error || 'Erro ao cadastrar registro duplicado'
+                      );
+                      // Limpar formulário ANTES de recarregar
+                      setSelectedComum('');
+                      setSelectedCargo('');
+                      setSelectedInstrumento('');
+                      setSelectedPessoa('');
+                      setIsNomeManual(false);
+                      // Recarregar página mesmo em caso de erro
+                    }
+                  } catch (error) {
+                    showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
+                    console.error('Erro ao criar registro duplicado:', error);
                     // Limpar formulário ANTES de recarregar
                     setSelectedComum('');
                     setSelectedCargo('');
@@ -1382,23 +1396,23 @@ export const useRegisterController = () => {
                     setSelectedPessoa('');
                     setIsNomeManual(false);
                     // Recarregar página mesmo em caso de erro
+                  } finally {
+                    setLoading(false);
                   }
-                } catch (error) {
-                  showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
-                  console.error('Erro ao criar registro duplicado:', error);
-                  // Limpar formulário ANTES de recarregar
-                  setSelectedComum('');
-                  setSelectedCargo('');
-                  setSelectedInstrumento('');
-                  setSelectedPessoa('');
-                  setIsNomeManual(false);
-                  // Recarregar página mesmo em caso de erro
-                } finally {
-                  setLoading(false);
-                }
-              });
+                });
+              } else {
+                // Fallback: usar modal React Native
+                setDuplicateInfo({
+                  nome: nome || 'Nome não encontrado',
+                  comum: comumNome || 'Comum não encontrada',
+                  data: dataFormatada,
+                  horario: horarioFormatado,
+                });
+                setPendingRegistro(registroOnline);
+                setDuplicateModalVisible(true);
+              }
             } else {
-              // Fallback: usar modal React Native
+              // Mobile: usar modal React Native
               setDuplicateInfo({
                 nome: nome || 'Nome não encontrado',
                 comum: comumNome || 'Comum não encontrada',
@@ -1409,93 +1423,87 @@ export const useRegisterController = () => {
               setDuplicateModalVisible(true);
             }
           } else {
-            // Mobile: usar modal React Native
-            setDuplicateInfo({
-              nome: nome || 'Nome não encontrado',
-              comum: comumNome || 'Comum não encontrada',
-              data: dataFormatada,
-              horario: horarioFormatado,
-            });
-            setPendingRegistro(registroOnline);
-            setDuplicateModalVisible(true);
-          }
-        } else {
-          // Erro não é duplicata - mostrar erro
-          const errorMessage = result.error || 'Erro ao enviar registro';
-          console.error('❌ Erro ao enviar registro:', errorMessage);
-          showToast.error('Erro', errorMessage);
+            // Erro não é duplicata - mostrar erro
+            const errorMessage = result.error || 'Erro ao enviar registro';
+            console.error('❌ Erro ao enviar registro:', errorMessage);
+            showToast.error('Erro', errorMessage);
 
-          // Se for erro de salvamento local, tentar salvar manualmente como fallback
-          if (errorMessage.includes('salvar') || errorMessage.includes('localmente')) {
-            console.log('🔄 Tentando salvar registro manualmente como fallback...');
-            try {
-              await supabaseDataService.saveRegistroToLocal({
-                ...registroOnline,
-                status_sincronizacao: 'pending',
-              });
-              console.log('✅ Registro salvo manualmente com sucesso');
-              showToast.info('Salvo offline', 'Registro salvo na fila local');
-              await refreshCount();
-            } catch (fallbackError) {
-              console.error('❌ Erro ao salvar registro manualmente:', fallbackError);
+            // Se for erro de salvamento local, tentar salvar manualmente como fallback
+            if (errorMessage.includes('salvar') || errorMessage.includes('localmente')) {
+              console.log('🔄 Tentando salvar registro manualmente como fallback...');
+              try {
+                await supabaseDataService.saveRegistroToLocal({
+                  ...registroOnline,
+                  status_sincronizacao: 'pending',
+                });
+                console.log('✅ Registro salvo manualmente com sucesso');
+                showToast.info('Salvo offline', 'Registro salvo na fila local');
+                await refreshCount();
+              } catch (fallbackError) {
+                console.error('❌ Erro ao salvar registro manualmente:', fallbackError);
+              }
             }
           }
         }
-      }
-    } catch (error) {
-      console.error('❌ ERRO CRÍTICO ao processar registro:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      } catch (error) {
+        console.error('❌ ERRO CRÍTICO ao processar registro:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Tentar salvar localmente como último recurso
-      try {
-        console.log('🔄 Tentando salvar registro localmente como último recurso...');
-        // Usar registroOnline se disponível, senão criar um novo
-        // Criar registro fallback se registroOnline não estiver disponível
-        let registroFallback: RegistroPresenca;
-        if (registroOnline) {
-          registroFallback = registroOnline;
-        } else {
-          const localEnsaioFallback = await localStorageService.getLocalEnsaio();
-          let nomeCompletoUsuarioFallback = user?.nome || '';
-          if (!nomeCompletoUsuarioFallback || nomeCompletoUsuarioFallback.trim() === '') {
-            const emailSemDominio = user?.email?.split('@')[0] || '';
-            nomeCompletoUsuarioFallback = emailSemDominio.replace(/[._]/g, ' ').trim();
+        // Tentar salvar localmente como último recurso
+        try {
+          console.log('🔄 Tentando salvar registro localmente como último recurso...');
+          // Usar registroOnline se disponível, senão criar um novo
+          // Criar registro fallback se registroOnline não estiver disponível
+          let registroFallback: RegistroPresenca;
+          if (registroOnline) {
+            registroFallback = registroOnline;
+          } else {
+            const localEnsaioFallback = await localStorageService.getLocalEnsaio();
+            let nomeCompletoUsuarioFallback = user?.nome || '';
+            if (!nomeCompletoUsuarioFallback || nomeCompletoUsuarioFallback.trim() === '') {
+              const emailSemDominio = user?.email?.split('@')[0] || '';
+              nomeCompletoUsuarioFallback = emailSemDominio.replace(/[._]/g, ' ').trim();
+            }
+            const nomeUsuarioFallback = formatRegistradoPor(
+              nomeCompletoUsuarioFallback || user?.id || ''
+            );
+
+            registroFallback = {
+              pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
+              comum_id: selectedComum,
+              cargo_id: selectedCargo,
+              instrumento_id: showInstrumento && selectedInstrumento ? selectedInstrumento : null,
+              local_ensaio: localEnsaioFallback || 'Não definido',
+              data_hora_registro: getCurrentDateTimeISO(),
+              usuario_responsavel: nomeUsuarioFallback,
+              status_sincronizacao: 'pending',
+            };
           }
-          const nomeUsuarioFallback = formatRegistradoPor(
-            nomeCompletoUsuarioFallback || user?.id || ''
-          );
-
-          registroFallback = {
-            pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
-            comum_id: selectedComum,
-            cargo_id: selectedCargo,
-            instrumento_id: showInstrumento && selectedInstrumento ? selectedInstrumento : null,
-            local_ensaio: localEnsaioFallback || 'Não definido',
-            data_hora_registro: getCurrentDateTimeISO(),
-            usuario_responsavel: nomeUsuarioFallback,
+          await supabaseDataService.saveRegistroToLocal({
+            ...registroFallback,
             status_sincronizacao: 'pending',
-          };
+          });
+          console.log('✅ Registro salvo localmente como último recurso');
+          showToast.warning('Salvo offline', 'Registro salvo na fila. Será enviado quando possível.');
+          await refreshCount();
+        } catch (fallbackError) {
+          console.error(
+            '❌ ERRO CRÍTICO: Não foi possível salvar registro nem localmente:',
+            fallbackError
+          );
+          Alert.alert(
+            'Erro Crítico',
+            'Não foi possível salvar o registro. Tente novamente ou verifique sua conexão.'
+          );
         }
-        await supabaseDataService.saveRegistroToLocal({
-          ...registroFallback,
-          status_sincronizacao: 'pending',
-        });
-        console.log('✅ Registro salvo localmente como último recurso');
-        showToast.warning('Salvo offline', 'Registro salvo na fila. Será enviado quando possível.');
-        await refreshCount();
-      } catch (fallbackError) {
-        console.error(
-          '❌ ERRO CRÍTICO: Não foi possível salvar registro nem localmente:',
-          fallbackError
-        );
-        Alert.alert(
-          'Erro Crítico',
-          'Não foi possível salvar o registro. Tente novamente ou verifique sua conexão.'
-        );
+      } finally {
+        setLoading(false);
+        isSubmittingRef.current = false;
       }
     } finally {
-      setLoading(false);
+      // 🚨 GARANTIA ABSOLUTA: Destravar mesmo em return antecipado ou exceção não mapeada
       isSubmittingRef.current = false;
+      setLoading(false);
     }
   };
 

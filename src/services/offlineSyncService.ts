@@ -40,10 +40,10 @@ export const offlineSyncService = {
 
     let NetInfoModule = NetInfo;
     try {
-      // 🚀 OTIMIZAÇÃO: Timeout rápido para evitar travamento no Android
+      // 🚀 OTIMIZAÇÃO: Timeout para evitar travamento no Android
       const statePromise = NetInfoModule.fetch();
       const timeoutPromise = new Promise<any>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 1500)
+        setTimeout(() => reject(new Error('timeout')), 5000)
       );
 
       const state = await Promise.race([statePromise, timeoutPromise]);
