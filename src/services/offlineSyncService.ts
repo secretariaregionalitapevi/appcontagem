@@ -7,6 +7,8 @@ import { authService } from './authService';
 import { uuidv4 } from '../utils/uuid';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { formatDate, formatTime } from '../utils/dateUtils';
+import { robustSetItem, robustRemoveItem } from '../utils/robustStorage';
+import { showToast } from '../utils/toast';
 
 // 🚨 PROTEÇÃO: Flag global para evitar processamento duplicado simultâneo
 let isProcessingQueue = false;
@@ -303,12 +305,10 @@ export const offlineSyncService = {
       // Salvar apenas itens com erro de volta na fila
       if (itensComErro.length > 0) {
         const filaKey = 'fila_registros_presenca';
-        const { robustSetItem } = await import('../utils/robustStorage');
         await robustSetItem(filaKey, JSON.stringify(itensComErro));
       } else {
         // Se não há erros, limpar fila completamente
         const filaKey = 'fila_registros_presenca';
-        const { robustRemoveItem } = await import('../utils/robustStorage');
         await robustRemoveItem(filaKey);
       }
 
@@ -332,7 +332,6 @@ export const offlineSyncService = {
 
       // Mostrar toast quando processa fila
       if (result.successCount > 0) {
-        const { showToast } = await import('../utils/toast');
         if (result.errorCount > 0) {
           showToast.success(
             'Fila processada',
@@ -343,7 +342,6 @@ export const offlineSyncService = {
         }
         console.log(`✅ ${result.successCount} registro(s) enviado(s) com sucesso!`);
       } else if (result.errorCount > 0) {
-        const { showToast } = await import('../utils/toast');
         showToast.warning('Fila não processada', `${result.errorCount} registro(s) aguardando conexão estável`);
       }
 
@@ -463,9 +461,9 @@ export const offlineSyncService = {
               .lt('data_ensaio', dataFim.toISOString())
               .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
 
-            // 🚀 OTIMIZAÇÃO: Timeout de 2 segundos para não bloquear muito tempo
+            // 🚀 OTIMIZAÇÃO: Timeout de 8 segundos para redes lentas
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
+              setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 8000)
             );
 
             const { data: duplicatas, error: duplicataError } = await Promise.race([

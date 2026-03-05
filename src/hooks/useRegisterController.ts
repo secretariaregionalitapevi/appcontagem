@@ -83,6 +83,9 @@ export const useRegisterController = () => {
   const [pendingRegistro, setPendingRegistro] = useState<RegistroPresenca | null>(null);
   const [newRegistrationModalVisible, setNewRegistrationModalVisible] = useState(false);
 
+  // 🚨 PROTEÇÃO SÍNCRONA: Ref contra duplo-clique acidental (debounce/throttle de React State)
+  const isSubmittingRef = useRef<boolean>(false);
+
   // 🚨 CORREÇÃO: Modal funciona offline - salva na fila automaticamente quando não há conexão
 
   // Mostrar campo de instrumento apenas para Músico
@@ -657,6 +660,13 @@ export const useRegisterController = () => {
   };
 
   const handleSubmit = async () => {
+    // 🚨 BLOQUEIO SÍNCRONO: Se já estiver submetendo, bloquear imediatamente (mesmo se React state 'loading' não atualizou ainda)
+    if (isSubmittingRef.current || loading) {
+      console.warn('⚠️ [SUBMIT] Submissão bloqueada: já em andamento (duplo-clique detectado)');
+      return;
+    }
+
+    isSubmittingRef.current = true;
     console.log('🔘 [SUBMIT] Botão ENVIAR REGISTRO clicado');
     console.log('🔍 [SUBMIT] Estado atual:', {
       selectedComum,
@@ -673,6 +683,7 @@ export const useRegisterController = () => {
     if (!selectedComum || !selectedCargo) {
       console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -689,6 +700,7 @@ export const useRegisterController = () => {
         pessoasCount: pessoas.length,
       });
       Alert.alert('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -700,6 +712,7 @@ export const useRegisterController = () => {
         length: selectedPessoa?.trim().length,
       });
       Alert.alert('Erro', 'O nome deve ter pelo menos 3 caracteres');
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -710,12 +723,14 @@ export const useRegisterController = () => {
     if (instrumentoObrigatorio && !selectedInstrumento) {
       console.warn('⚠️ [SUBMIT] Instrumento não selecionado para Músico');
       Alert.alert('Erro', 'Selecione o instrumento para Músico');
+      isSubmittingRef.current = false;
       return;
     }
 
     if (!user) {
       console.error('❌ [SUBMIT] Usuário não autenticado');
       Alert.alert('Erro', 'Usuário não autenticado');
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -870,6 +885,7 @@ export const useRegisterController = () => {
           console.warn('🚨 Registro duplicado - já está na fila');
           showToast.warning('Atenção', 'Este registro já está na fila');
           setLoading(false);
+          isSubmittingRef.current = false;
           return;
         }
 
@@ -936,6 +952,7 @@ export const useRegisterController = () => {
 
         console.log(`✅ [${Platform.OS}] Formulário limpo, finalizando...`);
         setLoading(false);
+        isSubmittingRef.current = false;
         return;
       } catch (error) {
         console.error(`❌ [${Platform.OS}] Erro crítico ao salvar registro offline:`, error);
@@ -999,11 +1016,13 @@ export const useRegisterController = () => {
           setIsNomeManual(false);
 
           setLoading(false);
+          isSubmittingRef.current = false;
           return;
         } catch (retryError) {
           console.error(`❌ [${Platform.OS}] Erro mesmo na segunda tentativa:`, retryError);
           showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
           setLoading(false);
+          isSubmittingRef.current = false;
           return;
         }
       }
@@ -1166,12 +1185,12 @@ export const useRegisterController = () => {
           nome = isNomeManual
             ? selectedPessoa
             : pessoas.find(p => p.id === selectedPessoa)?.nome_completo ||
-              (
-                pessoas.find(p => p.id === selectedPessoa)?.nome +
-                ' ' +
-                (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')
-              ).trim() ||
-              '';
+            (
+              pessoas.find(p => p.id === selectedPessoa)?.nome +
+              ' ' +
+              (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')
+            ).trim() ||
+            '';
           comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
 
           // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario

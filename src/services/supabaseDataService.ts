@@ -2357,9 +2357,9 @@ export const supabaseDataService = {
           .lt('data_ensaio', dataFim.toISOString())
           .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
 
-        // 🚀 OTIMIZAÇÃO: Timeout de 2 segundos para não bloquear muito tempo
+        // 🚀 OTIMIZAÇÃO: Timeout de 8 segundos para não bloquear muito tempo
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 2000)
+          setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 8000)
         );
 
         const { data: duplicatas, error: duplicataError } = (await Promise.race([
@@ -3077,14 +3077,14 @@ export const supabaseDataService = {
 
         // Adicionar registro à fila (exatamente como BACKUPCONT)
         // Garantir que status_sincronizacao seja 'pending'
-        const registroParaFila = {
+        const registroParaFila: any = {
           ...registroCompleto,
-          status_sincronizacao: 'pending', // Garantir que seja pending
+          status_sincronizacao: 'pending' as 'pending', // Garantir que seja pending
           timestamp: new Date().toISOString(),
           tentativas: 0,
         };
 
-        fila.push(registroParaFila);
+        fila.push(registroParaFila as any);
 
         // Salvar fila atualizada (exatamente como BACKUPCONT)
         await robustSetItem(filaKey, JSON.stringify(fila));
@@ -3098,14 +3098,14 @@ export const supabaseDataService = {
         console.error('❌ Erro ao salvar na fila:', error);
         // 🚨 CRÍTICO: Tentar salvar novamente com fallback
         try {
-          const filaFallback: RegistroPresenca[] = [
+          const filaFallback: any[] = [
             {
               ...registroCompleto,
               status_sincronizacao: 'pending',
               timestamp: new Date().toISOString(),
               tentativas: 0,
             },
-          ];
+          ] as any[];
           await robustSetItem(filaKey, JSON.stringify(filaFallback));
           console.log('✅ Registro salvo na fila (fallback):', registroCompleto.pessoa_id);
         } catch (fallbackError) {
