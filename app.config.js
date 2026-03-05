@@ -2,7 +2,7 @@ export default {
   expo: {
     name: 'CCB Contagem',
     slug: 'sistema-contagem-sac',
-    version: '1.2.2',
+    version: '1.2.8',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',

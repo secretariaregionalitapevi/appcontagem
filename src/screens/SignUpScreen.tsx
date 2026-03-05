@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
 import { PrimaryButton } from '../components/PrimaryButton';
+import pkg from '../../package.json';
 import { theme } from '../theme';
 import { showToast } from '../utils/toast';
 import { isSupabaseConfigured } from '../services/supabaseClient';
@@ -291,7 +292,7 @@ export const SignUpScreen: React.FC = () => {
           {/* Rodapé */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v1.0
+              <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v{pkg.version || '1.0'}
               {'\n'}
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}

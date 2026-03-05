@@ -306,7 +306,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
     >
       <AppHeader title="Organistas no Ensaio" onBackPress={handleBack} />
 
-      {!isOnline && <OfflineBadge />}
+      {!isOnline && <OfflineBadge count={0} />}
 
       <ScrollView
         style={styles.scrollView}

@@ -208,7 +208,7 @@ export const robustRemoveItem = async (key: string): Promise<void> => {
  */
 const clearOldCache = async (): Promise<void> => {
   try {
-    const allKeys = Platform.OS === 'web' ? Object.keys(localStorage) : await AsyncStorage.getAllKeys() as string[];
+    const allKeys = Platform.OS === 'web' ? Object.keys(localStorage) : [...await AsyncStorage.getAllKeys()];
 
     if (allKeys.length === 0) return;
 
@@ -255,7 +255,7 @@ export const robustGetAllKeys = async (): Promise<string[]> => {
     if (Platform.OS === 'web') {
       return Object.keys(localStorage);
     } else {
-      return await AsyncStorage.getAllKeys();
+      return [...await AsyncStorage.getAllKeys()];
     }
   } catch (error) {
     console.warn('⚠️ Erro ao obter chaves do storage:', error);

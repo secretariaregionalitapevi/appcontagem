@@ -1,0 +1,2 @@
+src/screens/OrganistasEnsaioScreen.tsx(309,22): error TS2741: Property 'count' is missing in type '{}' but required in type 'OfflineBadgeProps'.
+src/utils/robustStorage.ts(258,7): error TS4104: The type 'readonly string[]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.

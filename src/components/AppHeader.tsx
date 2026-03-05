@@ -8,7 +8,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { showToast } from '../utils/toast';
@@ -151,7 +151,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               </Text>
               {!IS_SMALL_SCREEN && (
                 <View style={styles.brandSubtitleContainer}>
-                  <Feather name="map-pin" size={12} color="#ff6b6b" />
+                  <Ionicons name="location-sharp" size={12} color="#ff6b6b" />
                   <Text style={styles.brandSubtitle} numberOfLines={1}>
                     {localEnsaio}
                   </Text>
@@ -165,11 +165,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <View style={[styles.headerActions, IS_SMALL_SCREEN && styles.headerActionsSmall]}>
           {onBackPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
               onPress={() => handlePressWithHaptic(onBackPress)}
               activeOpacity={0.7}
             >
-              <Feather name="arrow-left" size={IS_SMALL_SCREEN ? 16 : 18} color="#a7b1c2" />
+              <Ionicons name="arrow-back" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
           )}
           {onOrganistasEnsaioPress && (
@@ -204,33 +204,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               }}
               activeOpacity={0.7}
             >
-              <Feather name="music" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
+              <Ionicons name="musical-notes" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
             </TouchableOpacity>
           )}
           {isMaster && onEditRegistrosPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
               onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
               activeOpacity={0.7}
             >
-              <Feather name="edit-3" size={IS_SMALL_SCREEN ? 16 : 18} color="#cdd5e0" />
+              <Ionicons name="pencil" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
           )}
           {onSettingsPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
               onPress={() => handlePressWithHaptic(onSettingsPress)}
               activeOpacity={0.7}
             >
-              <Feather name="settings" size={IS_SMALL_SCREEN ? 16 : 18} color="#cdd5e0" />
+              <Ionicons name="settings" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[styles.actionBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+            style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
             onPress={() => handlePressWithHaptic(handleLogout)}
             activeOpacity={0.6}
           >
-            <Feather name="log-out" size={IS_SMALL_SCREEN ? 16 : 18} color="#cdd5e0" />
+            <FontAwesome5 name="sign-out-alt" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
           </TouchableOpacity>
         </View>
       </View>
@@ -240,7 +240,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <View style={styles.headerSecondRow}>
           <View style={styles.headerSecondRowContent}>
             <View style={styles.brandSubtitleContainer}>
-              <Feather name="map-pin" size={12} color="#ff6b6b" />
+              <Ionicons name="location-sharp" size={12} color="#ff6b6b" />
               <Text style={styles.brandSubtitle} numberOfLines={1}>
                 {localEnsaio}
               </Text>
@@ -395,28 +395,27 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: 40,
+    minHeight: 40,
+  },
+  defaultBtn: {
+    backgroundColor: '#3b4b5c', // Tons de azul/cinza similares ao dashboard de referência
   },
   actionBtnSmall: {
-    width: 36,
-    height: 36,
-    minWidth: 36,
-    minHeight: 36,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    minWidth: 32,
+    minHeight: 32,
+    borderRadius: 6,
   },
   organistaBtn: {
-    backgroundColor: 'rgba(255, 107, 107, 0.15)', // Cor destacada para organistas
-    borderWidth: 1,
-    borderColor: 'rgba(255, 107, 107, 0.3)',
+    backgroundColor: '#863b4b', // Cor magenta/vinho apagado (fundo do ícone da música na referência)
+
     ...(Platform.OS === 'web'
       ? {
         // @ts-ignore - Propriedades CSS apenas para web

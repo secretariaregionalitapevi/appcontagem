@@ -7,6 +7,7 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1, shrink-to-fit=no, maximum-scale=1, user-scalable=0" />
     <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="CCB Contagem&#10;Regional Itapevi" />
@@ -55,10 +56,29 @@
                 navigator.serviceWorker.register('/sw.js')
                     .then((registration) => {
                         console.log('✅ ServiceWorker registrado com sucesso com escopo: ', registration.scope);
-                        
-                        // Check for update when page regains visibility (e.g. user opens app again)
+
+                        // Forçar verificação imediata no carregamento inicial
+                        registration.update();
+
+                        // Detecta quando uma nova versão do SW for encontrada
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    // Se a nova versão foi instalada e já existe um SW controlando a página (ou seja, é uma atualização)
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        console.log('🔄 Nova versão encontrada e instalada. Forçando ativação agressiva...');
+                                        // Pede pro novo SW pular a fase de espera ("waiting") e assumir imediatamente
+                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    }
+                                });
+                            }
+                        });
+
+                        // Verificar atualizações automaticamente sempre que o usuário reabrir/focar no app
                         document.addEventListener('visibilitychange', () => {
                             if (document.visibilityState === 'visible') {
+                                console.log('👀 App voltou ao foco. Verificando atualizações de cache...');
                                 registration.update();
                             }
                         });
@@ -68,12 +88,12 @@
                     });
             });
 
-            // Forçar reload da página quando um novo Service Worker assumir o controle (nova versão)
+            // Forçar reload da página instantaneamente assim que o novo Service Worker assumir o controle
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (!refreshing) {
                     refreshing = true;
-                    console.log('🔄 Nova versão detectada, recarregando o aplicativo...');
+                    console.log('🔄 Novo cache ativado! Recarregando a aplicação de forma oculta...');
                     window.location.reload();
                 }
             });

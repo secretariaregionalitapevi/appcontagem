@@ -12,6 +12,8 @@ import {
   Linking,
   TextInput,
 } from 'react-native';
+import Constants from 'expo-constants';
+import pkg from '../../package.json';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthContext } from '../context/AuthContext';
@@ -270,7 +272,7 @@ export const LoginScreen: React.FC = () => {
           {/* Rodapé */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v1.1.2
+              <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v{pkg.version || '1.0'}
               {'\n'}
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}

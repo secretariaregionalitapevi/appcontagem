@@ -22,14 +22,14 @@ export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
             Animated.timing(opacityAnim, {
                 toValue: 1,
                 duration: 800,
-                useNativeDriver: true,
+                useNativeDriver: false,
                 easing: Easing.out(Easing.ease),
             }),
             // Efeito de "Respiração" / Escala (Zoom in suave)
             Animated.timing(scaleAnim, {
                 toValue: 1.05,
                 duration: 1000,
-                useNativeDriver: true,
+                useNativeDriver: false,
                 easing: Easing.out(Easing.back(1.5)),
             })
         ]).start(() => {
@@ -39,13 +39,13 @@ export const AnimatedSplashScreen: React.FC<AnimatedSplashScreenProps> = ({
                     Animated.timing(scaleAnim, {
                         toValue: 1,
                         duration: 1000,
-                        useNativeDriver: true,
+                        useNativeDriver: false,
                         easing: Easing.inOut(Easing.ease),
                     }),
                     Animated.timing(scaleAnim, {
                         toValue: 1.05,
                         duration: 1000,
-                        useNativeDriver: true,
+                        useNativeDriver: false,
                         easing: Easing.inOut(Easing.ease),
                     })
                 ])

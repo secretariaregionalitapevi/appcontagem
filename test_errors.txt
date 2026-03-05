@@ -1,0 +1,33 @@
+﻿
+> sistema-contagem-sac@1.2.7 test
+> jest
+
+node.exe : PASS 
+./App.test.tsx (6.753 
+s)
+No C:\nvm4w\nodejs\npm.
+ps1:29 caractere:3
++   & $NODE_EXE 
+$NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (PASS ./App.te   
+ st.tsx (6.753 s):S    
+tring) [], RemoteE    
+xception
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+PASS src/__tests__/util
+s.test.ts (6.776 s)
+
+Test Suites: 2 passed, 
+2 total
+Tests:       3 passed, 
+3 total
+Snapshots:   0 total
+Time:        11.692 s
+Ran all test suites.
