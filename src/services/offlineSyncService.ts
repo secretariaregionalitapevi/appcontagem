@@ -39,8 +39,19 @@ export const offlineSyncService = {
     }
 
     let NetInfoModule = NetInfo;
-    const state = await NetInfoModule.fetch();
-    return state.isConnected === true && state.isInternetReachable !== false;
+    try {
+      // 🚀 OTIMIZAÇÃO: Timeout rápido para evitar travamento no Android
+      const statePromise = NetInfoModule.fetch();
+      const timeoutPromise = new Promise<any>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 1500)
+      );
+
+      const state = await Promise.race([statePromise, timeoutPromise]);
+      return state.isConnected === true && state.isInternetReachable !== false;
+    } catch (e) {
+      console.log('⚠️ isOnline check timeout or error (assumindo offline)');
+      return false;
+    }
   },
 
   async syncAllData(): Promise<{ success: boolean; error?: string; syncResult?: { successCount: number; totalCount: number } }> {

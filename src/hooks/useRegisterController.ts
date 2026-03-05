@@ -1495,6 +1495,7 @@ export const useRegisterController = () => {
       }
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
