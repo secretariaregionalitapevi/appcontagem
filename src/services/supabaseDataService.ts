@@ -2606,7 +2606,6 @@ export const supabaseDataService = {
         console.warn('⚠️ Erro ao ler registros do cache robusto:', error);
       }
 
-      // 🚨 CORREÇÃO: Também buscar registros salvos como fallback em AsyncStorage (web)
       try {
         const allKeys = await robustGetAllKeys();
         const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
@@ -2628,6 +2627,22 @@ export const supabaseDataService = {
         }
       } catch (fallbackError) {
         console.warn('⚠️ Erro ao buscar registros fallback (web):', fallbackError);
+      }
+
+      // ALÉM DISSO, unificar a fila_registros_presenca no Web também caso tenha ficado preso do antigo localStorage
+      try {
+        const filaKey = 'fila_registros_presenca';
+        const filaData = await robustGetItem(filaKey);
+        const fila: RegistroPresenca[] = filaData ? JSON.parse(filaData) : [];
+        const pendingFila = fila.filter(r => r.status_sincronizacao === 'pending' || !r.status_sincronizacao);
+
+        for (const r of pendingFila) {
+          if (!registros.find(existing => existing.id === r.id)) {
+            registros.push(r);
+          }
+        }
+      } catch (e) {
+        // Nada faz
       }
 
       return registros;
@@ -2710,16 +2725,14 @@ export const supabaseDataService = {
   },
 
   async deleteRegistroFromLocal(id: string): Promise<void> {
-    if (Platform.OS === 'web') {
-      // Para web, remover do cache em memória e AsyncStorage
-      memoryCache.registros = memoryCache.registros.filter(r => r.id !== id);
-      try {
-        await robustSetItem('cached_registros', JSON.stringify(memoryCache.registros));
-      } catch (error) {
-        console.warn('⚠️ Erro ao remover registro do cache:', error);
-      }
-      return;
+    // Para web, remover do cache em memória
+    memoryCache.registros = memoryCache.registros.filter(r => r.id !== id);
+    try {
+      await robustSetItem('cached_registros', JSON.stringify(memoryCache.registros));
+    } catch (error) {
+      console.warn('⚠️ Erro ao remover registro do cache:', error);
     }
+    // NÃO FAZ RETURN, segue abaixo para deletar do storage universal!
 
     // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente
     try {
@@ -2735,6 +2748,15 @@ export const supabaseDataService = {
       // Também remover fallback individual se existir
       try {
         await robustRemoveItem(`registro_fallback_${id}`);
+        // Também tentar deletar na web Storage caso exista (resquício)
+        if (typeof localStorage !== 'undefined') {
+          const webFilaData = localStorage.getItem('fila_envio');
+          if (webFilaData) {
+            let webFila = JSON.parse(webFilaData);
+            webFila = webFila.filter((r: any) => r.id !== id);
+            localStorage.setItem('fila_envio', JSON.stringify(webFila));
+          }
+        }
       } catch (e) {
         // Ignorar erro se não existir
       }
@@ -3185,36 +3207,12 @@ export const supabaseDataService = {
   },
 
   async countRegistrosPendentes(): Promise<number> {
-    if (Platform.OS === 'web') {
-      // Para web, usar cache em memória ou AsyncStorage
-      if (memoryCache.registros.length > 0) {
-        return memoryCache.registros.filter(r => r.status_sincronizacao === 'pending').length;
-      }
-      try {
-        const cached = await robustGetItem('cached_registros');
-        if (cached) {
-          const registros = JSON.parse(cached);
-          // Validar e sanitizar dados
-          const validRegistros = registros.filter(
-            (r: any) => isValidString(r.id) && r.status_sincronizacao
-          );
-          memoryCache.registros = validRegistros;
-          return validRegistros.filter(
-            (r: RegistroPresenca) => r.status_sincronizacao === 'pending'
-          ).length;
-        }
-      } catch (error) {
-        console.warn('⚠️ Erro ao contar registros do cache robusto:', error);
-      }
-      return 0;
-    }
-
-    // 🚨 CORREÇÃO CRÍTICA: Para mobile, usar AsyncStorage diretamente
     try {
+      // 🚨 CORREÇÃO CRÍTICA: Contar sempre buscando da função unificada (mais seguro e real)
       const registros = await this.getRegistrosPendentesFromLocal();
       return registros.length;
     } catch (error) {
-      console.warn('⚠️ Erro ao contar registros pendentes do AsyncStorage:', error);
+      console.warn('⚠️ Erro ao contar registros pendentes:', error);
       return 0;
     }
   },
