@@ -60,9 +60,18 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
     const customStyle = document.createElement('style');
     customStyle.id = 'sweetalert2-custom-styles';
     customStyle.textContent = `
+      /* Font-family global para todos os alertas customizados */
+      .swal2-popup-modern,
+      .swal2-popup-modern .swal2-title,
+      .swal2-popup-modern .swal2-html-container,
+      .swal2-toast-modern,
+      .swal2-toast-modern .swal2-title,
+      .swal2-toast-modern .swal2-html-container {
+        font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+      }
+
       /* Toasts unificados e modernos */
       .swal2-toast-modern {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
         background: rgba(255, 255, 255, 0.95) !important;
         backdrop-filter: blur(10px) !important;
         -webkit-backdrop-filter: blur(10px) !important;
@@ -77,7 +86,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
       }
       
       .swal2-toast-modern .swal2-title {
-        font-size: 14px !important;
+        font-size: 15px !important;
         font-weight: 600 !important;
         color: #1f2937 !important;
         margin: 0 0 2px 0 !important;
@@ -86,7 +95,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
       }
       
       .swal2-toast-modern .swal2-html-container {
-        font-size: 13px !important;
+        font-size: 14px !important;
         font-weight: 400 !important;
         color: #6b7280 !important;
         margin: 0 !important;
@@ -111,23 +120,22 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 
       /* Modais Centrais Estilo App Nativo */
       .swal2-popup.swal2-popup-modern {
-        font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif !important;
-        border-radius: 14px !important;
+        border-radius: 16px !important;
         padding: 0 !important;
-        width: 320px !important;
-        max-width: 85% !important;
-        background: rgba(255, 255, 255, 0.95) !important;
+        width: 340px !important;
+        max-width: 90% !important;
+        background: rgba(255, 255, 255, 0.98) !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
-        border: 1px solid rgba(255, 255, 255, 0.5) !important;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12) !important;
+        border: 1px solid rgba(0, 0, 0, 0.05) !important;
         overflow: hidden !important;
       }
 
       .swal2-popup-modern .swal2-icon {
-        margin-top: 24px !important;
-        width: 60px !important;
-        height: 60px !important;
+        margin-top: 28px !important;
+        width: 64px !important;
+        height: 64px !important;
         border-width: 3px !important;
         background-color: transparent !important;
       }
@@ -141,19 +149,19 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
       }
       
       .swal2-popup-modern .swal2-title {
-        font-size: 18px !important;
-        font-weight: 600 !important;
-        color: #000 !important;
-        margin: 16px 20px 8px 20px !important;
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        color: #111827 !important;
+        margin: 20px 24px 8px 24px !important;
         text-align: center !important;
       }
       
       .swal2-popup-modern .swal2-html-container {
-        font-size: 14px !important;
+        font-size: 15px !important;
         font-weight: 400 !important;
-        color: #333 !important;
-        margin: 0 20px 20px 20px !important;
-        line-height: 1.4 !important;
+        color: #4b5563 !important;
+        margin: 0 24px 28px 24px !important;
+        line-height: 1.5 !important;
         text-align: center !important;
       }
 
@@ -162,7 +170,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
         width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
-        border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
+        border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
         margin-top: auto !important;
       }
 
