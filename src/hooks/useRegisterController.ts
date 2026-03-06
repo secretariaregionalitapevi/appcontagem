@@ -758,61 +758,28 @@ export const useRegisterController = () => {
       console.log('✅ [SUBMIT] Validações passaram, iniciando processamento...');
       setLoading(true);
 
-      // 🚨 ESTRATÉGIA SIMPLIFICADA: Verificar status de conexão de forma mais confiável
+      // 🚨 DETECÇÃO DE CONECTIVIDADE SIMPLIFICADA:
+      // Para web/PWA: usar navigator.onLine como fonte única de verdade.
+      // NÃO combinar múltiplas verificações com OR - um false positive causava tudo ir para a fila.
       let isOfflineNow = false;
 
-      // Verificar status de conexão de forma mais robusta
       try {
-        // 1. Verificar hook primeiro (mais confiável)
-        const hookOffline = !isOnline;
-
-        // 2. Verificar nossa função robusta (engloba NetInfo e Fallbacks Web)
-        let netInfoOffline = false;
-        try {
-          const isReallyOnline = await offlineSyncService.isOnline();
-          netInfoOffline = !isReallyOnline;
-          console.log(`📡 [${Platform.OS}] Serviço OfflineSync:`, {
-            isReallyOnline,
-          });
-        } catch (netError) {
-          console.warn(`⚠️ [${Platform.OS}] Serviço OfflineSync falhou:`, netError);
-          // Se falhar, confiar no hook
-          netInfoOffline = hookOffline;
-        }
-
-        // 3. Verificar navigator.onLine (se disponível)
-        const navigatorOffline =
-          typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
-
-        // 🚨 ESTRATÉGIA: Se QUALQUER verificação indicar offline, considerar offline
-        // No iOS, ser mais conservador - se houver qualquer dúvida, salvar na fila
-        if (Platform.OS === 'ios') {
-          // iOS: Se NetInfo OU hook indicar offline, salvar na fila
-          isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-          console.log(`🍎 [iOS] Status offline:`, {
-            netInfoOffline,
-            hookOffline,
-            navigatorOffline,
-            isOfflineNow,
-          });
-        } else if (Platform.OS === 'android') {
-          // Android: Se NetInfo OU hook indicar offline, salvar na fila
-          isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-          console.log(`🤖 [Android] Status offline:`, {
-            netInfoOffline,
-            hookOffline,
-            navigatorOffline,
+        if (Platform.OS === 'web') {
+          // Web/PWA (inclui iPhone Safari, Chrome Mobile, App instalado):
+          // navigator.onLine é a fonte mais confiável
+          isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : false;
+          console.log(`🌐 [Web] Status offline via navigator.onLine:`, {
+            navigatorOnLine: typeof navigator !== 'undefined' ? navigator.onLine : 'N/A',
             isOfflineNow,
           });
         } else {
-          // Web: Usar navigator.onLine diretamente
-          isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : hookOffline;
-          console.log(`🌐 [Web] Status offline:`, { navigatorOffline, hookOffline, isOfflineNow });
+          // App nativo (iOS app, Android app): usar hook de status
+          isOfflineNow = !isOnline;
+          console.log(`📱 [Native] Status offline via hook:`, { isOnline, isOfflineNow });
         }
       } catch (error) {
         console.error('❌ Erro ao verificar status de conexão:', error);
-        // Em caso de erro, assumir offline para segurança
-        isOfflineNow = true;
+        isOfflineNow = false; // Em caso de erro, tentar enviar online
       }
 
       // 🚨 CRÍTICO: Se estiver offline, salvar IMEDIATAMENTE na fila (SEM tentar online)

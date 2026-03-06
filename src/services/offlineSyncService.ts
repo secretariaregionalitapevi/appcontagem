@@ -30,44 +30,13 @@ export const offlineSyncService = {
     }
 
     if (Platform.OS === 'web') {
-      // Para web/PWA: usar navigator.onLine como fonte primária
-      const navigatorOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-
-      // Se o browser diz offline, confiar nisso imediatamente
-      if (!navigatorOnline) {
-        lastOnlineCheck = now;
-        lastOnlineResult = false;
-        return false;
-      }
-
-      // navigator.onLine = true: confirmar com ping a endpoint neutro publico
-      // NAO usar Supabase URL aqui - requer auth headers e causa erros 401
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
-        try {
-          await fetch('https://www.google.com/favicon.ico', {
-            method: 'HEAD',
-            mode: 'no-cors',
-            cache: 'no-store',
-            signal: controller.signal,
-          });
-          clearTimeout(timeoutId);
-          lastOnlineCheck = now;
-          lastOnlineResult = true;
-          return true;
-        } catch {
-          clearTimeout(timeoutId);
-          // Ping falhou mas navigator.onLine = true: confiar no browser
-          lastOnlineCheck = now;
-          lastOnlineResult = navigatorOnline;
-          return navigatorOnline;
-        }
-      } catch {
-        lastOnlineCheck = now;
-        lastOnlineResult = navigatorOnline;
-        return navigatorOnline;
-      }
+      // Para web/PWA: usar navigator.onLine como fonte direta e imediata.
+      // Evitar qualquer ping de rede - e lento e pode falhar por CSP/captive portal
+      // no iPhone/iOS, causando falsos negativos que fazem tudo ir para a fila offline.
+      const result = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      lastOnlineCheck = now;
+      lastOnlineResult = result;
+      return result;
     }
 
     let NetInfoModule = NetInfo;
