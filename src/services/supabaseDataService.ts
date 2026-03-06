@@ -123,7 +123,28 @@ const CARGOS_FIXED = [
   'Enfermeiro (a)',
 ];
 
+// 🚨 FUNÇÃO AUXILIAR: Extrair apenas o nome da comum (remover código de localização)
+// Exemplo: "BR-22-1739 - JARDIM MIRANDA" -> "JARDIM MIRANDA"
+export const extrairNomeComum = (comumCompleto: string): string => {
+  if (!comumCompleto) return '';
+  // Se contém " - ", pegar a parte depois do " - "
+  if (comumCompleto.includes(' - ')) {
+    const partes = comumCompleto.split(' - ');
+    return partes.slice(1).join(' - ').trim();
+  }
+  // Se contém apenas " -" (sem espaço antes), também tentar separar
+  if (comumCompleto.includes(' -')) {
+    const partes = comumCompleto.split(' -');
+    return partes.slice(1).join(' -').trim();
+  }
+  // Se não tem separador, retornar como está
+  return comumCompleto.trim();
+};
+
 export const supabaseDataService = {
+  // Tornar acessível externamente
+  extrairNomeComum,
+
   // Comuns - Buscar da tabela cadastro (seguindo lógica do app.js)
   async fetchComuns(): Promise<Comum[]> {
     if (!isSupabaseConfigured() || !supabase) {
@@ -131,17 +152,15 @@ export const supabaseDataService = {
     }
 
     try {
-      console.log('📚 Buscando comuns da tabela cadastro (seguindo lógica do app.js)...');
+      console.log('📚 Buscando comuns da tabela oficial comuns...');
 
-      // Tentar primeiro com 'cadastro', depois 'musicos_unificado' (fallback)
-      let tableName = 'cadastro';
+      const tableName = 'comuns';
       let allData: any[] = [];
       let hasMore = true;
       let currentPage = 0;
-      const pageSize = 1000; // Supabase permite até 1000 por página
+      const pageSize = 1000;
       let finalError: any = null;
 
-      // Função para buscar uma página
       const fetchPage = async (
         table: string,
         page: number
@@ -150,45 +169,14 @@ export const supabaseDataService = {
         const to = from + pageSize - 1;
 
         try {
-          // Buscar apenas comum (sem filtro de ativo)
-          let result = await supabase
+          const result = await supabase
             .from(table)
             .select('comum')
-            .not('comum', 'is', null)
-            .neq('comum', '')
             .order('comum', { ascending: true })
             .range(from, to);
 
-          // Se der erro 400, tentar query simplificada
-          if (result.error && (result.error.code === '400' || result.error.code === 'PGRST116')) {
-            console.log(
-              `⚠️ Erro ${result.error.code} na query completa, tentando query simplificada...`
-            );
-            result = await supabase
-              .from(table)
-              .select('comum')
-              .order('comum', { ascending: true })
-              .range(from, to);
-
-            if (!result.error && result.data) {
-              // Filtrar nulls e vazios no cliente
-              const filtered = result.data.filter(
-                (r: any) => r.comum && typeof r.comum === 'string' && r.comum.trim() !== ''
-              );
-              return {
-                data: filtered,
-                error: null,
-                hasMore: filtered.length === pageSize,
-              };
-            }
-          }
-
           if (result.error) {
-            return {
-              data: [],
-              error: result.error,
-              hasMore: false,
-            };
+            return { data: [], error: result.error, hasMore: false };
           }
 
           return {
@@ -197,87 +185,28 @@ export const supabaseDataService = {
             hasMore: (result.data?.length || 0) === pageSize,
           };
         } catch (error) {
-          return {
-            data: [],
-            error: error as any,
-            hasMore: false,
-          };
+          return { data: [], error: error as any, hasMore: false };
         }
       };
 
-      // Tentar primeiro com 'cadastro'
       while (hasMore) {
         try {
           const pageResult = await fetchPage(tableName, currentPage);
 
           if (pageResult.error) {
-            // Se for primeira página e der erro, tentar fallback
-            if (currentPage === 0 && tableName === 'cadastro') {
-              console.log('⚠️ Erro ao buscar da tabela cadastro, tentando musicos_unificado...');
-              tableName = 'musicos_unificado';
-              currentPage = 0;
-              allData = [];
-              continue;
-            }
             finalError = pageResult.error;
             break;
           }
 
           if (pageResult.data && pageResult.data.length > 0) {
             allData = allData.concat(pageResult.data);
-            console.log(
-              `📄 Página ${currentPage + 1}: ${pageResult.data.length} registros (total: ${allData.length})`
-            );
           }
 
           hasMore = pageResult.hasMore;
           currentPage++;
         } catch (error) {
-          console.error(`❌ Erro ao buscar página ${currentPage + 1}:`, error);
-          // Se for primeira página, tentar fallback
-          if (currentPage === 0 && tableName === 'cadastro') {
-            console.log('⚠️ Erro na primeira página, tentando musicos_unificado...');
-            tableName = 'musicos_unificado';
-            currentPage = 0;
-            allData = [];
-            continue;
-          }
           finalError = error;
           break;
-        }
-      }
-
-      // Se ainda não encontrou dados e estava tentando 'cadastro', tentar 'musicos_unificado'
-      if (allData.length === 0 && tableName === 'cadastro' && !finalError) {
-        console.log('⚠️ Nenhum dado encontrado na tabela cadastro, tentando musicos_unificado...');
-        tableName = 'musicos_unificado';
-        currentPage = 0;
-        hasMore = true;
-        allData = [];
-
-        while (hasMore) {
-          try {
-            const pageResult = await fetchPage(tableName, currentPage);
-
-            if (pageResult.error) {
-              finalError = pageResult.error;
-              break;
-            }
-
-            if (pageResult.data && pageResult.data.length > 0) {
-              allData = allData.concat(pageResult.data);
-              console.log(
-                `📄 Página ${currentPage + 1}: ${pageResult.data.length} registros (total: ${allData.length})`
-              );
-            }
-
-            hasMore = pageResult.hasMore;
-            currentPage++;
-          } catch (error) {
-            console.error(`❌ Erro ao buscar página ${currentPage + 1}:`, error);
-            finalError = error;
-            break;
-          }
         }
       }
 
@@ -286,64 +215,39 @@ export const supabaseDataService = {
         throw finalError;
       }
 
-      if (allData.length === 0) {
-        console.warn('⚠️ Nenhuma comum encontrada na tabela', tableName);
-        return [];
-      }
-
       console.log(`✅ Total de ${allData.length} registros encontrados na tabela ${tableName}`);
 
-      // Extrair valores únicos de 'comum' e normalizar (seguindo lógica do app.js)
-      const comunsSet = new Set<string>();
+      // Mapear pelo nome de exibição para eliminar duplicatas reais (mesmo nome com códigos diferentes)
+      const nomeParaRecord = new Map<string, string>();
 
       allData.forEach((record: any) => {
-        const comum = record.comum;
-        if (comum && typeof comum === 'string') {
-          const comumTrimmed = comum.trim();
-          if (comumTrimmed) {
-            // Normalizar: todas as letras maiúsculas
-            const comumNormalizado = comumTrimmed.toUpperCase();
-            comunsSet.add(comumNormalizado);
+        const comumCompleta = record.comum;
+        if (comumCompleta && typeof comumCompleta === 'string') {
+          const nomeExibicao = extrairNomeComum(comumCompleta).toUpperCase();
+          if (nomeExibicao && !nomeParaRecord.has(nomeExibicao)) {
+            nomeParaRecord.set(nomeExibicao, comumCompleta);
           }
         }
       });
 
-      // Converter Set para array e ordenar
-      const comunsArray = Array.from(comunsSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-
-      console.log(`✅ ${comunsArray.length} comuns únicas encontradas`);
-
-      // Função para extrair apenas o nome da comum (remover código de localização)
-      // Exemplo: "BR-22-1739 - JARDIM MIRANDA" -> "JARDIM MIRANDA"
-      const extrairNomeComum = (comumCompleto: string): string => {
-        // Se contém " - ", pegar a parte depois do " - "
-        if (comumCompleto.includes(' - ')) {
-          const partes = comumCompleto.split(' - ');
-          return partes.slice(1).join(' - ').trim();
-        }
-        // Se contém apenas " -" (sem espaço antes), também tentar separar
-        if (comumCompleto.includes(' -')) {
-          const partes = comumCompleto.split(' -');
-          return partes.slice(1).join(' -').trim();
-        }
-        // Se não tem separador, retornar como está
-        return comumCompleto.trim();
-      };
+      // Converter Map para array de nomes completos e ordenar
+      const nomesCompletosUnicos = Array.from(nomeParaRecord.values()).sort((a, b) =>
+        extrairNomeComum(a).localeCompare(extrairNomeComum(b), 'pt-BR')
+      );
 
       // Converter para formato Comum[]
-      // Armazenar nome completo no id/nome original, mas criar campo displayName para exibição
-      const comuns: Comum[] = comunsArray.map((nomeCompleto, index) => {
+      const comuns: Comum[] = nomesCompletosUnicos.map((nomeCompleto, index) => {
         const nomeExibicao = extrairNomeComum(nomeCompleto);
         return {
-          id: `comum_${index + 1}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
-          nome: nomeCompleto, // Nome completo com código (para registro)
-          displayName: nomeExibicao, // Nome sem código (para exibição)
+          id: `comum_${index + 1}_${nomeCompleto.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+          nome: nomeCompleto,
+          displayName: nomeExibicao,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as any;
       });
 
-      console.log(`✅ Retornando ${comuns.length} comuns processadas da tabela ${tableName}`);
+      console.log(`✅ Retornando ${comuns.length} comuns únicas (deduplicadas por nome de exibição)`);
       console.log(
         `📋 Primeiras 5 comuns:`,
         comuns.slice(0, 5).map(c => c.nome)
@@ -3226,30 +3130,11 @@ export const supabaseDataService = {
   },
 
   /**
-   * Extrai o nome da comum removendo o código de localização
-   * Exemplo: "BR-22-1739 - JARDIM MIRANDA" -> "JARDIM MIRANDA"
-   */
-  extrairNomeComum(comumCompleto: string): string {
-    if (!comumCompleto) return '';
-    // Se contém " - ", pegar a parte depois do " - "
-    if (comumCompleto.includes(' - ')) {
-      const partes = comumCompleto.split(' - ');
-      return partes.slice(1).join(' - ').trim();
-    }
-    // Se contém apenas " -" (sem espaço antes), também tentar separar
-    if (comumCompleto.includes(' -')) {
-      const partes = comumCompleto.split(' -');
-      return partes.slice(1).join(' -').trim();
-    }
-    // Se não tem separador, retornar como está
-    return comumCompleto.trim();
-  },
-
-  /**
    * Busca registros da tabela presencas do Supabase filtrados por local_ensaio
    * Permite busca por nome, cargo ou comum
    */
   async fetchRegistrosFromSupabase(localEnsaio: string, searchTerm?: string): Promise<any[]> {
+
     if (!isSupabaseConfigured() || !supabase) {
       throw new Error('Supabase não está configurado');
     }

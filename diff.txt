@@ -1,0 +1,34 @@
+﻿diff --git a/src/services/supabaseDataService.ts b/src/services/supabaseDataService.ts
+index 2b9cfe5..2f9d11a 100644
+--- a/src/services/supabaseDataService.ts
++++ b/src/services/supabaseDataService.ts
+@@ -1178,9 +1178,17 @@ export const supabaseDataService = {
+             return q.order('nome', { ascending: true }).range(from, to);
+           };
+ 
++          const buildAccentWildcard = (str: string) => {
++            return str.replace(/[AEIOU├ü├ë├ì├ô├Ü├é├è├Ä├ö├ø├â├ò├ä├ï├Å├û├£C├çaeiou├í├®├¡├│├║├ó├¬├«├┤├╗├ú├Á├ñ├½├»├Â├╝c├º]/g, '_');
++          };
++
+           const queriesComum = [
+             buildFallbackQuery(`%${comumNomeSemCodigo.toUpperCase()}%`), // Nome original (com acentos)
+             buildFallbackQuery(`%${comumNome.trim()}%`), // Nome completo (com c├│digo)
++            // ­ƒÜ¿ CORRE├ç├âO CR├ìTICA PARA ACENTOS: Busca com wildcards (_) onde h├í vogais ou C
++            // Pois o banco pode ter CH├üCARA e a busca ser CHACARA (o ilike n├úo ignora acentos sem extens├úo)
++            buildFallbackQuery(`%${buildAccentWildcard(comumBusca)}%`),
++            buildFallbackQuery(`%${buildAccentWildcard(comumNomeSemCodigo.toUpperCase())}%`),
+           ];
+ 
+           const resultsComum = await Promise.all(queriesComum);
+@@ -2357,9 +2365,9 @@ export const supabaseDataService = {
+           .lt('data_ensaio', dataFim.toISOString())
+           .limit(1); // ­ƒÜÇ OTIMIZA├ç├âO: Parar na primeira duplicata encontrada (mais r├ípido)
+ 
+-        // ­ƒÜÇ OTIMIZA├ç├âO: Timeout de 8 segundos para n├úo bloquear muito tempo
++        // ­ƒÜÇ OTIMIZA├ç├âO: Timeout de 3 segundos para n├úo bloquear muito tempo
+         const timeoutPromise = new Promise((_, reject) =>
+-          setTimeout(() => reject(new Error('Timeout na verifica├º├úo de duplicatas')), 8000)
++          setTimeout(() => reject(new Error('Timeout na verifica├º├úo de duplicatas')), 3000)
+         );
+ 
+         const { data: duplicatas, error: duplicataError } = (await Promise.race([

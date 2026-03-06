@@ -418,22 +418,38 @@ export const useRegisterController = () => {
       });
 
       // Se ainda não há dados locais e está online, tentar buscar diretamente (fallback crítico)
+      // 🚀 ATUALIZAÇÃO AUTOMÁTICA: Se estiver online, sempre tentar atualizar o cache em background
+      // Mas se for um refresh manual, vamos esperar a resposta para atualizar a UI imediatamente
       let finalComuns = comunsData;
-      if (isOnline && comunsData.length === 0) {
-        console.log('🔄 Nenhuma comum no cache local, buscando diretamente do Supabase...');
-        try {
-          const comunsDiretas = await supabaseDataService.fetchComuns();
-          if (comunsDiretas.length > 0) {
-            finalComuns = comunsDiretas;
-            // Salvar no cache em background
-            supabaseDataService
-              .syncComunsToLocal()
-              .catch(err => console.warn('⚠️ Erro ao salvar comuns no cache:', err));
+
+      if (isOnline) {
+        if (isRefresh || comunsData.length === 0) {
+          console.log('🔄 Sincronizando comuns diretamente do Supabase (aguardando)...');
+          try {
+            const comunsDiretas = await supabaseDataService.fetchComuns();
+            if (comunsDiretas.length > 0) {
+              finalComuns = comunsDiretas;
+            }
+          } catch (error) {
+            console.warn('⚠️ Erro ao buscar comuns do Supabase:', error);
           }
-        } catch (error) {
-          console.warn('⚠️ Erro ao buscar comuns diretamente:', error);
+        } else {
+          // Sync em background se já temos dados mas queremos garantir que estão frescos
+          console.log('🔄 Iniciando atualização de comuns em background...');
+          supabaseDataService.syncComunsToLocal()
+            .then(async () => {
+              // Se o sync terminou, carregar os dados novos para a UI
+              const novasComuns = await supabaseDataService.getComunsFromLocal();
+              if (novasComuns.length > 0) {
+                console.log(`✅ UI atualizada com ${novasComuns.length} comuns após sync de background`);
+                setComuns(novasComuns);
+              }
+            })
+            .catch(err => console.warn('⚠️ Erro no sync de background:', err));
         }
+
       }
+
 
       setComuns(finalComuns);
       setCargos(cargosData);
