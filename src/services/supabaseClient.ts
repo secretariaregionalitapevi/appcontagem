@@ -9,9 +9,10 @@ try {
   if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
     supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
       auth: {
-        persistSession: false, // Vamos gerenciar a sessão manualmente com secure-store
-        autoRefreshToken: true,
-        detectSessionInUrl: false,
+        persistSession: true,        // ✅ Deixar Supabase gerenciar sessão automaticamente
+        autoRefreshToken: true,      // ✅ Renovar token antes de expirar
+        detectSessionInUrl: true,    // ✅ Restaurar sessão de URL (OAuth callbacks)
+        storageKey: 'supabase-auth', // Chave estável no localStorage/AsyncStorage
       },
     });
   } else {
@@ -28,102 +29,75 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
   }
 
   try {
-    // 🚨 OTIMIZAÇÃO: Tentar obter sessão de forma rápida com timeout
-    const getSessionPromise = supabase.auth.getSession();
-    const timeoutPromise = new Promise<any>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), 2000)
-    );
+    // 1. Verificar se já existe sessão ativa (Supabase gerencia automaticamente com persistSession: true)
+    const { data: { session }, error } = await supabase.auth.getSession();
 
-    try {
-      const { data: { session: currentSession }, error: sessionError } = await Promise.race([
-        getSessionPromise,
-        timeoutPromise
-      ]);
-
-      if (currentSession && currentSession.user && !sessionError) {
-        // Verificar se a sessão ainda é válida (não expirou)
-        const expiresAt = currentSession.expires_at;
-        if (expiresAt && expiresAt * 1000 > Date.now() + 60000) { // Margem de 1 min
-          return true; // Sessão válida
-        }
+    if (session && session.user && !error) {
+      const expiresAt = session.expires_at;
+      // Sessão válida por mais de 1 minuto
+      if (expiresAt && expiresAt * 1000 > Date.now() + 60000) {
+        return true;
       }
-    } catch (e) {
-      console.warn('⚠️ getSession timed out or failed, attempting manual restoration...');
+      // Sessão quase expirando ou expirada - tentar refresh
+      console.log('🔄 Sessão expirando, fazendo refresh...');
+      try {
+        const { data: { session: refreshed }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshed && !refreshError) {
+          console.log('✅ Sessão renovada com sucesso');
+          // Salvar nova sessão no authService para consistência
+          try {
+            await authService.saveSession({
+              access_token: refreshed.access_token,
+              refresh_token: refreshed.refresh_token,
+              expires_at: refreshed.expires_at,
+            });
+          } catch (_) { }
+          return true;
+        }
+      } catch (_) { }
     }
 
-    // 🚨 CORREÇÃO: Tentar restaurar do authService apenas se não houver sessão válida
+    // 2. Nenhuma sessão ativa - tentar restaurar do authService (fallback)
     try {
       const sessionData = await authService.getSession();
-
-      if (sessionData && sessionData.access_token && sessionData.refresh_token) {
-        console.log('🔑 Token encontrado no authService, restaurando...');
-        // Tentar definir a sessão com timeout rigoroso
-        const setSessionPromise = supabase.auth.setSession({
+      if (sessionData?.access_token && sessionData?.refresh_token) {
+        console.log('🔑 Restaurando sessão do authService...');
+        const { data: { session: restored }, error: setError } = await supabase.auth.setSession({
           access_token: sessionData.access_token,
           refresh_token: sessionData.refresh_token,
         });
-
-        try {
-          const { data: { session }, error: setSessionError } = await Promise.race([
-            setSessionPromise,
-            new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
-          ]);
-
-          if (session && !setSessionError) {
-            console.log('✅ Sessão restaurada com sucesso via setSession');
-            return true;
-          }
-        } catch (e) {
-          console.warn('⚠️ setSession timed out or failed');
+        if (restored && !setError) {
+          console.log('✅ Sessão restaurada do authService');
+          return true;
         }
-
-        // 🚨 CORREÇÃO: Se o token expirou ou é inválido, tentar refresh APENAS se tiver refresh_token válido
-        if (setSessionError && sessionData.refresh_token) {
-          // Verificar se o refresh_token não está muito antigo (mais de 30 dias)
-          const tokenAge = sessionData.expires_at ? Date.now() - sessionData.expires_at * 1000 : 0;
-          const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 dias em ms
-
-          if (tokenAge < maxAge) {
+        // Se falhou, tentar refresh direto
+        if (sessionData.refresh_token) {
+          const { data: { session: refreshed2 }, error: refreshError2 } = await supabase.auth.refreshSession({
+            refresh_token: sessionData.refresh_token,
+          });
+          if (refreshed2 && !refreshError2) {
             try {
-              const {
-                data: { session: refreshedSession },
-                error: refreshError,
-              } = await supabase.auth.refreshSession({
-                refresh_token: sessionData.refresh_token,
+              await authService.saveSession({
+                access_token: refreshed2.access_token,
+                refresh_token: refreshed2.refresh_token,
+                expires_at: refreshed2.expires_at,
               });
-
-              if (refreshedSession && !refreshError) {
-                // Salvar nova sessão
-                await authService.saveSession({
-                  access_token: refreshedSession.access_token,
-                  refresh_token: refreshedSession.refresh_token,
-                  expires_at: refreshedSession.expires_at,
-                });
-                return true;
-              } else if (refreshError) {
-                console.warn('⚠️ Erro ao fazer refresh da sessão:', refreshError.message);
-                // Se o refresh falhou, limpar sessão inválida
-                await authService.clearSession();
-              }
-            } catch (refreshErr) {
-              console.warn('⚠️ Exceção ao fazer refresh da sessão:', refreshErr);
-              await authService.clearSession();
-            }
+            } catch (_) { }
+            return true;
           } else {
-            console.warn('⚠️ Refresh token muito antigo, limpando sessão');
-            await authService.clearSession();
+            // Refresh falhou - sessão inválida, limpar
+            console.warn('⚠️ Refresh falhou, clearing stale session');
+            await authService.clearSession().catch(() => { });
           }
         }
       }
-    } catch (authServiceError) {
-      console.warn('⚠️ Erro ao buscar sessão do authService:', authServiceError);
+    } catch (authError) {
+      console.warn('⚠️ Erro ao restaurar do authService:', authError);
     }
 
-    // 🚨 CORREÇÃO: Se não conseguiu restaurar, retornar false mas não bloquear operações
-    // (RLS pode permitir algumas operações sem autenticação)
     return false;
   } catch (error) {
-    console.warn('⚠️ Erro ao garantir restauração de sessão:', error);
+    console.warn('⚠️ Erro ao verificar sessão:', error);
     return false;
   }
 };

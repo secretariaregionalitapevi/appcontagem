@@ -30,60 +30,43 @@ export const offlineSyncService = {
     }
 
     if (Platform.OS === 'web') {
-      // NetInfo no Web muitas vezes tenta pingar localhost e falha
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      // Para web/PWA: usar navigator.onLine como fonte primária
+      const navigatorOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+      // Se o browser diz offline, confiar nisso imediatamente
+      if (!navigatorOnline) {
         lastOnlineCheck = now;
         lastOnlineResult = false;
         return false;
       }
 
+      // navigator.onLine = true: confirmar com ping a endpoint neutro publico
+      // NAO usar Supabase URL aqui - requer auth headers e causa erros 401
       try {
-        // Ping rápido e robusto
-        // 🚨 OTIMIZAÇÃO: Usar um endpoint que não cause 401 e seja rápido
-        const pingUrl = isSupabaseConfigured() && supabase
-          ? `${(supabase as any).supabaseUrl}/rest/v1/?select=id&limit=0` // Query mínima que não deve exigir RLS se o anon key for válido
-          : 'https://www.google.com/favicon.ico';
-
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // Aumentado para 5s
-
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
         try {
-          const response = await fetch(pingUrl, {
-            method: 'HEAD', // HEAD é mais leve que GET
+          await fetch('https://www.google.com/favicon.ico', {
+            method: 'HEAD',
             mode: 'no-cors',
             cache: 'no-store',
-            signal: controller.signal
+            signal: controller.signal,
           });
-
           clearTimeout(timeoutId);
           lastOnlineCheck = now;
           lastOnlineResult = true;
           return true;
-        } catch (fetchError) {
-          // Se falhou HEAD, tentar GET com no-cors como fallback (alguns servidores bloqueiam HEAD)
-          console.log('⚠️ HEAD ping falhou, tentando fallback GET no-cors...');
-          try {
-            await fetch('https://clients3.google.com/generate_204', {
-              method: 'GET',
-              mode: 'no-cors',
-              cache: 'no-store',
-              signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-            lastOnlineCheck = now;
-            lastOnlineResult = true;
-            return true;
-          } catch (e) {
-            clearTimeout(timeoutId);
-            throw e;
-          }
+        } catch {
+          clearTimeout(timeoutId);
+          // Ping falhou mas navigator.onLine = true: confiar no browser
+          lastOnlineCheck = now;
+          lastOnlineResult = navigatorOnline;
+          return navigatorOnline;
         }
-      } catch (error) {
-        console.warn('⚠️ Todos os testes de ping falharam. Navigator:', navigator.onLine);
+      } catch {
         lastOnlineCheck = now;
-        lastOnlineResult = typeof navigator !== 'undefined' ? navigator.onLine : false;
-        return lastOnlineResult;
+        lastOnlineResult = navigatorOnline;
+        return navigatorOnline;
       }
     }
 
