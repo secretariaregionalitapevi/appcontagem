@@ -145,6 +145,33 @@ export const supabaseDataService = {
   // Tornar acessível externamente
   extrairNomeComum,
 
+  // 🛡️ FUNÇÃO AUXILIAR: Executar query com retry para erros de autenticação (401/403)
+  // Útil para evitar falhas silenciosas por expiração de token no mobile/PWA
+  async executeWithRetry<T>(operation: () => Promise<{ data: T | null; error: any }>): Promise<{ data: T | null; error: any }> {
+    const result = await operation();
+
+    // Verificar se é erro de autenticação (401 ou 403)
+    const isAuthError =
+      result.error && (
+        result.error.status === 401 ||
+        result.error.status === 403 ||
+        result.error.code === 'PGRST301' || // JWT expired
+        result.error.message?.toLowerCase().includes('authorized') ||
+        result.error.message?.toLowerCase().includes('jwt')
+      );
+
+    if (isAuthError) {
+      console.warn('⚠️ Erro de autenticação detectado no Supabase, tentando restaurar sessão e repetir...');
+      const restored = await ensureSessionRestored();
+      if (restored) {
+        console.log('✅ Sessão restaurada com sucesso, repetindo operação...');
+        return await operation();
+      }
+    }
+
+    return result;
+  },
+
   // Comuns - Buscar da tabela cadastro (seguindo lógica do app.js)
   async fetchComuns(): Promise<Comum[]> {
     if (!isSupabaseConfigured() || !supabase) {
@@ -169,11 +196,13 @@ export const supabaseDataService = {
         const to = from + pageSize - 1;
 
         try {
-          const result = await supabase
-            .from(table)
-            .select('comum')
-            .order('comum', { ascending: true })
-            .range(from, to);
+          const result = await this.executeWithRetry(() =>
+            supabase
+              .from(table)
+              .select('comum')
+              .order('comum', { ascending: true })
+              .range(from, to)
+          );
 
           if (result.error) {
             return { data: [], error: result.error, hasMore: false };
@@ -898,8 +927,10 @@ export const supabaseDataService = {
               .range(from, to),
           ];
 
-          // Executar todas as queries em paralelo
-          const results = await Promise.all(queries);
+          // Executar todas as queries em paralelo com retry para autenticação
+          const results = await Promise.all(
+            queries.map(q => this.executeWithRetry(() => q))
+          );
 
           // Combinar resultados removendo duplicatas
           const combinedData: any[] = [];
@@ -1000,7 +1031,7 @@ export const supabaseDataService = {
           `🔍 [fetchPessoasFromCadastro] Query1 construída com filtro de cargo: ${cargoBusca}`
         );
 
-        const result1 = await query1;
+        const result1 = await this.executeWithRetry(() => query1);
 
         if (result1.data && !result1.error && result1.data.length > 0) {
           // 🚀 OTIMIZAÇÃO: Se encontrou resultados na primeira query, usar apenas ela (mais rápido)
@@ -1106,7 +1137,9 @@ export const supabaseDataService = {
             buildFallbackQuery(`%${buildAccentWildcard(comumNomeSemCodigo.toUpperCase())}%`),
           ];
 
-          const resultsComum = await Promise.all(queriesComum);
+          const resultsComum = await Promise.all(
+            queriesComum.map(q => this.executeWithRetry(() => q))
+          );
 
           resultsComum.forEach(result => {
             if (result.data && !result.error) {
@@ -1552,8 +1585,8 @@ export const supabaseDataService = {
           )
           .order('nome', { ascending: true });
 
-        // Aplicar range para paginação
-        const result = await query.range(from, to);
+        // Aplicar range para paginação com retry para autenticação
+        const result = await this.executeWithRetry(() => query.range(from, to));
 
         console.log(`📊 Resultado query página ${page + 1}:`, {
           dataLength: result.data?.length || 0,

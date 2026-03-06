@@ -38,32 +38,50 @@ export const offlineSyncService = {
       }
 
       try {
-        // Ping rápido usando o endpoint do próprio Supabase (mais confiável e rápido)
+        // Ping rápido e robusto
+        // 🚨 OTIMIZAÇÃO: Usar um endpoint que não cause 401 e seja rápido
+        const pingUrl = isSupabaseConfigured() && supabase
+          ? `${(supabase as any).supabaseUrl}/rest/v1/?select=id&limit=0` // Query mínima que não deve exigir RLS se o anon key for válido
+          : 'https://www.google.com/favicon.ico';
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // Aumentado para 5s
 
-        // Tentar pingar o Supabase (ou fallback para google se não configurado)
-        const pingUrl = isSupabaseConfigured() && supabase
-          ? `${(supabase as any).supabaseUrl}/rest/v1/`
-          : 'https://clients3.google.com/generate_204';
+        try {
+          const response = await fetch(pingUrl, {
+            method: 'HEAD', // HEAD é mais leve que GET
+            mode: 'no-cors',
+            cache: 'no-store',
+            signal: controller.signal
+          });
 
-        await fetch(pingUrl, {
-          method: 'GET',
-          mode: 'no-cors',
-          cache: 'no-store',
-          signal: controller.signal
-        });
+          clearTimeout(timeoutId);
+          lastOnlineCheck = now;
+          lastOnlineResult = true;
+          return true;
+        } catch (fetchError) {
+          // Se falhou HEAD, tentar GET com no-cors como fallback (alguns servidores bloqueiam HEAD)
+          console.log('⚠️ HEAD ping falhou, tentando fallback GET no-cors...');
+          try {
+            await fetch('https://clients3.google.com/generate_204', {
+              method: 'GET',
+              mode: 'no-cors',
+              cache: 'no-store',
+              signal: controller.signal
+            });
 
-        clearTimeout(timeoutId);
-        lastOnlineCheck = now;
-        lastOnlineResult = true;
-        return true;
+            clearTimeout(timeoutId);
+            lastOnlineCheck = now;
+            lastOnlineResult = true;
+            return true;
+          } catch (e) {
+            clearTimeout(timeoutId);
+            throw e;
+          }
+        }
       } catch (error) {
-        // Se falhou o fetch mas o navegador diz que está online, talvez seja bloqueio de CORS
-        // ou conexão instável. Em vez de travar tudo, vamos logar.
-        console.warn('⚠️ Teste de ping falhou, mas navigator.onLine é true. (Assumindo fraca/bloqueada)');
+        console.warn('⚠️ Todos os testes de ping falharam. Navigator:', navigator.onLine);
         lastOnlineCheck = now;
-        // Se temos navigator.onLine verdadeiro, damos o benefício da dúvida para não travar o app
         lastOnlineResult = typeof navigator !== 'undefined' ? navigator.onLine : false;
         return lastOnlineResult;
       }

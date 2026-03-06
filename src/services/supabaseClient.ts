@@ -28,18 +28,27 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
   }
 
   try {
-    // 🚨 CORREÇÃO: Verificar se já há sessão ativa primeiro
-    const {
-      data: { session: currentSession },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+    // 🚨 OTIMIZAÇÃO: Tentar obter sessão de forma rápida com timeout
+    const getSessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise<any>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 2000)
+    );
 
-    if (currentSession && currentSession.user && !sessionError) {
-      // Verificar se a sessão ainda é válida (não expirou)
-      const expiresAt = currentSession.expires_at;
-      if (expiresAt && expiresAt * 1000 > Date.now()) {
-        return true; // Sessão válida
+    try {
+      const { data: { session: currentSession }, error: sessionError } = await Promise.race([
+        getSessionPromise,
+        timeoutPromise
+      ]);
+
+      if (currentSession && currentSession.user && !sessionError) {
+        // Verificar se a sessão ainda é válida (não expirou)
+        const expiresAt = currentSession.expires_at;
+        if (expiresAt && expiresAt * 1000 > Date.now() + 60000) { // Margem de 1 min
+          return true; // Sessão válida
+        }
       }
+    } catch (e) {
+      console.warn('⚠️ getSession timed out or failed, attempting manual restoration...');
     }
 
     // 🚨 CORREÇÃO: Tentar restaurar do authService apenas se não houver sessão válida
@@ -47,17 +56,25 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
       const sessionData = await authService.getSession();
 
       if (sessionData && sessionData.access_token && sessionData.refresh_token) {
-        // Tentar definir a sessão
-        const {
-          data: { session },
-          error: setSessionError,
-        } = await supabase.auth.setSession({
+        console.log('🔑 Token encontrado no authService, restaurando...');
+        // Tentar definir a sessão com timeout rigoroso
+        const setSessionPromise = supabase.auth.setSession({
           access_token: sessionData.access_token,
           refresh_token: sessionData.refresh_token,
         });
 
-        if (session && !setSessionError) {
-          return true;
+        try {
+          const { data: { session }, error: setSessionError } = await Promise.race([
+            setSessionPromise,
+            new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+          ]);
+
+          if (session && !setSessionError) {
+            console.log('✅ Sessão restaurada com sucesso via setSession');
+            return true;
+          }
+        } catch (e) {
+          console.warn('⚠️ setSession timed out or failed');
         }
 
         // 🚨 CORREÇÃO: Se o token expirou ou é inválido, tentar refresh APENAS se tiver refresh_token válido
