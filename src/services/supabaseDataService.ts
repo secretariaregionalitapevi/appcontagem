@@ -825,9 +825,9 @@ export const supabaseDataService = {
       const sessionRestored = await Promise.race([
         ensureSessionRestored(),
         new Promise<boolean>(resolve => setTimeout(() => {
-          console.warn('⚠️ [fetchPessoasFromCadastro] Timeout na restauração de sessão (5s)');
+          console.warn('⚠️ [fetchPessoasFromCadastro] Timeout na restauração de sessão (8s)');
           resolve(false);
-        }, 5000)),
+        }, 8000)),
       ]).catch(error => {
         console.warn('⚠️ Erro ao restaurar sessão (continuando...):', error);
         return false;
@@ -1857,6 +1857,39 @@ export const supabaseDataService = {
       }
     }
 
+    // 🚀 OTIMIZAÇÃO: Tentar cache primeiro para carregamento instantâneo (segundo nível de cache)
+    const CACHE_VERSION = 'v5';
+    const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
+
+    try {
+      const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
+      if (cached && cached.length > 0) {
+        console.log(`✅ [getPessoasFromLocal] Cache encontrado, retornando ${cached.length} pessoas`);
+        // O cache já vem em formato de dados brutos do Supabase, precisamos converter para Pessoa[]
+        return cached.map((p, index) => {
+          const nomeCompleto = (p.nome || '').trim();
+          const partesNome = nomeCompleto.split(' ').filter(p => p.trim());
+          return {
+            id: `pessoa_${index}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
+            nome: partesNome[0] || '',
+            sobrenome: partesNome.length > 1 ? partesNome[partesNome.length - 1] : '',
+            nome_completo: nomeCompleto,
+            comum_id: comumId || '',
+            cargo_id: cargoId || '',
+            cargo_real: (p.cargo || '').toUpperCase().trim(),
+            instrumento_id: instrumentoId || null,
+            cidade: (p.cidade || '').toUpperCase().trim(),
+            nivel: (p.nivel || '').trim().toUpperCase() || null,
+            ativo: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+        });
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ [getPessoasFromLocal] Erro ao buscar do cache (continuando...):', cacheError);
+    }
+
     // Buscar pessoas da tabela cadastro (para outros cargos)
     try {
       console.log('🔍 [getPessoasFromLocal] Chamando fetchPessoasFromCadastro com:', {
@@ -1934,6 +1967,38 @@ export const supabaseDataService = {
       return pessoas;
     } catch (error) {
       console.error('❌ Erro ao buscar pessoas:', error);
+
+      // 🚨 CORREÇÃO: Fallback 1 - Tentar buscar do cacheManager (mesmo se o check inicial falhou)
+      try {
+        const CACHE_VERSION = 'v5';
+        const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
+        const cachedFallback = await cacheManager.get<any[]>(cacheKey, 'pessoas');
+
+        if (cachedFallback && cachedFallback.length > 0) {
+          console.log(`✅ [getPessoasFromLocal] Fallback de cache bem sucedido: ${cachedFallback.length} pessoas`);
+          return cachedFallback.map((p, index) => {
+            const nomeCompleto = (p.nome || '').trim();
+            const partesNome = nomeCompleto.split(' ').filter(part => part.trim());
+            return {
+              id: `pessoa_cache_${index}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
+              nome: partesNome[0] || '',
+              sobrenome: partesNome.length > 1 ? partesNome[partesNome.length - 1] : '',
+              nome_completo: nomeCompleto,
+              comum_id: comumId || '',
+              cargo_id: cargoId || '',
+              cargo_real: (p.cargo || '').toUpperCase().trim(),
+              instrumento_id: instrumentoId || null,
+              cidade: (p.cidade || '').toUpperCase().trim(),
+              nivel: (p.nivel || '').trim().toUpperCase() || null,
+              ativo: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          });
+        }
+      } catch (cacheFallbackError) {
+        console.warn('⚠️ [getPessoasFromLocal] Falha no fallback de cache:', cacheFallbackError);
+      }
       // Fallback: tentar buscar do banco local se houver
       try {
         const db = await getDatabase();

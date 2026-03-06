@@ -75,26 +75,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const handleLogout = async () => {
     try {
-      // Mostrar feedback visual
-      showToast.info('Saindo...', 'Encerrando sessão...');
-
       // Se há callback customizado, usar ele
       if (onLogoutPress) {
         onLogoutPress();
         return;
       }
 
-      // Executar logout
-      await signOut();
-
-      // Feedback de sucesso
-      showToast.success('Logout realizado', 'Sessão encerrada com sucesso');
-
-      // O AppNavigator já vai reagir automaticamente ao estado user mudar para null
-      // e mostrar a tela de Login
+      // Executar logout (não bloquear na chamada de rede)
+      signOut();
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
-      showToast.error('Erro', 'Erro ao encerrar sessão. Tente novamente.');
     }
   };
 

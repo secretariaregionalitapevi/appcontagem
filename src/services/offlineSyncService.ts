@@ -18,7 +18,7 @@ const PROCESS_COOLDOWN = 2000; // 2 segundos de cooldown entre processamentos
 // 🌐 CACHE DE CONECTIVIDADE: Evitar pings excessivos
 let lastOnlineCheck = 0;
 let lastOnlineResult = true;
-const ONLINE_CACHE_MS = 5000; // Cache de 5 segundos
+const ONLINE_CACHE_MS = 1000; // Cache reduzido para 1 segundo (mais resiliência no mobile)
 
 
 export const offlineSyncService = {
@@ -47,7 +47,9 @@ export const offlineSyncService = {
       );
 
       const state = await Promise.race([statePromise, timeoutPromise]);
-      let result = state.isConnected === true && state.isInternetReachable !== false;
+      // 🚨 CORREÇÃO: Tratar isInternetReachable === null como "provavelmente online" 
+      // Em redes mobile, o NetInfo às vezes retorna null para isInternetReachable mesmo com conexão estável.
+      let result = state.isConnected === true && (state.isInternetReachable === true || state.isInternetReachable === null);
 
       // 🚀 OTIMIZAÇÃO MOBILE: Se NetInfo diz que está offline, fazer um ping rápido de confirmação
       // Útil em casos onde o NetInfo fica "preso" no status offline
@@ -185,6 +187,8 @@ export const offlineSyncService = {
       }
 
       // Testa conectividade antes de processar (com retry)
+      // 🚨 CORREÇÃO: Forçar uma verificação fresh (não-cached) antes de processar a fila
+      lastOnlineCheck = 0;
       let conectividadeOK = false;
       for (let retry = 0; retry < 3; retry++) {
         conectividadeOK = await this.isOnline();

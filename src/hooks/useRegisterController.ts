@@ -768,7 +768,20 @@ export const useRegisterController = () => {
           // Web/PWA (inclui iPhone Safari, Chrome Mobile, App instalado):
           // navigator.onLine é a fonte mais confiável
           isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : false;
-          console.log(`🌐 [Web] Status offline via navigator.onLine:`, {
+
+          // 🚨 CORREÇÃO: Dobro-check de conectividade para evitar falsos-negativos no PWA
+          // Se o navigator.onLine disser que está offline, fazemos um check real de rede
+          // pois em apps instalados (PWA) o navigator.onLine pode oscilar.
+          if (isOfflineNow) {
+            console.log('📡 [Web] navigator.onLine diz offline, confirmando com offlineSyncService.isOnline()...');
+            const realOnline = await offlineSyncService.isOnline();
+            if (realOnline) {
+              console.log('✅ [Web] Conexão REAL confirmada via isOnline(), ignorando navigator.onLine');
+              isOfflineNow = false;
+            }
+          }
+
+          console.log(`🌐 [Web] Status offline final:`, {
             navigatorOnLine: typeof navigator !== 'undefined' ? navigator.onLine : 'N/A',
             isOfflineNow,
           });
@@ -1133,6 +1146,13 @@ export const useRegisterController = () => {
             }
             // Limpar formulário usando função helper
             clearAllFields();
+
+            // 🚀 OTIMIZAÇÃO: Disparar sincronização em background após sucesso
+            // Isso ajuda a limpar a fila caso o usuário tenha acabado de recuperar sinal
+            setTimeout(() => {
+              console.log('🔄 Disparando sincronização pós-envio bem-sucedido...');
+              syncData().catch(err => console.warn('⚠️ Erro no sync pós-envio:', err));
+            }, 800);
           } else {
             // Registro foi salvo localmente (sem internet ou erro de conectividade)
             if (!isOnline) {
