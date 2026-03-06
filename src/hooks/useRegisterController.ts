@@ -645,6 +645,7 @@ export const useRegisterController = () => {
           return pessoa;
         });
 
+        console.log(`📊 [loadPessoas] Pessoas carregadas via CACHE: ${pessoas.length}`);
         setPessoas(pessoas);
         return; // Retornar imediatamente - não precisa buscar do banco
       }
@@ -666,6 +667,7 @@ export const useRegisterController = () => {
         showInstrumento ? selectedInstrumento : undefined
       );
 
+      console.log(`📊 [loadPessoas] Pessoas carregadas via BACKEND/LOCAL: ${pessoasData.length}`);
       setPessoas(pessoasData);
     } catch (error) {
       console.error('❌ Erro ao carregar pessoas:', error);

@@ -19,8 +19,39 @@ export const useOnlineStatus = () => {
   }, []);
 
   useEffect(() => {
+    // 🌐 CONFIGURAÇÃO: Evitar que o NetInfo no Web pingue o localhost/origin
+    // Isso causa ERR_CONNECTION_REFUSED constantes e status offline falso
+    if (Platform.OS === 'web') {
+      try {
+        NetInfo.configure({
+          reachabilityUrl: 'https://clients3.google.com/generate_204',
+          reachabilityTest: async (response) => response.status === 204,
+          reachabilityLongTimeout: 10000, // 10s
+          reachabilityShortTimeout: 3000,  // 3s
+          reachabilityRequestTimeout: 5000, // 5s
+        });
+        console.log('🌐 [useOnlineStatus] NetInfo configurado para Google (Web)');
+      } catch (e) {
+        console.warn('⚠️ Erro ao configurar NetInfo:', e);
+      }
+    }
+
     const handleStatusChange = async (state: any) => {
-      const newStatus = state.isConnected === true && state.isInternetReachable === true;
+      let newStatus = state.isConnected === true && state.isInternetReachable !== false;
+
+      // 🔍 DUPLA CHECAGEM (Web): Se o NetInfo disser que está offline, verificar via ping real
+      if (Platform.OS === 'web' && !newStatus && navigator.onLine !== false) {
+        try {
+          const offlineSyncService = require('../services/offlineSyncService').offlineSyncService;
+          const isReallyOnline = await offlineSyncService.isOnline();
+          if (isReallyOnline) {
+            console.log('🛡️ [useOnlineStatus] NetInfo reportou offline, mas ping confirmou ONLINE');
+            newStatus = true;
+          }
+        } catch (e) {
+          // Mantém o status que o NetInfo deu
+        }
+      }
 
       // 🚨 CORREÇÃO: Sempre atualizar estado e chamar callback quando status mudar
       // Não verificar se previousStatusRef.current !== null para garantir que funcione na primeira mudança

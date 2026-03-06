@@ -141,6 +141,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   // 🚨 CORREÇÃO: NÃO mudar para modo manual enquanto está carregando - aguardar carregamento terminar
   // Quando há opções, modo manual só quando usuário SELECIONAR a opção manual
   useEffect(() => {
+    console.log(`⏳ [NameSelectField] Estado de carregamento: ${loading}, Opções: ${options?.length || 0}`);
     // 🚨 CORREÇÃO CRÍTICA: Se está carregando, NÃO mudar para modo manual ainda
     // Aguardar carregamento terminar para verificar se realmente não há opções
     if (loading) {
@@ -152,6 +153,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     // Isso evita mudar para manual enquanto a lista ainda está carregando
     if (!loading && (!options || options.length === 0)) {
       if (!isManualMode) {
+        console.log('✏️ [NameSelectField] Entrando em modo MANUAL automaticamente (lista vazia ou nula)');
         setIsManualMode(true);
         // Se há um valor manual anterior, manter
         if (value && typeof value === 'string' && value.startsWith('manual_')) {
@@ -478,15 +480,15 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         style,
         Platform.OS === 'web'
           ? {
-              position: 'relative' as ViewStyle['position'],
-              overflow: 'visible' as ViewStyle['overflow'],
-              zIndex: containerZIndex,
-            }
+            position: 'relative' as ViewStyle['position'],
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+          }
           : {
-              overflow: 'visible' as ViewStyle['overflow'],
-              zIndex: containerZIndex,
-              elevation: isFocused ? 10 : 0,
-            },
+            overflow: 'visible' as ViewStyle['overflow'],
+            zIndex: containerZIndex,
+            elevation: isFocused ? 10 : 0,
+          },
       ]}
       ref={containerRef}
       collapsable={false}
@@ -502,8 +504,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
             zIndex: containerZIndex,
             ...(Platform.OS === 'web'
               ? {
-                  backgroundColor: '#ffffff',
-                }
+                backgroundColor: '#ffffff',
+              }
               : {}),
           },
         ]}
@@ -518,8 +520,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                 error ? styles.inputError : undefined,
                 Platform.OS === 'web'
                   ? {
-                      position: 'relative' as ViewStyle['position'],
-                    }
+                    position: 'relative' as ViewStyle['position'],
+                  }
                   : undefined,
               ]}
               value={searchText}
@@ -548,51 +550,51 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
               }}
               {...(Platform.OS === 'web'
                 ? {
-                    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleEnterPress();
-                      } else if (e.key === 'ArrowDown' && !isManualMode) {
-                        e.preventDefault();
-                        if (filtered.length > 0) {
-                          const nextIndex =
-                            selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
-                          setSelectedIndex(nextIndex);
-                          if (flatListRef.current && nextIndex >= 0) {
-                            setTimeout(() => {
-                              flatListRef.current?.scrollToIndex({
-                                index: nextIndex,
-                                animated: true,
-                                viewOffset: 10,
-                              });
-                            }, 50);
-                          }
-                        }
-                      } else if (e.key === 'ArrowUp' && !isManualMode) {
-                        e.preventDefault();
-                        if (filtered.length > 0) {
-                          const prevIndex =
-                            selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
-                          setSelectedIndex(prevIndex);
-                          if (flatListRef.current && prevIndex >= 0) {
-                            setTimeout(() => {
-                              flatListRef.current?.scrollToIndex({
-                                index: prevIndex,
-                                animated: true,
-                                viewOffset: 10,
-                              });
-                            }, 50);
-                          }
-                        }
-                      } else if (e.key === 'Escape') {
-                        e.preventDefault();
-                        setShowList(false);
-                        if (inputRef.current) {
-                          inputRef.current.blur();
+                  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleEnterPress();
+                    } else if (e.key === 'ArrowDown' && !isManualMode) {
+                      e.preventDefault();
+                      if (filtered.length > 0) {
+                        const nextIndex =
+                          selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
+                        setSelectedIndex(nextIndex);
+                        if (flatListRef.current && nextIndex >= 0) {
+                          setTimeout(() => {
+                            flatListRef.current?.scrollToIndex({
+                              index: nextIndex,
+                              animated: true,
+                              viewOffset: 10,
+                            });
+                          }, 50);
                         }
                       }
-                    },
-                  }
+                    } else if (e.key === 'ArrowUp' && !isManualMode) {
+                      e.preventDefault();
+                      if (filtered.length > 0) {
+                        const prevIndex =
+                          selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
+                        setSelectedIndex(prevIndex);
+                        if (flatListRef.current && prevIndex >= 0) {
+                          setTimeout(() => {
+                            flatListRef.current?.scrollToIndex({
+                              index: prevIndex,
+                              animated: true,
+                              viewOffset: 10,
+                            });
+                          }, 50);
+                        }
+                      }
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowList(false);
+                      if (inputRef.current) {
+                        inputRef.current.blur();
+                      }
+                    }
+                  },
+                }
                 : {})}
             />
             {loading && (
@@ -706,8 +708,8 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                       style={[
                                         styles.itemText,
                                         value === item.id &&
-                                          !isManualOption &&
-                                          styles.itemTextSelected,
+                                        !isManualOption &&
+                                        styles.itemTextSelected,
                                         isManualOption && styles.itemTextManual,
                                       ]}
                                       numberOfLines={1}
@@ -750,12 +752,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                           styles.dropdown,
                           Platform.OS === 'web'
                             ? {
-                                // @ts-ignore
-                                backgroundColor: '#ffffff',
-                                // @ts-ignore
-                                // @ts-ignore
-                                opacity: 1,
-                              }
+                              // @ts-ignore
+                              backgroundColor: '#ffffff',
+                              // @ts-ignore
+                              // @ts-ignore
+                              opacity: 1,
+                            }
                             : {},
                         ]}
                         onStartShouldSetResponder={() => false}
@@ -763,21 +765,21 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                         pointerEvents="auto"
                         {...(Platform.OS === 'web'
                           ? {
-                              onMouseEnter: () => {
-                                // Cancelar blur quando mouse entra no dropdown
-                                if (blurTimeoutRef.current) {
-                                  clearTimeout(blurTimeoutRef.current);
-                                  blurTimeoutRef.current = null;
-                                }
-                              },
-                              onMouseDown: (e: React.MouseEvent) => {
-                                // Cancelar blur ao clicar no dropdown
-                                if (blurTimeoutRef.current) {
-                                  clearTimeout(blurTimeoutRef.current);
-                                  blurTimeoutRef.current = null;
-                                }
-                              },
-                            }
+                            onMouseEnter: () => {
+                              // Cancelar blur quando mouse entra no dropdown
+                              if (blurTimeoutRef.current) {
+                                clearTimeout(blurTimeoutRef.current);
+                                blurTimeoutRef.current = null;
+                              }
+                            },
+                            onMouseDown: (e: React.MouseEvent) => {
+                              // Cancelar blur ao clicar no dropdown
+                              if (blurTimeoutRef.current) {
+                                clearTimeout(blurTimeoutRef.current);
+                                blurTimeoutRef.current = null;
+                              }
+                            },
+                          }
                           : {})}
                       >
                         <FlatList
@@ -818,9 +820,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                                 delayPressIn={0}
                                 {...(Platform.OS === 'web'
                                   ? {
-                                      onMouseEnter: () => setSelectedIndex(index),
-                                      onMouseLeave: () => setSelectedIndex(-1),
-                                    }
+                                    onMouseEnter: () => setSelectedIndex(index),
+                                    onMouseLeave: () => setSelectedIndex(-1),
+                                  }
                                   : {})}
                               >
                                 <Text
@@ -886,8 +888,8 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     ...(Platform.OS === 'web'
       ? {
-          backgroundColor: '#ffffff',
-        }
+        backgroundColor: '#ffffff',
+      }
       : {}),
   },
   label: {
@@ -902,9 +904,9 @@ const styles = StyleSheet.create({
     position: 'relative' as ViewStyle['position'],
     ...(Platform.OS === 'web'
       ? {
-          backgroundColor: '#ffffff',
-          zIndex: 1,
-        }
+        backgroundColor: '#ffffff',
+        zIndex: 1,
+      }
       : {}),
   },
   input: {
@@ -924,10 +926,10 @@ const styles = StyleSheet.create({
     elevation: 2,
     ...(Platform.OS === 'web'
       ? {
-          backgroundColor: '#ffffff',
-          // @ts-ignore
-          opacity: 1,
-        }
+        backgroundColor: '#ffffff',
+        // @ts-ignore
+        opacity: 1,
+      }
       : {}),
   },
   manualInput: {
@@ -966,17 +968,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
     ...(Platform.OS === 'web'
       ? ({
-          // @ts-ignore - propriedades CSS específicas do web
-          display: 'block',
-          // @ts-ignore
-          visibility: 'visible',
-          // @ts-ignore
-          pointerEvents: 'auto',
-          // @ts-ignore
-          isolation: 'isolate',
-          // @ts-ignore
-          willChange: 'transform',
-        } as any)
+        // @ts-ignore - propriedades CSS específicas do web
+        display: 'block',
+        // @ts-ignore
+        visibility: 'visible',
+        // @ts-ignore
+        pointerEvents: 'auto',
+        // @ts-ignore
+        isolation: 'isolate',
+        // @ts-ignore
+        willChange: 'transform',
+      } as any)
       : {}),
   },
   dropdown: {
@@ -993,22 +995,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? ({
-          // @ts-ignore - propriedades CSS específicas do web
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-          backgroundColor: '#ffffff',
-          // @ts-ignore
-          display: 'block',
-          // @ts-ignore
-          visibility: 'visible',
-          // @ts-ignore
-          backgroundImage: 'none',
-          // @ts-ignore
-          isolation: 'isolate',
-          // @ts-ignore
-          position: 'relative',
-          // @ts-ignore
-          willChange: 'transform',
-        } as any)
+        // @ts-ignore - propriedades CSS específicas do web
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+        backgroundColor: '#ffffff',
+        // @ts-ignore
+        display: 'block',
+        // @ts-ignore
+        visibility: 'visible',
+        // @ts-ignore
+        backgroundImage: 'none',
+        // @ts-ignore
+        isolation: 'isolate',
+        // @ts-ignore
+        position: 'relative',
+        // @ts-ignore
+        willChange: 'transform',
+      } as any)
       : {}),
   },
   list: {
@@ -1016,11 +1018,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
-          backgroundColor: '#ffffff',
-          // @ts-ignore
-          // @ts-ignore
-          zIndex: 999999,
-        }
+        backgroundColor: '#ffffff',
+        // @ts-ignore
+        // @ts-ignore
+        zIndex: 999999,
+      }
       : {}),
   },
   item: {
@@ -1035,20 +1037,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
-          // @ts-ignore
-          opacity: 1,
-          // @ts-ignore
-          position: 'relative',
-          // @ts-ignore
-          zIndex: 999999,
-          // @ts-ignore
-          willChange: 'transform',
-        }
+        // @ts-ignore
+        opacity: 1,
+        // @ts-ignore
+        position: 'relative',
+        // @ts-ignore
+        zIndex: 999999,
+        // @ts-ignore
+        willChange: 'transform',
+      }
       : {
-          // No mobile, garantir que o item seja totalmente clicável
-          // @ts-ignore
-          touchAction: 'manipulation',
-        }),
+        // No mobile, garantir que o item seja totalmente clicável
+        // @ts-ignore
+        touchAction: 'manipulation',
+      }),
   },
   itemHighlighted: {
     backgroundColor: theme.colors.primary + '15',
@@ -1121,8 +1123,8 @@ const styles = StyleSheet.create({
     // 🚨 CRÍTICO: Android precisa de configurações específicas
     ...(Platform.OS === 'android'
       ? {
-          elevation: 0, // Não elevar o overlay para não bloquear toques
-        }
+        elevation: 0, // Não elevar o overlay para não bloquear toques
+      }
       : {}),
   },
   mobileDropdownContainer: {

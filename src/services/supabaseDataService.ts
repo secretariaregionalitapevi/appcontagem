@@ -742,7 +742,7 @@ export const supabaseDataService = {
 
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
     // 🚨 CORREÇÃO: Adicionar versão ao cache key para invalidar caches antigos quando a lógica mudar
-    const CACHE_VERSION = 'v2'; // Incrementar quando mudar lógica de filtro
+    const CACHE_VERSION = 'v4'; // Sincronizado com useRegisterController.ts
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
     const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
     if (cached) {
@@ -791,13 +791,22 @@ export const supabaseDataService = {
       // Aguardar apenas o mínimo necessário (timeout de 500ms para resposta mais rápida)
       const sessionPromise = Promise.race([
         ensureSessionRestored(),
-        new Promise(resolve => setTimeout(resolve, 500)), // Timeout de 500ms (reduzido de 2s)
-      ]).catch(() => {
-        // Se falhar, continuar mesmo assim
+        new Promise(resolve => setTimeout(resolve, 5000)), // Aumentado para 5s para mobile
+      ]).catch(error => {
+        console.warn('⚠️ Erro ao restaurar sessão (continuando...):', error);
       });
 
       // Aguardar sessão rapidamente (com timeout) antes de fazer query
-      await sessionPromise;
+      const sessionRestored = await sessionPromise;
+
+      // Verificar autenticação detalhada para diagnóstico
+      const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+      console.log('🔐 [fetchPessoasFromCadastro] Diagnóstico de Autenticação:', {
+        sessionRestored,
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email,
+      });
 
       // 🚨 CORREÇÃO: Extrair apenas o nome da comum (sem código) e normalizar
       // O nome da comum pode vir como "BR-22-1804 - JARDIM LAVAPES DAS GRACAS" ou "BR-22-1804 JARDIM LAVAPES DAS GRACAS"
@@ -1460,7 +1469,16 @@ export const supabaseDataService = {
 
     try {
       // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de buscar (RLS requer autenticação)
-      const sessionRestaurada = await ensureSessionRestored();
+      // 🚀 OTIMIZAÇÃO: Timeout aumentado para 5s para garantir restauração em redes móveis
+      const sessionPromise = Promise.race([
+        ensureSessionRestored(),
+        new Promise(resolve => setTimeout(resolve, 5000)),
+      ]).catch(error => {
+        console.warn('⚠️ Erro ao restaurar sessão para candidatos:', error);
+        return false;
+      });
+
+      const sessionRestaurada = await sessionPromise;
 
       // Verificar autenticação após restaurar
       const {
