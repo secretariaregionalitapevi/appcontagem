@@ -33,29 +33,30 @@ export const offlineSyncService = {
       // Para web/PWA: navigator.onLine é rápido, mas pode ser falso-negativo em mobile
       const navOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
+      // 🚀 OTIMIZAÇÃO: Se navigator.onLine for true, confiar nele primeiro (mais rápido)
       if (navOnline) {
         lastOnlineCheck = now;
         lastOnlineResult = true;
         return true;
       }
 
-      // 🚨 CORREÇÃO: Se navigator.onLine diz offline, tentar um ping rápido para confirmar
-      // Isso resolve o "falso offline" comum em PWAs mobile.
+      // 🚨 FALLBACK: Se navigator.onLine diz offline, tentar um ping rápido para confirmar (falso-negativo)
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2500);
-        await fetch('https://clients3.google.com/generate_204', {
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+        const response = await fetch('https://clients3.google.com/generate_204', {
           method: 'GET',
           mode: 'no-cors',
           cache: 'no-store',
           signal: controller.signal
         });
         clearTimeout(timeoutId);
-        console.log('✅ Web Ping Success (navigator.onLine estava offline)');
+
         lastOnlineCheck = now;
         lastOnlineResult = true;
         return true;
       } catch (e) {
+        console.warn('🌐 [isOnline] Web Ping falhou, realmente offline');
         lastOnlineCheck = now;
         lastOnlineResult = false;
         return false;

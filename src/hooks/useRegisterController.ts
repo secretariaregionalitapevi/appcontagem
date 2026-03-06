@@ -460,7 +460,7 @@ export const useRegisterController = () => {
       }
     } catch (error) {
       console.error('❌ Erro crítico ao carregar dados iniciais:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os dados base. Verifique sua conexão.');
+      showToast.error('Erro', 'Não foi possível carregar os dados base. Verifique sua conexão.');
     } finally {
       if (!isRefresh) {
         setInitialLoading(false);
@@ -707,7 +707,7 @@ export const useRegisterController = () => {
       // Validar campos obrigatórios (permitir nome manual para candidatos também)
       if (!selectedComum || !selectedCargo) {
         console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
-        Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
+        showToast.warning('Erro', 'Preencha todos os campos obrigatórios');
         isSubmittingRef.current = false;
         return;
       }
@@ -724,7 +724,7 @@ export const useRegisterController = () => {
           selectedPessoaTrimmed: selectedPessoa?.trim(),
           pessoasCount: pessoas.length,
         });
-        Alert.alert('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
+        showToast.warning('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
         isSubmittingRef.current = false;
         return;
       }
@@ -736,7 +736,7 @@ export const useRegisterController = () => {
           isNomeManual,
           length: selectedPessoa?.trim().length,
         });
-        Alert.alert('Erro', 'O nome deve ter pelo menos 3 caracteres');
+        showToast.warning('Erro', 'O nome deve ter pelo menos 3 caracteres');
         isSubmittingRef.current = false;
         return;
       }
@@ -747,20 +747,23 @@ export const useRegisterController = () => {
       const instrumentoObrigatorio = cargoNome === 'Músico'; // Organista removido
       if (instrumentoObrigatorio && !selectedInstrumento) {
         console.warn('⚠️ [SUBMIT] Instrumento não selecionado para Músico');
-        Alert.alert('Erro', 'Selecione o instrumento para Músico');
+        showToast.warning('Erro', 'Selecione o instrumento para Músico');
         isSubmittingRef.current = false;
         return;
       }
 
       if (!user) {
         console.error('❌ [SUBMIT] Usuário não autenticado');
-        Alert.alert('Erro', 'Usuário não autenticado');
+        showToast.error('Erro', 'Usuário não autenticado');
         isSubmittingRef.current = false;
         return;
       }
 
       console.log('✅ [SUBMIT] Validações passaram, iniciando processamento...');
       setLoading(true);
+
+      // 🚨 LOG DE DIAGNÓSTICO: Rastrear início da submissão no Chrome
+      console.log('🧪 [DIAGNOSTIC] handleSubmit - Passo 1: Validação Concluída');
 
       // 🚨 DETECÇÃO DE CONECTIVIDADE SIMPLIFICADA:
       // Para web/PWA: usar navigator.onLine como fonte única de verdade.
@@ -769,6 +772,7 @@ export const useRegisterController = () => {
 
       try {
         if (Platform.OS === 'web') {
+          console.log('🧪 [DIAGNOSTIC] handleSubmit - Passo 2: Verificando rede Web');
           // Web/PWA (inclui iPhone Safari, Chrome Mobile, App instalado):
           // navigator.onLine é a fonte mais confiável
           isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : false;
@@ -1501,7 +1505,7 @@ export const useRegisterController = () => {
             '❌ ERRO CRÍTICO: Não foi possível salvar registro nem localmente:',
             fallbackError
           );
-          Alert.alert(
+          showToast.error(
             'Erro Crítico',
             'Não foi possível salvar o registro. Tente novamente ou verifique sua conexão.'
           );
@@ -1620,7 +1624,7 @@ export const useRegisterController = () => {
     nome: string;
   }) => {
     if (!user) {
-      Alert.alert('Erro', 'Usuário não autenticado');
+      showToast.error('Erro', 'Usuário não autenticado');
       return;
     }
 
@@ -1665,7 +1669,7 @@ export const useRegisterController = () => {
       }
 
       if (!cargoObj) {
-        Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
+        showToast.error('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
         return;
       }
 

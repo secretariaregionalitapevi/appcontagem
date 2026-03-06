@@ -1864,7 +1864,7 @@ export const supabaseDataService = {
     const cleanCargoName = cargoNome.trim();
 
     // 🚀 OTIMIZAÇÃO: Tentar cache primeiro para carregamento instantâneo (segundo nível de cache)
-    const CACHE_VERSION = 'v5';
+    const CACHE_VERSION = 'v6';
     const cacheKey = `pessoas_${CACHE_VERSION}_${cleanComumName}_${cleanCargoName}_${instrumentoNome || ''}`;
 
     try {
@@ -1976,7 +1976,7 @@ export const supabaseDataService = {
 
       // 🚨 CORREÇÃO: Fallback 1 - Tentar buscar do cacheManager (mesmo se o check inicial falhou)
       try {
-        const CACHE_VERSION = 'v5';
+        const CACHE_VERSION = 'v6';
         const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
         const cachedFallback = await cacheManager.get<any[]>(cacheKey, 'pessoas');
 
