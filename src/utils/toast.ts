@@ -172,7 +172,18 @@ export const showToast = {
       if (Swal) {
         // Exceção do alerta de duplicidade pedida em contexto anterior
         const isDuplicidade = title === 'Atenção' && message?.includes('fila');
-        const swalOpts = getSwalOptions(title, message, 'warning', !isDuplicidade, isDuplicidade ? 4500 : 3500, isDuplicidade ? 'top-end' : 'center', isDuplicidade);
+        const isSalvoLocalmente = message?.includes('Salvo localmente') || message?.includes('Será enviado automaticamente');
+
+        // Se for "Salvo localmente", não mostrar botão de confirmação e usar timer menor
+        const swalOpts = getSwalOptions(
+          title,
+          message,
+          'warning',
+          !(isDuplicidade || isSalvoLocalmente),
+          (isDuplicidade || isSalvoLocalmente) ? 3000 : 3500,
+          (isDuplicidade || isSalvoLocalmente) ? 'top-end' : 'center',
+          (isDuplicidade || isSalvoLocalmente)
+        );
         Swal.fire(swalOpts);
       } else {
         console.warn(`⚠️ ${title}: ${message || ''}`);

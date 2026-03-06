@@ -75,6 +75,7 @@ export const RegisterScreen: React.FC = () => {
     pessoasOptions,
     handleEditRegistros,
     handleOrganistasEnsaio,
+    handleHardReset,
     handleSaveNewRegistration,
   } = controller;
 
@@ -118,6 +119,8 @@ export const RegisterScreen: React.FC = () => {
       <AppHeader
         onEditRegistrosPress={handleEditRegistros}
         onOrganistasEnsaioPress={handleOrganistasEnsaio}
+        onRefresh={onRefresh}
+        onHardReset={handleHardReset}
       />
       <KeyboardAvoidingView
         style={styles.keyboardView}

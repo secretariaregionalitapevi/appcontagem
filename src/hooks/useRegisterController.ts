@@ -1175,7 +1175,8 @@ export const useRegisterController = () => {
               // Online mas erro de conectividade - mostrar mensagem informativa
               showToast.warning('Salvo localmente', 'Será enviado automaticamente quando possível');
             }
-            // Não limpar formulário se foi salvo localmente (usuário pode querer tentar novamente)
+            // 🚨 EMERGÊRIA: SEMPRE limpar formulário para permitir próximo registro
+            clearAllFields();
           }
         } else {
           // Verificar se é erro de duplicata
@@ -1592,62 +1593,31 @@ export const useRegisterController = () => {
   };
 
   const handleOrganistasEnsaio = () => {
-    console.log(
-      '🎹 [handleOrganistasEnsaio] Iniciando navegação para tela de Organistas no Ensaio'
-    );
-    console.log('🎹 [handleOrganistasEnsaio] Navigation disponível?', !!navigation);
-    console.log('🎹 [handleOrganistasEnsaio] Tipo do navigation:', typeof navigation);
-    console.log('🎹 [handleOrganistasEnsaio] Navigation object:', navigation);
-
-    try {
-      if (!navigation) {
-        console.error('❌ [handleOrganistasEnsaio] Navigation não está disponível');
-        showToast.error('Erro', 'Navegação não disponível. Tente recarregar a página.');
-        return;
-      }
-
-      // Verificar se o método navigate existe
-      if (typeof (navigation as any).navigate !== 'function') {
-        console.error('❌ [handleOrganistasEnsaio] Método navigate não está disponível');
-        console.error('❌ [handleOrganistasEnsaio] Métodos disponíveis:', Object.keys(navigation));
-        showToast.error('Erro', 'Navegação não configurada corretamente.');
-        return;
-      }
-
-      // Verificar se podemos obter o estado atual da navegação
-      const state = (navigation as any).getState?.();
-      console.log('🎹 [handleOrganistasEnsaio] Estado atual da navegação:', state);
-      console.log(
-        '🎹 [handleOrganistasEnsaio] Rotas disponíveis:',
-        state?.routes?.map((r: any) => r.name)
-      );
-
-      // Verificar se a rota existe
-      const routeExists = state?.routes?.some((r: any) => r.name === 'OrganistasEnsaio');
-      console.log('🎹 [handleOrganistasEnsaio] Rota OrganistasEnsaio existe?', routeExists);
-
-      console.log('🎹 [handleOrganistasEnsaio] Chamando navigation.navigate("OrganistasEnsaio")');
-
-      // Tentar navegar com um pequeno delay para garantir que tudo está pronto
-      setTimeout(() => {
-        try {
-          (navigation as any).navigate('OrganistasEnsaio');
-          console.log('✅ [handleOrganistasEnsaio] Navegação chamada com sucesso');
-        } catch (navError) {
-          console.error('❌ [handleOrganistasEnsaio] Erro ao executar navigate:', navError);
-          showToast.error('Erro', 'Não foi possível navegar. Tente novamente.');
-        }
-      }, 50);
-    } catch (error) {
-      console.error('❌ [handleOrganistasEnsaio] Erro ao navegar para OrganistasEnsaio:', error);
-      console.error('❌ [handleOrganistasEnsaio] Detalhes do erro:', {
-        message: error instanceof Error ? error.message : String(error),
-        name: error instanceof Error ? error.name : 'Unknown',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-      showToast.error('Erro', 'Não foi possível acessar a página de organistas. Tente novamente.');
-    }
+    (navigation as any).navigate('OrganistasEnsaio');
   };
+
+  // 🚨 EMERGÊNCIA: Função para forçar recarregamento total (limpa cache e recarrega página)
+  const handleHardReset = useCallback(async () => {
+    console.log('🚨 [HARD RESET] Iniciando limpeza total e recarregamento...');
+    if (Platform.OS === 'web') {
+      try {
+        // Limpar caches do service worker se possível
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(key => caches.delete(key)));
+          console.log('🧹 Caches de Service Worker limpos');
+        }
+
+        // Recarregar página ignorando cache
+        window.location.reload();
+      } catch (e) {
+        window.location.reload();
+      }
+    } else {
+      // No mobile nativo, apenas recarregar dados iniciais
+      loadInitialData(true);
+    }
+  }, [loadInitialData]);
 
   // Função para salvar novo registro do modal (pessoas de outras cidades)
   const handleSaveNewRegistration = async (data: {
@@ -1691,120 +1661,55 @@ export const useRegisterController = () => {
       }
 
       // Extrair apenas primeiro e último nome do usuário
-      // Se não tem nome no perfil, extrair do email (remover @gmail.com e formatar)
       let nomeCompletoUsuario = user.nome;
       if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
-        // Extrair nome do email: ricardograngeiro@gmail.com -> ricardograngeiro
-        // A função formatRegistradoPor vai separar e formatar corretamente
         const emailSemDominio = user.email?.split('@')[0] || '';
-        // Substituir pontos e underscores por espaços, mas manter minúsculas para a função separar
         nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
       }
-      // formatRegistradoPor extrai primeiro e último nome, separa palavras juntas e converte para maiúscula
       const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
-
-      // 🚨 CRÍTICO: Buscar cargo e garantir que usamos o ID, não o nome
-      // No modal de novo registro, data.cargo é o NOME do cargo (ex: "Instrutora")
-      // Precisamos encontrar o ID correspondente
-      console.log('🔍 [MODAL] Buscando cargo:', {
-        cargoNome: data.cargo,
-        totalCargos: cargos.length,
-        cargosDisponiveis: cargos.map(c => c.nome),
-      });
 
       let cargoObj = cargos.find(c => c.nome === data.cargo);
       if (!cargoObj) {
-        // Tentar buscar por ID também (caso já venha como ID)
         cargoObj = cargos.find(c => c.id === data.cargo);
       }
 
       if (!cargoObj) {
-        console.error('❌ [MODAL] Cargo não encontrado:', {
-          cargoProcurado: data.cargo,
-          cargosDisponiveis: cargos.map(c => ({ id: c.id, nome: c.nome })),
-        });
         Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
         return;
       }
-
-      console.log('✅ [MODAL] Cargo encontrado:', {
-        id: cargoObj.id,
-        nome: cargoObj.nome,
-      });
 
       const instrumentoObj = data.instrumento
         ? instrumentos.find(i => i.id === data.instrumento)
         : null;
 
-      // Criar registro com dados do modal
-      // 🚨 CRÍTICO: Usar cargoObj.id (ID do cargo), não data.cargo (nome)
       const registro: RegistroPresenca & { cidade?: string } = {
         pessoa_id: `manual_${data.nome.toUpperCase()}`,
-        comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`, // ID temporário
-        cargo_id: cargoObj.id, // 🚨 USAR ID DO CARGO, NÃO O NOME
+        comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
+        cargo_id: cargoObj.id,
         instrumento_id: data.instrumento || undefined,
         classe_organista: data.classe || undefined,
         local_ensaio: localEnsaioNome,
         data_hora_registro: getCurrentDateTimeISO(),
         usuario_responsavel: nomeUsuario,
         status_sincronizacao: 'pending',
-        cidade: data.cidade, // Adicionar cidade ao registro
+        cidade: data.cidade,
       };
 
-      // 🚨 CRÍTICO: Verificar se está offline ANTES de tentar enviar
       const isOfflineNow = !(await offlineSyncService.isOnline());
-      console.log('🌐 [MODAL] Status de conexão:', isOfflineNow ? 'OFFLINE' : 'ONLINE');
 
       if (isOfflineNow) {
-        // 🚨 CORREÇÃO CRÍTICA: Se offline, salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
-        console.log('📴 [MODAL] Modo offline detectado - salvando usando saveRegistroToLocal');
-
         try {
-          // Usar o mesmo formato de registro que o sistema principal usa
-          const registroOffline: RegistroPresenca & { cidade?: string } = {
-            pessoa_id: `manual_${data.nome.toUpperCase()}`,
-            comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
-            cargo_id: cargoObj.id,
-            instrumento_id: data.instrumento || undefined,
-            classe_organista: data.classe || undefined,
-            local_ensaio: localEnsaioNome,
-            data_hora_registro: getCurrentDateTimeISO(),
-            usuario_responsavel: nomeUsuario,
-            status_sincronizacao: 'pending',
-            cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro offline
-          };
-
-          // Salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
-          await supabaseDataService.saveRegistroToLocal(registroOffline);
-          console.log('✅ [MODAL] Registro salvo offline com sucesso');
-
+          await supabaseDataService.saveRegistroToLocal(registro);
           showToast.success('Salvo offline', 'Registro será enviado quando voltar online');
-
-          // Limpar formulário ANTES de recarregar
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
-
-          // Recarregar página após salvar (apenas web)
-          if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          }
+          clearAllFields();
           return;
         } catch (filaError) {
-          console.error('❌ [MODAL] Erro ao salvar offline:', filaError);
           showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
           throw filaError;
         }
       }
 
-      // 🚨 CRÍTICO: Para registros externos (modal de novo registro), enviar DIRETAMENTE para Google Sheets
-      // NÃO usar createRegistro que tenta validar contra listas locais
-      // Seguir o mesmo padrão do backupcont: enviar direto para Google Sheets, NÃO para Supabase
-      console.log(
-        '📤 [MODAL] Enviando registro externo diretamente para Google Sheets (sem validação local)'
-      );
-      console.log('📤 [MODAL] Dados do registro:', {
+      const result = await googleSheetsService.sendExternalRegistroToSheet({
         nome: data.nome,
         comum: data.comum,
         cidade: data.cidade,
@@ -1812,243 +1717,76 @@ export const useRegisterController = () => {
         instrumento: instrumentoObj?.nome,
         classe: data.classe,
         localEnsaio: localEnsaioNome,
-        localEnsaioOriginal: localEnsaio,
         registradoPor: nomeUsuario,
         userId: user.id,
       });
-      console.log('🔄 [MODAL] Verificação de conversão de local:', {
-        original: localEnsaio,
-        convertido: localEnsaioNome,
-        ehNumero: localEnsaio ? /^\d+$/.test(localEnsaio.trim()) : false,
-      });
 
-      console.log('🔄 [MODAL] ========== INICIANDO ENVIO PARA GOOGLE SHEETS ==========');
-      console.log('🔄 [MODAL] Chamando sendExternalRegistroToSheet...');
-      console.log('🔄 [MODAL] Parâmetros que serão enviados:', {
-        nome: data.nome,
-        comum: data.comum,
-        cidade: data.cidade,
-        cargo: cargoObj.nome,
-        instrumento: instrumentoObj?.nome,
-        classe: data.classe,
-        localEnsaio: localEnsaioNome,
-        localEnsaioOriginal: localEnsaio,
-        registradoPor: nomeUsuario,
-        userId: user.id,
-      });
-      console.log(
-        '✅ [MODAL] CONFIRMAÇÃO: localEnsaio que será enviado é:',
-        localEnsaioNome,
-        '(deve ser nome, não ID)'
-      );
-      let result;
-      try {
-        console.log('🔄 [MODAL] ANTES de chamar sendExternalRegistroToSheet');
-        console.log('📤 [MODAL] Dados que serão enviados:', {
-          nome: data.nome,
-          comum: data.comum,
-          cidade: data.cidade,
-          cargo: cargoObj.nome,
-          instrumento: instrumentoObj?.nome,
-          classe: data.classe,
-        });
-        result = await googleSheetsService.sendExternalRegistroToSheet({
-          nome: data.nome,
-          comum: data.comum,
-          cidade: data.cidade,
-          cargo: cargoObj.nome, // Usar nome do cargo encontrado
-          instrumento: instrumentoObj?.nome,
-          classe: data.classe,
-          localEnsaio: localEnsaioNome,
-          registradoPor: nomeUsuario,
-          userId: user.id,
-        });
-        console.log('🔄 [MODAL] DEPOIS de chamar sendExternalRegistroToSheet');
-        console.log('📥 [MODAL] Resultado do envio recebido:', result);
-        console.log('📥 [MODAL] Tipo do resultado:', typeof result);
-        console.log('📥 [MODAL] result.success:', result?.success);
-        console.log('📥 [MODAL] result.error:', result?.error);
-        console.log('📥 [MODAL] Resultado completo (JSON):', JSON.stringify(result, null, 2));
-
-        // 🚨 CRÍTICO: Se result.success não é true, lançar exceção IMEDIATAMENTE
-        // Isso garante que o modal não feche silenciosamente
-        if (!result || result.success !== true) {
-          const errorMsg = result?.error || 'Erro desconhecido ao enviar registro';
-          console.error('❌ [MODAL] Envio falhou - lançando exceção:', errorMsg);
-          throw new Error(errorMsg);
-        }
-      } catch (sendError: any) {
-        console.error('❌ [MODAL] Erro ao chamar sendExternalRegistroToSheet:', sendError);
-        console.error('❌ [MODAL] Detalhes do erro:', {
-          message: sendError.message,
-          name: sendError.name,
-          stack: sendError.stack,
-        });
-
-        // 🚨 CRÍTICO: Mostrar erro IMEDIATAMENTE para o usuário
-        const errorMessage = sendError.message || 'Erro ao enviar registro. Tente novamente.';
-        console.error('❌ [MODAL] Exibindo toast de erro:', errorMessage);
-        showToast.error('Erro ao salvar', errorMessage);
-
-        // Se falhou, tentar salvar usando saveRegistroToLocal como fallback (funciona em Android/iOS/Web)
-        console.log('🔄 [MODAL] Tentando salvar usando saveRegistroToLocal como fallback...');
-        try {
-          const registroFallback: RegistroPresenca & { cidade?: string } = {
-            pessoa_id: `manual_${data.nome.toUpperCase()}`,
-            comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
-            cargo_id: cargoObj.id,
-            instrumento_id: data.instrumento || undefined,
-            classe_organista: data.classe || undefined,
-            local_ensaio: localEnsaioNome,
-            data_hora_registro: getCurrentDateTimeISO(),
-            usuario_responsavel: nomeUsuario,
-            status_sincronizacao: 'pending',
-            cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro fallback
-          };
-
-          await supabaseDataService.saveRegistroToLocal(registroFallback);
-          console.log('✅ [MODAL] Registro salvo como fallback');
-          showToast.warning(
-            'Salvo na fila',
-            'Erro ao enviar. Registro será enviado quando possível.'
-          );
-
-          // Limpar formulário ANTES de recarregar
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
-
-          if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          }
-          return;
-        } catch (fallbackError) {
-          console.error('❌ [MODAL] Erro crítico ao salvar fallback:', fallbackError);
-          // Não mostrar outro toast de erro aqui - já mostramos acima
-          throw sendError; // Re-lançar erro original
-        }
+      if (!result || result.success !== true) {
+        throw new Error(result?.error || 'Erro desconhecido ao enviar registro');
       }
 
-      // 🚨 CRÍTICO: Se chegou aqui, result.success é true (já verificamos acima)
-      // Se não fosse true, teria lançado exceção no catch acima
-      console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
-      console.log('✅ [MODAL] Cargo que foi salvo:', cargoObj.nome);
-      console.log('✅ [MODAL] Resultado completo:', result);
-
-      // 🚨 CORREÇÃO: Salvar também no Supabase após envio bem-sucedido para Google Sheets
-      console.log('💾 [MODAL] Salvando registro no Supabase...');
-      console.log('💾 [MODAL] Dados do registro que será salvo no Supabase:', {
-        pessoa_id: registro.pessoa_id,
-        comum_id: registro.comum_id,
-        cargo_id: registro.cargo_id,
-        cargo_nome: cargoObj.nome,
-        instrumento_id: registro.instrumento_id,
-        classe_organista: registro.classe_organista,
-        cidade: registro.cidade,
-      });
       try {
         await supabaseDataService.createRegistroPresenca(registro, true);
-        console.log('✅ [MODAL] Registro salvo no Supabase com sucesso');
-        console.log('✅ [MODAL] Cargo "Instrutora" foi salvo corretamente:', {
-          cargo_id: registro.cargo_id,
-          cargo_nome: cargoObj.nome,
-        });
       } catch (supabaseError) {
-        // Não bloquear se Supabase falhar - Google Sheets já foi salvo
-        console.error('❌ [MODAL] Erro ao salvar no Supabase:', supabaseError);
-        console.error('❌ [MODAL] Detalhes do erro Supabase:', {
-          error: supabaseError,
-          cargo_id: registro.cargo_id,
-          cargo_nome: cargoObj.nome,
-          registro_completo: registro,
-        });
-        // Salvar na fila local para tentar novamente depois
-        try {
-          await supabaseDataService.saveRegistroToLocal(registro);
-          console.log('✅ [MODAL] Registro salvo na fila local para sincronização posterior');
-        } catch (filaError) {
-          console.error('❌ [MODAL] Erro ao salvar na fila local:', filaError);
-        }
+        await supabaseDataService.saveRegistroToLocal(registro);
       }
 
-      // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
       showToast.success('Registro de visita salvo com sucesso');
+      clearAllFields();
 
-      // Limpar formulário ANTES de recarregar
-      setSelectedComum('');
-      setSelectedCargo('');
-      setSelectedInstrumento('');
-      setSelectedPessoa('');
-      setIsNomeManual(false);
-
-      // Recarregar página após salvar (aguardar mais tempo para toast aparecer)
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        // Aumentado de 1500ms para 2000ms para dar tempo do toast aparecer
-      }
     } catch (error) {
       console.error('❌ [MODAL] Erro ao salvar novo registro:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Erro ao salvar registro. Tente novamente.';
       showToast.error('Erro', errorMessage);
-      throw error; // Re-lançar para o modal tratar
+      throw error;
     }
   };
 
-  // 🚨 REMOVIDO: Log desnecessário que estava causando loop - função já está definida e funcionando
-
   return {
-    user,
-    navigation,
-    isOnline,
-    pendingCount,
-    refreshCount,
+    // Estados
     comuns,
     cargos,
     instrumentos,
     pessoas,
     loadingPessoas,
     selectedComum,
-    setSelectedComum,
     selectedCargo,
-    setSelectedCargo,
     selectedInstrumento,
-    setSelectedInstrumento,
     selectedPessoa,
-    setSelectedPessoa,
     isNomeManual,
-    setIsNomeManual,
-    nameFieldKey,
-    setNameFieldKey,
     loading,
-    setLoading,
     initialLoading,
     syncing,
     refreshing,
-    onRefresh,
-    comumFieldRef,
+    pendingCount,
+    nameFieldKey,
     duplicateModalVisible,
-    setDuplicateModalVisible,
     duplicateInfo,
-    setDuplicateInfo,
-    pendingRegistro,
-    setPendingRegistro,
     newRegistrationModalVisible,
-    setNewRegistrationModalVisible,
-    isOrganista,
-    isCandidato,
     showInstrumento,
-    syncData,
+
+    // Setters
+    setSelectedComum,
+    setSelectedCargo,
+    setSelectedInstrumento,
+    setSelectedPessoa,
+    setIsNomeManual,
+    setDuplicateModalVisible,
+    setNewRegistrationModalVisible,
+
+    // Funções
     loadInitialData,
-    clearAllFields,
-    loadPessoas,
+    onRefresh,
     handleSubmit,
+    handleEditRegistros,
+    handleOrganistasEnsaio,
+    handleHardReset,
+    handleSaveNewRegistration,
     comunsOptions,
     cargosOptions,
     instrumentosOptions,
     pessoasOptions,
-    handleEditRegistros,
-    handleOrganistasEnsaio,
-    handleSaveNewRegistration,
+    comumFieldRef,
   };
 };

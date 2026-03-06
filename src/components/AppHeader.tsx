@@ -25,6 +25,8 @@ interface AppHeaderProps {
   onLogoutPress?: () => void;
   onEditRegistrosPress?: () => void;
   onOrganistasEnsaioPress?: () => void;
+  onRefresh?: () => void;
+  onHardReset?: () => void;
   onBackPress?: () => void;
   title?: string;
 }
@@ -34,6 +36,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogoutPress,
   onEditRegistrosPress,
   onOrganistasEnsaioPress,
+  onRefresh,
+  onHardReset,
   onBackPress,
   title,
 }) => {
@@ -214,6 +218,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               activeOpacity={0.7}
             >
               <Ionicons name="pencil" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
+            </TouchableOpacity>
+          )}
+          {onRefresh && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={() => handlePressWithHaptic(onRefresh)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
+            </TouchableOpacity>
+          )}
+          {onHardReset && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.resetBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={() => {
+                triggerHaptic('warning');
+                if (Platform.OS === 'web') {
+                  if (confirm('Deseja reiniciar o aplicativo e limpar o cache?')) {
+                    onHardReset();
+                  }
+                } else {
+                  onHardReset();
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="power" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
             </TouchableOpacity>
           )}
           {onSettingsPress && (
@@ -434,5 +465,8 @@ const styles = StyleSheet.create({
         zIndex: 1000,
       }
       : {}),
+  },
+  resetBtn: {
+    backgroundColor: '#ff4444',
   },
 });
