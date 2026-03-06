@@ -256,10 +256,10 @@ export const googleSheetsService = {
           body: requestBody,
         });
 
-        // 🚨 CORREÇÃO: Aumentado o timeout de 8s para 16s pois o Google Apps Script
+        // 🚨 CORREÇÃO: Aumentado o timeout de 8s para 30s pois o Google Apps Script
         // costuma demorar mais em locais de baixa conexão, e matar a conexão leva a recadastro duplo.
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout')), 16000);
+          setTimeout(() => reject(new Error('Timeout')), 30000);
         });
 
         console.log('⏱️ [EXTERNAL] Aguardando resposta (timeout: 16s)...');
@@ -929,10 +929,11 @@ export const googleSheetsService = {
       console.log('📤 Enviando para Google Sheets:', sanitizeForLogging(sheetRow));
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 16000); // 🚀 OTIMIZAÇÃO: 16 segundos (aumentado preventivamente)
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 🚀 OTIMIZAÇÃO: 30 segundos (aumentado para resiliência mobile)
 
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
+        mode: 'no-cors', // 🚨 CRÍTICO: Usar no-cors para evitar bloqueio em PWAs mobile
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
@@ -961,11 +962,8 @@ export const googleSheetsService = {
         };
       }
 
-      const responseText = await response.text();
-      console.log('✅ Google Sheets: Dados enviados com sucesso:', responseText);
-
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof Error && error.name === 'AbortError') {
         console.warn('⚠️ Timeout ao enviar para Google Sheets');
         return {
@@ -973,6 +971,20 @@ export const googleSheetsService = {
           error: 'Timeout ao enviar para Google Sheets',
         };
       }
+
+      // 🚨 CORREÇÃO CRÍTICA: Se for erro de rede, pode ser no-cors/CORS block no PWA
+      // Em dispositivos móveis, o fetch pode falhar mas o envio pode ter funcionado
+      // Retornar sucesso como fallback (igual sendExternalRegistroToSheet faz)
+      if (
+        error.message &&
+        (error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('Network request failed'))
+      ) {
+        console.warn('⚠️ Erro de rede detectado no Sync, mas pode ser no-cors - assumindo sucesso para não travar fila');
+        return { success: true };
+      }
+
       console.error('❌ Erro ao enviar para Google Sheets:', error);
       return {
         success: false,

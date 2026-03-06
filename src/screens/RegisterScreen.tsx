@@ -197,10 +197,9 @@ export const RegisterScreen: React.FC = () => {
                   Platform.OS === 'web'
                     ? {
                       position: 'relative' as const,
-                      zIndex: 999999,
+                      zIndex: 100,
                       overflow: 'visible' as const,
-                      // @ts-ignore
-                      isolation: 'isolate',
+                      backgroundColor: theme.colors.surface,
                     }
                     : {}
                 }
@@ -241,7 +240,7 @@ export const RegisterScreen: React.FC = () => {
                 style={[
                   styles.field,
                   Platform.OS === 'web'
-                    ? { position: 'relative' as const, zIndex: 1002, overflow: 'visible' as const }
+                    ? { position: 'relative' as const, zIndex: 90, overflow: 'visible' as const }
                     : {},
                 ]}
               >
@@ -300,10 +299,8 @@ export const RegisterScreen: React.FC = () => {
                     Platform.OS === 'web'
                       ? {
                         position: 'relative' as const,
-                        zIndex: 999999,
+                        zIndex: 80,
                         overflow: 'visible' as const,
-                        // @ts-ignore
-                        isolation: 'isolate',
                       }
                       : {},
                   ]}
@@ -328,10 +325,8 @@ export const RegisterScreen: React.FC = () => {
                   Platform.OS === 'web'
                     ? {
                       position: 'relative' as const,
-                      zIndex: 1,
+                      zIndex: 70,
                       overflow: 'visible' as const,
-                      // @ts-ignore
-                      isolation: 'isolate',
                     }
                     : {}
                 }

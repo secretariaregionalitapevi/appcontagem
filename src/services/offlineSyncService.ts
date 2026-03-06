@@ -77,7 +77,30 @@ export const offlineSyncService = {
       );
 
       const state = await Promise.race([statePromise, timeoutPromise]);
-      const result = state.isConnected === true && state.isInternetReachable !== false;
+      let result = state.isConnected === true && state.isInternetReachable !== false;
+
+      // 🚀 OTIMIZAÇÃO MOBILE: Se NetInfo diz que está offline, fazer um ping rápido de confirmação
+      // Útil em casos onde o NetInfo fica "preso" no status offline
+      if (!result) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          const pingUrl = 'https://clients3.google.com/generate_204';
+
+          await fetch(pingUrl, {
+            method: 'GET',
+            mode: 'no-cors',
+            cache: 'no-store',
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+          console.log('✅ Mobile Ping Success (NetInfo estava offline)');
+          result = true;
+        } catch (pingError) {
+          // Ping também falhou, está realmente offline ou conexão muito ruim
+        }
+      }
 
       lastOnlineCheck = now;
       lastOnlineResult = result;

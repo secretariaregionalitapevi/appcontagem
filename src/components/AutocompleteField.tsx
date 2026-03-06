@@ -324,8 +324,8 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
     }));
 
     // Z-index MUITO ALTO para aparecer acima de TUDO em TODAS as plataformas
-    const containerZIndex = isFocused ? 99999 : 1;
-    const dropdownZIndex = 999999; // Z-index extremamente alto para garantir que apareça acima de tudo
+    const containerZIndex = isFocused ? theme.zIndex.DROPDOWN_FIELD_CONTAINER : 1;
+    const dropdownZIndex = theme.zIndex.DROPDOWN_FIELD_DROPDOWN; // Usar valor centralizado do tema para garantir consistência
 
     return (
       <View
@@ -527,8 +527,6 @@ const styles = StyleSheet.create({
         position: 'relative' as any,
         overflow: 'visible' as any,
         zIndex: 1,
-        // @ts-ignore
-        isolation: 'isolate',
       }
       : {}),
   },
@@ -689,7 +687,7 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    zIndex: 99999,
+    zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
     marginTop: 4,
     ...(Platform.OS === 'web'
       ? {
@@ -699,11 +697,9 @@ const styles = StyleSheet.create({
         visibility: 'visible',
         opacity: 1,
         // @ts-ignore
-        zIndex: 99999,
+        zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
         // @ts-ignore
         pointerEvents: 'auto',
-        // @ts-ignore
-        isolation: 'isolate',
       }
       : {}),
   },
@@ -717,7 +713,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 12,
-    elevation: 99999,
+    elevation: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
@@ -731,9 +727,7 @@ const styles = StyleSheet.create({
         // @ts-ignore
         backgroundImage: 'none',
         // @ts-ignore
-        isolation: 'isolate',
-        // @ts-ignore
-        zIndex: 99999,
+        zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
         // @ts-ignore
         position: 'relative',
       }
@@ -751,8 +745,8 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    zIndex: 99999,
-    elevation: 99999,
+    zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
+    elevation: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
   },
   modalDropdown: {
     backgroundColor: theme.colors.surface,
@@ -763,8 +757,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 99999,
-    zIndex: 99999,
+    elevation: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
+    zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
   },
   dragHandleContainer: {
     alignItems: 'center',
