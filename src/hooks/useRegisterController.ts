@@ -107,8 +107,8 @@ export const useRegisterController = () => {
     }
 
     // Verificar se está online antes de sincronizar
-    const isOnlineNow =
-      Platform.OS === 'web' ? typeof navigator !== 'undefined' && navigator.onLine : isOnline;
+    const isOnlineNow = isOnline;
+
 
     if (!isOnlineNow) {
       console.log('📴 Sem conexão - não é possível sincronizar agora');

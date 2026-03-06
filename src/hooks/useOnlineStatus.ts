@@ -100,29 +100,27 @@ export const useOnlineStatus = () => {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const handleOnline = async () => {
         console.log('🌐 [useOnlineStatus] Evento online do navegador detectado');
+        // Reduzido delay de 1000ms para 200ms para resposta mais rápida
         setTimeout(async () => {
           const offlineSyncService = require('../services/offlineSyncService').offlineSyncService;
           const newStatus = await offlineSyncService.isOnline();
 
-          // 🚨 CORREÇÃO: Sempre chamar callback quando status mudar (não verificar null)
-          if (previousStatusRef.current !== null && previousStatusRef.current !== newStatus) {
+          if (previousStatusRef.current !== newStatus) {
             console.log(
               `🔄 [useOnlineStatus] Status mudou (web): ${previousStatusRef.current} -> ${newStatus}`
             );
 
             if (newStatus) {
-              // Importar serviços dinamicamente
               const offlineSyncService = require('../services/offlineSyncService').offlineSyncService;
               const supabaseDataService = require('../services/supabaseDataService').supabaseDataService;
 
               try {
                 const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
                 if (registros.length > 0) {
-                  // showToast.success('Conexão restaurada', `${registros.length} registro(s) será(ão) enviado(s)`);
                   console.log(
                     `🌐 Conexão restaurada (web): ${registros.length} registro(s) pendente(s)`
                   );
-                  // O timeout foi mantido do processo original
+                  // Processamento com delay reduzido para 1s
                   setTimeout(async () => {
                     try {
                       await offlineSyncService.processarFilaLocal();
@@ -130,7 +128,7 @@ export const useOnlineStatus = () => {
                     } catch (error) {
                       console.error('❌ Erro na sincronização automática (web):', error);
                     }
-                  }, 2000);
+                  }, 1000);
                 } else {
                   console.log('🌐 Conexão restaurada (web, sem registros pendentes)');
                 }
@@ -138,8 +136,6 @@ export const useOnlineStatus = () => {
                 console.error('Erro ao verificar/processar fila (web):', error);
               }
             }
-
-            // Atualizar onlineRef para a próxima verificação (se formos usar um timer)
           }
 
           if (onStatusChangeRef.current) {
@@ -148,8 +144,9 @@ export const useOnlineStatus = () => {
 
           previousStatusRef.current = newStatus;
           setIsOnline(newStatus);
-        }, 1000);
+        }, 200);
       };
+
 
       const handleOffline = () => {
         console.log('📵 [useOnlineStatus] Evento offline do navegador detectado');

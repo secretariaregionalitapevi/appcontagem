@@ -15,46 +15,76 @@ let isProcessingQueue = false;
 let lastProcessTimestamp = 0;
 const PROCESS_COOLDOWN = 2000; // 2 segundos de cooldown entre processamentos
 
+// 🌐 CACHE DE CONECTIVIDADE: Evitar pings excessivos
+let lastOnlineCheck = 0;
+let lastOnlineResult = true;
+const ONLINE_CACHE_MS = 5000; // Cache de 5 segundos
+
+
 export const offlineSyncService = {
   async isOnline(): Promise<boolean> {
+    const now = Date.now();
+    // 🚀 OTIMIZAÇÃO: Retornar resultado do cache se verificado recentemente
+    if (now - lastOnlineCheck < ONLINE_CACHE_MS) {
+      return lastOnlineResult;
+    }
+
     if (Platform.OS === 'web') {
-      // NetInfo no Web muitas vezes tenta pingar localhost (mesmo em produção) e falha (ERR_CONNECTION_REFUSED)
-      // Usaremos o navigator.onLine e um teste de fetch seguro para Web
+      // NetInfo no Web muitas vezes tenta pingar localhost e falha
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        lastOnlineCheck = now;
+        lastOnlineResult = false;
         return false;
       }
+
       try {
-        // Ping rápido a um serviço confiável (modo no-cors para evitar bloqueios)
-        // Se a promise resolver (mesmo sendo opaca com status 0), significa que a rede fisicamente alcançou a internet
+        // Ping rápido usando o endpoint do próprio Supabase (mais confiável e rápido)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
-        await fetch('https://clients3.google.com/generate_204', {
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Aumentado para 5s
+
+        // Tentar pingar o Supabase (ou fallback para google se não configurado)
+        const pingUrl = isSupabaseConfigured() && supabase
+          ? `${(supabase as any).supabaseUrl}/rest/v1/`
+          : 'https://clients3.google.com/generate_204';
+
+        await fetch(pingUrl, {
           method: 'GET',
           mode: 'no-cors',
           cache: 'no-store',
           signal: controller.signal
         });
+
         clearTimeout(timeoutId);
+        lastOnlineCheck = now;
+        lastOnlineResult = true;
         return true;
       } catch (error) {
-        // failed to fetch = sem internet real
-        return false;
+        // Se falhou o fetch mas o navegador diz que está online, talvez seja bloqueio de CORS
+        // ou conexão instável. Em vez de travar tudo, vamos logar.
+        console.warn('⚠️ Teste de ping falhou, mas navigator.onLine é true. (Assumindo fraca/bloqueada)');
+        lastOnlineCheck = now;
+        // Se temos navigator.onLine verdadeiro, damos o benefício da dúvida para não travar o app
+        lastOnlineResult = typeof navigator !== 'undefined' ? navigator.onLine : false;
+        return lastOnlineResult;
       }
     }
 
     let NetInfoModule = NetInfo;
     try {
-      // 🚀 OTIMIZAÇÃO: Timeout para evitar travamento no Android
       const statePromise = NetInfoModule.fetch();
       const timeoutPromise = new Promise<any>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 5000)
       );
 
       const state = await Promise.race([statePromise, timeoutPromise]);
-      return state.isConnected === true && state.isInternetReachable !== false;
+      const result = state.isConnected === true && state.isInternetReachable !== false;
+
+      lastOnlineCheck = now;
+      lastOnlineResult = result;
+      return result;
     } catch (e) {
-      console.log('⚠️ isOnline check timeout or error (assumindo offline)');
-      return false;
+      console.log('⚠️ isOnline check timeout (usando último status conhecido)');
+      return lastOnlineResult;
     }
   },
 
@@ -185,14 +215,9 @@ export const offlineSyncService = {
       for (let i = 0; i < registros.length; i++) {
         const item = registros[i];
 
-        // Verificar conectividade antes de cada item
-        const stillOnline = await this.isOnline();
-        if (!stillOnline) {
-          console.log('⚠️ Conexão perdida durante processamento, interrompendo...');
-          // Adicionar itens restantes de volta à fila
-          itensComErro.push(...registros.slice(i));
-          break;
-        }
+        // 🚀 OTIMIZAÇÃO: Não verificar isOnline() para cada item para não saturar a rede
+        // A falha do fetch individual em createRegistro já tratará a volta para a fila
+
 
         try {
           console.log(`📤 Processando item ${i + 1}/${registros.length}: ${item.pessoa_id}`);
