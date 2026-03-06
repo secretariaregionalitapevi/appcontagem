@@ -62,6 +62,19 @@ export default function App() {
     // Inicializar sistema robusto de storage e detecção de dispositivos
     const initSystem = async () => {
       try {
+        // Detectar se está rodando como PWA instalado (Standalone)
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+            (window.navigator as any).standalone ||
+            document.referrer.includes('android-app://');
+
+          if (isStandalone) {
+            console.log('📱 [App] Rodando em modo PWA Standalone (Instalado)');
+          } else {
+            console.log('🌐 [App] Rodando no Navegador');
+          }
+        }
+
         // Logar informações do dispositivo
         logDeviceInfo();
 
