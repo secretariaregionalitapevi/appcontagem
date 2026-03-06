@@ -372,7 +372,45 @@ export const authService = {
 
   async getCurrentUser(): Promise<Usuario | null> {
     try {
-      // Primeiro tentar buscar do secure store
+      // 🔑 PRIMEIRO: Tentar restaurar a sessão Supabase na memória usando tokens salvos
+      // Isso é crítico para mobile/PWA onde o cliente Supabase perde a sessão após reload
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const sessionStr = await secureStore.getItemAsync(SESSION_KEY);
+          if (sessionStr) {
+            const sessionData = JSON.parse(sessionStr);
+            if (sessionData?.access_token && sessionData?.refresh_token) {
+              // Verificar se a sessão Supabase já está ativa
+              const { data: { session: existingSession } } = await supabase.auth.getSession();
+              if (!existingSession || !existingSession.user) {
+                // Sessão não está na memória - restaurar
+                console.log('🔑 Restaurando sessão Supabase na inicialização...');
+                const { data: { session: restored } } = await supabase.auth.setSession({
+                  access_token: sessionData.access_token,
+                  refresh_token: sessionData.refresh_token,
+                }).catch(() => ({ data: { session: null } }));
+                if (restored) {
+                  console.log('✅ Sessão Supabase restaurada na inicialização');
+                  // Atualizar tokens salvos com os novos tokens (já pode ter feito refresh)
+                  if (restored.access_token !== sessionData.access_token) {
+                    await secureStore.setItemAsync(SESSION_KEY, JSON.stringify({
+                      access_token: restored.access_token,
+                      refresh_token: restored.refresh_token,
+                      expires_at: restored.expires_at,
+                    }));
+                  }
+                } else {
+                  console.warn('⚠️ Não foi possível restaurar sessão Supabase (token pode ter expirado)');
+                }
+              }
+            }
+          }
+        } catch (sessionRestoreError) {
+          console.warn('⚠️ Erro ao tentar restaurar sessão Supabase:', sessionRestoreError);
+        }
+      }
+
+      // Buscar usuário do secure store
       const userStr = await secureStore.getItemAsync(USER_KEY);
       if (userStr) {
         try {

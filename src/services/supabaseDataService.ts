@@ -181,6 +181,9 @@ export const supabaseDataService = {
     try {
       console.log('📚 Buscando comuns da tabela oficial comuns...');
 
+      // 🔑 Garantir sessão ativa ANTES de qualquer query (crítico para mobile/PWA)
+      await ensureSessionRestored();
+
       const tableName = 'comuns';
       let allData: any[] = [];
       let hasMore = true;
