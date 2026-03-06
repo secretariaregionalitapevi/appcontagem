@@ -564,8 +564,12 @@ export const useRegisterController = () => {
     }
 
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
+    // 🚨 CORREÇÃO: Extrair nome limpo para consistência total da chave de cache
+    const cleanComumName = comumObj.nome.replace(/^BR-\d+-\d+\s*-\s*/, '').replace(/^BR-\d+-\d+\s+/, '').trim();
+    const cleanCargoName = cargoObj.nome.trim();
+
     const CACHE_VERSION = 'v5'; // Sincronizado com supabaseDataService.ts
-    const cacheKey = `pessoas_${CACHE_VERSION}_${comumObj.nome}_${cargoObj.nome}_${instrumentoObj?.nome || ''}`;
+    const cacheKey = `pessoas_${CACHE_VERSION}_${cleanComumName}_${cleanCargoName}_${instrumentoObj?.nome || ''}`;
 
     try {
       // Tentar buscar do cache primeiro (síncrono/assíncrono rápido)

@@ -30,13 +30,36 @@ export const offlineSyncService = {
     }
 
     if (Platform.OS === 'web') {
-      // Para web/PWA: usar navigator.onLine como fonte direta e imediata.
-      // Evitar qualquer ping de rede - e lento e pode falhar por CSP/captive portal
-      // no iPhone/iOS, causando falsos negativos que fazem tudo ir para a fila offline.
-      const result = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      lastOnlineCheck = now;
-      lastOnlineResult = result;
-      return result;
+      // Para web/PWA: navigator.onLine é rápido, mas pode ser falso-negativo em mobile
+      const navOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+      if (navOnline) {
+        lastOnlineCheck = now;
+        lastOnlineResult = true;
+        return true;
+      }
+
+      // 🚨 CORREÇÃO: Se navigator.onLine diz offline, tentar um ping rápido para confirmar
+      // Isso resolve o "falso offline" comum em PWAs mobile.
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2500);
+        await fetch('https://clients3.google.com/generate_204', {
+          method: 'GET',
+          mode: 'no-cors',
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        console.log('✅ Web Ping Success (navigator.onLine estava offline)');
+        lastOnlineCheck = now;
+        lastOnlineResult = true;
+        return true;
+      } catch (e) {
+        lastOnlineCheck = now;
+        lastOnlineResult = false;
+        return false;
+      }
     }
 
     let NetInfoModule = NetInfo;

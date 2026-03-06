@@ -1485,6 +1485,8 @@ export const supabaseDataService = {
       console.log(`✅ ${uniqueData.length} pessoas únicas após remover duplicatas`);
 
       // 🚀 OTIMIZAÇÃO: Salvar no cache para próximas consultas
+      // 🚨 CORREÇÃO: Usar a chave baseada no nome original passado (que pode conter o código)
+      // para que getPessoasFromLocal a encontre na próxima vez.
       await cacheManager.set(cacheKey, uniqueData, 'pessoas');
       console.log(`💾 [fetchPessoasFromCadastro] Cache salvo para chave: ${cacheKey}`);
 
@@ -1857,9 +1859,13 @@ export const supabaseDataService = {
       }
     }
 
+    // 🚨 CORREÇÃO: Extrair nome limpo para consistência total da chave de cache
+    const cleanComumName = comumNome.replace(/^BR-\d+-\d+\s*-\s*/, '').replace(/^BR-\d+-\d+\s+/, '').trim();
+    const cleanCargoName = cargoNome.trim();
+
     // 🚀 OTIMIZAÇÃO: Tentar cache primeiro para carregamento instantâneo (segundo nível de cache)
     const CACHE_VERSION = 'v5';
-    const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
+    const cacheKey = `pessoas_${CACHE_VERSION}_${cleanComumName}_${cleanCargoName}_${instrumentoNome || ''}`;
 
     try {
       const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
