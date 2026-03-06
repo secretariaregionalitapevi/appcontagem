@@ -742,7 +742,7 @@ export const supabaseDataService = {
 
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
     // 🚨 CORREÇÃO: Adicionar versão ao cache key para invalidar caches antigos quando a lógica mudar
-    const CACHE_VERSION = 'v4'; // Sincronizado com useRegisterController.ts
+    const CACHE_VERSION = 'v5'; // Forçar recarregamento para sincronizar com melhorias de RLS
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
     const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
     if (cached) {
@@ -788,16 +788,18 @@ export const supabaseDataService = {
 
     try {
       // 🚀 OTIMIZAÇÃO: Restaurar sessão de forma rápida e não-bloqueante
-      // Aguardar apenas o mínimo necessário (timeout de 500ms para resposta mais rápida)
-      const sessionPromise = Promise.race([
+      // Aguardar apenas o mínimo necessário (timeout de 5s para mobile)
+      console.log('🔐 [fetchPessoasFromCadastro] Tentando restaurar sessão...');
+      const sessionRestored = await Promise.race([
         ensureSessionRestored(),
-        new Promise(resolve => setTimeout(resolve, 5000)), // Aumentado para 5s para mobile
+        new Promise<boolean>(resolve => setTimeout(() => {
+          console.warn('⚠️ [fetchPessoasFromCadastro] Timeout na restauração de sessão (5s)');
+          resolve(false);
+        }, 5000)),
       ]).catch(error => {
         console.warn('⚠️ Erro ao restaurar sessão (continuando...):', error);
+        return false;
       });
-
-      // Aguardar sessão rapidamente (com timeout) antes de fazer query
-      const sessionRestored = await sessionPromise;
 
       // Verificar autenticação detalhada para diagnóstico
       const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
@@ -1470,15 +1472,17 @@ export const supabaseDataService = {
     try {
       // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de buscar (RLS requer autenticação)
       // 🚀 OTIMIZAÇÃO: Timeout aumentado para 5s para garantir restauração em redes móveis
-      const sessionPromise = Promise.race([
+      console.log('🔐 [fetchCandidatosFromSupabase] Tentando restaurar sessão...');
+      const sessionRestaurada = await Promise.race([
         ensureSessionRestored(),
-        new Promise(resolve => setTimeout(resolve, 5000)),
+        new Promise<boolean>(resolve => setTimeout(() => {
+          console.warn('⚠️ [fetchCandidatosFromSupabase] Timeout na restauração de sessão (5s)');
+          resolve(false);
+        }, 5000)),
       ]).catch(error => {
         console.warn('⚠️ Erro ao restaurar sessão para candidatos:', error);
         return false;
       });
-
-      const sessionRestaurada = await sessionPromise;
 
       // Verificar autenticação após restaurar
       const {

@@ -564,7 +564,7 @@ export const useRegisterController = () => {
     }
 
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
-    const CACHE_VERSION = 'v4'; // Sincronizado com supabaseDataService.ts
+    const CACHE_VERSION = 'v5'; // Sincronizado com supabaseDataService.ts
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumObj.nome}_${cargoObj.nome}_${instrumentoObj?.nome || ''}`;
 
     try {
