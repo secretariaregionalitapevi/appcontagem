@@ -141,7 +141,7 @@ export const supabaseDataService = {
       const pageSize = 1000; // Supabase permite até 1000 por página
       let finalError: any = null;
 
-      // Função para buscar uma página
+      // Função simples para buscar uma página
       const fetchPage = async (
         table: string,
         page: number
@@ -150,43 +150,15 @@ export const supabaseDataService = {
         const to = from + pageSize - 1;
 
         try {
-          // Estratégia resiliente: Tentar selecionar com ativo, se falhar, cair para comum apenas
-          // Armazenar qual colunas funcionam para evitar erros repetidos
-          // @ts-ignore
-          if (!this._comunsQueryStrategy) {
-            // @ts-ignore
-            this._comunsQueryStrategy = 'comum, ativo';
-          }
-
-          // @ts-ignore
-          let selectColumns = this._comunsQueryStrategy;
-          let query = supabase.from(table).select(selectColumns);
-
-          // @ts-ignore
-          if (selectColumns.includes('ativo')) {
-            query = query.eq('ativo', true);
-          }
-
-          let result = await query
+          // 🚨 SIMPLIFICAÇÃO: Buscar apenas a coluna comum. 
+          // O usuário confirmou que o banco foi limpo manualmente.
+          const result = await supabase
+            .from(table)
+            .select('comum')
             .not('comum', 'is', null)
             .neq('comum', '')
             .order('comum', { ascending: true })
             .range(from, to);
-
-          // Se der erro 400 (ex: coluna 'ativo' não existe), tentar sem o filtro de ativo
-          if (result.error && (result.error.code === '400' || result.error.code === 'PGRST116' || result.error.message.includes('column "ativo"'))) {
-            // Ajustar estratégia para o futuro
-            // @ts-ignore
-            this._comunsQueryStrategy = 'comum';
-
-            result = (await supabase
-              .from(table)
-              .select('comum')
-              .not('comum', 'is', null)
-              .neq('comum', '')
-              .order('comum', { ascending: true })
-              .range(from, to)) as any;
-          }
 
           if (result.error) {
             return {
@@ -210,7 +182,7 @@ export const supabaseDataService = {
         }
       };
 
-      // Tentar primeiro com 'cadastro'
+      // Loop de busca (apenas na tabela cadastro)
       while (hasMore) {
         try {
           const pageResult = await fetchPage(tableName, currentPage);

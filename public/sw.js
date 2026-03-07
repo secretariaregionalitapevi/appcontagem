@@ -1,5 +1,5 @@
-const CACHE_NAME = 'ccb-contagem-cache-v7'; // Aumentado para v7
-const RUNTIME_CACHE = 'ccb-contagem-runtime-v7';
+const CACHE_NAME = 'appcont-cache-v8';
+const RUNTIME_CACHE = 'appcont-runtime-v8';
 
 const PRECACHE_ASSETS = [
     '/',
