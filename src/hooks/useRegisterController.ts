@@ -367,7 +367,11 @@ export const useRegisterController = () => {
       if (precisaInstrumento && !selectedInstrumento) {
         // Precisa de instrumento mas não foi selecionado ainda
         setPessoas([]);
-        setSelectedPessoa('');
+        // 🚨 CORREÇÃO: Não limpar automaticamente o nome se ele já foi digitado/selecionado
+        // Isso causava o bug do alerta de "selecionar nome" ao trocar cargo/instrumento
+        if (!selectedPessoa) {
+          setSelectedPessoa('');
+        }
         return;
       }
       // 🚀 OTIMIZAÇÃO: Debounce de 300ms (aumentado de 100ms) para evitar múltiplas chamadas rápidas
@@ -377,7 +381,10 @@ export const useRegisterController = () => {
       }, 300);
     } else {
       setPessoas([]);
-      setSelectedPessoa('');
+      // Só limpar se realmente não tiver nada selecionado
+      if (!selectedComum && !selectedCargo) {
+        setSelectedPessoa('');
+      }
     }
 
     // Cleanup: limpar timeout ao desmontar ou quando dependências mudarem
@@ -551,7 +558,20 @@ export const useRegisterController = () => {
   const loadPessoas = async () => {
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro antes de mostrar loading
     // Buscar nomes de comum e cargo rapidamente (já estão em memória)
-    const comumObj = comuns.find(c => c.id === selectedComum);
+    // 🚀 OTIMIZAÇÃO: Suporte para IDs antigos (index-based) e novos (UUID)
+    const comumObj = comuns.find(c => {
+      if (c.id === selectedComum) return true;
+      if (selectedComum?.startsWith('comum_')) {
+        const parts = selectedComum.split('_');
+        if (parts.length >= 3) {
+          const idNamePart = parts.slice(2).join('_');
+          const cNamePart = c.nome.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          return idNamePart === cNamePart;
+        }
+      }
+      return false;
+    });
+
     const cargoObj = cargos.find(c => c.id === selectedCargo);
     const instrumentoObj =
       showInstrumento && selectedInstrumento

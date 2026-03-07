@@ -202,12 +202,24 @@ export const supabaseDataService = {
           const result = await this.executeWithRetry(() =>
             supabase
               .from(table)
-              .select('comum')
+              .select('id, comum') // 🚀 CORREÇÃO: Buscar ID real para estabilidade
               .order('comum', { ascending: true })
               .range(from, to)
           );
 
           if (result.error) {
+            // Fallback se a coluna 'id' não existir (em versões antigas do schema)
+            if (result.error.code === 'PGRST204' || result.error.message?.includes('column "id" does not exist')) {
+              console.warn('⚠️ Coluna "id" não encontrada na tabela comuns, usando apenas "comum"');
+              const fallbackResult = await this.executeWithRetry(() =>
+                supabase
+                  .from(table)
+                  .select('comum')
+                  .order('comum', { ascending: true })
+                  .range(from, to)
+              );
+              return { data: fallbackResult.data || [], error: fallbackResult.error, hasMore: (fallbackResult.data?.length || 0) === pageSize };
+            }
             return { data: [], error: result.error, hasMore: false };
           }
 
@@ -270,8 +282,13 @@ export const supabaseDataService = {
       // Converter para formato Comum[]
       const comuns: Comum[] = nomesCompletosUnicos.map((nomeCompleto, index) => {
         const nomeExibicao = extrairNomeComum(nomeCompleto);
+
+        // 🚀 CORREÇÃO: Buscar o ID real do registro original
+        const originalRecord = allData.find(d => d.comum === nomeCompleto);
+        const stableId = originalRecord?.id || `comum_v2_${nomeCompleto.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+
         return {
-          id: `comum_${index + 1}_${nomeCompleto.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+          id: stableId,
           nome: nomeCompleto,
           displayName: nomeExibicao,
           created_at: new Date().toISOString(),
@@ -1745,8 +1762,28 @@ export const supabaseDataService = {
     ]);
 
     if (comumId) {
-      const comum = comuns.find(c => c.id === comumId);
+      // 🚀 CORREÇÃO: Suporte para IDs antigos (index-based) e novos (UUID/Name-based)
+      const comum = comuns.find(c => {
+        if (c.id === comumId) return true;
+
+        // Fallback: se o ID antigo continha o nome da comum, tentar extrair e comparar
+        if (comumId.startsWith('comum_')) {
+          const parts = comumId.split('_');
+          if (parts.length >= 3) {
+            // Tenta ver se o nome está contido no ID antigo
+            const idNamePart = parts.slice(2).join('_');
+            const cNamePart = c.nome.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            return idNamePart === cNamePart;
+          }
+        }
+        return false;
+      });
       comumNome = comum?.nome;
+
+      // 🚨 LOG DE DIAGNÓSTICO: Rastrear mapeamento de ID para Nome
+      if (!comumNome && comumId) {
+        console.warn(`⚠️ [getPessoasFromLocal] ID de comum não mapeado: ${comumId}`);
+      }
     }
 
     if (cargoId) {
@@ -2072,15 +2109,28 @@ export const supabaseDataService = {
 
       for (let tentativas = 1; tentativas <= maxTentativas; tentativas++) {
         try {
+          // 🚨 CRÍTICO: Buscar nomes reais para as colunas comuns, cargo e instrumento
+          // Supabase e Google Sheets esperam NOMES, não IDs
+          const [comunsAll, cargosAll, instrumentosAll] = await Promise.all([
+            this.getComunsFromLocal(),
+            this.getCargosFromLocal(),
+            this.getInstrumentosFromLocal()
+          ]);
+
+          const comumNomeReal = comunsAll.find(c => c.id === registro.comum_id)?.nome || registro.comum_id;
+          const cargoNomeReal = cargosAll.find(c => c.id === registro.cargo_id)?.nome || registro.cargo_id;
+          const instrumentoNomeReal = registro.instrumento_id ?
+            (instrumentosAll.find(i => i.id === registro.instrumento_id)?.nome || null) : null;
+
           const row = {
             uuid: uuid,
             pessoa_id: registro.pessoa_id.startsWith('manual_') ? null : registro.pessoa_id,
             nome_completo: registro.pessoa_id.startsWith('manual_')
-              ? registro.pessoa_id.replace(/^manual_/, '').toUpperCase()
+              ? registro.pessoa_id.replace(/^manual_/, '').trim().toUpperCase()
               : null,
-            comum: registro.comum_id,
-            cargo: registro.cargo_id,
-            instrumento: registro.instrumento_id || null,
+            comum: comumNomeReal, // 🚀 ENVIAR NOME, NÃO ID
+            cargo: cargoNomeReal, // 🚀 ENVIAR NOME, NÃO ID
+            instrumento: instrumentoNomeReal,
             classe_organista: registro.classe_organista || null,
             local_ensaio: registro.local_ensaio,
             data_ensaio: registro.data_hora_registro,
