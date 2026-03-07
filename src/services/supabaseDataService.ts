@@ -150,37 +150,28 @@ export const supabaseDataService = {
         const to = from + pageSize - 1;
 
         try {
-          // Buscar apenas comum (sem filtro de ativo)
+          // Buscar apenas comum (filtrando por ativos se a coluna existir)
           let result = await supabase
             .from(table)
-            .select('comum')
+            .select('comum, ativo')
+            .eq('ativo', true)
             .not('comum', 'is', null)
             .neq('comum', '')
             .order('comum', { ascending: true })
             .range(from, to);
 
-          // Se der erro 400, tentar query simplificada
-          if (result.error && (result.error.code === '400' || result.error.code === 'PGRST116')) {
+          // Se der erro 400 (ex: coluna 'ativo' não existe), tentar sem o filtro de ativo
+          if (result.error && (result.error.code === '400' || result.error.code === 'PGRST116' || result.error.message.includes('column "ativo"'))) {
             console.log(
-              `⚠️ Erro ${result.error.code} na query completa, tentando query simplificada...`
+              `⚠️ Erro ${result.error.code} ao filtrar por ativo, tentando sem filtro...`
             );
             result = await supabase
               .from(table)
               .select('comum')
+              .not('comum', 'is', null)
+              .neq('comum', '')
               .order('comum', { ascending: true })
               .range(from, to);
-
-            if (!result.error && result.data) {
-              // Filtrar nulls e vazios no cliente
-              const filtered = result.data.filter(
-                (r: any) => r.comum && typeof r.comum === 'string' && r.comum.trim() !== ''
-              );
-              return {
-                data: filtered,
-                error: null,
-                hasMore: filtered.length === pageSize,
-              };
-            }
           }
 
           if (result.error) {
@@ -247,40 +238,6 @@ export const supabaseDataService = {
         }
       }
 
-      // Se ainda não encontrou dados e estava tentando 'cadastro', tentar 'musicos_unificado'
-      if (allData.length === 0 && tableName === 'cadastro' && !finalError) {
-        console.log('⚠️ Nenhum dado encontrado na tabela cadastro, tentando musicos_unificado...');
-        tableName = 'musicos_unificado';
-        currentPage = 0;
-        hasMore = true;
-        allData = [];
-
-        while (hasMore) {
-          try {
-            const pageResult = await fetchPage(tableName, currentPage);
-
-            if (pageResult.error) {
-              finalError = pageResult.error;
-              break;
-            }
-
-            if (pageResult.data && pageResult.data.length > 0) {
-              allData = allData.concat(pageResult.data);
-              console.log(
-                `📄 Página ${currentPage + 1}: ${pageResult.data.length} registros (total: ${allData.length})`
-              );
-            }
-
-            hasMore = pageResult.hasMore;
-            currentPage++;
-          } catch (error) {
-            console.error(`❌ Erro ao buscar página ${currentPage + 1}:`, error);
-            finalError = error;
-            break;
-          }
-        }
-      }
-
       if (finalError) {
         console.error('❌ Erro ao buscar comuns:', finalError);
         throw finalError;
@@ -293,61 +250,57 @@ export const supabaseDataService = {
 
       console.log(`✅ Total de ${allData.length} registros encontrados na tabela ${tableName}`);
 
-      // Extrair valores únicos de 'comum' e normalizar (seguindo lógica do app.js)
-      const comunsSet = new Set<string>();
-
-      allData.forEach((record: any) => {
-        const comum = record.comum;
-        if (comum && typeof comum === 'string') {
-          const comumTrimmed = comum.trim();
-          if (comumTrimmed) {
-            // Normalizar: todas as letras maiúsculas
-            const comumNormalizado = comumTrimmed.toUpperCase();
-            comunsSet.add(comumNormalizado);
-          }
-        }
-      });
-
-      // Converter Set para array e ordenar
-      const comunsArray = Array.from(comunsSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-
-      console.log(`✅ ${comunsArray.length} comuns únicas encontradas`);
-
+      // --- LÓGICA DE DEDUPLICAÇÃO ROBUSTA ---
       // Função para extrair apenas o nome da comum (remover código de localização)
-      // Exemplo: "BR-22-1739 - JARDIM MIRANDA" -> "JARDIM MIRANDA"
       const extrairNomeComum = (comumCompleto: string): string => {
-        // Se contém " - ", pegar a parte depois do " - "
+        if (!comumCompleto) return '';
         if (comumCompleto.includes(' - ')) {
           const partes = comumCompleto.split(' - ');
           return partes.slice(1).join(' - ').trim();
         }
-        // Se contém apenas " -" (sem espaço antes), também tentar separar
         if (comumCompleto.includes(' -')) {
           const partes = comumCompleto.split(' -');
           return partes.slice(1).join(' -').trim();
         }
-        // Se não tem separador, retornar como está
         return comumCompleto.trim();
       };
 
-      // Converter para formato Comum[]
-      // Armazenar nome completo no id/nome original, mas criar campo displayName para exibição
-      const comuns: Comum[] = comunsArray.map((nomeCompleto, index) => {
-        const nomeExibicao = extrairNomeComum(nomeCompleto);
-        return {
-          id: `comum_${index + 1}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
-          nome: nomeCompleto, // Nome completo com código (para registro)
-          displayName: nomeExibicao, // Nome sem código (para exibição)
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        } as any;
+      // Usar um Map para agrupar por nome normalizado para evitar duplicatas (ex: CHÁCARA vs CHACARA)
+      const mapComuns = new Map<string, { original: string; display: string }>();
+
+      allData.forEach((record: any) => {
+        const original = record.comum;
+        if (original && typeof original === 'string') {
+          const display = extrairNomeComum(original);
+          const key = normalizeString(display.toUpperCase());
+
+          if (key) {
+            const existing = mapComuns.get(key);
+            // PRIORIDADE: Manter o nome que contém o código regional "BR-" pois é o formato oficial
+            const isBetter = !existing || (!existing.original.includes('BR-') && original.includes('BR-'));
+
+            if (isBetter) {
+              mapComuns.set(key, { original, display });
+            }
+          }
+        }
       });
 
-      console.log(`✅ Retornando ${comuns.length} comuns processadas da tabela ${tableName}`);
-      console.log(
-        `📋 Primeiras 5 comuns:`,
-        comuns.slice(0, 5).map(c => c.nome)
-      );
+      // Converter Map para formato Comum[] e ordenar
+      const comuns: Comum[] = Array.from(mapComuns.values())
+        .map((item, index) => ({
+          id: `comum_${index + 1}_${item.display.toLowerCase().replace(/\s+/g, '_')}`,
+          nome: item.original, // Nome completo (para o registro)
+          displayName: item.display, // Nome limpo (para a lista)
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName, 'pt-BR'));
+
+      console.log(`✅ Retornando ${comuns.length} comuns únicas processadas da tabela ${tableName}`);
+      if (comuns.length > 0) {
+        console.log(`📋 Primeiras 5 comuns:`, comuns.slice(0, 5).map(c => c.displayName));
+      }
 
       return comuns;
     } catch (error) {
