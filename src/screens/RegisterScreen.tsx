@@ -118,6 +118,10 @@ export const RegisterScreen: React.FC = () => {
       <AppHeader
         onEditRegistrosPress={handleEditRegistros}
         onOrganistasEnsaioPress={handleOrganistasEnsaio}
+        onNewRegistroPress={() => {
+          console.log('🔘 [RegisterScreen] Botão "+ Novo registro" no header clicado');
+          setNewRegistrationModalVisible(true);
+        }}
       />
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -217,24 +221,6 @@ export const RegisterScreen: React.FC = () => {
                   }}
                   placeholder="Selecione a comum..."
                 />
-                {/* 🚨 CORREÇÃO: Permitir botão "+ Novo registro" funcionar offline - modal salva na fila automaticamente */}
-                <TouchableOpacity
-                  onPress={e => {
-                    e.preventDefault?.();
-                    e.stopPropagation?.();
-                    console.log('🔘 [RegisterScreen] Botão "+ Novo registro" clicado');
-                    console.log('🔘 [RegisterScreen] isOnline:', isOnline);
-                    console.log('🔘 [RegisterScreen] Abrindo modal...');
-                    setNewRegistrationModalVisible(true);
-                    console.log(
-                      '✅ [RegisterScreen] Modal aberto - newRegistrationModalVisible = true'
-                    );
-                  }}
-                  style={styles.newRegistrationLink}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.newRegistrationLinkText}>+ Novo registro</Text>
-                </TouchableOpacity>
               </View>
 
               <View

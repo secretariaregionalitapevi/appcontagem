@@ -28,6 +28,7 @@ interface AppHeaderProps {
   onRefresh?: () => void;
   onHardReset?: () => void;
   onBackPress?: () => void;
+  onNewRegistroPress?: () => void;
   title?: string;
 }
 
@@ -39,6 +40,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onRefresh,
   onHardReset,
   onBackPress,
+  onNewRegistroPress,
   title,
 }) => {
   const { user, signOut } = useAuthContext();
@@ -246,6 +248,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <Ionicons name="settings" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
           )}
+          {onNewRegistroPress && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.newRegistroBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={() => handlePressWithHaptic(onNewRegistroPress)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={IS_SMALL_SCREEN ? 20 : 24} color="#ffffff" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
             onPress={() => handlePressWithHaptic(handleLogout)}
@@ -435,11 +446,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   organistaBtn: {
-    backgroundColor: '#863b4b', // Cor magenta/vinho apagado (fundo do ícone da música na referência)
-
+    backgroundColor: '#863b4b',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
+        // @ts-ignore
         cursor: 'pointer',
         // @ts-ignore
         userSelect: 'none',
@@ -458,5 +468,8 @@ const styles = StyleSheet.create({
   },
   resetBtn: {
     backgroundColor: '#ff4444',
+  },
+  newRegistroBtn: {
+    backgroundColor: '#22c55e', // verde vibrante
   },
 });
