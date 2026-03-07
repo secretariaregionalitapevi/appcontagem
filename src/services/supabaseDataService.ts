@@ -133,8 +133,8 @@ export const supabaseDataService = {
     try {
       console.log('📚 Buscando comuns da tabela cadastro (seguindo lógica do app.js)...');
 
-      // Tentar primeiro com 'cadastro', depois 'musicos_unificado' (fallback)
-      let tableName = 'cadastro';
+      // Tentar buscar da tabela cadastro
+      const tableName = 'cadastro';
       let allData: any[] = [];
       let hasMore = true;
       let currentPage = 0;
@@ -150,11 +150,24 @@ export const supabaseDataService = {
         const to = from + pageSize - 1;
 
         try {
-          // Buscar apenas comum (filtrando por ativos se a coluna existir)
-          let result = await supabase
-            .from(table)
-            .select('comum, ativo')
-            .eq('ativo', true)
+          // Estratégia resiliente: Tentar selecionar com ativo, se falhar, cair para comum apenas
+          // Armazenar qual colunas funcionam para evitar erros repetidos
+          // @ts-ignore
+          if (!this._comunsQueryStrategy) {
+            // @ts-ignore
+            this._comunsQueryStrategy = 'comum, ativo';
+          }
+
+          // @ts-ignore
+          let selectColumns = this._comunsQueryStrategy;
+          let query = supabase.from(table).select(selectColumns);
+
+          // @ts-ignore
+          if (selectColumns.includes('ativo')) {
+            query = query.eq('ativo', true);
+          }
+
+          let result = await query
             .not('comum', 'is', null)
             .neq('comum', '')
             .order('comum', { ascending: true })
@@ -162,9 +175,10 @@ export const supabaseDataService = {
 
           // Se der erro 400 (ex: coluna 'ativo' não existe), tentar sem o filtro de ativo
           if (result.error && (result.error.code === '400' || result.error.code === 'PGRST116' || result.error.message.includes('column "ativo"'))) {
-            console.log(
-              `⚠️ Erro ${result.error.code} ao filtrar por ativo, tentando sem filtro...`
-            );
+            // Ajustar estratégia para o futuro
+            // @ts-ignore
+            this._comunsQueryStrategy = 'comum';
+
             result = (await supabase
               .from(table)
               .select('comum')
@@ -202,14 +216,6 @@ export const supabaseDataService = {
           const pageResult = await fetchPage(tableName, currentPage);
 
           if (pageResult.error) {
-            // Se for primeira página e der erro, tentar fallback
-            if (currentPage === 0 && tableName === 'cadastro') {
-              console.log('⚠️ Erro ao buscar da tabela cadastro, tentando musicos_unificado...');
-              tableName = 'musicos_unificado';
-              currentPage = 0;
-              allData = [];
-              continue;
-            }
             finalError = pageResult.error;
             break;
           }
@@ -225,14 +231,6 @@ export const supabaseDataService = {
           currentPage++;
         } catch (error) {
           console.error(`❌ Erro ao buscar página ${currentPage + 1}:`, error);
-          // Se for primeira página, tentar fallback
-          if (currentPage === 0 && tableName === 'cadastro') {
-            console.log('⚠️ Erro na primeira página, tentando musicos_unificado...');
-            tableName = 'musicos_unificado';
-            currentPage = 0;
-            allData = [];
-            continue;
-          }
           finalError = error;
           break;
         }
