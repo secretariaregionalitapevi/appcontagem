@@ -565,10 +565,10 @@ export const useRegisterController = () => {
 
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
     // 🚨 CORREÇÃO: Extrair nome limpo para consistência total da chave de cache
-    const cleanComumName = comumObj.nome.replace(/^BR-\d+-\d+\s*-\s*/, '').replace(/^BR-\d+-\d+\s+/, '').trim();
+    const cleanComumName = supabaseDataService.extrairNomeComum(comumObj.nome);
     const cleanCargoName = cargoObj.nome.trim();
 
-    const CACHE_VERSION = 'v5'; // Sincronizado com supabaseDataService.ts
+    const CACHE_VERSION = 'v7'; // Sincronizado com supabaseDataService.ts
     const cacheKey = `pessoas_${CACHE_VERSION}_${cleanComumName}_${cleanCargoName}_${instrumentoObj?.nome || ''}`;
 
     try {

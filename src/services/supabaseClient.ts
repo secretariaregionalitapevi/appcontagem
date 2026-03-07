@@ -31,6 +31,11 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
   try {
     // 1. Verificar se já existe sessão ativa (Supabase gerencia automaticamente com persistSession: true)
     const { data: { session }, error } = await supabase.auth.getSession();
+    console.log('🔐 [ensureSessionRestored] Current session state:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      error: error?.message
+    });
 
     if (session && session.user && !error) {
       const expiresAt = session.expires_at;
