@@ -61,7 +61,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 }
 
 // Configuração base de layout idêntica ao alerta de "Registro Enviado"
-const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 3500, position: any = 'center', toast = false) => {
+const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 2000, position: any = 'center', toast = false) => {
   return {
     icon: icon,
     title: `<span style="font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 600; color: #333; font-size: ${toast ? '16px' : '22px'};">${title}</span>`,
@@ -95,7 +95,7 @@ export const showToast = {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire(getSwalOptions(title, message, 'success', false, 3500));
+        Swal.fire(getSwalOptions(title, message, 'success', false, 2000));
       } else {
         console.log(`✅ ${title}: ${message || ''}`);
       }
@@ -106,7 +106,7 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 3500,
+        visibilityTime: 2000,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
@@ -119,7 +119,7 @@ export const showToast = {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire(getSwalOptions(title, message, 'error', true, 5000));
+        Swal.fire(getSwalOptions(title, message, 'error', true, 3000));
       } else {
         console.error(`❌ ${title}: ${message || ''}`);
         if (typeof window !== 'undefined' && window.alert) {
@@ -133,7 +133,7 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 4500,
+        visibilityTime: 3000,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
@@ -146,7 +146,7 @@ export const showToast = {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire(getSwalOptions(title, message, 'info', false, 3500));
+        Swal.fire(getSwalOptions(title, message, 'info', false, 2000));
       } else {
         console.info(`ℹ️ ${title}: ${message || ''}`);
       }
@@ -157,7 +157,7 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 3500,
+        visibilityTime: 2000,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
@@ -180,7 +180,7 @@ export const showToast = {
           message,
           'warning',
           !(isDuplicidade || isSalvoLocalmente),
-          (isDuplicidade || isSalvoLocalmente) ? 3000 : 3500,
+          (isDuplicidade || isSalvoLocalmente) ? 2000 : 2500,
           (isDuplicidade || isSalvoLocalmente) ? 'top-end' : 'center',
           (isDuplicidade || isSalvoLocalmente)
         );
@@ -198,7 +198,7 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 4500,
+        visibilityTime: 2000,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
