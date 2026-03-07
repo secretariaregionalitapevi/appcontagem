@@ -11,6 +11,7 @@ import {
   RefreshControl,
   useWindowDimensions,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { SimpleSelectField } from '../components/SimpleSelectField';
 import { AutocompleteField } from '../components/AutocompleteField';
 import { NameSelectField } from '../components/NameSelectField';
@@ -26,6 +27,7 @@ import { offlineSyncService } from '../services/offlineSyncService';
 import { showToast } from '../utils/toast';
 
 export const RegisterScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const controller = useRegisterController();
   const {
     user,
@@ -210,7 +212,7 @@ export const RegisterScreen: React.FC = () => {
                   <Text style={styles.label}>COMUM CONGREGAÇÃO *</Text>
                   <TouchableOpacity
                     onPress={() => {
-                      setNewRegistrationModalVisible(true);
+                      navigation.navigate('OtrasLocalidades');
                     }}
                     style={{
                       flexDirection: 'row',

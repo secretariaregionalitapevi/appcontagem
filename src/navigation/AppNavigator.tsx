@@ -6,6 +6,7 @@ import { SignUpScreen } from '../screens/SignUpScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { EditRegistrosScreen } from '../screens/EditRegistrosScreen';
 import { OrganistasEnsaioScreen } from '../screens/OrganistasEnsaioScreen';
+import { OtrasLocalidadesScreen } from '../screens/OtrasLocalidadesScreen';
 import { useAuthContext } from '../context/AuthContext';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { theme } from '../theme';
@@ -96,6 +97,14 @@ export const AppNavigator: React.FC = () => {
           name="OrganistasEnsaio"
           component={OrganistasEnsaioScreen}
           options={{ title: 'CCB | Organistas no Ensaio' }}
+        />
+        <Stack.Screen
+          name="OtrasLocalidades"
+          component={OtrasLocalidadesScreen}
+          options={{
+            title: 'CCB | Outras Localidades',
+            animation: 'slide_from_right',
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>
