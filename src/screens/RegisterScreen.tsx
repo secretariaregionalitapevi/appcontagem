@@ -118,10 +118,6 @@ export const RegisterScreen: React.FC = () => {
       <AppHeader
         onEditRegistrosPress={handleEditRegistros}
         onOrganistasEnsaioPress={handleOrganistasEnsaio}
-        onNewRegistroPress={() => {
-          console.log('🔘 [RegisterScreen] Botão "+ Novo registro" no header clicado');
-          setNewRegistrationModalVisible(true);
-        }}
       />
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -209,9 +205,36 @@ export const RegisterScreen: React.FC = () => {
                     : {}
                 }
               >
+                {/* Label COMUM + botão elegante 'Novo registro' ao lado */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={styles.label}>COMUM CONGREGAÇÃO *</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setNewRegistrationModalVisible(true);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: '#22c55e',
+                      borderRadius: 20,
+                      paddingVertical: 5,
+                      paddingHorizontal: 12,
+                      gap: 4,
+                      shadowColor: '#16a34a',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', lineHeight: 20 }}>+</Text>
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Outras Localidades</Text>
+                  </TouchableOpacity>
+                </View>
                 <AutocompleteField
                   ref={comumFieldRef}
-                  label="COMUM CONGREGAÇÃO *"
+                  label=""
                   value={selectedComum}
                   options={comunsOptions}
                   onSelect={option => {
