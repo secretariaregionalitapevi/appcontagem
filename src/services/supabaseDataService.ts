@@ -1005,17 +1005,24 @@ export const supabaseDataService = {
           comumNomeSemCodigo = comumNomeSemCodigo.replace(/^BR-\d+-\d+\s+/, '').trim();
         }
 
-        // 🚀 OTIMIZAÇÃO: Tentar apenas 1 query primeiro (mais rápida)
-        // Se não encontrar, tentar as outras variações
+        // 🚀 LÓGICA ROBUSTA: Buscar por várias variações do nome da comum
         let combinedDataComum: any[] = [];
         const seenNames = new Set<string>();
 
-        // Query 1: Nome normalizado (sem acentos) - mais comum
-        // 🚀 OTIMIZAÇÃO: Aplicar filtros de cargo e instrumento diretamente na query para reduzir dados retornados
         let query1 = supabase
           .from(table)
-          .select('nome, comum, cargo, instrumento, cidade, nivel')
-          .ilike('comum', `%${comumBusca}%`);
+          .select('nome, comum, cargo, instrumento, cidade, nivel');
+
+        // Construir um filtro OR para abranger várias possibilidades de nome de comum
+        const comumFilters = [
+          `comum.ilike.%${comumBusca}%`, // Nome normalizado (ex: JABOTICABEIRA)
+          `comum.ilike.%${comumNomeSemCodigo.toUpperCase()}%`, // Nome extraído do original (preserva acentos/espaços)
+          `comum.ilike.%${comumNome.trim()}%` // Nome completo original
+        ];
+
+        // Remover duplicatas nos filtros para query limpa
+        const uniqueFilters = [...new Set(comumFilters)];
+        query1 = query1.or(uniqueFilters.join(','));
 
         // Aplicar filtros diretamente na query (mais eficiente que filtrar depois)
         if (cargoBusca === 'ORGANISTA') {
@@ -1050,14 +1057,12 @@ export const supabaseDataService = {
 
         query1 = query1.order('nome', { ascending: true }).range(from, to);
         console.log(
-          `🔍 [fetchPessoasFromCadastro] Query1 construída com filtro de cargo: ${cargoBusca}`
+          `🔍 [fetchPessoasFromCadastro] Query robusta construída para comum: ${comumBusca}`
         );
 
         const result1 = await this.executeWithRetry(() => query1);
 
-        if (result1.data && !result1.error && result1.data.length > 0) {
-          // 🚀 OTIMIZAÇÃO: Se encontrou resultados na primeira query, usar apenas ela (mais rápido)
-          // Retornar imediatamente sem tentar outras queries
+        if (result1.data && !result1.error) {
           result1.data.forEach((item: any) => {
             const key = `${item.nome}_${item.comum}`.toUpperCase();
             if (!seenNames.has(key)) {
@@ -1066,10 +1071,8 @@ export const supabaseDataService = {
             }
           });
 
-          // 🚀 OTIMIZAÇÃO: Se encontrou resultados suficientes, retornar imediatamente
-          // Evita queries de fallback desnecessárias
+          // Se encontrou resultados, aplicar filtro de cargo rigoroso se necessário
           if (combinedDataComum.length > 0) {
-            // Aplicar filtro de cargo se necessário (já vem filtrado da query, mas garantir)
             let filteredData = combinedDataComum;
             if (
               cargoBusca !== 'ORGANISTA' &&
@@ -1104,76 +1107,38 @@ export const supabaseDataService = {
               hasMore: combinedDataComum.length === pageSize,
             };
           }
-        } else {
-          // Se não encontrou, tentar outras variações em paralelo (apenas se necessário)
-          // 🚨 CORREÇÃO CRÍTICA: Aplicar filtro de cargo também nas queries de fallback
-          const buildFallbackQuery = (comumFilter: string) => {
-            let q = supabase
-              .from(table)
-              .select('nome, comum, cargo, instrumento, cidade, nivel')
-              .ilike('comum', comumFilter);
+        }
+        // 🚨 FALLBACK: Se não encontrou resultados, tentar busca com curingas para acentos desafiadores
+        if (combinedDataComum.length === 0) {
+          const buildAccentWildcard = (str: string) => str.replace(/[AEIOUÁÉÍÓÚÂÊÎÔÛÃÕÄËÏÖÜCÇaeiouáéíóúâêîôûãõäëïöücç]/g, '_');
+          const wildcardFilter = buildAccentWildcard(comumBusca);
 
-            // Aplicar o mesmo filtro de cargo da query principal
-            if (cargoBusca === 'ORGANISTA') {
-              q = q.ilike('instrumento', '%ÓRGÃO%');
-            } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
-              if (instrumentoBusca) {
-                const variacoesBusca = expandInstrumentoSearch(instrumentoNome || '');
-                if (variacoesBusca.length > 1) {
-                  const conditions = variacoesBusca.map(v => `instrumento.ilike.%${v}%`).join(',');
-                  q = q.or(conditions);
-                } else {
-                  q = q.ilike('instrumento', `%${instrumentoBusca}%`);
-                }
-              } else {
-                const isBuscandoSecretarioDaMusica = isSecretarioDaMusica(cargoNome);
-                if (isBuscandoSecretarioDaMusica) {
-                  q = q
-                    .ilike('cargo', '%SECRETÁRIO DA MÚSICA%')
-                    .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
-                } else {
-                  q = q
-                    .ilike('cargo', '%MÚSICO%')
-                    .not('cargo', 'ilike', '%SECRETÁRIO DA MÚSICA%')
-                    .not('cargo', 'ilike', '%SECRETÁRIA DA MÚSICA%');
-                }
+          let queryFallback = supabase
+            .from(table)
+            .select('nome, comum, cargo, instrumento, cidade, nivel')
+            .ilike('comum', `%${wildcardFilter}%`);
+
+          // Repetir filtros de cargo no fallback
+          if (cargoBusca === 'ORGANISTA') {
+            queryFallback = queryFallback.ilike('instrumento', '%ÓRGÃO%');
+          } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
+            if (instrumentoBusca) {
+              queryFallback = queryFallback.ilike('instrumento', `%${instrumentoBusca}%`);
+            }
+          } else {
+            queryFallback = queryFallback.ilike('cargo', `%${cargoBusca}%`);
+          }
+
+          const fallbackRes = await this.executeWithRetry(() => queryFallback);
+          if (fallbackRes.data && !fallbackRes.error) {
+            fallbackRes.data.forEach((item: any) => {
+              const key = `${item.nome}_${item.comum}`.toUpperCase();
+              if (!seenNames.has(key)) {
+                seenNames.add(key);
+                combinedDataComum.push(item);
               }
-            } else {
-              // Para outros cargos (Ancião, Diácono, etc), aplicar filtro de cargo
-              q = q.ilike('cargo', `%${cargoBusca}%`);
-            }
-
-            return q.order('nome', { ascending: true }).range(from, to);
-          };
-
-          const buildAccentWildcard = (str: string) => {
-            return str.replace(/[AEIOUÁÉÍÓÚÂÊÎÔÛÃÕÄËÏÖÜCÇaeiouáéíóúâêîôûãõäëïöücç]/g, '_');
-          };
-
-          const queriesComum = [
-            buildFallbackQuery(`%${comumNomeSemCodigo.toUpperCase()}%`), // Nome original (com acentos)
-            buildFallbackQuery(`%${comumNome.trim()}%`), // Nome completo (com código)
-            // 🚨 CORREÇÃO CRÍTICA PARA ACENTOS: Busca com wildcards (_) onde há vogais ou C
-            // Pois o banco pode ter CHÁCARA e a busca ser CHACARA (o ilike não ignora acentos sem extensão)
-            buildFallbackQuery(`%${buildAccentWildcard(comumBusca)}%`),
-            buildFallbackQuery(`%${buildAccentWildcard(comumNomeSemCodigo.toUpperCase())}%`),
-          ];
-
-          const resultsComum = await Promise.all(
-            queriesComum.map(q => this.executeWithRetry(() => q))
-          );
-
-          resultsComum.forEach(result => {
-            if (result.data && !result.error) {
-              result.data.forEach((item: any) => {
-                const key = `${item.nome}_${item.comum}`.toUpperCase();
-                if (!seenNames.has(key)) {
-                  seenNames.add(key);
-                  combinedDataComum.push(item);
-                }
-              });
-            }
-          });
+            });
+          }
         }
 
         // 🚀 OTIMIZAÇÃO: Se encontrou resultados, já vêm filtrados da query (mais eficiente)
