@@ -227,15 +227,25 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
 
   // Quando o usuário digita
   const handleChange = (text: string) => {
+    console.log(`⌨️ [NameSelectField] handleChange chamado: "${text}" (Anterior: "${searchText}")`);
+
+    // 🚨 DEFESA: Se é exatamente igual ao anterior, ignorar evento duplicado (comum no mobile/web hooks)
+    if (text === searchText) return;
+
     setSearchText(text);
     setSelectedIndex(-1);
 
-    // 🚨 CORREÇÃO CRÍTICA: Se o texto foi apagado totalmente, sair do modo manual
+    // 🚨 CORREÇÃO CRÍTICA: Se o texto foi apagado totalmente
     if (text === '') {
-      console.log('🧹 [NameSelectField] Campo limpo - saindo do modo manual e voltando para busca');
+      console.log('🧹 [NameSelectField] Campo limpo via handleChange - voltando para busca');
       setIsManualMode(false);
       setShowList(true);
-      onSelect({ id: '', label: '', value: '' });
+
+      // 🚨 DEFESA: Só chamar onSelect vazio se houver realmente algo selecionado antes
+      // Isso evita que resets de renderização limpem o estado do pai acidentalmente
+      if (value) {
+        onSelect({ id: '', label: '', value: '' });
+      }
       return;
     }
 

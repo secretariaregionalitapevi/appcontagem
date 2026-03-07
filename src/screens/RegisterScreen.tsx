@@ -340,13 +340,19 @@ export const RegisterScreen: React.FC = () => {
                   value={selectedPessoa}
                   options={pessoasOptions}
                   onSelect={option => {
-                    console.log('👤 [RegisterScreen] Nome selecionado:', JSON.stringify(option));
+                    // 🚨 DEFESA CRÍTICA: Se já estamos enviando ou carregando listas, IGNORAR mudanças de seleção automáticas
+                    if (loading || loadingPessoas) {
+                      console.log('⏳ [RegisterScreen] Ignorando onSelect devido a loading/submissão');
+                      return;
+                    }
 
-                    // 🚨 CORREÇÃO CRÍTICA: Se o id é 'manual', tratar como entrada manual
+                    console.log('👤 [RegisterScreen] Nome selecionado (V3):', JSON.stringify(option));
+
+                    // 🚨 CORREÇÃO: Se o id é 'manual', tratar como entrada manual
                     if (option.id === 'manual') {
                       // Se o valor está totalmente vazio, LIMPAR o estado (usuário apagou o campo)
                       if (!option.label || option.label.trim() === '') {
-                        console.log('🧹 [RegisterScreen] Campo limpo - resetando estado');
+                        console.log('🧹 [RegisterScreen] [V3] Campo limpo voluntariamente - resetando estado');
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                         return;
@@ -354,28 +360,33 @@ export const RegisterScreen: React.FC = () => {
 
                       // Se há texto digitado, tratar como nome manual
                       const novoValor = option.label.trim();
-                      console.log('✏️ [RegisterScreen] DEFININDO NOME MANUAL:', novoValor);
+                      console.log('✏️ [RegisterScreen] [V3] DEFININDO NOME MANUAL:', novoValor);
                       setSelectedPessoa(novoValor);
                       setIsNomeManual(true);
                     } else {
                       // Seleção de um item da lista (ou valor vazio vindo da busca)
 
                       // 🚨 CORREÇÃO: Se o valor/id está vazio, NÃO limpar automaticamente o estado
-                      // O NameSelectField envia id: '' enquanto o usuário está digitando/buscando
                       if (!option.value && !option.id) {
                         // Se o label também virou vazio, aí sim limpamos
                         if (!option.label || option.label.trim() === '') {
-                          console.log('🧹 [RegisterScreen] Limpando selectedPessoa (campo vazio)');
+                          // 🚨 SÓ LIMPAR SE REALMENTE FOI INTENCIONAL
+                          // Se o valor atual já era algo válido, ignorar o reset automático
+                          if (selectedPessoa && selectedPessoa.trim() !== '') {
+                            console.log('🛡️ [RegisterScreen] [V3] Bloqueando reset automático de nome válido');
+                            return;
+                          }
+                          console.log('🧹 [RegisterScreen] [V3] Limpando selectedPessoa (campo realmente vazio)');
                           setSelectedPessoa('');
                           setIsNomeManual(false);
                         }
-                        // Caso contrário, APENAS IGNORAR - o usuário ainda está digitando ou a lista está carregando
+                        // Caso contrário, APENAS IGNORAR
                         return;
                       }
 
                       // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
                       const pessoaId = option.value || (option.id as string);
-                      console.log('✅ [RegisterScreen] Definindo selectedPessoa (ID):', pessoaId);
+                      console.log('✅ [RegisterScreen] [V3] Definindo selectedPessoa (ID):', pessoaId);
                       setSelectedPessoa(pessoaId);
                       setIsNomeManual(false);
                     }
