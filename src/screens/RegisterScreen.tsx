@@ -75,7 +75,6 @@ export const RegisterScreen: React.FC = () => {
     pessoasOptions,
     handleEditRegistros,
     handleOrganistasEnsaio,
-    handleHardReset,
     handleSaveNewRegistration,
   } = controller;
 
@@ -119,8 +118,6 @@ export const RegisterScreen: React.FC = () => {
       <AppHeader
         onEditRegistrosPress={handleEditRegistros}
         onOrganistasEnsaioPress={handleOrganistasEnsaio}
-        onRefresh={onRefresh}
-        onHardReset={handleHardReset}
       />
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -200,9 +197,10 @@ export const RegisterScreen: React.FC = () => {
                   Platform.OS === 'web'
                     ? {
                       position: 'relative' as const,
-                      zIndex: 100,
+                      zIndex: 999999,
                       overflow: 'visible' as const,
-                      backgroundColor: theme.colors.surface,
+                      // @ts-ignore
+                      isolation: 'isolate',
                     }
                     : {}
                 }
@@ -243,7 +241,7 @@ export const RegisterScreen: React.FC = () => {
                 style={[
                   styles.field,
                   Platform.OS === 'web'
-                    ? { position: 'relative' as const, zIndex: 90, overflow: 'visible' as const }
+                    ? { position: 'relative' as const, zIndex: 1002, overflow: 'visible' as const }
                     : {},
                 ]}
               >
@@ -302,8 +300,10 @@ export const RegisterScreen: React.FC = () => {
                     Platform.OS === 'web'
                       ? {
                         position: 'relative' as const,
-                        zIndex: 80,
+                        zIndex: 999999,
                         overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
                       }
                       : {},
                   ]}
@@ -328,8 +328,10 @@ export const RegisterScreen: React.FC = () => {
                   Platform.OS === 'web'
                     ? {
                       position: 'relative' as const,
-                      zIndex: 70,
+                      zIndex: 1,
                       overflow: 'visible' as const,
+                      // @ts-ignore
+                      isolation: 'isolate',
                     }
                     : {}
                 }
@@ -339,54 +341,61 @@ export const RegisterScreen: React.FC = () => {
                   label="Nome e Sobrenome *"
                   value={selectedPessoa}
                   options={pessoasOptions}
-                  onSelect={option => {
-                    // 🚨 DEFESA CRÍTICA: Se já estamos enviando ou carregando listas, IGNORAR mudanças de seleção automáticas
-                    if (loading || loadingPessoas) {
-                      console.log('⏳ [RegisterScreen] Ignorando onSelect devido a loading/submissão');
-                      return;
-                    }
+                  onSelect={(option: any) => {
+                    console.log('📝📝📝 [RegisterScreen] onSelect CHAMADO:', {
+                      id: option.id,
+                      label: option.label,
+                      value: option.value,
+                      isManual: option.id === 'manual',
+                      selectedPessoaAntes: selectedPessoa,
+                      isNomeManualAntes: isNomeManual,
+                    });
 
-                    console.log('👤 [RegisterScreen] Nome selecionado (V3):', JSON.stringify(option));
-
-                    // 🚨 CORREÇÃO: Se o id é 'manual', tratar como entrada manual
                     if (option.id === 'manual') {
-                      // Se o valor está totalmente vazio, LIMPAR o estado (usuário apagou o campo)
-                      if (!option.label || option.label.trim() === '') {
-                        console.log('🧹 [RegisterScreen] [V3] Campo limpo voluntariamente - resetando estado');
+                      // 🚨 CORREÇÃO CRÍTICA: NÃO processar modo manual durante carregamento
+                      // Aguardar lista carregar completamente antes de tratar como manual
+                      if (loadingPessoas) {
+                        console.log(
+                          '⏳ [RegisterScreen] Modo manual detectado mas lista ainda carregando - ignorando até carregar'
+                        );
+                        return; // Não processar durante carregamento
+                      }
+
+                      console.log('✏️✏️✏️✏️✏️ [RegisterScreen] OPÇÃO MANUAL DETECTADA!');
+                      console.log(
+                        '✏️✏️✏️✏️✏️ [RegisterScreen] Option recebida:',
+                        JSON.stringify(option)
+                      );
+                      if (!option.value || option.value === '' || !option.value.trim()) {
+                        console.log(
+                          '🧹 [RegisterScreen] Manual ou vazio sem valor - limpando estado'
+                        );
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                         return;
                       }
 
-                      // Se há texto digitado, tratar como nome manual
-                      const novoValor = option.label.trim();
-                      console.log('✏️ [RegisterScreen] [V3] DEFININDO NOME MANUAL:', novoValor);
+                      // Se há valor, atualizar selectedPessoa
+                      const novoValor = option.value.trim();
+                      console.log(
+                        '✏️ [RegisterScreen] DEFININDO NOME MANUAL AUTOMÁTICO:',
+                        novoValor
+                      );
                       setSelectedPessoa(novoValor);
                       setIsNomeManual(true);
                     } else {
-                      // Seleção de um item da lista (ou valor vazio vindo da busca)
-
-                      // 🚨 CORREÇÃO: Se o valor/id está vazio, NÃO limpar automaticamente o estado
-                      if (!option.value && !option.id) {
-                        // Se o label também virou vazio, aí sim limpamos
-                        if (!option.label || option.label.trim() === '') {
-                          // 🚨 SÓ LIMPAR SE REALMENTE FOI INTENCIONAL
-                          // Se o valor atual já era algo válido, ignorar o reset automático
-                          if (selectedPessoa && selectedPessoa.trim() !== '') {
-                            console.log('🛡️ [RegisterScreen] [V3] Bloqueando reset automático de nome válido');
-                            return;
-                          }
-                          console.log('🧹 [RegisterScreen] [V3] Limpando selectedPessoa (campo realmente vazio)');
-                          setSelectedPessoa('');
-                          setIsNomeManual(false);
-                        }
-                        // Caso contrário, APENAS IGNORAR
+                      // 🚨 CORREÇÃO CRÍTICA: Se o valor está vazio e NÃO é manual, limpar o estado
+                      if (!option.value || option.value === '' || !option.id || option.id === '') {
+                        console.log(
+                          '🧹 [RegisterScreen] Valor vazio - limpando selectedPessoa e isNomeManual'
+                        );
+                        setSelectedPessoa('');
+                        setIsNomeManual(false);
                         return;
                       }
-
                       // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
-                      const pessoaId = option.value || (option.id as string);
-                      console.log('✅ [RegisterScreen] [V3] Definindo selectedPessoa (ID):', pessoaId);
+                      const pessoaId = option.value || option.id;
+                      console.log('✅ [RegisterScreen] Definindo selectedPessoa:', pessoaId);
                       setSelectedPessoa(pessoaId);
                       setIsNomeManual(false);
                     }

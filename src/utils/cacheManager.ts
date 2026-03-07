@@ -48,30 +48,18 @@ class CacheManager {
     // 🚀 OTIMIZAÇÃO: Suportar mobile também (AsyncStorage via robustGetItem)
     try {
       const cached = await robustGetItem(`cache_${key}`);
-      if (cached && cached !== 'null') {
-        try {
-          const entry: CacheEntry<T> = JSON.parse(cached);
+      if (cached) {
+        const entry: CacheEntry<T> = JSON.parse(cached);
+        const now = Date.now();
+        const age = now - entry.timestamp;
 
-          // 🚨 DEFESA: Se entry for null ou não tiver os campos necessários, descartar
-          if (!entry || typeof entry !== 'object' || !('timestamp' in entry)) {
-            console.warn(`⚠️ Cache ${key} corrompido ou nulo, ignorando`);
-            return null;
-          }
-
-          const now = Date.now();
-          const age = now - entry.timestamp;
-
-          if (age < entry.ttl) {
-            // Cache válido, também salvar em memória
-            this.memoryCache.set(key, entry);
-            return entry.data;
-          } else {
-            // Cache expirado, remover
-            await robustSetItem(`cache_${key}`, null);
-          }
-        } catch (parseError) {
-          console.warn(`⚠️ Erro ao parsear cache ${key}:`, parseError);
-          return null;
+        if (age < entry.ttl) {
+          // Cache válido, também salvar em memória
+          this.memoryCache.set(key, entry);
+          return entry.data;
+        } else {
+          // Cache expirado, remover
+          await robustSetItem(`cache_${key}`, null);
         }
       }
     } catch (error) {
