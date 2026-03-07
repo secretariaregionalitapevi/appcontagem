@@ -1,6 +1,7 @@
 export interface Comum {
   id: string;
   nome: string;
+  displayName?: string; // Nome limpo para exibição
   created_at?: string;
   updated_at?: string;
 }

@@ -251,6 +251,8 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
 
     // Quando seleciona um item
     const handleSelect = (option: AutocompleteOption) => {
+      console.log('🎯 [AutocompleteField] handleSelect chamado para:', option.label);
+
       // Cancelar blur pendente
       if (blurTimeoutRef.current) {
         clearTimeout(blurTimeoutRef.current);
@@ -260,6 +262,8 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
       setSearchText(option.label);
       setShowList(false);
       setSelectedIndex(-1);
+
+      console.log('🎯 [AutocompleteField] Chamando onSelect externo...');
       onSelect(option);
 
       // Blur do input após seleção
@@ -267,7 +271,7 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
         if (inputRef.current) {
           inputRef.current.blur();
         }
-      }, 100);
+      }, 50);
     };
 
     // Handler para tecla Enter (web) ou submit (mobile)

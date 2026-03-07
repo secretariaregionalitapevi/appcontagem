@@ -1512,8 +1512,8 @@ export const useRegisterController = () => {
   // IMPORTANTE: useMemo DEVE estar ANTES de qualquer return condicional
   const comunsOptions = useMemo(() => {
     return comuns.map(c => {
-      // Extrair nome sem código usando a função do supabaseDataService
-      const nomeExibicao = (supabaseDataService as any).extrairNomeComum(c.nome);
+      // Priorizar displayName (já limpo no fetching)
+      const nomeExibicao = c.displayName || (supabaseDataService as any).extrairNomeComum(c.nome);
       return {
         id: c.id,
         label: nomeExibicao || c.nome, // Nome sem código para exibição

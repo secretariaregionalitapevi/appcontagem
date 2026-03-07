@@ -165,13 +165,13 @@ export const supabaseDataService = {
             console.log(
               `⚠️ Erro ${result.error.code} ao filtrar por ativo, tentando sem filtro...`
             );
-            result = await supabase
+            result = (await supabase
               .from(table)
               .select('comum')
               .not('comum', 'is', null)
               .neq('comum', '')
               .order('comum', { ascending: true })
-              .range(from, to);
+              .range(from, to)) as any;
           }
 
           if (result.error) {
@@ -326,7 +326,7 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns', JSON.stringify(comuns));
+        await robustSetItem('cache_comuns_v3', JSON.stringify(comuns));
         console.log('✅ Comuns salvas no cache');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
@@ -366,7 +366,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns');
+        const cached = await robustGetItem('cache_comuns_v3');
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -791,7 +791,7 @@ export const supabaseDataService = {
 
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
     // 🚨 CORREÇÃO: Adicionar versão ao cache key para invalidar caches antigos quando a lógica mudar
-    const CACHE_VERSION = 'v2'; // Incrementar quando mudar lógica de filtro
+    const CACHE_VERSION = 'v4'; // Incrementar para v4 para forçar refresh total
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
     const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
     if (cached) {
