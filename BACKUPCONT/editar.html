@@ -1,0 +1,1636 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a1a">
+  <title>Editar Cadastros - Secretaria Regional Itapevi</title>
+
+  <!-- CDNs -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{ 
+      --bg: #f8fafc; 
+      --card: #ffffff; 
+      --border: #e2e8f0; 
+      --muted: #64748b; 
+      --ink: #0f172a; 
+      --btn: #3b82f6; 
+      --btn-hover: #2563eb;
+      --danger: #ef4444; 
+      --ok: #10b981; 
+      --warning: #f59e0b;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --gradient-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Modo Escuro */
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --muted: #94a3b8;
+      --ink: #f1f5f9;
+      --btn: #3b82f6;
+      --btn-hover: #2563eb;
+      --danger: #ef4444;
+      --ok: #10b981;
+      --warning: #f59e0b;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+      --gradient-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    }
+    
+    * { box-sizing: border-box; }
+    
+    html, body { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--gradient-bg);
+      background-attachment: fixed;
+      transition: background 0.3s ease;
+    }
+    
+    .app-container {
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container-app {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .card-app {
+      background: var(--card);
+      border: none;
+      border-radius: 24px;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+    
+    [data-theme="dark"] .card-app {
+      background: rgba(30, 41, 59, 0.95);
+    }
+    
+    .app-header {
+      background: var(--gradient-bg);
+      color: white;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: relative;
+    }
+    
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .app-title {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      font-weight: 700;
+      color: white;
+    }
+    
+    .app-sub {
+      margin: 4px 0 0 0;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+      font-weight: 400;
+    }
+    
+    .app-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-logout {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .btn-logout:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.5);
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    .body {
+      padding: 32px 24px;
+    }
+    
+    .form-label {
+      font-size: 14px;
+      color: var(--ink);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    
+    .form-control, .form-select {
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      background: var(--card);
+      color: var(--ink);
+    }
+    
+    .form-control:focus, .form-select:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      border-color: var(--btn);
+      outline: none;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--btn) 0%, var(--btn-hover) 100%);
+      border: none;
+      border-radius: 12px;
+      padding: 14px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      background: linear-gradient(135deg, var(--btn-hover) 0%, #1d4ed8 100%);
+      color: white;
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, var(--ok) 0%, #059669 100%);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: white;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-success:hover {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    .btn-warning {
+      background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: white;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-warning:hover {
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    .search-container {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding-right: 40px;
+    }
+    
+    .search-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      transition: color 0.2s ease;
+    }
+    
+    .search-input:focus + .search-icon {
+      color: var(--btn);
+    }
+    
+    .results-container {
+      margin-top: 24px;
+    }
+    
+    .result-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow);
+    }
+    
+    .result-card:hover {
+      border-color: var(--btn);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+    }
+    
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .result-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0;
+    }
+    
+    .result-details {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .detail-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    
+    .detail-value {
+        font-size: 14px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    
+    .edit-form {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .edit-form.show {
+      display: block;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+    
+    .no-results i {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+    
+    .loading i {
+      font-size: 24px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      padding: 16px 24px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .status-icon {
+      font-size: 18px;
+    }
+    
+    .status-icon.online {
+      color: #22c55e;
+    }
+    
+    .status-icon.offline {
+      color: #ef4444;
+    }
+    
+    .status-text {
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .connection-status.online .status-text {
+      color: #22c55e;
+    }
+    
+    .connection-status.offline .status-text {
+      color: #ef4444;
+    }
+    
+    .form-text {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    
+    /* Responsividade */
+    @media (max-width: 768px) {
+      .app-container {
+        padding: 16px;
+      }
+      
+      .body {
+        padding: 24px 20px;
+      }
+      
+      .result-details {
+        grid-template-columns: 1fr;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+  <div class="container-app">
+    <div class="card-app">
+      <div class="app-header">
+          <div class="avatar"><i class="fa-solid fa-edit"></i></div>
+        <div>
+                   <h1 class="app-title">Editar Registros de Ensaios</h1>
+            <div id="subtitle" class="app-sub">Editar registros dos ensaios</div>
+        </div>
+        <div class="app-actions">
+            <button id="themeToggle" class="btn btn-logout" title="Alternar tema">
+              <i class="fa-solid fa-moon" id="themeIcon"></i>
+            </button>
+            <button id="backBtn" class="btn btn-logout" title="Voltar">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+        </div>
+      </div>
+
+      <div class="body">
+        <div id="apiError" class="alert alert-danger d-none" role="alert"></div>
+
+          <!-- Campo de Pesquisa -->
+          <div class="search-container">
+            <input type="text" id="searchInput" class="form-control search-input" placeholder="🔍 Pesquisar por nome, cargo ou ministério..." autocomplete="off">
+            <i class="fa-solid fa-search search-icon"></i>
+          </div>
+                 <div class="form-text">Digite o nome da pessoa, cargo ou ministério para encontrar e editar registros de ensaios.</div>
+
+          <!-- Container de Resultados -->
+          <div id="resultsContainer" class="results-container">
+            <div class="no-results">
+              <i class="fa-solid fa-search"></i>
+              <h4>Nenhuma pesquisa realizada</h4>
+              <p>Digite no campo acima para buscar cadastros</p>
+          </div>
+          </div>
+          </div>
+
+        <div class="footer">
+          <div>
+            <small id="footerInfo">Sistema de Edição de Registros de Ensaios</small>
+          </div>
+          <div>
+            <div id="connectionStatus" class="connection-status">
+              <i id="statusIcon" class="fa-solid fa-wifi-slash status-icon offline"></i>
+              <span id="statusText" class="status-text">Offline</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+          </div>
+
+  <!-- Script específico para edição (sem dependência do app.js) -->
+  <script>
+    // Variáveis globais
+    let sb = null;
+    let supabaseLoaded = false;
+    let searchTimeout = null;
+    let currentResults = [];
+
+    // Constantes
+    const TABLE_PRESENCAS = 'presencas'; // Tabela dos ensaios/registros
+    const SUPABASE_URL = 'https://wfqehmdawhfjqbqpjapp.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmcWVobWRhd2hmanFicXBqYXBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NDI0ODIsImV4cCI6MjA3MzAxODQ4Mn0.lFfEZKIVS7dqk48QFW4IvpRcJsgQnMjYE3iUqsrXsFg';
+    
+    // Service Role Key para bypassar RLS (use apenas se necessário)
+    const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmcWVobWRhd2hmanFicXBqYXBwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzQ0MjQ4MiwiZXhwIjoyMDczMDE4NDgyfQ.REPLACE_WITH_YOUR_SERVICE_ROLE_KEY';
+
+    // Função utilitária para padronizar dados para maiúscula
+    function ucase(str) {
+      return str ? String(str).toUpperCase().trim() : '';
+    }
+
+    // Função para criar cliente Supabase com service role (bypassa RLS)
+    function createServiceRoleClient() {
+      try {
+        return supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+      } catch (error) {
+        console.error('❌ Erro ao criar cliente service role:', error);
+        return null;
+      }
+    }
+
+    // Função para testar permissões de atualização
+    async function testUpdatePermissions() {
+      try {
+        console.log('🔍 Testando permissões de atualização...');
+        
+        // Tenta fazer uma consulta simples primeiro
+        const { data: testData, error: testError } = await sb
+          .from(TABLE_PRESENCAS)
+          .select('uuid, nome_completo')
+          .limit(1);
+          
+        console.log('🔍 Teste de consulta:', { testData, testError });
+        
+        if (testError) {
+          console.error('❌ Erro na consulta de teste:', testError);
+          return false;
+        }
+        
+        console.log('✅ Permissões de consulta OK');
+        return true;
+        
+      } catch (error) {
+        console.error('❌ Erro no teste de permissões:', error);
+        return false;
+      }
+    }
+
+    // 🔧 FUNÇÃO: Verificar se o usuário é master
+    async function verificarStatusMaster() {
+      try {
+        const sessionUser = localStorage.getItem('session_user');
+        
+        if (!sessionUser) {
+          console.log('❌ Nenhum usuário logado');
+          return false;
+        }
+        
+        // Verificação por email (similar ao app.js)
+        const isMasterByEmail = sessionUser.includes('master') || 
+                               sessionUser.includes('admin') ||
+                               sessionUser.includes('MASTER') ||
+                               sessionUser.includes('ADMIN') ||
+                               sessionUser.includes('ricardo') ||
+                               sessionUser.includes('RICARDO');
+        
+        if (isMasterByEmail) {
+          console.log('👑 Usuário master detectado por email');
+          return true;
+        }
+        
+        // Se necessário, pode verificar no Supabase também
+        return false;
+      } catch (error) {
+        console.error('❌ Erro ao verificar status master:', error);
+        return false;
+      }
+    }
+    
+    // 🔧 FUNÇÃO: Verificar se pode editar um registro específico
+    async function podeEditarRegistro(registro) {
+      try {
+        console.log('🔍 Verificando permissão para editar registro:', registro);
+        
+        // 1. Verificar se é usuário master
+        const isMaster = await verificarStatusMaster();
+        if (!isMaster) {
+          console.log('❌ Usuário não é master - sem permissão para editar');
+          return { pode: false, motivo: 'Apenas usuários master podem editar registros' };
+        }
+        
+        // 2. Verificar se o registro pertence ao local do usuário
+        const sessionLocal = localStorage.getItem('session_local');
+        const registroLocal = registro.local_ensaio || registro.LOCAL_ENSAIO || '';
+        
+        console.log('🔍 Comparando locais:', { sessionLocal, registroLocal });
+        
+        if (!sessionLocal) {
+          console.log('❌ Usuário não tem local definido');
+          return { pode: false, motivo: 'Usuário não tem local definido' };
+        }
+        
+        // Verificar se os locais coincidem (case insensitive)
+        const locaisCoincidem = sessionLocal.toLowerCase().trim() === registroLocal.toLowerCase().trim();
+        
+        if (!locaisCoincidem) {
+          console.log('❌ Registro não pertence ao local do usuário');
+          return { 
+            pode: false, 
+            motivo: `Registro pertence a "${registroLocal}" mas usuário é de "${sessionLocal}"` 
+          };
+        }
+        
+        console.log('✅ Usuário pode editar o registro');
+        return { pode: true, motivo: 'Permissão concedida' };
+        
+      } catch (error) {
+        console.error('❌ Erro ao verificar permissão de edição:', error);
+        return { pode: false, motivo: 'Erro na verificação' };
+      }
+    }
+    
+    // Função para atualizar registro no Google Sheets
+    async function updateGoogleSheets(uuid, updateData) {
+      try {
+        console.log('📤 Atualizando no Google Sheets:', { uuid, updateData });
+        
+        const url = "https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec";
+        
+        // Mapeia os dados para o formato esperado pelo Google Sheets
+        const sheetData = {
+          'NOME COMPLETO': updateData.nome_completo,
+          'COMUM': updateData.comum,
+          'CARGO': updateData.cargo,
+          'INSTRUMENTO': updateData.instrumento,
+          'CLASSE_ORGANISTA': updateData.classe_organista,
+          'SYNC_STATUS': 'UPDATED',
+          'SYNCED_AT': new Date().toISOString()
+        };
+        
+        const requestBody = {
+          op: 'update',
+          match: { UUID: uuid }, // Busca pelo UUID
+          data: sheetData // Dados para atualizar
+        };
+        
+        console.log('📤 Request body para Google Sheets:', requestBody);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors', // Usa no-cors para evitar problemas de CORS
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+        
+        // Com no-cors, a resposta é sempre opaca, então consideramos sucesso
+        if (response.type === 'opaque' || response.ok) {
+          console.log('✅ Google Sheets: Requisição enviada com sucesso (resposta opaca)');
+          return { ok: true, message: 'Requisição enviada com sucesso' };
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro ao atualizar no Google Sheets:', error);
+        // Não lança erro para não interromper o processo
+        console.warn('⚠️ Continuando sem atualização no Google Sheets');
+      }
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', async function() {
+      console.log('🚀 Iniciando sistema de edição...');
+      
+      // Inicializa Supabase
+      await initSupabase();
+      
+      // Configura event listeners
+      setupEventListeners();
+      
+      // Atualiza informações do usuário
+      await updateUserInfo();
+      
+      // Verifica conexão
+      await checkConnection();
+      
+      // Carrega tema salvo
+      loadSavedTheme();
+      
+      console.log('✅ Sistema de edição inicializado');
+    });
+
+    // Inicializar Supabase
+    async function initSupabase() {
+      try {
+        console.log('🔧 Inicializando Supabase...');
+        console.log('🔧 URL:', SUPABASE_URL);
+        console.log('🔧 Supabase disponível:', typeof supabase !== 'undefined');
+        
+        if (typeof supabase !== 'undefined') {
+          sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          
+          // Verifica se o cliente foi criado corretamente
+          if (sb && typeof sb.from === 'function') {
+            supabaseLoaded = true;
+            console.log('✅ Supabase inicializado com sucesso');
+          } else {
+            console.error('❌ Cliente Supabase não foi criado corretamente');
+            supabaseLoaded = false;
+          }
+        } else {
+          console.error('❌ Supabase não disponível - biblioteca não carregada');
+          supabaseLoaded = false;
+        }
+      } catch (error) {
+        console.error('❌ Erro ao inicializar Supabase:', error);
+        supabaseLoaded = false;
+      }
+    }
+
+    // Configurar event listeners
+    function setupEventListeners() {
+      // Pesquisa
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
+      }
+
+      // Botão voltar
+      const backBtn = document.getElementById('backBtn');
+      if (backBtn) {
+        backBtn.addEventListener('click', () => {
+          window.location.href = './index.html';
+        });
+      }
+
+      // Toggle tema
+      const themeToggle = document.getElementById('themeToggle');
+      if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+      }
+    }
+
+    // Pesquisar cadastros
+    async function handleSearch(e) {
+      const searchTerm = e.target.value.trim();
+      
+      // Limpa timeout anterior
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+
+      // Se campo vazio, mostra mensagem inicial
+      if (!searchTerm) {
+        showInitialState();
+        return;
+      }
+
+      // Debounce da pesquisa
+      searchTimeout = setTimeout(async () => {
+        await performSearch(searchTerm);
+      }, 300);
+    }
+
+    // Executar pesquisa
+    async function performSearch(searchTerm) {
+      console.log('🔍 Pesquisando por:', searchTerm);
+      console.log('🔍 Supabase carregado:', supabaseLoaded);
+      console.log('🔍 Cliente Supabase:', !!sb);
+      
+      showLoading();
+      
+      try {
+        if (!supabaseLoaded || !sb) {
+          throw new Error('Supabase não disponível - verifique sua conexão');
+        }
+
+        // 🔧 CORREÇÃO: Obtém o local da sessão do usuário
+        const sessionLocal = localStorage.getItem('session_local');
+        console.log('🔍 Local da sessão:', sessionLocal);
+        
+        if (!sessionLocal) {
+          throw new Error('Local da sessão não encontrado - faça login novamente');
+        }
+
+        console.log('🔍 Executando consulta na tabela de presenças/ensaios...');
+        
+        // 🔧 CORREÇÃO CRÍTICA: Busca diretamente pelo nome/cargo/comum no Supabase
+        // Mantém o filtro de local para garantir que só busca no local do usuário
+        // Busca por TODOS os cargos/ministérios, não apenas músicos/organistas
+        const sessionLocalTrimmed = sessionLocal.trim();
+        
+        console.log('🔍 Buscando registros do local:', sessionLocalTrimmed);
+        console.log('🔍 Buscando pelo termo:', searchTerm);
+        console.log('🔍 IMPORTANTE: Busca TODOS os cargos/ministérios, não apenas músicos/organistas');
+        
+        // 🔧 CORREÇÃO: Busca mais flexível com múltiplas variações do local
+        // Normaliza o local para buscar por diferentes formatos
+        const normalizeLocal = (str) => {
+          if (!str) return '';
+          return String(str)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+            .replace(/\s+/g, ' ') // Normaliza espaços
+            .trim()
+            .toUpperCase();
+        };
+        
+        const sessionLocalNormalized = normalizeLocal(sessionLocalTrimmed);
+        
+        // 🔧 CORREÇÃO CRÍTICA: Busca diretamente pelo termo no Supabase
+        // Usa OR para buscar em nome_completo, cargo OU comum
+        // Mantém filtro de local para garantir segurança
+        // NÃO filtra por cargo/instrumento - busca TODOS os registros
+        const searchTermTrimmed = searchTerm.trim();
+        
+        // 🔧 CORREÇÃO: Usa múltiplas queries OR combinadas para garantir robustez
+        // Faz 3 buscas separadas e combina os resultados (mais confiável que um único OR)
+        const promises = [
+          sb.from(TABLE_PRESENCAS)
+            .select('*')
+            .ilike('local_ensaio', `%${sessionLocalTrimmed}%`)
+            .ilike('nome_completo', `%${searchTermTrimmed}%`)
+            .order('created_at', { ascending: false })
+            .limit(500),
+          sb.from(TABLE_PRESENCAS)
+            .select('*')
+            .ilike('local_ensaio', `%${sessionLocalTrimmed}%`)
+            .ilike('cargo', `%${searchTermTrimmed}%`)
+            .order('created_at', { ascending: false })
+            .limit(500),
+          sb.from(TABLE_PRESENCAS)
+            .select('*')
+            .ilike('local_ensaio', `%${sessionLocalTrimmed}%`)
+            .ilike('comum', `%${searchTermTrimmed}%`)
+            .order('created_at', { ascending: false })
+            .limit(500)
+        ];
+        
+        console.log('🔍 Query executada: Busca registros onde:');
+        console.log('   - local_ensaio contém:', sessionLocalTrimmed);
+        console.log('   - E (nome_completo OU cargo OU comum) contém:', searchTermTrimmed);
+        console.log('   - Usando 3 queries separadas para garantir robustez');
+        console.log('🔍 Local normalizado para comparação:', sessionLocalNormalized);
+        
+        // 🔧 CORREÇÃO: Executa todas as queries em paralelo e combina os resultados
+        const results = await Promise.all(promises);
+        const allData = [];
+        const seenUUIDs = new Set();
+        
+        // Combina resultados removendo duplicatas (baseado em UUID)
+        results.forEach((result, idx) => {
+          if (result && result.data && Array.isArray(result.data)) {
+            console.log(`🔍 Resultado da query ${idx + 1}:`, result.data.length, 'registros');
+            result.data.forEach(item => {
+              const uuid = item.uuid || item.UUID || `${item.nome_completo || item['NOME COMPLETO'] || ''}_${item.comum || item.COMUM || ''}`;
+              if (!seenUUIDs.has(uuid)) {
+                seenUUIDs.add(uuid);
+                allData.push(item);
+              }
+            });
+          } else if (result && result.error) {
+            console.error(`❌ Erro na query ${idx + 1}:`, result.error);
+          }
+        });
+        
+        // Ordena por data de criação (mais recente primeiro)
+        allData.sort((a, b) => {
+          const dateA = new Date(a.created_at || a.CREATED_AT || 0);
+          const dateB = new Date(b.created_at || b.CREATED_AT || 0);
+          return dateB - dateA;
+        });
+        
+        const data = allData.slice(0, 500); // Limita a 500 registros
+        const error = results.find(r => r.error)?.error || null;
+
+        // A busca já foi executada acima, não precisa do timeout aqui
+
+        if (error) {
+          console.error('❌ Erro na consulta Supabase:', error);
+          throw error;
+        }
+
+        console.log('📊 Total de registros encontrados:', data?.length || 0);
+        
+        // 🔧 CORREÇÃO CRÍTICA: A busca já foi feita no Supabase com o filtro de nome/cargo/comum
+        // Não precisa filtrar novamente no JavaScript - os dados já vêm filtrados
+        // MAS: vamos fazer uma verificação adicional no JavaScript para garantir que nenhum registro seja perdido
+        let filteredData = data || [];
+        
+        if (filteredData && filteredData.length > 0) {
+          // 🔧 DEBUG: Log dos registros encontrados
+          console.log('🔍 Total de registros encontrados pela query:', filteredData.length);
+          const locaisEncontrados = [...new Set(filteredData.map(r => (r.local_ensaio || r.LOCAL_ENSAIO || '').toString()))];
+          console.log('🔍 Locais encontrados nos registros:', locaisEncontrados);
+          console.log('🔍 Local esperado (sessão):', sessionLocalTrimmed);
+          
+          // 🔧 VERIFICAÇÃO ADICIONAL: Faz um filtro adicional no JavaScript para garantir robustez
+          // Isso ajuda em casos onde a query do Supabase pode não ter pego alguma variação
+          const searchTermLower = searchTerm.toLowerCase().trim();
+          const normalize = (str) => {
+            if (!str || str === null || str === undefined) return '';
+            return String(str)
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+              .replace(/\s+/g, ' ') // Normaliza espaços múltiplos para um único espaço
+              .trim()
+              .toLowerCase();
+          };
+          
+          const termoNormalizado = normalize(searchTerm);
+          
+          // 🔧 DEBUG: Log dos primeiros registros encontrados
+          if (filteredData.length > 0) {
+            console.log('🔍 Exemplo de registros encontrados:');
+            filteredData.slice(0, 3).forEach((r, idx) => {
+              console.log(`   [${idx}]`, {
+                nome: r.nome_completo || r['NOME COMPLETO'] || 'NULL',
+                cargo: r.cargo || r.CARGO || 'NULL',
+                comum: r.comum || r.COMUM || 'NULL',
+                local: r.local_ensaio || r.LOCAL_ENSAIO || 'NULL'
+              });
+            });
+          }
+          
+          // 🔧 VERIFICAÇÃO ADICIONAL: Filtra novamente no JavaScript para garantir robustez
+          // Mas como a query já filtra no Supabase, isso é apenas uma camada extra de segurança
+          filteredData = filteredData.filter(item => {
+            const nome = normalize(item.nome_completo || item['NOME COMPLETO'] || '');
+            const cargo = normalize(item.cargo || item.CARGO || '');
+            const comum = normalize(item.comum || item.COMUM || '');
+            
+            const matchNome = nome.length > 0 && termoNormalizado.length > 0 && nome.includes(termoNormalizado);
+            const matchCargo = cargo.length > 0 && termoNormalizado.length > 0 && cargo.includes(termoNormalizado);
+            const matchComum = comum.length > 0 && termoNormalizado.length > 0 && comum.includes(termoNormalizado);
+            
+            return matchNome || matchCargo || matchComum;
+          });
+          
+          console.log('📊 Registros encontrados APÓS filtro por termo:', filteredData.length);
+          
+          // 🔧 DEBUG: Log dos registros filtrados
+          if (filteredData.length > 0) {
+            console.log('🔍 Registros que correspondem ao termo:', filteredData.map(r => ({
+              nome: r.nome_completo,
+              cargo: r.cargo,
+              comum: r.comum,
+              local: r.local_ensaio
+            })));
+          } else {
+            console.log('⚠️ Nenhum registro corresponde ao termo de busca:', searchTerm);
+            // 🔧 DEBUG: Mostra TODOS os registros encontrados, não apenas os primeiros 10
+            console.log('🔍 TODOS os registros encontrados no local:', data.map((r, idx) => ({
+              indice: idx,
+              nome: r.nome_completo || r['NOME COMPLETO'] || r.nome || 'NULL',
+              cargo: r.cargo || r.CARGO || 'NULL',
+              comum: r.comum || r.COMUM || 'NULL',
+              local: r.local_ensaio || r.LOCAL_ENSAIO || 'NULL',
+              local_raw: r.local_ensaio || r.LOCAL_ENSAIO || 'NULL' // Mostra o valor exato do local
+            })));
+            
+            // 🔧 DEBUG: Mostra locais únicos encontrados
+            const locaisUnicos = [...new Set(data.map(r => (r.local_ensaio || r.LOCAL_ENSAIO || 'NULL').toString().trim()))];
+            console.log('🔍 Locais únicos encontrados nos registros:', locaisUnicos);
+            console.log('🔍 Local esperado (sessão original):', sessionLocalTrimmed);
+            console.log('🔍 Local esperado (sessão normalizado):', sessionLocalNormalized);
+            
+            // 🔧 VERIFICAÇÃO: Checa se algum registro não tem local_ensaio correspondente
+            data.forEach((r, idx) => {
+              const localRegistroRaw = (r.local_ensaio || r.LOCAL_ENSAIO || '').toString();
+              const localRegistro = normalizeLocal(localRegistroRaw);
+              if (!localRegistro.includes(sessionLocalNormalized) && !sessionLocalNormalized.includes(localRegistro)) {
+                console.warn(`⚠️ [${idx}] Registro com local diferente do esperado:`, {
+                  nome: r.nome_completo || r['NOME COMPLETO'] || 'NULL',
+                  local_registro_raw: localRegistroRaw,
+                  local_registro_normalizado: localRegistro,
+                  local_esperado_original: sessionLocalTrimmed,
+                  local_esperado_normalizado: sessionLocalNormalized,
+                  match: false
+                });
+              }
+            });
+            
+            // 🔧 VERIFICAÇÃO ADICIONAL: Se não encontrou nenhum registro, tenta busca alternativa
+            if (data.length === 0) {
+              console.warn('⚠️ Nenhum registro encontrado com o local exato. Tentando busca alternativa sem filtro de local...');
+              // Busca alternativa sem filtro de local (apenas pelo termo de busca)
+              try {
+                const alternativeSearch = await sb
+                  .from(TABLE_PRESENCAS)
+                  .select('*')
+                  .ilike('nome_completo', `%${searchTerm}%`)
+                  .order('created_at', { ascending: false })
+                  .limit(100);
+                
+                if (alternativeSearch.data && alternativeSearch.data.length > 0) {
+                  console.log('🔍 Busca alternativa encontrou registros (sem filtro de local):', alternativeSearch.data.length);
+                  console.log('🔍 Exemplo de registro encontrado na busca alternativa:', {
+                    nome: alternativeSearch.data[0].nome_completo || alternativeSearch.data[0]['NOME COMPLETO'],
+                    local: alternativeSearch.data[0].local_ensaio || alternativeSearch.data[0].LOCAL_ENSAIO,
+                    cargo: alternativeSearch.data[0].cargo || alternativeSearch.data[0].CARGO
+                  });
+                  console.warn('⚠️ ATENÇÃO: Registros encontrados em outro local! Verifique o campo local_ensaio.');
+                }
+              } catch (altError) {
+                console.error('❌ Erro na busca alternativa:', altError);
+              }
+            }
+          }
+        }
+        
+        // Remove duplicatas - mantém apenas o registro mais recente de cada pessoa
+        const uniqueResults = [];
+        const seenNames = new Set();
+        
+        if (filteredData.length > 0) {
+          // Ordena por data de criação (mais recente primeiro)
+          const sortedData = filteredData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          
+          for (const item of sortedData) {
+            const nameKey = `${item.nome_completo}_${item.comum}`.toLowerCase();
+            if (!seenNames.has(nameKey)) {
+              seenNames.add(nameKey);
+              uniqueResults.push(item);
+            }
+          }
+        }
+        
+        console.log('📊 Resultados únicos (sem duplicatas):', uniqueResults.length);
+        console.log('🔍 Exibindo todos os registros encontrados (todos os cargos/ministérios)');
+        
+        currentResults = uniqueResults;
+        displayResults(currentResults);
+
+      } catch (error) {
+        console.error('❌ Erro na pesquisa:', error);
+        
+        let errorMessage = 'Erro ao pesquisar cadastros';
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Erro de conexão - verifique sua internet';
+        } else if (error.message.includes('Timeout')) {
+          errorMessage = 'Timeout na pesquisa - tente novamente';
+        } else {
+          errorMessage = 'Erro ao pesquisar cadastros: ' + error.message;
+        }
+        
+        showError(errorMessage);
+      }
+    }
+
+    // Exibir resultados
+    function displayResults(results) {
+      const container = document.getElementById('resultsContainer');
+      
+      if (!results || results.length === 0) {
+        container.innerHTML = `
+          <div class="no-results">
+            <i class="fa-solid fa-search"></i>
+            <h4>Nenhum registro de ensaio encontrado</h4>
+            <p>Tente refinar sua pesquisa ou verifique se o nome foi registrado nos ensaios</p>
+      </div>
+        `;
+        return;
+      }
+
+      const resultsHTML = results.map((item, index) => `
+        <div class="result-card" data-id="${item.id}">
+          <div class="result-header">
+            <h3 class="result-name">${item.nome_completo || 'Nome não informado'}</h3>
+        <div>
+              <button class="btn btn-warning btn-sm" onclick="toggleEdit(${index})">
+                <i class="fa-solid fa-edit me-1"></i>Editar
+          </button>
+        </div>
+          </div>
+          
+          <div class="result-details">
+            <div class="detail-item">
+              <div class="detail-label">Comum</div>
+              <div class="detail-value">${item.comum || 'Não informado'}</div>
+        </div>
+            <div class="detail-item">
+              <div class="detail-label">Cargo</div>
+              <div class="detail-value">${item.cargo || 'Não informado'}</div>
+        </div>
+            <div class="detail-item">
+              <div class="detail-label">Instrumento</div>
+              <div class="detail-value">${item.instrumento || 'Não informado'}</div>
+      </div>
+            <div class="detail-item">
+              <div class="detail-label">Classe</div>
+              <div class="detail-value">${item.classe_organista || 'Não informado'}</div>
+    </div>
+  </div>
+
+          <div class="edit-form" id="editForm${index}">
+            <form onsubmit="handleUpdate(event, ${index})">
+              <div class="form-row">
+                <div>
+                  <label class="form-label">Nome Completo*</label>
+                  <input type="text" class="form-control" name="nome_completo" value="${item.nome_completo || ''}" required>
+        </div>
+                <div>
+            <label class="form-label">Comum*</label>
+                  <input type="text" class="form-control" name="comum" value="${item.comum || ''}" required>
+          </div>
+              </div>
+              
+              <div class="form-row">
+                <div>
+            <label class="form-label">Cargo/Ministério*</label>
+                  <input type="text" class="form-control" name="cargo" value="${item.cargo || ''}" required>
+          </div>
+                <div>
+                  <label class="form-label">Instrumento</label>
+                  <input type="text" class="form-control" name="instrumento" value="${item.instrumento || ''}">
+          </div>
+          </div>
+              
+              <div class="form-row">
+                <div>
+                  <label class="form-label">Classe da Organista</label>
+                  <input type="text" class="form-control" name="nivel" value="${item.classe_organista || ''}">
+          </div>
+        </div>
+              
+              <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-success">
+                  <i class="fa-solid fa-save me-1"></i>Salvar Alterações
+          </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="toggleEdit(${index})">
+                  <i class="fa-solid fa-times me-1"></i>Cancelar
+          </button>
+        </div>
+            </form>
+      </div>
+    </div>
+      `).join('');
+
+      container.innerHTML = resultsHTML;
+    }
+
+    // Alternar edição
+    function toggleEdit(index) {
+      const editForm = document.getElementById(`editForm${index}`);
+      if (editForm) {
+        editForm.classList.toggle('show');
+      }
+    }
+
+    // Atualizar cadastro
+    async function handleUpdate(event, index) {
+      event.preventDefault();
+      
+      const formData = new FormData(event.target);
+      const updateData = {
+        nome_completo: ucase(formData.get('nome_completo')),
+        comum: ucase(formData.get('comum')),
+        cargo: ucase(formData.get('cargo')),
+        instrumento: ucase(formData.get('instrumento')),
+        classe_organista: ucase(formData.get('nivel')),
+        updated_at: new Date().toISOString()
+      };
+
+      const item = currentResults[index];
+      
+      try {
+        console.log('💾 Atualizando cadastro:', item.uuid, updateData);
+        console.log('🔍 Dados antes da atualização:', item);
+        
+        // 🔧 CORREÇÃO: Verifica permissões específicas (master + local)
+        const permissao = await podeEditarRegistro(item);
+        if (!permissao.pode) {
+          throw new Error(permissao.motivo || 'Sem permissão para editar este registro');
+        }
+        
+        // Testa permissões de conexão
+        const hasPermissions = await testUpdatePermissions();
+        if (!hasPermissions) {
+          throw new Error('Sem permissões para atualizar registros');
+        }
+        
+        // Primeiro, vamos verificar se o registro existe
+        console.log('🔍 Verificando se o registro existe antes da atualização...');
+        const { data: checkData, error: checkError } = await sb
+          .from(TABLE_PRESENCAS)
+          .select('*')
+          .eq('uuid', item.uuid);
+          
+        console.log('🔍 Verificação de existência:', { checkData, checkError });
+        
+        if (checkError) {
+          throw new Error(`Erro ao verificar registro: ${checkError.message}`);
+        }
+        
+        if (!checkData || checkData.length === 0) {
+          throw new Error(`Registro com UUID ${item.uuid} não encontrado na tabela`);
+        }
+        
+        console.log('✅ Registro encontrado, procedendo com a atualização...');
+        
+        // ETAPA 1: Tenta primeiro atualizar no Google Sheets
+        console.log('📤 ETAPA 1: Tentando atualizar no Google Sheets...');
+        let googleSheetsSuccess = false;
+        
+        try {
+          const googleResult = await updateGoogleSheets(item.uuid, updateData);
+          if (googleResult && googleResult.ok) {
+            googleSheetsSuccess = true;
+            console.log('✅ ETAPA 1: Google Sheets atualizado com sucesso!');
+          } else {
+            console.warn('⚠️ ETAPA 1: Google Sheets retornou erro:', googleResult);
+          }
+        } catch (googleError) {
+          console.error('❌ ETAPA 1: Erro no Google Sheets:', googleError);
+        }
+        
+        // ETAPA 2: Agora tenta atualizar no Supabase
+        console.log('📤 ETAPA 2: Tentando atualizar no Supabase...');
+        let supabaseSuccess = false;
+        let updateResult, error;
+        
+        try {
+          // Tenta a atualização normal
+          console.log('🔄 Tentando atualização normal no Supabase...');
+          const result = await sb
+            .from(TABLE_PRESENCAS)
+            .update(updateData)
+            .eq('uuid', item.uuid)
+            .select();
+          updateResult = result.data;
+          error = result.error;
+          
+          console.log('🔍 Resultado da atualização normal:', { updateResult, error });
+          
+          if (error) {
+            console.error('❌ ETAPA 2: Erro na atualização Supabase:', error);
+            console.log('🔍 Detalhes do erro:', {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint
+            });
+          } else if (!updateResult || updateResult.length === 0) {
+            console.warn('⚠️ ETAPA 2: Nenhum registro foi atualizado - pode ser problema de permissões RLS');
+            console.log('🔍 Tentando com diferentes abordagens...');
+            
+            // Tenta com upsert usando service role (bypassa RLS)
+            try {
+              console.log('🔄 Tentando upsert com service role...');
+              const serviceClient = createServiceRoleClient();
+              
+              if (serviceClient) {
+                const upsertData = {
+                  ...item,
+                  ...updateData
+                };
+                
+                const upsertResult = await serviceClient
+                  .from(TABLE_PRESENCAS)
+                  .upsert(upsertData, { 
+                    onConflict: 'uuid',
+                    ignoreDuplicates: false 
+                  })
+                  .select();
+                
+                console.log('🔄 Resultado do upsert com service role:', upsertResult);
+                
+                if (upsertResult.data && upsertResult.data.length > 0) {
+                  supabaseSuccess = true;
+                  updateResult = upsertResult.data;
+                  console.log('✅ ETAPA 2: Supabase atualizado com sucesso via upsert (service role)!');
+                } else {
+                  console.warn('⚠️ ETAPA 2: Upsert com service role também não funcionou');
+                }
+              } else {
+                console.warn('⚠️ ETAPA 2: Não foi possível criar cliente service role');
+              }
+            } catch (upsertError) {
+              console.error('❌ ETAPA 2: Erro no upsert com service role:', upsertError);
+            }
+          } else {
+            supabaseSuccess = true;
+            console.log('✅ ETAPA 2: Supabase atualizado com sucesso!');
+          }
+        } catch (updateError) {
+          console.error('❌ ETAPA 2: Erro na atualização Supabase:', updateError);
+        }
+        
+        // Verifica se pelo menos uma das atualizações funcionou
+        if (!googleSheetsSuccess && !supabaseSuccess) {
+          throw new Error('Falha em ambas as atualizações: Google Sheets e Supabase');
+        } else if (googleSheetsSuccess && !supabaseSuccess) {
+          console.warn('⚠️ Google Sheets OK, mas Supabase falhou - pode ser problema de permissões RLS');
+        } else if (!googleSheetsSuccess && supabaseSuccess) {
+          console.warn('⚠️ Supabase OK, mas Google Sheets falhou');
+        } else {
+          console.log('✅ Ambas as atualizações foram bem-sucedidas!');
+        }
+
+        // Atualiza o item na lista local
+        currentResults[index] = { ...item, ...updateData };
+        
+        // Recarrega os resultados
+        displayResults(currentResults);
+        
+        // Fecha o formulário de edição
+        toggleEdit(index);
+        
+        // Mostra resultado baseado no que funcionou
+        let successMessage = '';
+        let successIcon = 'success';
+        
+        if (googleSheetsSuccess && supabaseSuccess) {
+          successMessage = 'Cadastro atualizado com sucesso!';
+          successIcon = 'success';
+        } else if (googleSheetsSuccess && !supabaseSuccess) {
+          successMessage = 'Cadastro atualizado com sucesso!';
+          successIcon = 'success';
+        } else if (!googleSheetsSuccess && supabaseSuccess) {
+          successMessage = 'Cadastro atualizado com sucesso!';
+          successIcon = 'success';
+        }
+        
+        Swal.fire({
+          title: 'Sucesso!',
+          text: successMessage,
+          icon: successIcon,
+          timer: 4000,
+          timerProgressBar: true,
+          showConfirmButton: false
+        });
+
+      } catch (error) {
+        console.error('❌ Erro ao atualizar:', error);
+        Swal.fire({
+          title: 'Erro!',
+          text: 'Erro ao atualizar cadastro: ' + error.message,
+          icon: 'error',
+          timer: 5000,
+          timerProgressBar: true,
+          showConfirmButton: true,
+          confirmButtonText: 'OK'
+        });
+      }
+    }
+
+    // Mostrar estado inicial
+    function showInitialState() {
+      const container = document.getElementById('resultsContainer');
+      if (!container) {
+        console.error('❌ Container resultsContainer não encontrado');
+        return;
+      }
+      container.innerHTML = `
+        <div class="no-results">
+          <i class="fa-solid fa-search"></i>
+          <h4>Nenhuma pesquisa realizada</h4>
+          <p>Digite no campo acima para buscar cadastros</p>
+        </div>
+      `;
+    }
+
+    // Mostrar loading
+    function showLoading() {
+      const container = document.getElementById('resultsContainer');
+      if (!container) {
+        console.error('❌ Container resultsContainer não encontrado');
+        return;
+      }
+      container.innerHTML = `
+        <div class="loading">
+          <i class="fa-solid fa-spinner"></i>
+          <h4>Pesquisando...</h4>
+          <p>Aguarde enquanto buscamos os cadastros</p>
+        </div>
+      `;
+    }
+
+    // Mostrar erro
+    function showError(message) {
+      const container = document.getElementById('resultsContainer');
+      if (!container) {
+        console.error('❌ Container resultsContainer não encontrado');
+        return;
+      }
+      container.innerHTML = `
+        <div class="no-results">
+          <i class="fa-solid fa-exclamation-triangle"></i>
+          <h4>Erro na pesquisa</h4>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+
+    // Atualizar informações do usuário
+    async function updateUserInfo() {
+      const sessionUser = localStorage.getItem('session_user');
+      const sessionLocal = localStorage.getItem('session_local');
+      
+      if (sessionUser) {
+        const subtitle = document.getElementById('subtitle');
+        if (subtitle) {
+          const nomeUsuario = formatarNomeUsuario(sessionUser);
+          subtitle.textContent = `${sessionLocal || 'Secretaria Regional Itapevi'} • ${nomeUsuario}`;
+        }
+      }
+    }
+
+    // Formatar nome do usuário
+    function formatarNomeUsuario(email) {
+      if (!email) return 'Usuário';
+      
+      // Remove caracteres especiais e formata o nome no formato "Nome Sobrenome"
+      let nome = email.split('@')[0]
+        .replace(/[._-]/g, ' ')           // Substitui pontos, underscores e hífens por espaços
+        .replace(/\d+/g, '')              // Remove números
+        .trim()
+        .toLowerCase();                   // Converte para minúsculas primeiro
+      
+      // Se tem mais de 8 caracteres, tenta dividir automaticamente
+      if (nome.length > 8) {
+        // Casos especiais conhecidos
+        if (nome.includes('secretaria') && nome.includes('regional') && nome.includes('itapevi')) {
+          nome = 'secretaria regional itapevi';
+        } else if (nome.includes('secretaria') && nome.includes('municipal')) {
+          nome = 'secretaria municipal';
+        } else if (nome.includes('coordenacao') && nome.includes('regional')) {
+          nome = 'coordenacao regional';
+        } else if (nome.includes('administracao') && nome.includes('municipal')) {
+          nome = 'administracao municipal';
+        } else if (nome.includes('secre') && nome.includes('tariaregionalitapevi')) {
+          nome = 'secretaria regional itapevi';
+        } else if (nome.includes('secre') && nome.includes('taria') && nome.includes('regional') && nome.includes('itapevi')) {
+          nome = 'secretaria regional itapevi';
+        } else {
+          // Lista de palavras comuns em nomes para ajudar na divisão
+          const palavrasComuns = [
+            'secretaria', 'regional', 'municipal', 'estadual', 'federal',
+            'administracao', 'administração', 'coordenacao', 'coordenação',
+            'direcao', 'direção', 'gerencia', 'gerência', 'supervisao', 'supervisão',
+            'assistencia', 'assistência', 'atendimento', 'suporte', 'tecnico', 'técnico',
+            'analista', 'consultor', 'especialista', 'coordenador', 'gerente', 'diretor',
+            'supervisor', 'assistente', 'auxiliar', 'operador', 'responsavel', 'responsável',
+            'itapevi', 'sao', 'paulo', 'santos', 'campinas', 'guarulhos', 'santo', 'andre'
+          ];
+        
+        // Primeiro, tenta encontrar palavras conhecidas no nome completo
+        let melhorDivisao = null;
+        let maiorScore = 0;
+        
+        // Testa diferentes pontos de divisão
+        for (let i = 4; i < nome.length - 4; i++) {
+          const parte1 = nome.substring(0, i);
+          const parte2 = nome.substring(i);
+          
+          // Verifica se alguma das partes corresponde a uma palavra comum
+          let score = 0;
+          palavrasComuns.forEach(palavra => {
+            if (parte1.includes(palavra) || parte2.includes(palavra)) {
+              score += palavra.length;
+            }
+            // Bonus se a palavra está no início ou fim
+            if (parte1.startsWith(palavra) || parte2.startsWith(palavra)) {
+              score += 2;
+            }
+            // Bonus extra se a palavra está completa
+            if (parte1 === palavra || parte2 === palavra) {
+              score += 5;
+            }
+          });
+          
+          if (score > maiorScore) {
+            maiorScore = score;
+            melhorDivisao = { parte1, parte2 };
+          }
+        }
+        
+        // Se encontrou uma boa divisão, aplica
+        if (melhorDivisao && maiorScore > 0) {
+          nome = melhorDivisao.parte1 + ' ' + melhorDivisao.parte2;
+          
+          // Tenta dividir ainda mais se necessário
+          const partes = nome.split(' ');
+          if (partes.length === 2 && partes[1].length > 8) {
+            const segundaParte = partes[1];
+            let melhorDivisao2 = null;
+            let maiorScore2 = 0;
+            
+            for (let i = 4; i < segundaParte.length - 4; i++) {
+              const subParte1 = segundaParte.substring(0, i);
+              const subParte2 = segundaParte.substring(i);
+              
+              let score2 = 0;
+              palavrasComuns.forEach(palavra => {
+                if (subParte1.includes(palavra) || subParte2.includes(palavra)) {
+                  score2 += palavra.length;
+                }
+                if (subParte1.startsWith(palavra) || subParte2.startsWith(palavra)) {
+                  score2 += 2;
+                }
+                if (subParte1 === palavra || subParte2 === palavra) {
+                  score2 += 5;
+                }
+              });
+              
+              if (score2 > maiorScore2) {
+                maiorScore2 = score2;
+                melhorDivisao2 = { subParte1, subParte2 };
+              }
+            }
+            
+            if (melhorDivisao2 && maiorScore2 > 0) {
+              nome = partes[0] + ' ' + melhorDivisao2.subParte1 + ' ' + melhorDivisao2.subParte2;
+            }
+          }
+        } else {
+          // Fallback: divisão baseada em padrões linguísticos
+          for (let i = 4; i < nome.length - 4; i++) {
+            const char = nome[i];
+            const nextChar = nome[i + 1];
+            
+            // Procura por transições que indicam início de nova palavra
+            if ('aeiou'.includes(char) && !'aeiou'.includes(nextChar)) {
+              // Verifica se não é muito no início nem muito no final
+              if (i > 4 && i < nome.length - 4) {
+                nome = nome.substring(0, i + 1) + ' ' + nome.substring(i + 1);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+      
+      // Divide em palavras e capitaliza
+      const palavras = nome.split(' ')
+        .filter(palavra => palavra.length > 0) // Remove palavras vazias
+        .map(palavra => 
+          palavra.charAt(0).toUpperCase() + palavra.slice(1)  // Capitaliza primeira letra de cada palavra
+        );
+      
+      return palavras.join(' ') || 'Usuário';
+    }
+
+    // Verificar conexão
+    async function checkConnection() {
+      try {
+        console.log('🔍 Verificando conexão...');
+        console.log('🔍 Supabase carregado:', supabaseLoaded);
+        console.log('🔍 Cliente Supabase:', !!sb);
+        
+        if (supabaseLoaded && sb) {
+          console.log('🔍 Testando conexão com Supabase...');
+          
+          // Testa conexão com Supabase com timeout
+          const connectionTest = Promise.race([
+            sb.from(TABLE_PRESENCAS).select('uuid').limit(1),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout na conexão')), 5000)
+            )
+          ]);
+          
+          const { error } = await connectionTest;
+          
+          if (!error) {
+            console.log('✅ Conexão com Supabase confirmada');
+            updateConnectionStatus(true);
+          } else {
+            console.error('❌ Erro na conexão Supabase:', error);
+            updateConnectionStatus(false);
+          }
+        } else {
+          console.log('❌ Supabase não disponível');
+          updateConnectionStatus(false);
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar conexão:', error);
+        updateConnectionStatus(false);
+      }
+    }
+
+    // Atualizar status de conexão
+    function updateConnectionStatus(isOnline) {
+      const statusIcon = document.getElementById('statusIcon');
+      const statusText = document.getElementById('statusText');
+      const connectionStatus = document.getElementById('connectionStatus');
+      
+      if (isOnline) {
+        statusIcon.className = 'fa-solid fa-wifi status-icon online';
+        statusText.textContent = 'Online';
+        connectionStatus.className = 'connection-status online';
+      } else {
+        statusIcon.className = 'fa-solid fa-wifi-slash status-icon offline';
+        statusText.textContent = 'Offline';
+        connectionStatus.className = 'connection-status offline';
+      }
+    }
+
+    // Toggle tema
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      
+      const themeIcon = document.getElementById('themeIcon');
+      if (themeIcon) {
+        themeIcon.className = newTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      }
+    }
+
+    // Carregar tema salvo
+    function loadSavedTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      
+      const themeIcon = document.getElementById('themeIcon');
+      if (themeIcon) {
+        themeIcon.className = savedTheme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -595,6 +595,10 @@ export const googleSheetsService = {
         // Para registros externos, extrair nome da comum do ID
         const comumNome = registro.comum_id.replace(/^external_/, '').replace(/_\d+$/, '');
         comum = { id: registro.comum_id, nome: comumNome };
+      } else if (registro.comum_id.startsWith('manual_')) {
+        // 🚨 NOVO: Suporte para comum manual (página outras localidades)
+        const partes = registro.comum_id.replace(/^manual_/, '').split('|');
+        comum = { id: registro.comum_id, nome: partes[0] || 'Manual', cidadeManual: partes[1] || '' };
       } else {
         comum = comuns.find(c => c.id === registro.comum_id);
       }
@@ -679,7 +683,10 @@ export const googleSheetsService = {
       // Para registros externos, a cidade vem no registro
       // 🚨 CORREÇÃO CRÍTICA: Sempre garantir que cidade seja preenchida (não usar localEnsaio como fallback)
       let cidade = '';
-      if (isExternalRegistro) {
+      if (comum?.cidadeManual) {
+        // 🚨 PRIORIDADE: Usar cidade vinda do ID manual
+        cidade = comum.cidadeManual;
+      } else if (isExternalRegistro) {
         cidade = (registro as any).cidade || '';
       } else if (isNomeManual) {
         try {
@@ -818,8 +825,10 @@ export const googleSheetsService = {
             ? normalizacao.classeOrganista || 'OFICIALIZADA'
             : registro.classe_organista || '';
 
-      // 🚨 CORREÇÃO: Adicionar "SAM Desatualizado" nas anotações para nomes manuais de comuns da regional
-      // APENAS para músicos, organistas e cargos musicais
+      // 🚨 CORREÇÃO: Diferenciar "SAM Desatualizado" de "Visitas fora da Regional"
+      // Se a COMUM é manual, é "Visitas fora da Regional"
+      // Se apenas o NOME é manual (em comum da regional), é "SAM Desatualizado"
+      const isComumManual = registro.comum_id.startsWith('manual_');
       let anotacoes = '';
 
       const cargoUpperForSam = cargoReal.toUpperCase();
@@ -832,7 +841,10 @@ export const googleSheetsService = {
         cargoUpperForSam.includes('INSTRUTOR') ||
         isCargoFemininoOrganista(cargoReal);
 
-      if (isNomeManualRegional && isCargoMusicalParaSam) {
+      if (isComumManual) {
+        anotacoes = 'Visitas fora da Regional';
+        console.log('✏️ [GoogleSheets] Comum manual detectada - adicionando "Visitas fora da Regional"');
+      } else if (isNomeManualRegional && isCargoMusicalParaSam) {
         anotacoes = 'SAM Desatualizado';
         console.log(
           '✏️ [GoogleSheets] Nome manual de comum da regional (cargo musical) detectado - adicionando "SAM Desatualizado"'
@@ -921,7 +933,7 @@ export const googleSheetsService = {
         SYNC_STATUS: 'ATUALIZADO',
         SYNCED_AT: new Date().toISOString(),
         ANOTACOES: (
-          anotacoesSanitizadas || (isNomeManualRegional && isCargoMusicalParaSam ? 'SAM Desatualizado' : '')
+          anotacoesSanitizadas || (isComumManual ? 'Visitas fora da Regional' : isNomeManualRegional && isCargoMusicalParaSam ? 'SAM Desatualizado' : '')
         ).toUpperCase(),
         DUPLICATA: 'NÃO',
       };

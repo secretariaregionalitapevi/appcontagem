@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     View,
     Text,
+    TextInput,
     StyleSheet,
     ScrollView,
     KeyboardAvoidingView,
@@ -22,6 +23,36 @@ import { theme } from '../theme';
 import { useRegisterController } from '../hooks/useRegisterController';
 import { offlineSyncService } from '../services/offlineSyncService';
 import { showToast } from '../utils/toast';
+import { Cargo } from '../types/models';
+
+const FIXED_CARGOS = [
+    'Músico',
+    'Organista',
+    'Instrutor',
+    'Instrutora',
+    'Examinadora',
+    'Encarregado Local',
+    'Encarregado Regional',
+    'Secretário da Música',
+    'Secretária da Música',
+    'Irmandade',
+    'Ancião',
+    'Diácono',
+    'Cooperador do Ofício',
+    'Cooperador de Jovens',
+    'Porteiro (a)',
+    'Bombeiro (a)',
+    'Médico (a)',
+    'Enfermeiro (a)',
+];
+
+const ORGANISTA_CLASSES = [
+    { id: 'Ensaio', label: 'Ensaio', value: 'Ensaio' },
+    { id: 'Meia-Hora', label: 'Meia-Hora', value: 'Meia-Hora' },
+    { id: 'RDJM', label: 'RDJM', value: 'RDJM' },
+    { id: 'Culto a Noite', label: 'Culto a Noite', value: 'Culto a Noite' },
+    { id: 'Oficializada', label: 'Oficializada', value: 'Oficializada' },
+];
 
 export const OtrasLocalidadesScreen: React.FC = () => {
     const navigation = useNavigation();
@@ -58,14 +89,45 @@ export const OtrasLocalidadesScreen: React.FC = () => {
         syncData,
         handleSubmit: originalHandleSubmit,
         comunsOptions,
-        cargosOptions,
         instrumentosOptions,
         pessoasOptions,
+        isComumManual,
+        setIsComumManual,
+        cidadeManual,
+        setCidadeManual,
+        selectedClasseOrganista,
+        setSelectedClasseOrganista,
     } = controller;
 
     const comumFieldRef = useRef<AutocompleteFieldRef>(null);
+
     const { width } = useWindowDimensions();
     const isMobile = width <= 768;
+
+    // Memoize options to avoid mapping every render
+    const visistaCargosOptions = React.useMemo(() => {
+        return FIXED_CARGOS.map(nome => {
+            // Tentar achar o ID real do cargo no banco de dados local
+            const cargoReal = (cargos as Cargo[]).find(c =>
+                c.nome.trim().toUpperCase() === nome.trim().toUpperCase()
+            );
+            return {
+                id: cargoReal ? cargoReal.id : `manual_${nome}`,
+                label: nome,
+                value: cargoReal ? cargoReal.id : `manual_${nome}`,
+            };
+        });
+    }, [cargos]);
+
+    // Função para normalizar texto (removes accents, lowercase)
+    const normalize = (text: string) => {
+        if (!text) return '';
+        return text
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    };
 
     // Após envio bem-sucedido, volta para a tela anterior
     const handleSubmit = async () => {
@@ -168,10 +230,8 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                     Platform.OS === 'web'
                                         ? {
                                             position: 'relative' as const,
-                                            zIndex: 999999,
+                                            zIndex: 100,
                                             overflow: 'visible' as const,
-                                            // @ts-ignore
-                                            isolation: 'isolate',
                                         }
                                         : {}
                                 }
@@ -179,15 +239,70 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                 <AutocompleteField
                                     ref={comumFieldRef}
                                     label="COMUM CONGREGAÇÃO *"
-                                    value={selectedComum}
+                                    value={isComumManual ? undefined : selectedComum}
                                     options={comunsOptions}
                                     onSelect={option => {
                                         setSelectedComum(String(option.value));
                                         setSelectedPessoa('');
                                         setIsNomeManual(false);
+                                        setIsComumManual(false);
+                                        setCidadeManual('');
                                     }}
-                                    placeholder="Selecione a comum..."
+                                    placeholder={isComumManual ? `"${selectedComum}" (manual)` : 'Selecione a comum...'}
+                                    allowManualEntry={true}
+                                    onManualEntry={(text) => {
+                                        setSelectedComum(text);
+                                        setIsComumManual(true);
+                                        setSelectedPessoa('');
+                                    }}
+                                    autoManualEntry={true}
+                                    onChangeText={(text) => {
+                                        if (isComumManual) {
+                                            const query = normalize(text);
+                                            const hasMatches = comunsOptions.some(opt => {
+                                                const labelNorm = normalize(opt.label);
+                                                // @ts-ignore
+                                                const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
+                                                return labelNorm.includes(query) || nomeNorm.includes(query);
+                                            });
+                                            if (hasMatches || text.trim() === '') {
+                                                setIsComumManual(false);
+                                            }
+                                        }
+                                        // Se estamos em modo manual, atualizar o selectedComum para o que está sendo digitado
+                                        if (isComumManual || !comunsOptions.some(opt => normalize(opt.label) === normalize(text))) {
+                                            setSelectedComum(text);
+                                        }
+                                    }}
                                 />
+
+                                {/* Campo CIDADE - aparece quando comum é manual */}
+                                {isComumManual && (
+                                    <View style={{ marginTop: -8, marginBottom: 12 }}>
+                                        <View style={styles.manualBadge}>
+                                            <Text style={styles.manualBadgeText}>✏️ Comum manual: "{selectedComum}"</Text>
+                                            <TouchableOpacity
+                                                onPress={() => {
+                                                    setIsComumManual(false);
+                                                    setSelectedComum('');
+                                                    setCidadeManual('');
+                                                }}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Text style={{ color: '#ef4444', fontSize: 13, fontWeight: '700' }}>✕ Limpar</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <Text style={styles.label}>CIDADE *</Text>
+                                        <TextInput
+                                            style={styles.cityInput}
+                                            value={cidadeManual}
+                                            onChangeText={setCidadeManual}
+                                            placeholder="Digite a cidade..."
+                                            placeholderTextColor={theme.colors.textSecondary}
+                                            returnKeyType="done"
+                                        />
+                                    </View>
+                                )}
                             </View>
 
                             {/* CARGO/MINISTÉRIO */}
@@ -195,7 +310,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                 style={[
                                     styles.field,
                                     Platform.OS === 'web'
-                                        ? { position: 'relative' as const, zIndex: 1002, overflow: 'visible' as const }
+                                        ? { position: 'relative' as const, zIndex: 90, overflow: 'visible' as const }
                                         : {},
                                 ]}
                             >
@@ -217,15 +332,17 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                         }
                                         value={selectedCargo}
                                         onChange={e => {
-                                            setSelectedCargo(e.target.value);
+                                            const val = e.target.value;
+                                            setSelectedCargo(val);
                                             setSelectedInstrumento('');
                                             setSelectedPessoa('');
+                                            setSelectedClasseOrganista('');
                                             setIsNomeManual(false);
                                         }}
                                         required
                                     >
                                         <option value="">Selecione o cargo...</option>
-                                        {cargosOptions.map(cargo => (
+                                        {visistaCargosOptions.map(cargo => (
                                             <option key={cargo.id} value={cargo.value}>
                                                 {cargo.label}
                                             </option>
@@ -235,17 +352,77 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                     <SimpleSelectField
                                         label=""
                                         value={selectedCargo}
-                                        options={cargosOptions}
+                                        options={visistaCargosOptions}
                                         onSelect={option => {
-                                            setSelectedCargo(String(option.value));
+                                            const val = String(option.value);
+                                            setSelectedCargo(val);
                                             setSelectedInstrumento('');
                                             setSelectedPessoa('');
+                                            setSelectedClasseOrganista('');
                                             setIsNomeManual(false);
                                         }}
                                         placeholder="Selecione o cargo..."
                                     />
                                 )}
                             </View>
+
+                            {/* CLASSE DA ORGANISTA (Condicional) */}
+                            {isOrganista && (
+                                <View
+                                    style={[
+                                        styles.field,
+                                        Platform.OS === 'web'
+                                            ? { position: 'relative' as const, zIndex: 85, overflow: 'visible' as const }
+                                            : {},
+                                    ]}
+                                >
+                                    <Text style={styles.label}>CLASSE DA ORGANISTA *</Text>
+                                    {Platform.OS === 'web' ? (
+                                        <select
+                                            style={
+                                                {
+                                                    ...styles.selectWeb,
+                                                    appearance: 'none',
+                                                    WebkitAppearance: 'none',
+                                                    MozAppearance: 'none',
+                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
+                                                    backgroundRepeat: 'no-repeat',
+                                                    backgroundPosition: 'right center',
+                                                    backgroundSize: '10px 10px',
+                                                    paddingRight: '35px',
+                                                    borderWidth: 1,
+                                                    borderColor: '#3b82f6',
+                                                    backgroundColor: '#eff6ff',
+                                                } as any
+                                            }
+                                            value={selectedClasseOrganista}
+                                            onChange={e => setSelectedClasseOrganista(e.target.value)}
+                                            required
+                                        >
+                                            <option value="">Selecione a classe...</option>
+                                            {ORGANISTA_CLASSES.map(cls => (
+                                                <option key={cls.value} value={cls.value}>
+                                                    {cls.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <SimpleSelectField
+                                            label=""
+                                            value={selectedClasseOrganista}
+                                            options={ORGANISTA_CLASSES}
+                                            onSelect={option => setSelectedClasseOrganista(String(option.value))}
+                                            placeholder="Selecione a classe..."
+                                            style={{
+                                                borderWidth: 1,
+                                                borderColor: '#3b82f6',
+                                                backgroundColor: '#eff6ff',
+                                                borderRadius: theme.borderRadius.md,
+                                            }}
+                                        />
+                                    )}
+                                </View>
+                            )}
 
                             {/* INSTRUMENTO */}
                             {showInstrumento && (
@@ -255,10 +432,8 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                         Platform.OS === 'web'
                                             ? {
                                                 position: 'relative' as const,
-                                                zIndex: 999999,
+                                                zIndex: 80,
                                                 overflow: 'visible' as const,
-                                                // @ts-ignore
-                                                isolation: 'isolate',
                                             }
                                             : {},
                                     ]}
@@ -284,10 +459,8 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                     Platform.OS === 'web'
                                         ? {
                                             position: 'relative' as const,
-                                            zIndex: 1,
+                                            zIndex: 70,
                                             overflow: 'visible' as const,
-                                            // @ts-ignore
-                                            isolation: 'isolate',
                                         }
                                         : {}
                                 }
@@ -324,7 +497,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                             </View>
 
                             <Text style={styles.hint}>
-                                Selecione um nome da lista após preencher Comum e Cargo.
+                                Selecione na lista ou digite o nome completo se não encontrar.
                             </Text>
 
                             <PrimaryButton
@@ -501,6 +674,37 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
         marginTop: -theme.spacing.sm,
         marginBottom: theme.spacing.md,
+    },
+    cityInput: {
+        borderWidth: 1,
+        borderColor: '#22c55e',
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: '#f0fdf4',
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+        fontSize: theme.fontSize.md,
+        color: theme.colors.text,
+        minHeight: 48,
+        marginBottom: theme.spacing.sm,
+    },
+    manualBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#fefce8',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#fde047',
+    },
+    manualBadgeText: {
+        fontSize: 12,
+        color: '#854d0e',
+        fontWeight: '500',
+        flex: 1,
+        marginRight: 8,
     },
     submitButton: {
         marginTop: theme.spacing.md,

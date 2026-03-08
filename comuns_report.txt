@@ -1,0 +1,240 @@
+﻿Fetching ALL data from Supabase (with pagination)...
+Fetched page 1: 1000 records...
+Fetched page 2: 1000 records...
+Fetched page 3: 1000 records...
+Fetched page 4: 1000 records...
+Fetched page 5: 1000 records...
+Fetched page 6: 1000 records...
+Fetched page 7: 1000 records...
+Fetched page 8: 1000 records...
+Fetched page 9: 1000 records...
+Fetched page 10: 611 records...
+
+Total records fetched: 9611
+Unique congregations (calculated): 197
+
+--- LIST OF UNIQUE CONGREGATIONS ---
+  1. [AGUA ESPRAIADA                          ] -> Originals: BR-22-1596 - ├üGUA ESPRAIADA
+  2. [AGUASSAI                                ] -> Originals: BR-22-1668 - AGUASSA├ì
+  3. [ALPHAVILLE                              ] -> Originals: BR-21-1251 - ALPHAVILLE
+  4. [ALTO DA COLINA - COHAB                  ] -> Originals: BR-22-2093 - ALTO DA COLINA - COHAB
+  5. [ALTO DO BELA VISTA                      ] -> Originals: BR-21-0840 - ALTO DO BELA VISTA
+  6. [ALTO DO PAULISTA                        ] -> Originals: BR-21-0819 - ALTO DO PAULISTA
+  7. [ALTOS DE CAUCAIA                        ] -> Originals: BR-21-1019 - ALTOS DE CAUCAIA
+  8. [AMADOR BUENO                            ] -> Originals: BR-22-0681 - AMADOR BUENO
+  9. [AMBUITA                                 ] -> Originals: BR-22-0680 - AMBUIT├ü
+ 10. [APACHE                                  ] -> Originals: BR-22-1652 - APACHE
+ 11. [CAPELA VELHA - SURU                     ] -> Originals: BR-21-1251 - CAPELA VELHA - SURU
+ 12. [CAPELINHA                               ] -> Originals: BR-22-1676 - CAPELINHA
+ 13. [CAPUTERA                                ] -> Originals: BR-22-0415 - CAPUTERA
+ 14. [CAUCAIA DO ALTO                         ] -> Originals: BR-22-0423 - CAUCAIA DO ALTO
+ 15. [CAUCAIA DO ALTO - CENTRAL               ] -> Originals: BR-22-0423 - CAUCAIA DO ALTO - CENTRAL
+ 16. [CENTRAL DE COTIA                        ] -> Originals: BR-22-0413 - CENTRAL DE COTIA
+ 17. [CENTRO SANTANA DE PARNAIBA              ] -> Originals: BR-22-1251 - CENTRO SANTANA DE PARNA├ìBA
+ 18. [CHACARA NOSSA SENHORA APARECIDINHA      ] -> Originals: BR-22-0677 - CH├üCARA NOSSA SENHORA APARECIDINHA
+ 19. [CHACARA RECANTO VERDE                   ] -> Originals: BR-21-1317 - CHACARA RECANTO VERDE | BR-21-1317 - CH├üCARA RECANTO VERDE
+ 20. [CHACARA REGINA                          ] -> Originals: BR-22-2054 - CH├üCARA REGINA
+ 21. [CHACARA SANTA CECILIA                   ] -> Originals: BR-22-3033 - CH├üCARA SANTA CEC├ìLIA
+ 22. [CHACARA SANTA MONICA                    ] -> Originals: BR-22-0429 - CH├üCARA SANTA M├öNICA
+ 23. [CHACARA SOLAR II                        ] -> Originals: BR-21-1564 - CH├üCARA SOLAR II
+ 24. [CHACARAS DAS GARCAS                     ] -> Originals: BR-22-3366 - CH├üCARAS DAS GAR├çAS
+ 25. [CIDADE SAO PEDRO - GLEBA A              ] -> Originals: BR-22-2374 - CIDADE S├âO PEDRO - GLEBA A
+ 26. [CIDADE SAO PEDRO - GLEBA B              ] -> Originals: BR-21-0983 - CIDADE S├âO PEDRO - GLEBA B
+ 27. [CIDADE SAO PEDRO - GLEBA C              ] -> Originals: BR-21-1529 - CIDADE S├âO PEDRO - GLEBA C
+ 28. [COLINAS DA ANHANGUERA                   ] -> Originals: BR-22-2521 - COLINAS DA ANHANGUERA
+ 29. [COLINAS DA ANHANGUERA II                ] -> Originals: BR-21-1588 - COLINAS DA ANHANGUERA II
+ 30. [CRISTAL PARK III                        ] -> Originals: BR-21-1061 - CRISTAL PARK III
+ 31. [CRISTAL PARK IV                         ] -> Originals: BR-21-1527 - CRISTAL PARK IV
+ 32. [CURURUQUARA                             ] -> Originals: BR-22-0676 - CURURUQUARA
+ 33. [CURURUQUARA III                         ] -> Originals: BR-21-1563 - CURURUQUARA III
+ 34. [DOLORES PASCHOALLIN                     ] -> Originals: BR-22-3193 - DOLORES PASCHOALLIN
+ 35. [DOROLES PASCHOALIM                      ] -> Originals: BR-22-3193 - DOROLES PASCHOALIM
+ 36. [FAZENDINHA - STNA DE PARNAIBA           ] -> Originals: BR-22-0272 - FAZENDINHA - STNA DE PARNA├ìBA
+ 37. [GERMANO                                 ] -> Originals: BR-22-2792 - GERMANO
+ 38. [GRANJA ALVORADA                         ] -> Originals: BR-22-3754 - GRANJA ALVORADA
+ 39. [GRANJA VIANA                            ] -> Originals: BR-22-0418 - GRANJA VIANA
+ 40. [HORIZONTAL PARK                         ] -> Originals: BR-22-3031 - HORIZONTAL PARK
+ 41. [ICAVETA DO MEIO                         ] -> Originals: BR-22-2297 - ICAVET├ü DO MEIO
+ 42. [INFANT'S GARDEN                         ] -> Originals: BR-22-3489 - INFANT'S GARDEN
+ 43. [ITAPEVI - CENTRAL                       ] -> Originals: BR-21-1039 - ITAPEVI - CENTRAL
+ 44. [ITAQUARA PARQUE                         ] -> Originals: BR-22-1806 - ITAQUARA PARQUE
+ 45. [ITAQUARA PARQUE - KM50                  ] -> Originals: BR-22-1806 - ITAQUARA PARQUE - KM50
+ 46. [JABOTICABEIRA                           ] -> Originals: BR-21-0797 - JABOTICABEIRA
+ 47. [JAGUARI                                 ] -> Originals: BR-22-0273 - JAGUARI
+ 48. [JANDIRA - CENTRAL                       ] -> Originals: BR-22-0748 - JANDIRA - CENTRAL
+ 49. [JARDIM ALABAMA                          ] -> Originals: BR-22-3062 - JARDIM ALABAMA
+ 50. [JARDIM ALVORADA                         ] -> Originals: BR-22-0678 - JARDIM ALVORADA
+ 51. [JARDIM ANTONIO PORTO                    ] -> Originals: BR-22-3261 - JARDIM ANT├öNIO PORTO
+ 52. [JARDIM ARARUAMA                         ] -> Originals: BR-22-3271 - JARDIM ARARUAMA
+ 53. [JARDIM BANDEIRANTES                     ] -> Originals: BR-22-3865 - JARDIM BANDEIRANTES
+ 54. [JARDIM BANDEIRANTES - VOTUPARIM         ] -> Originals: BR-22-3865 - JARDIM BANDEIRANTES - VOTUPARIM
+ 55. [JARDIM BARRO BRANCO                     ] -> Originals: BR-22-3714 - JARDIM BARRO BRANCO
+ 56. [JARDIM BELA VISTA - ITAPEVI             ] -> Originals: BR-22-0679 - JARDIM BELA VISTA - ITAPEVI
+ 57. [JARDIM BELA VISTA - PUNUNDUVA           ] -> Originals: BR-22-3911 - JARDIM BELA VISTA - PUNUNDUVA
+ 58. [JARDIM BOA ESPERANCA                    ] -> Originals: BR-22-1559 - JARDIM BOA ESPERAN├çA
+ 59. [JARDIM BOM JESUS                        ] -> Originals: BR-22-2955 - JARDIM BOM JESUS
+ 60. [JARDIM COTIA                            ] -> Originals: BR-22-1574 - JARDIM COTIA
+ 61. [JARDIM CRUZEIRO                         ] -> Originals: BR-22-1810 - JARDIM CRUZEIRO
+ 62. [JARDIM DA RAINHA                        ] -> Originals: BR-22-2512 - JARDIM DA RAINHA
+ 63. [JARDIM DAS OLIVEIRAS                    ] -> Originals: BR-22-1902 - JARDIM DAS OLIVEIRAS
+ 64. [JARDIM DO ENGENHO                       ] -> Originals: BR-22-1598 - JARDIM DO ENGENHO
+ 65. [JARDIM DOS IPES                         ] -> Originals: BR-22-0428 - JARDIM DOS IP├èS
+ 66. [JARDIM EUROPA                           ] -> Originals: BR-22-4116 - JARDIM EUROPA
+ 67. [JARDIM GABRIELA                         ] -> Originals: BR-22-1658 - JARDIM GABRIELA
+ 68. [JARDIM GABRIELA I                       ] -> Originals: BR-22-2935 - JARDIM GABRIELA I
+ 69. [JARDIM GIOIA                            ] -> Originals: BR-22-0674 - JARDIM GI├ôIA
+ 70. [JARDIM HOKKAIDO                         ] -> Originals: BR-22-2441 - JARDIM HOKKAIDO
+ 71. [JARDIM HONORIA                          ] -> Originals: BR-22-1956 - JARDIM HON├ôRIA
+ 72. [JARDIM ISAURA                           ] -> Originals: BR-22-1252 - JARDIM ISAURA
+ 73. [JARDIM ITACOLOMI                        ] -> Originals: BR-22-3270 - JARDIM ITACOLOMI
+ 74. [JARDIM ITAPARICA                        ] -> Originals: BR-22-3179 - JARDIM ITAPARICA
+ 75. [JARDIM ITAPUA - ITAPEVI                 ] -> Originals: BR-22-2076 - JARDIM ITAPU├â - ITAPEVI
+ 76. [JARDIM ITAPUA - STNA DE PARNAIBA        ] -> Originals: BR-22-3132 - JARDIM ITAPU├â - STNA DE PARNA├ìBA
+ 77. [JARDIM JAPAO                            ] -> Originals: BR-22-3283 - JARDIM JAP├âO
+ 78. [JARDIM JUREMA                           ] -> Originals: BR-22-1705 - JARDIM JUREMA
+ 79. [JARDIM LAVAPES DAS GRACAS               ] -> Originals: BR-22-1804 - JARDIM LAVAP├ëS DAS GRA├çAS
+ 80. [JARDIM MARGARIDA                        ] -> Originals: BR-22-0427 - JARDIM MARGARIDA
+ 81. [JARDIM MARILIA                          ] -> Originals: BR-22-1828 - JARDIM MAR├ìLIA
+ 82. [JARDIM MARINA                           ] -> Originals: BR-22-2285 - JARDIM MARINA
+ 83. [JARDIM MASE                             ] -> Originals: BR-22-2931 - JARDIM MAS├ë
+ 84. [JARDIM MIRANDA                          ] -> Originals: BR-22-1739 - JARDIM MIRANDA
+ 85. [JARDIM MONTE VERDE                      ] -> Originals: BR-22-1899 - JARDIM MONTE VERDE
+ 86. [JARDIM NOVA AMADOR BUENO                ] -> Originals: BR-22-2596 - JARDIM NOVA AMADOR BUENO
+ 87. [JARDIM NOVO HORIZONTE                   ] -> Originals: BR-22-2585 - JARDIM NOVO HORIZONTE
+ 88. [JARDIM OURO VERDE                       ] -> Originals: BR-22-1581 - JARDIM OURO VERDE
+ 89. [JARDIM PANORAMA                         ] -> Originals: BR-22-0431 - JARDIM PANORAMA
+ 90. [JARDIM PAULISTA - ITAPEVI               ] -> Originals: BR-22-0675 - JARDIM PAULISTA - ITAPEVI
+ 91. [JARDIM PETROPOLIS                       ] -> Originals: BR-22-1802 - JARDIM PETR├ôPOLIS
+ 92. [JARDIM PIONEIRO                         ] -> Originals: BR-22-0422 - JARDIM PIONEIRO
+ 93. [JARDIM PRIMAVERA (COTIA)                ] -> Originals: BR-22-3376 - JARDIM PRIMAVERA (COTIA)
+ 94. [JARDIM PRIMAVERA - COTIA                ] -> Originals: BR-22-3376 - JARDIM PRIMAVERA - COTIA
+ 95. [JARDIM RIO COTIA                        ] -> Originals: BR-22-0425 - JARDIM RIO COTIA
+ 96. [JARDIM ROSEMARY                         ] -> Originals: BR-22-0683 - JARDIM ROSEMARY
+ 97. [JARDIM ROSEMARY II                      ] -> Originals: BR-22-3050 - JARDIM ROSEMARY II
+ 98. [JARDIM RUTH                             ] -> Originals: BR-22-3061 - JARDIM RUTH
+ 99. [JARDIM SAMAMBAIA                        ] -> Originals: BR-22-1901 - JARDIM SAMAMBAIA
+100. [JARDIM SANDRA                           ] -> Originals: BR-22-1955 - JARDIM SANDRA
+101. [JARDIM SANTA CECILIA                    ] -> Originals: BR-22-2294 - JARDIM SANTA CEC├ìLIA
+102. [JARDIM SANTA CECILIA - ITAPEVI          ] -> Originals: BR-22-2294 - JARDIM SANTA CEC├ìLIA - ITAPEVI
+103. [JARDIM SANTA IZABEL                     ] -> Originals: BR-22-1656 - JARDIM SANTA IZABEL
+104. [JARDIM SANTA RITA - ITAPEVI             ] -> Originals: BR-22-0684 - JARDIM SANTA RITA - ITAPEVI
+105. [JARDIM SANTA RITA II                    ] -> Originals: BR-22-3206 - JARDIM SANTA RITA II
+106. [JARDIM SAO CARLOS                       ] -> Originals: BR-22-2228 - JARDIM S├âO CARLOS
+107. [JARDIM SAO JOAO - LAGO DOS CISNES       ] -> Originals: BR-22-3034 - JARDIM S├âO JO├âO - LAGO DOS CISNES
+108. [JARDIM SAO LUIS                         ] -> Originals: BR-21-1488 - JARDIM S├âO LU├ìS
+109. [JARDIM SAO MARCOS                       ] -> Originals: BR-22-2236 - JARDIM S├âO MARCOS
+110. [JARDIM SAO MATEUS                       ] -> Originals: BR-22-1803 - JARDIM S├âO MATEUS
+111. [JARDIM SAO MIGUEL                       ] -> Originals: BR-22-3288 - JARDIM S├âO MIGUEL
+112. [JARDIM SOROCABANA                       ] -> Originals: BR-22-0672 - JARDIM SOROCABANA
+113. [JARDIM STELLA MARIS                     ] -> Originals: BR-22-3251 - JARDIM STELLA MARIS
+114. [JARDIM VALE DO SOL                      ] -> Originals: BR-22-1808 - JARDIM VALE DO SOL
+115. [LAGEADO                                 ] -> Originals: BR-22-2797 - LAGEADO
+116. [MENDES                                  ] -> Originals: BR-22-2590 - MENDES
+117. [MOINHO VELHO                            ] -> Originals: BR-22-0416 - MOINHO VELHO
+118. [MONTE SERRAT                            ] -> Originals: BR-22-1653 - MONTE SERRAT
+119. [MONTE SERRAT II                         ] -> Originals: BR-22-3756 - MONTE SERRAT II
+120. [MORADAS SANTA FE                        ] -> Originals: BR-21-1463 - MORADAS SANTA F├ë | BR-22-3396 - MORADAS SANTA F├ë
+121. [MORRO GRANDE                            ] -> Originals: BR-22-0414 - MORRO GRANDE
+122. [NARITA GARDEN                           ] -> Originals: BR-22-3168 - NARITA GARDEN
+123. [NHAMBUCA                                ] -> Originals: BR-21-1020 - NHAMBUCA
+124. [NOVA ITAPEVI                            ] -> Originals: BR-22-0671 - NOVA ITAPEVI
+125. [NOVA PIRAPORA - CENTRAL                 ] -> Originals: BR-22-1074 - NOVA PIRAPORA - CENTRAL
+126. [PAISAGEM CASA GRANDE                    ] -> Originals: BR-22-3789 - PAISAGEM CASA GRANDE
+127. [PARQUE ALEXANDRE                        ] -> Originals: BR-22-1669 - PARQUE ALEXANDRE
+128. [PARQUE ALVORADA                         ] -> Originals: BR-22-3951 - PARQUE ALVORADA
+129. [PARQUE DO AGRESTE                       ] -> Originals: BR-22-2798 - PARQUE DO AGRESTE
+130. [PARQUE DO LAGO                          ] -> Originals: BR-22-2873 - PARQUE DO LAGO
+131. [PARQUE IGLESIAS                         ] -> Originals: BR-22-3157 - PARQUE IGLESIAS
+132. [PARQUE JAGUARI                          ] -> Originals: BR-21-1644 - PARQUE JAGUARI
+133. [PARQUE LARANJEIRA II                    ] -> Originals: BR-21-1565 - PARQUE LARANJEIRA II
+134. [PARQUE LARANJEIRAS II                   ] -> Originals: BR-21-1565 - PARQUE LARANJEIRAS II
+135. [PARQUE MIGUEL MIRIZOLA                  ] -> Originals: BR-22-1891 - PARQUE MIGUEL MIRIZOLA
+136. [PARQUE MIRANTE DA MATA                  ] -> Originals: BR-22-2659 - PARQUE MIRANTE DA MATA
+137. [PARQUE PAIOL                            ] -> Originals: BR-22-2956 - PARQUE PAIOL
+138. [PARQUE PAIOL II                         ] -> Originals: BR-21-1528 - PARQUE PAIOL II
+139. [PARQUE SANTA TEREZA - JANDIRA           ] -> Originals: BR-22-0750 - PARQUE SANTA TEREZA - JANDIRA
+140. [PARQUE SANTANA I                        ] -> Originals: BR-22-2833 - PARQUE SANTANA I
+141. [PARQUE SANTANA II                       ] -> Originals: BR-22-2567 - PARQUE SANTANA II
+142. [PARQUE SINAI                            ] -> Originals: BR-21-1310 - PARQUE SINAI
+143. [PARQUE SUBURBANO I                      ] -> Originals: BR-22-2292 - PARQUE SUBURBANO I
+144. [PARQUE SUBURBANO II                     ] -> Originals: BR-22-2934 - PARQUE SUBURBANO II
+145. [PARQUE SUBURBANO III                    ] -> Originals: BR-22-3129 - PARQUE SUBURBANO III
+146. [PARQUE SUBURBANO IV                     ] -> Originals: BR-22-3583 - PARQUE SUBURBANO IV
+147. [PEDRAS                                  ] -> Originals: BR-22-0424 - PEDRAS
+148. [PEDRAS (CHACARA SANTA MARIA)            ] -> Originals: BR-22-0424 - PEDRAS (CHACARA SANTA MARIA)
+149. [PEREIRAS                                ] -> Originals: BR-22-0432 - PEREIRAS
+150. [POR DO SOL                              ] -> Originals: BR-21-0995 - POR DO SOL
+151. [PORTAL DA PRIMAVERA                     ] -> Originals: BR-22-1722 - PORTAL DA PRIMAVERA
+152. [PORTAL DO QUILOMBO                      ] -> Originals: BR-22-4006 - PORTAL DO QUILOMBO
+153. [PORTAO VERMELHO                         ] -> Originals: BR-22-0417 - PORT├âO VERMELHO
+154. [PORTAO VERMELHO - CENTRAL DE VARGEM     ] -> Originals: BR-22-0417 - PORT├âO VERMELHO - CENTRAL DE VARGEM
+155. [RECANTO DOS PASSAROS                    ] -> Originals: BR-21-1481 - RECANTO DOS PASSAROS
+156. [RECANTO DOS PASSAROS - JARDIM NOVA COTIA] -> Originals: BR-21-1481 - RECANTO DOS P├üSSAROS - JARDIM NOVA COTIA
+157. [RECANTO MARAVILHA III                   ] -> Originals: BR-22-3757 - RECANTO MARAVILHA III
+158. [RECANTO PAULISTANO                      ] -> Originals: BR-22-1660 - RECANTO PAULISTANO
+159. [RECANTO VISTA ALEGRE                    ] -> Originals: BR-22-3908 - RECANTO VISTA ALEGRE
+160. [REFUGIO DOS BANDEIRANTES                ] -> Originals: BR-22-2936 - REFUGIO DOS BANDEIRANTES
+161. [RESIDENCIAL DAS FLORES                  ] -> Originals: BR-22-3250 - RESIDENCIAL DAS FLORES
+162. [RESSACA                                 ] -> Originals: BR-22-3030 - RESSACA
+163. [ROSELANDIA                              ] -> Originals: BR-22-0430 - ROSEL├éNDIA
+164. [RUTH MARIA                              ] -> Originals: BR-22-4057 - RUTH MARIA
+165. [SAGRADO CORACAO                         ] -> Originals: BR-22-0749 - SAGRADO CORA├ç├âO
+166. [SANTANA DE PARNAIBA - CENTRAL           ] -> Originals: BR-22-1251 - SANTANA DE PARNA├ìBA - CENTRAL
+167. [SAO JOAO                                ] -> Originals: BR-22-3510 - S├âO JO├âO
+168. [SAO JUDAS TADEU                         ] -> Originals: BR-22-1707 - S├âO JUDAS TADEU
+169. [SAO LUIZ                                ] -> Originals: BR-21-1390 - S├âO LUIZ
+170. [SITIO DO ROSARIO                        ] -> Originals: BR-21-1124 - SITIO DO ROSARIO
+171. [SITIO GUARAPIRANGA                      ] -> Originals: BR-22-3299 - SITIO GUARAPIRANGA
+172. [SITIO JOSE TEIXEIRA                     ] -> Originals: BR-21-1312 - S├ìTIO JOS├ë TEIXEIRA
+173. [SITIO JOSE TEIXEIRA - ITAPEVI           ] -> Originals: BR-21-1312 - SITIO JOS├ë TEIXEIRA - ITAPEVI
+174. [SITIO JULINHO                           ] -> Originals: BR-22-2486 - S├ìTIO JULINHO
+175. [SITIO LAJEADO                           ] -> Originals: BR-22-3950 - SITIO LAJEADO
+176. [SITIO TABULEIRO                         ] -> Originals: BR-22-1815 - S├ìTIO TABULEIRO
+177. [SITIO TAQUARAL (COTIA)                  ] -> Originals: BR-22-1894 - S├ìTIO TAQUARAL (COTIA)
+178. [SITIO TAQUARAL - COTIA                  ] -> Originals: BR-22-1894 - S├ìTIO TAQUARAL - COTIA
+179. [TIJUCO PRETO                            ] -> Originals: BR-22-0420 - TIJUCO PRETO
+180. [VALE DO SOL - ITAPEVI                   ] -> Originals: BR-22-3651 - VALE DO SOL - ITAPEVI
+181. [VILA ATALAIA                            ] -> Originals: BR-22-0421 - VILA ATALAIA
+182. [VILA BELIZARIO                          ] -> Originals: BR-22-1892 - VILA BELIZ├üRIO
+183. [VILA BELMIRA                            ] -> Originals: BR-21-1542 - VILA BELMIRA
+184. [VILA DAS CHACARAS                       ] -> Originals: BR-22-2999 - VILA DAS CH├üCARAS
+185. [VILA DOUTOR CARDOSO                     ] -> Originals: BR-22-0673 - VILA DOUTOR CARDOSO
+186. [VILA ESMERALDA                          ] -> Originals: BR-22-3628 - VILA ESMERALDA
+187. [VILA EUNICE                             ] -> Originals: BR-22-1708 - VILA EUNICE
+188. [VILA GODINHO                            ] -> Originals: BR-22-2313 - VILA GODINHO
+189. [VILA LUNARDA                            ] -> Originals: BR-21-1311 - VILA LUNARDA
+190. [VILA MARCIA                             ] -> Originals: BR-22-1768 - VILA M├üRCIA
+191. [VILA MONTE SERRAT - CENTRAL DE COTIA    ] -> Originals: BR-22-0413 - VILA MONTE SERRAT - CENTRAL DE COTIA
+192. [VILA NOVA ESPERANCA                     ] -> Originals: BR-22-3274 - VILA NOVA ESPERAN├çA
+193. [VILA ROLIM                              ] -> Originals: BR-22-3051 - VILA ROLIM
+194. [VILA SANTA RITA                         ] -> Originals: BR-22-1980 - VILA SANTA RITA
+195. [VILA SAO ROQUE                          ] -> Originals: BR-22-0426 - VILA S├âO ROQUE
+196. [VITAPOLIS I                             ] -> Originals: BR-22-1706 - VIT├üPOLIS I
+197. [VITAPOLIS II                            ] -> Originals: BR-22-3645 - VIT├üPOLIS II
+
+--- POTENTIAL DUPLICATES (Manual check) ---
+ÔÜá´©Å Possible duplicate: "AMADOR BUENO" and "JARDIM NOVA AMADOR BUENO"
+ÔÜá´©Å Possible duplicate: "CAUCAIA DO ALTO" and "CAUCAIA DO ALTO - CENTRAL"
+ÔÜá´©Å Possible duplicate: "CENTRAL DE COTIA" and "VILA MONTE SERRAT - CENTRAL DE COTIA"
+ÔÜá´©Å Possible duplicate: "COLINAS DA ANHANGUERA" and "COLINAS DA ANHANGUERA II"
+ÔÜá´©Å Possible duplicate: "CURURUQUARA" and "CURURUQUARA III"
+ÔÜá´©Å Possible duplicate: "ITAQUARA PARQUE" and "ITAQUARA PARQUE - KM50"
+ÔÜá´©Å Possible duplicate: "JAGUARI" and "PARQUE JAGUARI"
+ÔÜá´©Å Possible duplicate: "JARDIM BANDEIRANTES" and "JARDIM BANDEIRANTES - VOTUPARIM"
+ÔÜá´©Å Possible duplicate: "JARDIM GABRIELA" and "JARDIM GABRIELA I"
+ÔÜá´©Å Possible duplicate: "JARDIM ROSEMARY" and "JARDIM ROSEMARY II"
+ÔÜá´©Å Possible duplicate: "JARDIM SANTA CECILIA" and "JARDIM SANTA CECILIA - ITAPEVI"
+ÔÜá´©Å Possible duplicate: "JARDIM SAO JOAO - LAGO DOS CISNES" and "SAO JOAO"
+ÔÜá´©Å Possible duplicate: "MONTE SERRAT" and "MONTE SERRAT II"
+ÔÜá´©Å Possible duplicate: "MONTE SERRAT" and "VILA MONTE SERRAT - CENTRAL DE COTIA"
+ÔÜá´©Å Possible duplicate: "PARQUE PAIOL" and "PARQUE PAIOL II"
+ÔÜá´©Å Possible duplicate: "PARQUE SANTANA I" and "PARQUE SANTANA II"
+ÔÜá´©Å Possible duplicate: "PARQUE SUBURBANO I" and "PARQUE SUBURBANO II"
+ÔÜá´©Å Possible duplicate: "PARQUE SUBURBANO I" and "PARQUE SUBURBANO III"
+ÔÜá´©Å Possible duplicate: "PARQUE SUBURBANO I" and "PARQUE SUBURBANO IV"
+ÔÜá´©Å Possible duplicate: "PARQUE SUBURBANO II" and "PARQUE SUBURBANO III"
+ÔÜá´©Å Possible duplicate: "PEDRAS" and "PEDRAS (CHACARA SANTA MARIA)"
+ÔÜá´©Å Possible duplicate: "PORTAO VERMELHO" and "PORTAO VERMELHO - CENTRAL DE VARGEM"
+ÔÜá´©Å Possible duplicate: "RECANTO DOS PASSAROS" and "RECANTO DOS PASSAROS - JARDIM NOVA COTIA"
+ÔÜá´©Å Possible duplicate: "SITIO JOSE TEIXEIRA" and "SITIO JOSE TEIXEIRA - ITAPEVI"
+ÔÜá´©Å Possible duplicate: "VITAPOLIS I" and "VITAPOLIS II"

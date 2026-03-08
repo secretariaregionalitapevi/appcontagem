@@ -1,0 +1,127 @@
+# ========================================
+# CONFIGURAÇÃO SIMPLIFICADA PARA HOSTINGER
+# Sistema de Registro de Presença CCB
+# ========================================
+
+RewriteEngine On
+
+# ========================================
+# MIME TYPES CRÍTICOS - CORREÇÃO DE EMERGÊNCIA
+# ========================================
+<IfModule mod_mime.c>
+    # JavaScript
+    AddType application/javascript .js
+    AddType application/javascript .mjs
+    
+    # CSS
+    AddType text/css .css
+    
+    # HTML
+    AddType text/html .html .htm
+    
+    # JSON
+    AddType application/json .json
+    
+    # Manifest
+    AddType application/manifest+json .webmanifest
+    AddType text/cache-manifest .appcache
+</IfModule>
+
+# ========================================
+# HEADERS CRÍTICOS PARA CORRIGIR MIME TYPES
+# ========================================
+<IfModule mod_headers.c>
+    # Forçar MIME types corretos
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=utf-8"
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    
+    <FilesMatch "\.css$">
+        Header set Content-Type "text/css; charset=utf-8"
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    
+    <FilesMatch "\.html$">
+        Header set Content-Type "text/html; charset=utf-8"
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    
+    <FilesMatch "\.json$">
+        Header set Content-Type "application/json; charset=utf-8"
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    
+    # Segurança básica
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# ========================================
+# CONFIGURAÇÕES ESPECÍFICAS PARA PASTA STATIC
+# ========================================
+<Directory "static">
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=utf-8"
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    
+    <FilesMatch "\.css$">
+        Header set Content-Type "text/css; charset=utf-8"
+        Header set Cache-Control "no-cache, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</Directory>
+
+# ========================================
+# CORS PARA SUPABASE
+# ========================================
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, apikey"
+</IfModule>
+
+# ========================================
+# CONFIGURAÇÕES BÁSICAS
+# ========================================
+# Força UTF-8
+AddDefaultCharset UTF-8
+
+# Página de erro personalizada
+ErrorDocument 404 /index.html
+ErrorDocument 500 /index.html
+
+# ========================================
+# BLOQUEIO DE ARQUIVOS SENSÍVEIS
+# ========================================
+<FilesMatch "\.(env|log|sql|bak|backup)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# ========================================
+# SERVICE WORKER
+# ========================================
+<Files "sw.js">
+    Header set Content-Type "application/javascript"
+    Header set Cache-Control "no-cache, must-revalidate"
+    Header set Service-Worker-Allowed "/"
+</Files>
+
+<Files "manifest.json">
+    Header set Content-Type "application/manifest+json"
+    Header set Cache-Control "no-cache, must-revalidate"
+</Files>

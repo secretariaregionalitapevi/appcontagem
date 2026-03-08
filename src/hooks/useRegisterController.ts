@@ -64,6 +64,9 @@ export const useRegisterController = () => {
   const [selectedInstrumento, setSelectedInstrumento] = useState<string>('');
   const [selectedPessoa, setSelectedPessoa] = useState<string>('');
   const [isNomeManual, setIsNomeManual] = useState(false);
+  const [isComumManual, setIsComumManual] = useState(false);
+  const [cidadeManual, setCidadeManual] = useState('');
+  const [selectedClasseOrganista, setSelectedClasseOrganista] = useState<string>('');
   const [nameFieldKey, setNameFieldKey] = useState(0); // Key para forçar remontagem do NameSelectField
 
   const [loading, setLoading] = useState(false);
@@ -91,12 +94,13 @@ export const useRegisterController = () => {
   // Mostrar campo de instrumento apenas para Músico
   // Organista NÃO mostra campo de instrumento (sempre toca órgão)
   const selectedCargoObj = cargos.find(c => c.id === selectedCargo);
-  const cargoNome = selectedCargoObj?.nome || '';
-  const isOrganista = cargoNome === 'Organista';
-  const isCandidato = cargoNome === 'Candidato (a)';
+  const cargoNome = selectedCargoObj?.nome || (selectedCargo.startsWith('manual_') ? selectedCargo.replace('manual_', '') : '');
+
+  const isOrganista = cargoNome.trim().toUpperCase() === 'ORGANISTA';
+  const isCandidato = cargoNome.trim().toUpperCase() === 'CANDIDATO (A)';
   // Mostrar campo de instrumento apenas para Músico (não para Organista nem Candidato)
   // Candidatos têm instrumento na tabela, será buscado automaticamente ao enviar
-  const showInstrumento = !isOrganista && !isCandidato && selectedCargoObj?.is_musical;
+  const showInstrumento = !isOrganista && !isCandidato && (selectedCargoObj?.is_musical || cargoNome.trim().toUpperCase() === 'MÚSICO');
 
   // Função de sincronização - declarada ANTES dos useEffects que a usam
   const syncData = useCallback(async () => {
@@ -459,6 +463,7 @@ export const useRegisterController = () => {
     setSelectedCargo('');
     setSelectedInstrumento('');
     setSelectedPessoa('');
+    setSelectedClasseOrganista('');
     setIsNomeManual(false);
     setNameFieldKey(prev => prev + 1);
 
@@ -824,14 +829,18 @@ export const useRegisterController = () => {
           }
           const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
 
-          // Buscar classe da organista do banco de dados se for Organista
-          let classeOrganistaDB: string | undefined = undefined;
-          if (isOrganista && !isNomeManual) {
-            const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-            if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-              classeOrganistaDB = pessoaSelecionada.classe_organista;
-            } else {
-              classeOrganistaDB = 'OFICIALIZADA';
+          // Buscar classe da organista
+          let classeOrganistaFinal: string | undefined = undefined;
+          if (isOrganista) {
+            if (selectedClasseOrganista) {
+              classeOrganistaFinal = selectedClasseOrganista;
+            } else if (!isNomeManual) {
+              const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+              if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+                classeOrganistaFinal = pessoaSelecionada.classe_organista;
+              } else {
+                classeOrganistaFinal = 'OFICIALIZADA';
+              }
             }
           }
 
@@ -848,14 +857,14 @@ export const useRegisterController = () => {
 
           const registro: RegistroPresenca = {
             pessoa_id: pessoaIdFinal,
-            comum_id: selectedComum,
+            comum_id: isComumManual ? `manual_${selectedComum}${cidadeManual ? `|${cidadeManual}` : ''}` : selectedComum,
             cargo_id: selectedCargo,
             instrumento_id: isCandidato
               ? instrumentoCandidato
               : showInstrumento && selectedInstrumento
                 ? selectedInstrumento
                 : null,
-            classe_organista: classeOrganistaDB,
+            classe_organista: classeOrganistaFinal,
             local_ensaio: localEnsaio || 'Não definido',
             data_hora_registro: getCurrentDateTimeISO(),
             usuario_responsavel: nomeUsuario,
@@ -966,13 +975,18 @@ export const useRegisterController = () => {
             }
             const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
 
-            let classeOrganistaDB: string | undefined = undefined;
-            if (isOrganista && !isNomeManual) {
-              const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-              if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-                classeOrganistaDB = pessoaSelecionada.classe_organista;
-              } else {
-                classeOrganistaDB = 'OFICIALIZADA';
+            // Buscar classe da organista
+            let classeOrganistaFinalRetry: string | undefined = undefined;
+            if (isOrganista) {
+              if (selectedClasseOrganista) {
+                classeOrganistaFinalRetry = selectedClasseOrganista;
+              } else if (!isNomeManual) {
+                const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+                if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+                  classeOrganistaFinalRetry = pessoaSelecionada.classe_organista;
+                } else {
+                  classeOrganistaFinalRetry = 'OFICIALIZADA';
+                }
               }
             }
 
@@ -995,7 +1009,7 @@ export const useRegisterController = () => {
                 : showInstrumento && selectedInstrumento
                   ? selectedInstrumento
                   : null,
-              classe_organista: classeOrganistaDB,
+              classe_organista: classeOrganistaFinalRetry,
               local_ensaio: localEnsaio || 'Não definido',
               data_hora_registro: getCurrentDateTimeISO(),
               usuario_responsavel: nomeUsuario,
@@ -1039,14 +1053,18 @@ export const useRegisterController = () => {
       }
       const nomeUsuarioOnline = formatRegistradoPor(nomeCompletoUsuarioOnline || user.id);
 
-      // Buscar classe da organista do banco de dados se for Organista
-      let classeOrganistaDBOnline: string | undefined = undefined;
-      if (isOrganista && !isNomeManual) {
-        const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-        if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-          classeOrganistaDBOnline = pessoaSelecionada.classe_organista;
-        } else {
-          classeOrganistaDBOnline = 'OFICIALIZADA';
+      // Buscar classe da organista
+      let classeOrganistaFinalOnline: string | undefined = undefined;
+      if (isOrganista) {
+        if (selectedClasseOrganista) {
+          classeOrganistaFinalOnline = selectedClasseOrganista;
+        } else if (!isNomeManual) {
+          const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+          if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+            classeOrganistaFinalOnline = pessoaSelecionada.classe_organista;
+          } else {
+            classeOrganistaFinalOnline = 'OFICIALIZADA';
+          }
         }
       }
 
@@ -1063,14 +1081,14 @@ export const useRegisterController = () => {
 
       const registroOnline: RegistroPresenca = {
         pessoa_id: pessoaIdFinalOnline,
-        comum_id: selectedComum,
+        comum_id: isComumManual ? `manual_${selectedComum}${cidadeManual ? `|${cidadeManual}` : ''}` : selectedComum,
         cargo_id: selectedCargo,
         instrumento_id: isCandidato
           ? instrumentoCandidatoOnline
           : showInstrumento && selectedInstrumento
             ? selectedInstrumento
             : null,
-        classe_organista: classeOrganistaDBOnline,
+        classe_organista: classeOrganistaFinalOnline,
         local_ensaio: localEnsaioOnline || 'Não definido',
         data_hora_registro: getCurrentDateTimeISO(),
         usuario_responsavel: nomeUsuarioOnline,
@@ -1992,6 +2010,10 @@ export const useRegisterController = () => {
     loadingPessoas,
     selectedComum,
     setSelectedComum,
+    isComumManual,
+    setIsComumManual,
+    cidadeManual,
+    setCidadeManual,
     selectedCargo,
     setSelectedCargo,
     selectedInstrumento,
@@ -2032,5 +2054,7 @@ export const useRegisterController = () => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
+    selectedClasseOrganista,
+    setSelectedClasseOrganista,
   };
 };

@@ -47,6 +47,10 @@ interface AutocompleteFieldProps {
   icon?: string;
   error?: string;
   style?: ViewStyle;
+  allowManualEntry?: boolean;
+  onManualEntry?: (text: string) => void;
+  autoManualEntry?: boolean;
+  onChangeText?: (text: string) => void;
 }
 
 export interface AutocompleteFieldRef {
@@ -65,6 +69,10 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
       icon = 'map-marker-alt',
       error,
       style,
+      allowManualEntry = false,
+      onManualEntry,
+      autoManualEntry = false,
+      onChangeText,
     },
     ref
   ) => {
@@ -117,9 +125,10 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
       const currentOption = options.find(opt => opt.id === value);
       if (currentOption) {
         setSearchText(currentOption.label);
-      } else if (!value) {
+      } else if (value === '' || value === null) {
         setSearchText('');
       }
+      // Se value for undefined, não fazemos nada para manter o texto digitado
     }, [value, options]);
 
     // Não precisa mais calcular posição - usando position absolute relativo ao container
@@ -128,6 +137,11 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
     const handleChange = (text: string) => {
       setSearchText(text);
       setSelectedIndex(-1); // Reset seleção ao digitar
+
+      if (onChangeText) {
+        onChangeText(text);
+      }
+
       // Cancelar blur pendente ao digitar
       if (blurTimeoutRef.current) {
         clearTimeout(blurTimeoutRef.current);
@@ -137,6 +151,22 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
       if (text.trim().length >= 1) {
         setShowList(true);
         console.log('🔍 AutocompleteField - Texto digitado:', text, 'Mostrando lista');
+
+        // 🚨 Lógica de autoManualEntry - Threshold de 4 caracteres
+        if (autoManualEntry && onManualEntry && text.trim().length >= 4) {
+          const query = normalize(text);
+          const hasMatches = options.some(opt => {
+            const labelNorm = normalize(opt.label);
+            const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
+            return labelNorm.includes(query) || nomeNorm.includes(query);
+          });
+
+          if (!hasMatches) {
+            console.log('✏️ [AutocompleteField] Sem correspondências (>=4 chars) - ativando modo manual automático');
+            onManualEntry(text);
+            setShowList(false);
+          }
+        }
       } else {
         setShowList(false);
       }
@@ -236,16 +266,23 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
     const handleBlur = () => {
       setIsFocused(false);
 
-      // Usando nativo, não fechamos automaticamente por blur.
-      // O Modal interceptará toques externos e não brigará com o foco.
-      if (Platform.OS !== 'web') {
-        return;
-      }
+      const delay = Platform.OS === 'web' ? 400 : 0;
 
-      const delay = 500;
       blurTimeoutRef.current = setTimeout(() => {
         setShowList(false);
         blurTimeoutRef.current = null;
+
+        // 🚨 Se allowManualEntry está ativo e o usuário saiu do campo
+        // com texto digitado mas sem selecionar nada → capturar automaticamente
+        if (allowManualEntry && onManualEntry && searchText.trim().length >= 1) {
+          // Só disparar se o valor não está na lista (nenhuma seleção da lista)
+          const matchInList = options.some(
+            opt => opt.label.toLowerCase() === searchText.trim().toLowerCase()
+          );
+          if (!matchInList) {
+            onManualEntry(searchText.trim());
+          }
+        }
       }, delay);
     };
 
@@ -442,56 +479,68 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
           />
 
           {/* Dropdown - View absoluta universal */}
-          {showList && filtered.length > 0 && (
+          {showList && searchText.trim().length >= 1 && (
             <View style={styles.webDropdownContainer}>
               <View style={styles.webDropdown}>
-                <ScrollView
-                  style={styles.webDropdownList}
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {filtered.map((item, index) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[styles.item, index === selectedIndex && styles.itemSelected]}
-                      onPress={() => {
-                        if (blurTimeoutRef.current) {
-                          clearTimeout(blurTimeoutRef.current);
-                          blurTimeoutRef.current = null;
-                        }
-                        setSelectedIndex(index);
-                        handleSelect(item);
-                        setShowList(false);
-                        if (inputRef.current) {
-                          inputRef.current.blur();
-                        }
-                      }}
-                      activeOpacity={0.7}
-                      {...(Platform.OS === 'web'
-                        ? {
-                          onMouseEnter: () => setSelectedIndex(index),
-                        }
-                        : {})}
-                    >
-                      <FontAwesome5
-                        name={icon}
-                        size={12}
-                        color={theme.colors.textSecondary}
-                        style={styles.icon}
-                      />
-                      <Text style={styles.itemText}>{item.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-          )}
+                {/* Opção de entrada manual no topo para melhor UX */}
+                {allowManualEntry && onManualEntry && (
+                  <TouchableOpacity
+                    style={styles.manualEntryInline}
+                    onPress={() => {
+                      setShowList(false);
+                      if (inputRef.current) inputRef.current.blur();
+                      onManualEntry(searchText);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.manualEntryText}>✏️ Digitar "{searchText}" manualmente</Text>
+                  </TouchableOpacity>
+                )}
 
-          {/* Mensagem quando não há resultados */}
-          {showList && filtered.length === 0 && searchText.trim().length >= 1 && (
-            <View style={styles.dropdown}>
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
+                {filtered.length > 0 ? (
+                  <ScrollView
+                    style={styles.webDropdownList}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {filtered.map((item, index) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[styles.item, index === selectedIndex && styles.itemSelected]}
+                        onPress={() => {
+                          if (blurTimeoutRef.current) {
+                            clearTimeout(blurTimeoutRef.current);
+                            blurTimeoutRef.current = null;
+                          }
+                          setSelectedIndex(index);
+                          handleSelect(item);
+                          setShowList(false);
+                          if (inputRef.current) {
+                            inputRef.current.blur();
+                          }
+                        }}
+                        activeOpacity={0.7}
+                        {...(Platform.OS === 'web'
+                          ? {
+                            onMouseEnter: () => setSelectedIndex(index),
+                          }
+                          : {})}
+                      >
+                        <FontAwesome5
+                          name={icon}
+                          size={12}
+                          color={theme.colors.textSecondary}
+                          style={styles.icon}
+                        />
+                        <Text style={styles.itemText}>{item.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
+                  </View>
+                )}
               </View>
             </View>
           )}
@@ -667,6 +716,32 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: theme.colors.textSecondary,
     fontStyle: 'italic',
+  },
+  manualEntryBtn: {
+    marginTop: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: '#f0fdf4',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#22c55e',
+    alignItems: 'center',
+  },
+  manualEntryInline: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: '#f0fdf4',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: '#22c55e',
+    marginHorizontal: 4,
+    marginBottom: 4,
+    alignItems: 'center',
+  },
+  manualEntryText: {
+    fontSize: theme.fontSize.sm,
+    color: '#16a34a',
+    fontWeight: '600',
   },
   // Estilos para Modal em todas as plataformas
   modalOverlay: {

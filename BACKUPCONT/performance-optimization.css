@@ -1,0 +1,58 @@
+/* ===== OTIMIZAÇÃO DE PERFORMANCE - REMOVER PACE.JS ===== */
+
+/* Desabilitar completamente Pace.js */
+.pace,
+.pace-progress,
+.pace-activity,
+.pace-inactive {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Remover barra de progresso do topo */
+.pace .pace-progress {
+  display: none !important;
+  background: transparent !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+
+/* Garantir que não há elementos Pace visíveis */
+[class*="pace"] {
+  display: none !important;
+}
+
+/* Otimizações de performance */
+* {
+  /* Desabilitar animações desnecessárias */
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Manter apenas animações essenciais */
+.loading-spinner,
+.hourglass,
+.modern-spinner {
+  animation-duration: 1s !important;
+  animation-iteration-count: infinite !important;
+}
+
+/* Otimizar carregamento de fontes */
+@font-face {
+  font-display: swap;
+}
+
+/* Otimizar imagens */
+img {
+  loading: lazy;
+}
+
+/* Remover elementos de loading desnecessários */
+.sk-spinner,
+.sk-loading,
+.loading-indicator {
+  display: none !important;
+}

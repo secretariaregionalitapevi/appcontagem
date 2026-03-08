@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sistema de Contagem | CCB</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1e40af" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    :root {
+      --primary: #1e40af;
+      --primary-dark: #1e3a8a;
+      --secondary: #64748b;
+      --success: #059669;
+      --warning: #d97706;
+      --error: #dc2626;
+      --background: #f8fafc;
+      --surface: #ffffff;
+      --surface-elevated: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --border-light: #f1f5f9;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--background);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 1.5rem 0;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .header-content {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      opacity: 0.95;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--error);
+      transition: background-color 0.3s ease;
+    }
+
+    .status-dot.online {
+      background: var(--success);
+    }
+
+    /* Main Content */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-light);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 1.5rem 1.5rem 0;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+
+    .card-body {
+      padding: 0 1.25rem 1.25rem;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-label.required::after {
+      content: " *";
+      color: var(--error);
+    }
+
+    /* Radio Group */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .radio-option {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+      min-height: 2.75rem;
+    }
+
+    .radio-option:hover {
+      border-color: var(--primary);
+      background: #f8faff;
+    }
+
+    .radio-option input[type="radio"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .radio-option input[type="radio"]:checked + .radio-label {
+      color: var(--primary);
+    }
+
+    .radio-option:has(input:checked) {
+      border-color: var(--primary);
+      background: #f0f4ff;
+      box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+    }
+
+    /* Select Dropdown - Design Elegante e Moderno */
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select {
+      width: 100%;
+      padding: 1.25rem 1.5rem;
+      border: 2px solid transparent;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      appearance: none;
+      background-image: 
+        linear-gradient(145deg, #ffffff 0%, #f8fafc 100%),
+        url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234f46e5' stroke-width='2.5'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e");
+      background-position: right 1.25rem center;
+      background-repeat: no-repeat;
+      background-size: 1.75rem;
+      padding-right: 3.5rem;
+      min-height: 4rem;
+      box-shadow: 
+        0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .select::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      border-radius: 14px;
+    }
+
+    .select:hover {
+      border-color: rgba(79, 70, 229, 0.3);
+      box-shadow: 
+        0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05),
+        0 0 0 1px rgba(79, 70, 229, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px) scale(1.01);
+    }
+
+    .select:hover::before {
+      opacity: 1;
+    }
+
+    .select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 
+        0 0 0 4px rgba(79, 70, 229, 0.2),
+        0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px) scale(1.01);
+    }
+
+    .select:focus::before {
+      opacity: 1;
+    }
+
+    .select option {
+      padding: 1rem 1.25rem;
+      font-size: 1.1rem;
+      font-weight: 500;
+      background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+      color: var(--text-primary);
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .select option:hover {
+      background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+      color: white;
+      transform: translateX(4px);
+    }
+
+    .select option:checked {
+      background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+      color: white;
+      font-weight: 600;
+    }
+
+    /* Animação especial para dropdown ativo */
+    .select:active {
+      transform: translateY(0) scale(0.98);
+      transition: all 0.1s ease;
+    }
+
+    /* Efeito de brilho sutil */
+    .select::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .select:hover::after {
+      left: 100%;
+    }
+
+    /* Action Bar */
+    .action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--background);
+      border-top: 1px solid var(--border-light);
+      margin: 1.25rem -1.25rem -1.25rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.5rem;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      min-height: 44px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Queue Status */
+    .queue-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .queue-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-md);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    .queue-badge.empty {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .queue-badge.pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .queue-badge.syncing {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+
+    /* Mobile Touch Optimizations */
+    @media (max-width: 640px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .header-content {
+        padding: 0 1rem;
+      }
+
+      .header h1 {
+        font-size: 1.25rem;
+      }
+
+      .radio-group {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .radio-option {
+        padding: 1rem 0.75rem;
+        min-height: 3rem;
+        font-size: 0.9rem;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      .radio-option .radio-label {
+        font-size: 0.9rem;
+        pointer-events: none;
+      }
+
+      .radio-option input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 0.75rem;
+      }
+
+      .action-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+      }
+
+      .queue-info {
+        justify-content: center;
+        font-size: 0.9rem;
+      }
+
+      .btn {
+        min-height: 3rem;
+        font-size: 1rem;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .select {
+        min-height: 4rem;
+        font-size: 1.1rem;
+        touch-action: manipulation;
+        padding: 1.25rem 1.5rem;
+        border-radius: 16px;
+      }
+    }
+
+    /* Animation */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(1rem);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card {
+      animation: fadeInUp 0.5s ease;
+    }
+
+    /* Hidden sections */
+    .form-section {
+      display: none;
+      animation: fadeInUp 0.3s ease;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border-light);
+    }
+
+    /* SOLUÇÃO SIMPLES - SEMPRE mostrar quando tem classe show */
+    .form-section.show {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+    
+    
+    /* Compact form sections */
+    .form-section .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-section .form-label {
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+    
+      .form-section .select {
+        padding: 1.25rem 1.5rem;
+        font-size: 1.1rem;
+        min-height: 4rem;
+        border-radius: 16px;
+      }
+    
+    /* Mobile optimizations for dropdowns */
+    @media (max-width: 640px) {
+      .form-section {
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+      }
+      
+      .form-section .form-group {
+        margin-bottom: 0.75rem;
+      }
+      
+      .form-section .form-label {
+        font-size: 0.75rem;
+        margin-bottom: 0.375rem;
+      }
+      
+      .form-section .select {
+        padding: 1.25rem 1.5rem;
+        font-size: 1.1rem;
+        min-height: 4rem;
+        border-radius: 16px;
+      }
+      
+      .select-wrapper {
+        position: relative;
+      }
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: var(--surface);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 0;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 1rem;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 3px solid transparent;
+    }
+
+    .tab-button:hover {
+      background: #f8fafc;
+      color: var(--text-primary);
+    }
+
+    .tab-button.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: #f0f4ff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Summary Styles */
+    .summary-section {
+      margin-bottom: 2rem;
+    }
+
+    .summary-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .summary-grid-single {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .summary-grid-single .summary-card {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .summary-card:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .summary-card.total {
+      border-color: var(--primary);
+      background: #f0f4ff;
+    }
+
+    .summary-card.online {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    .summary-card.offline {
+      border-color: #f59e0b;
+      background: #fffbeb;
+    }
+
+    .summary-card.brothers {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    .summary-card.sisters {
+      border-color: #ec4899;
+      background: #fdf2f8;
+    }
+
+    .summary-card.organists {
+      border-color: #8b5cf6;
+      background: #f3e8ff;
+    }
+
+    .summary-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .summary-card.total .summary-number {
+      color: var(--primary);
+    }
+
+    .summary-card.online .summary-number {
+      color: #10b981;
+    }
+
+    .summary-card.offline .summary-number {
+      color: #f59e0b;
+    }
+
+    .summary-card.brothers .summary-number {
+      color: #3b82f6;
+    }
+
+    .summary-card.sisters .summary-number {
+      color: #ec4899;
+    }
+
+    .summary-card.organists .summary-number {
+      color: #8b5cf6;
+    }
+
+    .summary-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Statistics Lists */
+    .cargo-stats,
+    .ministry-stats,
+    .admin-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .cargo-stats-single {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+
+    .cargo-stats-single .stat-item {
+      min-width: auto;
+    }
+
+    .ministry-stats-single {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .ministry-stats-single .stat-item {
+      min-width: auto;
+    }
+
+    .admin-stats-single {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .admin-stats-single .stat-item {
+      min-width: auto;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+    }
+
+    .stat-item:hover {
+      border-color: var(--primary);
+      background: #f8faff;
+    }
+
+    .stat-label {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .stat-count {
+      font-weight: 600;
+      color: var(--primary);
+      background: #f0f4ff;
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-md);
+      min-width: 2rem;
+      text-align: center;
+    }
+
+    /* Summary Actions */
+    .summary-actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-light);
+      justify-content: center;
+    }
+
+    .btn-secondary {
+      background: var(--text-secondary);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #374151;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .summary-grid-single {
+        flex-direction: column;
+      }
+      
+      .summary-grid-single .summary-card {
+        min-width: auto;
+      }
+      
+      .cargo-stats,
+      .ministry-stats,
+      .admin-stats {
+        grid-template-columns: 1fr;
+      }
+      
+      .cargo-stats-single {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+      
+      .ministry-stats-single {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+      
+      .admin-stats-single {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+      
+      .summary-actions {
+        flex-direction: column;
+      }
+      
+      .tab-button {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+      }
+    }
+  </style>
+    <script defer src="app.js?v=26"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <h1>📊 Sistema de Contagem</h1>
+      <div class="status-indicator">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text">Verificando conectividade...</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+      <button class="tab-button active" data-tab="register">
+        📝 Registrar
+      </button>
+      <button class="tab-button" data-tab="summary">
+        📊 Resumo
+      </button>
+    </div>
+
+    <!-- Register Tab -->
+    <div class="tab-content active" id="register-tab">
+    <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Registro de Participante</h2>
+          <p class="card-subtitle">Selecione as informações do participante para registrar a presença</p>
+        </div>
+
+      <div class="card-body">
+        <!-- Cargo Selection -->
+        <div class="form-group">
+          <label class="form-label required">Cargo</label>
+          <div class="radio-group" role="radiogroup" aria-label="Selecione o cargo">
+            <label class="radio-option">
+              <input type="radio" name="cargo" value="Irmão" checked/>
+              <span class="radio-label">👨 Irmão</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cargo" value="Irmã"/>
+              <span class="radio-label">👩 Irmã</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cargo" value="Músico"/>
+              <span class="radio-label">🎵 Músico</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cargo" value="Organista"/>
+              <span class="radio-label">🎹 Organista</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cargo" value="Ministério"/>
+              <span class="radio-label">🏛️ Ministério</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="cargo" value="Administração"/>
+              <span class="radio-label">📋 Administração</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Ministério - Select nativo -->
+        <div id="ministerioBox" class="form-section">
+          <div class="form-group">
+            <label class="form-label required">Ministério</label>
+            <select id="ministerio" name="ministerio" class="form-select">
+              <option value="">Selecione um ministério</option>
+              <option value="Ancião">Ancião</option>
+              <option value="Diácono">Diácono</option>
+              <option value="Cooperador do Ofício">Cooperador do Ofício</option>
+              <option value="Cooperador de Jovens">Cooperador de Jovens</option>
+              <option value="Encarregado Regional">Encarregado Regional</option>
+              <option value="Encarregado Local">Encarregado Local</option>
+              <option value="Examinadora">Examinadora</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Administração - Select nativo -->
+        <div id="administracaoBox" class="form-section">
+          <div class="form-group">
+            <label class="form-label required">Administração</label>
+            <select id="administracao" name="administracao" class="form-select">
+              <option value="">Selecione uma administração</option>
+              <option value="Auxiliar da Administração">Auxiliar da Administração</option>
+              <option value="Secretário da Administração">Secretário da Administração</option>
+              <option value="Secretário da Música">Secretário da Música</option>
+              <option value="Titular da Administração">Titular da Administração</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+        <!-- Action Bar -->
+        <div class="action-bar">
+          <button id="save" class="btn btn-primary">
+            <span>💾</span>
+            Salvar Registro
+          </button>
+          
+          
+          <div class="queue-info">
+            <span id="queue-count">0</span> itens em fila
+            <span id="queue-status" class="queue-badge empty"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Tab -->
+    <div class="tab-content" id="summary-tab">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">📊 Resumo da Contagem</h2>
+          <p class="card-subtitle">Estatísticas detalhadas dos participantes registrados</p>
+      </div>
+
+        <div class="card-body">
+          <!-- Total Summary -->
+          <div class="summary-section">
+            <h3 class="summary-title">📈 Resumo Geral</h3>
+            <div class="summary-grid">
+              <div class="summary-card total">
+                <div class="summary-number" id="total-participants">0</div>
+                <div class="summary-label">Total de Participantes</div>
+              </div>
+              <div class="summary-card online">
+                <div class="summary-number" id="online-count">0</div>
+                <div class="summary-label">Registros Online</div>
+              </div>
+              <div class="summary-card offline">
+                <div class="summary-number" id="offline-count">0</div>
+                <div class="summary-label">Registros Offline</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cargo Statistics -->
+          <div class="summary-section">
+            <h3 class="summary-title">👥 Contagem por Cargo</h3>
+            <div class="cargo-stats-single" id="cargo-stats">
+              <div class="stat-item">
+                <span class="stat-label">Irmãos</span>
+                <span class="stat-count" id="brothers-count">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Irmãs</span>
+                <span class="stat-count" id="sisters-count">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Músicos</span>
+                <span class="stat-count" id="musicians-count">-</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Organistas</span>
+                <span class="stat-count" id="organists-count">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ministry Statistics -->
+          <div class="summary-section">
+            <h3 class="summary-title">🏛️ Contagem por Ministério</h3>
+            <div class="ministry-stats-single" id="ministry-stats">
+              <div class="stat-item">
+                <span class="stat-label">Anciães</span>
+                <span class="stat-count" id="ancioes-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Diáconos</span>
+                <span class="stat-count" id="diaconos-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Cooperadores do Ofício</span>
+                <span class="stat-count" id="cooperadores-oficio-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Cooperadores de Jovens</span>
+                <span class="stat-count" id="cooperadores-jovens-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Encarregados Locais</span>
+                <span class="stat-count" id="encarregados-locais-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Encarregados Regionais</span>
+                <span class="stat-count" id="encarregados-regionais-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Examinadoras</span>
+                <span class="stat-count" id="examinadoras-count">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Administration Statistics -->
+          <div class="summary-section">
+            <h3 class="summary-title">📋 Contagem por Administração</h3>
+            <div class="admin-stats-single" id="admin-stats">
+              <div class="stat-item">
+                <span class="stat-label">Auxiliares da Administração</span>
+                <span class="stat-count" id="auxiliares-admin-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Secretários da Administração</span>
+                <span class="stat-count" id="secretarios-admin-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Secretários da Música</span>
+                <span class="stat-count" id="secretarios-musica-count">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Titular da Administração</span>
+                <span class="stat-count" id="titular-admin-count">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="summary-actions">
+            <button id="refresh-summary" class="btn btn-primary">
+              <span>🔄</span>
+              Atualizar Resumo
+            </button>
+            <button id="export-summary" class="btn btn-secondary">
+              <span>📤</span>
+              Exportar Dados
+            </button>
+            <button id="clear-all-data" class="btn btn-danger">
+              <span>🗑️</span>
+              Limpar Todos os Dados
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

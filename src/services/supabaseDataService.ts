@@ -220,7 +220,6 @@ export const supabaseDataService = {
 
       console.log(`✅ Total de ${allData.length} registros encontrados na tabela ${tableName}`);
 
-      // --- LÓGICA DE DEDUPLICAÇÃO ROBUSTA ---
       // Função para extrair apenas o nome da comum (remover código de localização)
       const extrairNomeComum = (comumCompleto: string): string => {
         if (!comumCompleto) return '';
@@ -235,19 +234,45 @@ export const supabaseDataService = {
         return comumCompleto.trim();
       };
 
-      // Usar um Map para agrupar por nome normalizado para evitar duplicatas (ex: CHÁCARA vs CHACARA)
+      // --- LÓGICA DE DEDUPLICAÇÃO ROBUSTA POR CÓDIGO REGIONAL ---
+      // Usar um Map para agrupar por Código Regional (ex: BR-22-1234)
+      // Se não houver código, usar nome normalizado
       const mapComuns = new Map<string, { original: string; display: string }>();
 
       allData.forEach((record: any) => {
         const original = record.comum;
         if (original && typeof original === 'string') {
           const display = extrairNomeComum(original);
-          const key = normalizeString(display.toUpperCase());
+
+          // Tentar extrair código regional (ex: BR-22-1234)
+          const matchCodigo = original.match(/BR-\d{2}-\d+/);
+          const codigoKey = matchCodigo ? matchCodigo[0] : null;
+
+          // Chave de unificação: Código Regional ou Nome Normalizado (se sem código)
+          const key = codigoKey || normalizeString(display.toUpperCase());
 
           if (key) {
             const existing = mapComuns.get(key);
-            // PRIORIDADE: Manter o nome que contém o código regional "BR-" pois é o formato oficial
-            const isBetter = !existing || (!existing.original.includes('BR-') && original.includes('BR-'));
+
+            // Lógica de Prioridade:
+            // 1. Se não houver registro anterior, inserir.
+            // 2. Se o novo nome for mais curto e o código for o mesmo, ele ganha (ex: "PEDRAS" ganha de "PEDRAS (CHACARA)")
+            // 3. Se um tem código e o outro não, o com código ganha (se por acaso a chave for o nome)
+            let isBetter = !existing;
+            if (existing && codigoKey) {
+              const displayNovo = display.trim();
+              const displayVelho = existing.display.trim();
+
+              // Se o novo nome for mais curto ou não tiver parênteses, é provavelmente mais "limpo"
+              const temParentesesVelho = displayVelho.includes('(');
+              const temParentesesNovo = displayNovo.includes('(');
+
+              if (temParentesesVelho && !temParentesesNovo) {
+                isBetter = true;
+              } else if (!temParentesesVelho && !temParentesesNovo && displayNovo.length < displayVelho.length) {
+                isBetter = true;
+              }
+            }
 
             if (isBetter) {
               mapComuns.set(key, { original, display });
@@ -2013,6 +2038,12 @@ export const supabaseDataService = {
       // Para registros externos, extrair nome da comum do ID
       const comumNome = registro.comum_id.replace(/^external_/, '').replace(/_\d+$/, '');
       comum = { id: registro.comum_id, nome: comumNome };
+    } else if (registro.comum_id.startsWith('manual_')) {
+      // 🚨 NOVO: Suporte para comum manual (página outras localidades)
+      // Formato esperado: manual_NomeComum|Cidade (Cidade opcional)
+      const partes = registro.comum_id.replace(/^manual_/, '').split('|');
+      const comumNome = partes[0] || 'Manual';
+      comum = { id: registro.comum_id, nome: comumNome, cidadeManual: partes[1] || '' };
     } else {
       comum = comuns.find(c => c.id === registro.comum_id);
     }
@@ -2089,7 +2120,10 @@ export const supabaseDataService = {
 
     // Buscar cidade: para nomes manuais, buscar cidade da comum; caso contrário, usar cidade da pessoa
     let cidade = '';
-    if (isNomeManual) {
+    if (comum?.cidadeManual) {
+      // 🚨 PRIORIDADE: Se temos cidade manual no objeto comum (vindo do ID), usar ela
+      cidade = comum.cidadeManual;
+    } else if (isNomeManual) {
       // 🚨 CORREÇÃO: Para nomes manuais, buscar cidade da comum na tabela cadastro
       // Se for registro externo (modal), usar cidade do registro
       if (isExternalRegistro) {
