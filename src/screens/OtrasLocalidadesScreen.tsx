@@ -91,8 +91,6 @@ export const OtrasLocalidadesScreen: React.FC = () => {
         comunsOptions,
         instrumentosOptions,
         pessoasOptions,
-        isComumManual,
-        setIsComumManual,
         cidadeManual,
         setCidadeManual,
         selectedClasseOrganista,
@@ -239,25 +237,25 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                 <AutocompleteField
                                     ref={comumFieldRef}
                                     label="COMUM CONGREGAÇÃO *"
-                                    value={isComumManual ? undefined : selectedComum}
+                                    value={controller.isComumManual ? undefined : selectedComum}
                                     options={comunsOptions}
                                     onSelect={option => {
                                         setSelectedComum(String(option.value));
                                         setSelectedPessoa('');
                                         setIsNomeManual(false);
-                                        setIsComumManual(false);
+                                        controller.setIsComumManual(false);
                                         setCidadeManual('');
                                     }}
-                                    placeholder={isComumManual ? `"${selectedComum}" (manual)` : 'Selecione a comum...'}
+                                    placeholder={controller.isComumManual ? `"${selectedComum}" (manual)` : 'Selecione a comum...'}
                                     allowManualEntry={true}
                                     onManualEntry={(text) => {
                                         setSelectedComum(text);
-                                        setIsComumManual(true);
+                                        controller.setIsComumManual(true);
                                         setSelectedPessoa('');
                                     }}
                                     autoManualEntry={true}
                                     onChangeText={(text) => {
-                                        if (isComumManual) {
+                                        if (controller.isComumManual) {
                                             const query = normalize(text);
                                             const hasMatches = comunsOptions.some(opt => {
                                                 const labelNorm = normalize(opt.label);
@@ -266,24 +264,24 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                                 return labelNorm.includes(query) || nomeNorm.includes(query);
                                             });
                                             if (hasMatches || text.trim() === '') {
-                                                setIsComumManual(false);
+                                                controller.setIsComumManual(false);
                                             }
                                         }
                                         // Se estamos em modo manual, atualizar o selectedComum para o que está sendo digitado
-                                        if (isComumManual || !comunsOptions.some(opt => normalize(opt.label) === normalize(text))) {
+                                        if (controller.isComumManual || !comunsOptions.some(opt => normalize(opt.label) === normalize(text))) {
                                             setSelectedComum(text);
                                         }
                                     }}
                                 />
 
                                 {/* Campo CIDADE - aparece quando comum é manual */}
-                                {isComumManual && (
+                                {controller.isComumManual && (
                                     <View style={{ marginTop: -8, marginBottom: 12 }}>
                                         <View style={styles.manualBadge}>
                                             <Text style={styles.manualBadgeText}>✏️ Comum manual: "{selectedComum}"</Text>
                                             <TouchableOpacity
                                                 onPress={() => {
-                                                    setIsComumManual(false);
+                                                    controller.setIsComumManual(false);
                                                     setSelectedComum('');
                                                     setCidadeManual('');
                                                 }}
@@ -366,8 +364,8 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                 )}
                             </View>
 
-                            {/* CLASSE DA ORGANISTA (Condicional) */}
-                            {isOrganista && (
+                            {/* CLASSE DA ORGANISTA (Condicional: Somente para Organista de Comum Manual) */}
+                            {isOrganista && controller.isComumManual && (
                                 <View
                                     style={[
                                         styles.field,
@@ -492,7 +490,6 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                     }}
                                     placeholder="Selecione o nome..."
                                     loading={loadingPessoas}
-                                    onSubmit={handleSubmit}
                                 />
                             </View>
 
