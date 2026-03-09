@@ -5,6 +5,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
 import { EditRegistrosScreen } from '../screens/EditRegistrosScreen';
+import { EditRecordDetailScreen } from '../screens/EditRecordDetailScreen';
 import { OrganistasEnsaioScreen } from '../screens/OrganistasEnsaioScreen';
 import { OtrasLocalidadesScreen } from '../screens/OtrasLocalidadesScreen';
 import { useAuthContext } from '../context/AuthContext';
@@ -93,6 +94,11 @@ export const AppNavigator: React.FC = () => {
           options={{ title: 'CCB | Contagem EnR' }}
         />
         <Stack.Screen name="EditRegistros" component={EditRegistrosScreen} />
+        <Stack.Screen
+          name="EditRecordDetail"
+          component={EditRecordDetailScreen}
+          options={{ title: 'CCB | Editar Detalhes' }}
+        />
         <Stack.Screen
           name="OrganistasEnsaio"
           component={OrganistasEnsaioScreen}

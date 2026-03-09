@@ -25,7 +25,7 @@ import { logDeviceInfo } from './src/utils/deviceDetection';
 import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
 import { showToast } from './src/utils/toast';
 
-const CURRENT_APP_VERSION = '1.2.1';
+const CURRENT_APP_VERSION = '1.2.8';
 
 // Importar SpeedInsights apenas para web
 // Para React/React Native, usar injectSpeedInsights ao invés de componente
@@ -92,14 +92,14 @@ export default function App() {
               const Swal = require('sweetalert2');
               Swal.fire({
                 icon: 'success',
-                title: 'App Atualizado!',
-                html: '<div>Bem-vindo à nova versão 1.2.1 do sistema da Secretaria Regional da Música.</div>',
+                title: '<span style="font-family: \'Inter\', sans-serif; font-weight: 700; color: #555; font-size: 32px; letter-spacing: -0.5px;">Atualizado com sucesso!</span>',
+                html: '<div style="font-family: \'Inter\', sans-serif; color: #666; font-size: 18px; margin-top: 15px;">O evento foi atualizado com sucesso.</div>',
                 showConfirmButton: false,
                 timer: 4000,
                 timerProgressBar: true,
-                customClass: {
-                  popup: 'swal2-popup-modern',
-                },
+                padding: '2em',
+                borderRadius: '1.25em',
+                width: '32em',
               });
             } else {
               showToast.success(

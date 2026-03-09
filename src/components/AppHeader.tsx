@@ -168,6 +168,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <Ionicons name="arrow-back" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
           )}
+          {isMaster && onEditRegistrosPress && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
+              activeOpacity={0.7}
+            >
+              <FontAwesome5 name="edit" size={IS_SMALL_SCREEN ? 16 : 18} color="#e2e8f0" />
+            </TouchableOpacity>
+          )}
           {onOrganistasEnsaioPress && (
             <TouchableOpacity
               style={[
@@ -201,15 +210,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               activeOpacity={0.7}
             >
               <Ionicons name="musical-notes" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
-            </TouchableOpacity>
-          )}
-          {isMaster && onEditRegistrosPress && (
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="pencil" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
           )}
           {onRefresh && (

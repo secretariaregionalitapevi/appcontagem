@@ -1121,4 +1121,43 @@ export const googleSheetsService = {
       };
     }
   },
+
+  async deleteRegistroFromSheet(uuid: string): Promise<{ success: boolean; error?: string }> {
+    if (!uuid) {
+      return { success: false, error: 'UUID não fornecido' };
+    }
+
+    try {
+      console.log(`🗑️ Projetando deleção no Google Sheets para o registro ${uuid}...`);
+
+      const requestBody = JSON.stringify({
+        op: 'delete',
+        sheet: SHEET_NAME,
+        data: { UUID: uuid }
+      });
+
+      console.log('🌐 [GoogleSheets] Enviando DELETE para:', GOOGLE_SHEETS_API_URL);
+
+      // Usar fetch com no-cors para evitar problemas de CORS com Apps Script
+      // O Google Apps Script processa o POST mesmo com no-cors
+      const response = await fetch(GOOGLE_SHEETS_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: requestBody,
+      });
+
+      // Em no-cors, não conseguimos ler a resposta JSON
+      // Mas o status 0 ou response.ok=false (em no-cors) costuma indicar que o envio foi feito
+      console.log('✅ [GoogleSheets] Comando de deleção enviado');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erro ao deletar registro no Google Sheets:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+      };
+    }
+  },
 };

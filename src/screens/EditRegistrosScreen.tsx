@@ -8,8 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
-  Modal,
   Platform,
+  Alert,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AppHeader } from '../components/AppHeader';
@@ -18,7 +18,7 @@ import { theme } from '../theme';
 import { supabaseDataService } from '../services/supabaseDataService';
 import { googleSheetsService } from '../services/googleSheetsService';
 import { showToast } from '../utils/toast';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { PrimaryButton } from '../components/PrimaryButton';
@@ -48,23 +48,19 @@ export const EditRegistrosScreen: React.FC = () => {
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [localEnsaio, setLocalEnsaio] = useState<string>('');
-  const [editingRegistro, setEditingRegistro] = useState<RegistroPresencaSupabase | null>(null);
-  const [editFormVisible, setEditFormVisible] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const modalTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Estados do formulário de edição
-  const [editNome, setEditNome] = useState('');
-  const [editComum, setEditComum] = useState('');
-  const [editCidade, setEditCidade] = useState('');
-  const [editCargo, setEditCargo] = useState('');
-  const [editInstrumento, setEditInstrumento] = useState('');
-  const [editNaipe, setEditNaipe] = useState('');
-  const [editClasse, setEditClasse] = useState('');
-  const [editDataEnsaio, setEditDataEnsaio] = useState('');
-  const [editAnotacoes, setEditAnotacoes] = useState('');
+  // Atualizar lista automaticamente quando a tela ganha foco
+  // (ex: ao voltar da tela de edição)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (searchTerm.trim()) {
+        performSearch(searchTerm.trim());
+      }
+    }, [searchTerm])
+  );
 
   // Verificar se usuário é master
   const userRole = user?.role ? String(user.role).toLowerCase().trim() : 'user';
@@ -99,16 +95,6 @@ export const EditRegistrosScreen: React.FC = () => {
       value: c.id,
     }));
   }, [cargos]);
-
-  useEffect(() => {
-    console.log('🔍 editFormVisible mudou para:', editFormVisible);
-    if (editFormVisible) {
-      console.log('✅ Modal deve estar visível agora');
-      console.log('📝 editingRegistro:', editingRegistro);
-    }
-  }, [editFormVisible, editingRegistro]);
-
-  // Removido: não carregar registros automaticamente, só quando houver busca
 
   const loadLocalEnsaio = async () => {
     try {
@@ -195,10 +181,6 @@ export const EditRegistrosScreen: React.FC = () => {
     // Verificar se o registro pertence ao local do usuário
     const registroLocal = registro.local_ensaio || '';
     if (registroLocal.toLowerCase().trim() !== localEnsaio.toLowerCase().trim()) {
-      console.log('❌ Registro não pertence ao local do usuário:', {
-        registroLocal,
-        localEnsaio,
-      });
       showToast.error(
         'Sem permissão',
         `Registro pertence a "${registroLocal}" mas você é de "${localEnsaio}"`
@@ -206,122 +188,52 @@ export const EditRegistrosScreen: React.FC = () => {
       return;
     }
 
-    console.log('✅ Permissões OK, abrindo modal de edição');
-
-    // Preencher formulário de edição primeiro
-    setEditingRegistro(registro);
-    setEditNome(registro.nome_completo || '');
-    setEditComum(registro.comum || '');
-    setEditCidade(registro.cidade || '');
-
-    // Encontrar o ID do cargo pelo nome
-    const cargoEncontrado = cargos.find(
-      c => c.nome.toUpperCase() === (registro.cargo || '').toUpperCase()
-    );
-    setEditCargo(cargoEncontrado?.id || '');
-
-    setEditInstrumento(registro.instrumento || '');
-    setEditNaipe(registro.naipe_instrumento || '');
-    setEditClasse(registro.classe_organista || '');
-    setEditDataEnsaio(registro.data_ensaio || '');
-    setEditAnotacoes(registro.anotacoes || '');
-
-    // Abrir modal usando setTimeout para garantir que o estado seja atualizado
-    setTimeout(() => {
-      console.log('📝 Definindo editFormVisible como true');
-      setEditFormVisible(true);
-    }, 100);
+    // Navegar para a tela de detalhes da edição enviando o registro
+    // @ts-ignore
+    navigation.navigate('EditRecordDetail', {
+      registro,
+      localEnsaio
+    });
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingRegistro || !editingRegistro.uuid) {
-      console.error('❌ Registro inválido para edição');
-      showToast.error('Erro', 'Registro inválido');
-      return;
-    }
+  const handleDelete = async (registro: RegistroPresencaSupabase) => {
+    if (!registro.uuid) return;
+    console.log('🗑️ Tentando excluir registro:', registro.nome_completo, registro.uuid);
 
-    // Validação básica
-    if (!editNome.trim() || !editComum.trim() || !editCargo.trim()) {
-      console.warn('⚠️ Campos obrigatórios não preenchidos');
-      showToast.error('Campos obrigatórios', 'Nome, Comum e Cargo são obrigatórios');
-      return;
-    }
+    const confirmed = await showToast.confirm(
+      'Tem certeza?',
+      registro.nome_completo || 'Este registro'
+    );
+
+    if (!confirmed) return;
 
     try {
-      setSaving(true);
-      console.log('💾 Iniciando salvamento de edição...', { uuid: editingRegistro.uuid });
+      setDeleting(registro.uuid!);
+      console.log('🗑️ Iniciando exclusão de:', registro.uuid);
 
-      // Encontrar o nome do cargo pelo ID
-      const cargoSelecionado = cargos.find(c => c.id === editCargo);
-      const cargoNome = cargoSelecionado?.nome || editCargo;
+      // Tentar deletar do Supabase
+      const supabaseResult = await supabaseDataService.deleteRegistro(registro.uuid!);
 
-      const updateData = {
-        nome_completo: editNome.trim().toUpperCase(),
-        comum: editComum.trim().toUpperCase(),
-        cidade: editCidade.trim().toUpperCase(),
-        cargo: cargoNome.toUpperCase(),
-        instrumento: editInstrumento.trim() ? editInstrumento.trim().toUpperCase() : undefined,
-        naipe_instrumento: editNaipe.trim() ? editNaipe.trim().toUpperCase() : undefined,
-        classe_organista: editClasse.trim() ? editClasse.trim().toUpperCase() : undefined,
-        data_ensaio: editDataEnsaio || undefined,
-        anotacoes: editAnotacoes.trim() ? editAnotacoes.trim().toUpperCase() : undefined,
-      };
-
-      console.log('📤 Dados para atualização:', updateData);
-
-      // Atualizar no Google Sheets PRIMEIRO (como backupcont)
-      console.log('📤 ETAPA 1: Atualizando no Google Sheets...');
-      const sheetsResult = await googleSheetsService.updateRegistroInSheet(
-        editingRegistro.uuid,
-        updateData
-      );
-
-      if (!sheetsResult.success) {
-        console.warn('⚠️ Google Sheets falhou, mas continuando com Supabase:', sheetsResult.error);
-      } else {
-        console.log('✅ Google Sheets atualizado com sucesso');
+      if (!supabaseResult.success) {
+        showToast.error('Erro ao remover do banco de dados', supabaseResult.error);
+        setDeleting(null);
+        return;
       }
 
-      // Atualizar no Supabase
-      console.log('📤 ETAPA 2: Atualizando no Supabase...');
-      const supabaseResult = await supabaseDataService.updateRegistroInSupabase(
-        editingRegistro.uuid,
-        updateData
-      );
+      // Tentar deletar do Google Sheets (não bloqueia se falhar)
+      googleSheetsService.deleteRegistroFromSheet?.(registro.uuid!);
 
-      if (supabaseResult.success) {
-        console.log('✅ Supabase atualizado com sucesso');
-        // Fechar modal primeiro
-        setEditFormVisible(false);
-        setEditingRegistro(null);
+      showToast.success('Registro excluído com sucesso!');
 
-        // Mostrar toast de sucesso
-        showToast.success('Sucesso!', 'Registro atualizado com sucesso!');
-
-        // Recarregar lista após pequeno delay para garantir que o toast apareça
-        setTimeout(async () => {
-          await performSearch(searchTerm);
-        }, 500);
-      } else {
-        // Se Supabase falhou mas Google Sheets OK, ainda considerar sucesso
-        if (sheetsResult.success) {
-          console.log('✅ Google Sheets OK, Supabase falhou mas continuando...');
-          setEditFormVisible(false);
-          setEditingRegistro(null);
-          showToast.success('Sucesso!', 'Registro atualizado no Google Sheets');
-          setTimeout(async () => {
-            await performSearch(searchTerm);
-          }, 500);
-        } else {
-          throw new Error(supabaseResult.error || 'Erro ao atualizar registro');
-        }
+      // Recarregar a lista
+      if (searchTerm.trim()) {
+        performSearch(searchTerm.trim());
       }
     } catch (error) {
-      console.error('❌ Erro ao salvar edição:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      showToast.error('Erro', `Falha ao salvar: ${errorMessage}`);
+      console.error('❌ Erro na exclusão:', error);
+      showToast.error('Erro inesperado ao excluir registro');
     } finally {
-      setSaving(false);
+      setDeleting(null);
     }
   };
 
@@ -482,16 +394,31 @@ export const EditRegistrosScreen: React.FC = () => {
                       <Text style={styles.registroNome}>
                         {registro.nome_completo || 'Nome não informado'}
                       </Text>
-                      <TouchableOpacity
-                        style={styles.editButton}
-                        onPress={() => {
-                          console.log('🔘 Botão de editar clicado para:', registro.nome_completo);
-                          handleEdit(registro);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <FontAwesome5 name="edit" size={16} color={theme.colors.primary} />
-                      </TouchableOpacity>
+                      <View style={styles.actionButtons}>
+                        <TouchableOpacity
+                          style={styles.editButton}
+                          onPress={() => {
+                            console.log('🔘 Botão de editar clicado para:', registro.nome_completo);
+                            handleEdit(registro);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <FontAwesome5 name="edit" size={16} color={theme.colors.primary} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.deleteButton, deleting === registro.uuid && { opacity: 0.5 }]}
+                          onPress={() => handleDelete(registro)}
+                          disabled={deleting === registro.uuid}
+                          activeOpacity={0.7}
+                        >
+                          {deleting === registro.uuid ? (
+                            <ActivityIndicator size="small" color={theme.colors.error} />
+                          ) : (
+                            <FontAwesome5 name="trash-alt" size={16} color={theme.colors.error} />
+                          )}
+                        </TouchableOpacity>
+                      </View>
                     </View>
 
                     <View style={styles.registroDetails}>
@@ -559,196 +486,6 @@ export const EditRegistrosScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
-
-      {/* Modal de edição */}
-      {editFormVisible && (
-        <Modal
-          visible={true}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => {
-            console.log('📝 Modal fechado via onRequestClose');
-            setEditFormVisible(false);
-          }}
-          statusBarTranslucent={true}
-        >
-          <View style={styles.modalContainer}>
-            <TouchableOpacity
-              style={styles.modalOverlay}
-              activeOpacity={1}
-              onPress={() => {
-                console.log('📝 Overlay clicado, fechando modal');
-                setEditFormVisible(false);
-              }}
-            />
-            <View style={styles.modalContentWrapper}>
-              <View style={{ flex: 1, width: '100%' }}>
-                <View style={styles.modalContent}>
-                  <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Editar Registro</Text>
-                    <TouchableOpacity
-                      style={styles.modalCloseButton}
-                      onPress={() => {
-                        console.log('📝 Botão fechar clicado');
-                        setEditFormVisible(false);
-                      }}
-                    >
-                      <FontAwesome5 name="times" size={20} color={theme.colors.text} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView
-                    style={styles.modalBody}
-                    contentContainerStyle={{ flexGrow: 1 }}
-                    keyboardShouldPersistTaps="handled"
-                    nestedScrollEnabled={Platform.OS !== 'web'}
-                    scrollEnabled={true}
-                    bounces={Platform.OS === 'ios'}
-                    showsVerticalScrollIndicator={true}
-                    alwaysBounceVertical={false}
-                    scrollEventThrottle={16}
-                    removeClippedSubviews={Platform.OS === 'android'}
-                  >
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Nome Completo *</Text>
-                      <TextInput
-                        style={styles.formInput}
-                        value={editNome}
-                        onChangeText={setEditNome}
-                        placeholder="Nome completo"
-                        placeholderTextColor={theme.colors.textSecondary}
-                      />
-                    </View>
-
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Comum *</Text>
-                      <TextInput
-                        style={styles.formInput}
-                        value={editComum}
-                        onChangeText={setEditComum}
-                        placeholder="Comum"
-                        placeholderTextColor={theme.colors.textSecondary}
-                      />
-                    </View>
-
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Cidade</Text>
-                      <TextInput
-                        style={styles.formInput}
-                        value={editCidade}
-                        onChangeText={setEditCidade}
-                        placeholder="Cidade"
-                        placeholderTextColor={theme.colors.textSecondary}
-                      />
-                    </View>
-
-                    <View
-                      style={[
-                        styles.formField,
-                        Platform.OS === 'web'
-                          ? ({ zIndex: 99, position: 'relative', isolation: 'isolate' } as any)
-                          : { zIndex: 99 },
-                      ]}
-                    >
-                      <Text style={styles.formLabel}>Cargo/Ministério *</Text>
-                      <AutocompleteField
-                        value={editCargo}
-                        options={cargosOptions}
-                        onSelect={option => {
-                          setEditCargo(String(option.value));
-                        }}
-                        placeholder="Selecione o cargo..."
-                        icon="user"
-                      />
-                    </View>
-
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Instrumento</Text>
-                      <TextInput
-                        style={styles.formInput}
-                        value={editInstrumento}
-                        onChangeText={setEditInstrumento}
-                        placeholder="Instrumento"
-                        placeholderTextColor={theme.colors.textSecondary}
-                      />
-                    </View>
-
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Naipe do Instrumento</Text>
-                      <TextInput
-                        style={styles.formInput}
-                        value={editNaipe}
-                        onChangeText={setEditNaipe}
-                        placeholder="Naipe"
-                        placeholderTextColor={theme.colors.textSecondary}
-                      />
-                    </View>
-
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Classe da Organista</Text>
-                      <TextInput
-                        style={styles.formInput}
-                        value={editClasse}
-                        onChangeText={setEditClasse}
-                        placeholder="Classe"
-                        placeholderTextColor={theme.colors.textSecondary}
-                      />
-                    </View>
-
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Data do Ensaio</Text>
-                      <TextInput
-                        style={styles.formInput}
-                        value={editDataEnsaio}
-                        onChangeText={setEditDataEnsaio}
-                        placeholder="Data do ensaio"
-                        placeholderTextColor={theme.colors.textSecondary}
-                      />
-                    </View>
-
-                    <View style={styles.formField}>
-                      <Text style={styles.formLabel}>Anotações</Text>
-                      <TextInput
-                        style={[styles.formInput, styles.formTextArea]}
-                        value={editAnotacoes}
-                        onChangeText={setEditAnotacoes}
-                        placeholder="Anotações"
-                        placeholderTextColor={theme.colors.textSecondary}
-                        multiline
-                        numberOfLines={3}
-                      />
-                    </View>
-                  </ScrollView>
-
-                  <View style={styles.modalFooter}>
-                    <TouchableOpacity
-                      style={[styles.cancelButton, saving && { opacity: 0.6 }]}
-                      onPress={() => {
-                        if (!saving) {
-                          setEditFormVisible(false);
-                        }
-                      }}
-                      disabled={saving}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.cancelButtonText}>Cancelar</Text>
-                    </TouchableOpacity>
-                    <View style={{ flex: 1, marginLeft: theme.spacing.md }}>
-                      <PrimaryButton
-                        title="SALVAR ALTERAÇÕES"
-                        onPress={handleSaveEdit}
-                        loading={saving}
-                        icon="save"
-                        style={{ minHeight: 48 }}
-                      />
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-        </Modal>
-      )}
     </View>
   );
 };
@@ -908,6 +645,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.primary + '40',
   },
+  deleteButton: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#FEE8E8', // Vermelho suave
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.error + '40',
+    marginLeft: theme.spacing.sm,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   registroDetails: {
     gap: theme.spacing.xs,
   },
@@ -927,13 +680,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...(Platform.OS === 'web'
       ? {
-          position: 'fixed' as any,
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 99999,
-        }
+        position: 'fixed' as any,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 99999,
+      }
       : {}),
   },
   modalOverlay: {
@@ -945,9 +698,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     ...(Platform.OS === 'web'
       ? {
-          position: 'fixed' as any,
-          zIndex: 99998,
-        }
+        position: 'fixed' as any,
+        zIndex: 99998,
+      }
       : {}),
   },
   modalContentWrapper: {
@@ -959,9 +712,9 @@ const styles = StyleSheet.create({
     zIndex: 99999,
     ...(Platform.OS === 'web'
       ? {
-          position: 'relative' as const,
-          zIndex: 99999,
-        }
+        position: 'relative' as const,
+        zIndex: 99999,
+      }
       : {}),
   },
   modalContent: {
@@ -977,12 +730,12 @@ const styles = StyleSheet.create({
     zIndex: 100000,
     ...(Platform.OS === 'web'
       ? {
-          maxWidth: '800px' as any,
-          maxHeight: '90%' as any,
-          width: '90%',
-          position: 'relative' as const,
-          zIndex: 100000,
-        }
+        maxWidth: '800px' as any,
+        maxHeight: '90%' as any,
+        width: '90%',
+        position: 'relative' as const,
+        zIndex: 100000,
+      }
       : {}),
   },
   modalHeader: {
@@ -1006,8 +759,8 @@ const styles = StyleSheet.create({
     maxHeight: 500,
     ...(Platform.OS === 'web'
       ? {
-          maxHeight: '60vh' as any,
-        }
+        maxHeight: '60vh' as any,
+      }
       : {}),
   },
   formField: {
@@ -1047,9 +800,9 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     ...(Platform.OS === 'web'
       ? {
-          position: 'sticky' as any,
-          bottom: 0,
-        }
+        position: 'sticky' as any,
+        bottom: 0,
+      }
       : {}),
   },
   cancelButton: {
@@ -1065,12 +818,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     ...(Platform.OS === 'web'
       ? {
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-        }
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      }
       : {
-          elevation: 0,
-        }),
+        elevation: 0,
+      }),
   },
   cancelButtonText: {
     fontSize: theme.fontSize.md,

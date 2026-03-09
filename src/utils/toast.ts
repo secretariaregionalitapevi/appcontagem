@@ -246,4 +246,45 @@ export const showToast = {
       Toast.hide();
     }
   },
+
+  confirm: async (title: string, message: string): Promise<boolean> => {
+    if (Platform.OS === 'web') {
+      const Swal = getSwal();
+      if (Swal) {
+        const result = await Swal.fire({
+          title: `<span style="font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 700; color: #444; font-size: 32px; letter-spacing: -0.5px;">Tem certeza?</span>`,
+          html: `
+            <div style="font-family: 'Inter', 'Segoe UI', sans-serif; color: #666; font-size: 18px; margin-top: 15px; margin-bottom: 25px;">
+              Você não poderá reverter esta exclusão.
+            </div>
+          `,
+          icon: 'warning',
+          iconColor: '#f8bb86',
+          showCancelButton: true,
+          confirmButtonColor: '#2b58a1',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Sim, excluir',
+          cancelButtonText: 'Cancelar',
+          reverseButtons: false,
+          padding: '2em',
+          borderRadius: '1.25em',
+          width: '32em',
+        });
+        return result.isConfirmed;
+      }
+      return window.confirm(`${title}\n${message}`);
+    } else {
+      return new Promise((resolve) => {
+        Alert.alert(
+          title,
+          `Deseja mesmo excluir o registro de ${message}?\n\nVocê não poderá reverter esta exclusão.`,
+          [
+            { text: 'Cancelar', onPress: () => resolve(false), style: 'cancel' },
+            { text: 'Sim, excluir', onPress: () => resolve(true), style: 'destructive' },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) }
+        );
+      });
+    }
+  },
 };

@@ -409,6 +409,7 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
             ref={inputRef}
             style={[
               styles.input,
+              isFocused && styles.inputFocused,
               error ? styles.inputError : undefined,
               Platform.OS === 'web'
                 ? {
@@ -584,24 +585,23 @@ const styles = StyleSheet.create({
       : {}),
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
     backgroundColor: '#ffffff',
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: Platform.OS === 'web' ? theme.spacing.sm : theme.spacing.md, // Mais padding no mobile
+    paddingVertical: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.lg,
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
-    minHeight: Platform.OS === 'web' ? 48 : 52, // Aumentado no mobile
-    ...(Platform.OS === 'web'
-      ? {
-        backgroundColor: '#ffffff',
-        opacity: 1,
-        // @ts-ignore - Propriedades CSS apenas para web
-        outlineStyle: 'none',
-        outlineWidth: 0,
-      }
-      : {}),
+    minHeight: Platform.OS === 'web' ? 48 : 52,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  inputFocused: {
+    borderColor: theme.colors.primary,
   },
   inputError: {
     borderColor: theme.colors.error,
@@ -616,7 +616,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     borderRadius: theme.borderRadius.md,
     maxHeight: 300,
-    marginTop: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -626,14 +625,7 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     ...(Platform.OS === 'web'
       ? {
-        backgroundColor: '#ffffff',
-        opacity: 1,
         boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-        zIndex: 999999,
-        // @ts-ignore
-        backgroundImage: 'none',
-        // @ts-ignore
-        willChange: 'transform',
       }
       : {}),
   },

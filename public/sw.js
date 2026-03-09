@@ -1,3 +1,4 @@
+// Force SW update for delete fix v1.2.8
 const CACHE_NAME = 'appcont-cache-v8';
 const RUNTIME_CACHE = 'appcont-runtime-v8';
 

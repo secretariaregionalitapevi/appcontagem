@@ -3556,4 +3556,55 @@ export const supabaseDataService = {
       console.error('❌ Erro durante sincronização básica:', error);
     }
   },
+
+  async deleteRegistro(uuid: string): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return { success: false, error: 'Supabase não está configurado' };
+    }
+
+    try {
+      console.log(`🗑️ Deletando registro ${uuid} do Supabase...`);
+
+      const { error } = await supabase
+        .from('presencas')
+        .delete()
+        .eq('uuid', uuid);
+
+      if (error) {
+        console.error('❌ Erro ao deletar do Supabase:', error);
+        return { success: false, error: error.message };
+      }
+
+      // Remover do cache em memória
+      memoryCache.registros = memoryCache.registros.filter(r => r.uuid !== uuid);
+
+      // Remover do robustStorage (cache web)
+      try {
+        const cached = await robustGetItem('cache_registros_presenca');
+        if (cached) {
+          const registros = JSON.parse(cached);
+          const filtrados = registros.filter((r: any) => r.uuid !== uuid);
+          await robustSetItem('cache_registros_presenca', JSON.stringify(filtrados));
+        }
+      } catch (e) {
+        console.warn('⚠️ Erro ao atualizar cache robusto após deleção:', e);
+      }
+
+      // Remover do SQLite (mobile)
+      if (Platform.OS !== 'web') {
+        try {
+          const db = await getDatabase();
+          await db.runAsync('DELETE FROM registros_presenca WHERE uuid = ?', [uuid]);
+        } catch (e) {
+          console.warn('⚠️ Erro ao deletar do SQLite:', e);
+        }
+      }
+
+      console.log(`✅ Registro ${uuid} deletado com sucesso`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erro inesperado ao deletar registro:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' };
+    }
+  },
 };

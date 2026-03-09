@@ -933,11 +933,11 @@ const styles = StyleSheet.create({
       }
       : {}),
   },
-  manualInput: {
-    // Removido estilo de cor - campo deve ter aparência normal mesmo em modo manual
-  },
   inputError: {
     borderColor: theme.colors.error,
+  },
+  manualInput: {
+    // Removido estilo de cor - campo deve ter aparência normal mesmo em modo manual
   },
   manualContainer: {
     flexDirection: 'row',
@@ -984,20 +984,17 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.lg,
     maxHeight: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 999999,
+    marginTop: 8,
+    ...theme.shadows.soft,
     overflow: 'hidden',
+    zIndex: 999999,
     ...(Platform.OS === 'web'
       ? ({
         // @ts-ignore - propriedades CSS específicas do web
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
         backgroundColor: '#ffffff',
         // @ts-ignore
         display: 'block',
