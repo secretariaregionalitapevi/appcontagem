@@ -2533,7 +2533,13 @@ export const supabaseDataService = {
           let dataFormatada = '';
           let horarioFormatado = '';
           try {
-            const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+            let dateForData = duplicata.data_ensaio || duplicata.created_at;
+            if (dateForData && typeof dateForData === 'string' && dateForData.length === 10) {
+              dateForData += 'T12:00:00';
+            }
+            const dataExistente = new Date(dateForData);
+            const timeExistente = new Date(duplicata.created_at || duplicata.data_ensaio);
+
             if (typeof formatDate === 'function') {
               dataFormatada = formatDate(dataExistente);
             } else {
@@ -2543,19 +2549,24 @@ export const supabaseDataService = {
             }
 
             if (typeof formatTime === 'function') {
-              horarioFormatado = formatTime(dataExistente);
+              horarioFormatado = formatTime(timeExistente);
             } else {
-              horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
+              horarioFormatado = timeExistente.toLocaleTimeString('pt-BR', {
                 timeZone: 'America/Sao_Paulo',
               });
             }
           } catch (formatError) {
             console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
-            const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+            let dateForData = duplicata.data_ensaio || duplicata.created_at;
+            if (dateForData && typeof dateForData === 'string' && dateForData.length === 10) {
+              dateForData += 'T12:00:00';
+            }
+            const dataExistente = new Date(dateForData);
             dataFormatada = dataExistente.toLocaleDateString('pt-BR', {
               timeZone: 'America/Sao_Paulo',
             });
-            horarioFormatado = dataExistente.toLocaleTimeString('pt-BR', {
+            const timeExistente = new Date(duplicata.created_at || duplicata.data_ensaio);
+            horarioFormatado = timeExistente.toLocaleTimeString('pt-BR', {
               timeZone: 'America/Sao_Paulo',
               hour12: false,
             });
@@ -3361,18 +3372,21 @@ export const supabaseDataService = {
    */
   extrairNomeComum(comumCompleto: string): string {
     if (!comumCompleto) return '';
+    let nome = comumCompleto;
+    // Remove "BR-XX-XXXX " do início, se existir
+    nome = nome.replace(/^(?:BR-)?\d{2}-\d{4}\s+/, '').trim();
     // Se contém " - ", pegar a parte depois do " - "
-    if (comumCompleto.includes(' - ')) {
-      const partes = comumCompleto.split(' - ');
+    if (nome.includes(' - ')) {
+      const partes = nome.split(' - ');
       return partes.slice(1).join(' - ').trim();
     }
     // Se contém apenas " -" (sem espaço antes), também tentar separar
-    if (comumCompleto.includes(' -')) {
-      const partes = comumCompleto.split(' -');
+    if (nome.includes(' -')) {
+      const partes = nome.split(' -');
       return partes.slice(1).join(' -').trim();
     }
-    // Se não tem separador, retornar como está
-    return comumCompleto.trim();
+    // Se não tem separador, retornar como está (já com BR- removido)
+    return nome.trim();
   },
 
   /**

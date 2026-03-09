@@ -98,9 +98,22 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
 
   const isOrganista = cargoNome.trim().toUpperCase() === 'ORGANISTA';
   const isCandidato = cargoNome.trim().toUpperCase() === 'CANDIDATO (A)';
-  // Mostrar campo de instrumento apenas para Músico (não para Organista nem Candidato)
+  const isInstrutor = cargoNome.trim().toUpperCase().includes('INSTRUTOR');
+
+  // Mostrar campo de instrumento apenas para Músico e Instrutor (não para Organista nem Candidato)
   // Candidatos têm instrumento na tabela, será buscado automaticamente ao enviar
-  const showInstrumento = !isOrganista && !isCandidato && (selectedCargoObj?.is_musical || cargoNome.trim().toUpperCase() === 'MÚSICO');
+  const showInstrumento = !isOrganista && !isCandidato && (selectedCargoObj?.is_musical || cargoNome.trim().toUpperCase() === 'MÚSICO' || isInstrutor);
+
+  // DEBUGGING VISIBILIDADE INSTRUMENTO
+  console.log('🎸 [RegisterController] Visibilidade Instrumento:', {
+    selectedCargo,
+    cargoNome: cargoNome.trim().toUpperCase(),
+    isOrganista,
+    isCandidato,
+    isInstrutor,
+    is_musical: selectedCargoObj?.is_musical,
+    showInstrumento
+  });
 
   // Função de sincronização - declarada ANTES dos useEffects que a usam
   const syncData = useCallback(async () => {

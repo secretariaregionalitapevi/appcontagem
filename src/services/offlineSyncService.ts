@@ -565,9 +565,15 @@ export const offlineSyncService = {
 
               // Formatar data e horário do registro existente usando funções utilitárias
               try {
-                const dataExistente = new Date(duplicata.data_ensaio || duplicata.created_at);
+                let dateForData = duplicata.data_ensaio || duplicata.created_at;
+                if (dateForData && typeof dateForData === 'string' && dateForData.length === 10) {
+                  dateForData += 'T12:00:00'; // Evitar shift de timezone
+                }
+                const dataExistente = new Date(dateForData);
                 const dataFormatada = formatDate ? formatDate(dataExistente) : dataExistente.toLocaleDateString('pt-BR');
-                const horarioFormatado = formatTime ? formatTime(dataExistente) : dataExistente.toLocaleTimeString('pt-BR');
+
+                const timeExistente = new Date(duplicata.created_at || duplicata.data_ensaio);
+                const horarioFormatado = formatTime ? formatTime(timeExistente) : timeExistente.toLocaleTimeString('pt-BR');
 
                 return {
                   success: false,
