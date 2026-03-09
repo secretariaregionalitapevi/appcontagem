@@ -40,7 +40,7 @@ import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { generateExternalUUID } from '../utils/uuid';
 
-export const useRegisterController = () => {
+export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const { user } = useAuthContext();
 
   // Definir título da página na web
@@ -410,7 +410,9 @@ export const useRegisterController = () => {
 
       // Carregar do banco local/cache em paralelo (mais rápido)
       const [comunsData, cargosData, instrumentosData] = await Promise.all([
-        supabaseDataService.getComunsFromLocal(),
+        isForaRegional
+          ? supabaseDataService.fetchComunsForaRegional()
+          : supabaseDataService.getComunsFromLocal(),
         supabaseDataService.getCargosFromLocal(),
         (supabaseDataService as any).getInstrumentosFromLocal(),
       ]);
@@ -423,7 +425,7 @@ export const useRegisterController = () => {
 
       // Se ainda não há dados locais e está online, tentar buscar diretamente (fallback crítico)
       let finalComuns = comunsData;
-      if (isOnline && comunsData.length === 0) {
+      if (!isForaRegional && isOnline && comunsData.length === 0) {
         console.log('🔄 Nenhuma comum no cache local, buscando diretamente do Supabase...');
         try {
           const comunsDiretas = await supabaseDataService.fetchComuns();
@@ -538,23 +540,44 @@ export const useRegisterController = () => {
   }, [refreshing, syncing, isOnline, syncData, refreshCount, loadInitialData]);
 
   const loadPessoas = async () => {
+    console.log('🔍 [loadPessoas] Iniciando com:', {
+      selectedComum,
+      selectedCargo,
+      selectedInstrumento,
+      isForaRegional
+    });
+
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro antes de mostrar loading
     // Buscar nomes de comum e cargo rapidamente (já estão em memória)
-    const comumObj = comuns.find(c => c.id === selectedComum);
-    const cargoObj = cargos.find(c => c.id === selectedCargo);
-    const instrumentoObj =
-      showInstrumento && selectedInstrumento
-        ? instrumentos.find(i => i.id === selectedInstrumento)
-        : undefined;
+    // 🚀 OTIMIZAÇÃO: Resolver nomes mesmo que sejam manuais
+    let comumNome: string | undefined;
+    let cargoNome: string | undefined;
+    let instrumentoNome: string | undefined;
 
-    if (!comumObj || !cargoObj) {
+    if (selectedComum.startsWith('manual_')) {
+      comumNome = selectedComum.replace(/^manual_/, '').split('|')[0];
+    } else {
+      comumNome = comuns.find(c => c.id === selectedComum)?.nome;
+    }
+
+    if (selectedCargo.startsWith('manual_')) {
+      cargoNome = selectedCargo.replace(/^manual_/, '');
+    } else {
+      cargoNome = cargos.find(c => c.id === selectedCargo)?.nome;
+    }
+
+    if (selectedInstrumento) {
+      instrumentoNome = instrumentos.find(i => i.id === selectedInstrumento)?.nome;
+    }
+
+    if (!comumNome || !cargoNome) {
       setPessoas([]);
       return;
     }
 
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
     const CACHE_VERSION = 'v4'; // Sincronizado com supabaseDataService.ts
-    const cacheKey = `pessoas_${CACHE_VERSION}_${comumObj.nome}_${cargoObj.nome}_${instrumentoObj?.nome || ''}`;
+    const cacheKey = `pessoas_${CACHE_VERSION}_${isForaRegional ? 'fora_' : ''}${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
 
     try {
       // Tentar buscar do cache primeiro (síncrono/assíncrono rápido)
@@ -568,7 +591,7 @@ export const useRegisterController = () => {
 
         // 🚨 CORREÇÃO: Aplicar filtro de cargo também nos dados do cache (mesma lógica do fetchPessoasFromCadastro)
         let filteredCached = cached;
-        const cargoBusca = cargoObj.nome.trim().toUpperCase();
+        const cargoBusca = cargoNome.trim().toUpperCase();
         if (
           cargoBusca !== 'ORGANISTA' &&
           cargoBusca !== 'MÚSICO' &&
@@ -638,10 +661,7 @@ export const useRegisterController = () => {
         return; // Retornar imediatamente - não precisa buscar do banco
       }
     } catch (error) {
-      console.warn(
-        '⚠️ [loadPessoas] Erro ao verificar cache, continuando com busca normal:',
-        error
-      );
+      console.log('🔍 [loadPessoas] Erro ao verificar cache, continuando com busca normal:', error);
     }
 
     // Se não encontrou cache, mostrar loading e buscar do banco
@@ -649,11 +669,20 @@ export const useRegisterController = () => {
     setPessoas([]); // Limpar lista imediatamente para feedback visual
 
     try {
+      console.log('🔍 [loadPessoas] Buscando do banco local/remoto...', {
+        selectedComum,
+        selectedCargo,
+        isForaRegional
+      });
+
       const pessoasData = await (supabaseDataService as any).getPessoasFromLocal(
         selectedComum,
         selectedCargo,
-        showInstrumento ? selectedInstrumento : undefined
+        showInstrumento ? selectedInstrumento : undefined,
+        isForaRegional
       );
+
+      console.log(`✅ [loadPessoas] Recebeu ${pessoasData.length} pessoas`);
 
       setPessoas(pessoasData);
     } catch (error) {
@@ -663,6 +692,7 @@ export const useRegisterController = () => {
       setLoadingPessoas(false);
     }
   };
+
 
   const handleSubmit = async () => {
     // 🚨 BLOQUEIO SÍNCRONO: Se já estiver submetendo, bloquear imediatamente (mesmo se React state 'loading' não atualizou ainda)

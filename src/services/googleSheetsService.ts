@@ -599,6 +599,19 @@ export const googleSheetsService = {
         // 🚨 NOVO: Suporte para comum manual (página outras localidades)
         const partes = registro.comum_id.replace(/^manual_/, '').split('|');
         comum = { id: registro.comum_id, nome: partes[0] || 'Manual', cidadeManual: partes[1] || '' };
+      } else if (registro.comum_id.startsWith('comum_fora_')) {
+        // 🚨 NOVO: Suporte para comuns da aba Outras Localidades no fallback Sheets
+        const partesID = registro.comum_id.split('|');
+        const cidadePart = partesID[1] || '';
+        const originalNomePart = partesID[2] || '';
+        const partesBase = partesID[0].split('_');
+        const comumNome = originalNomePart || partesBase.slice(3).join(' ') || 'Outra Localidade';
+        comum = {
+          id: registro.comum_id,
+          nome: comumNome.toUpperCase(),
+          cidadeManual: cidadePart || '',
+          isExternal: true
+        };
       } else {
         comum = comuns.find(c => c.id === registro.comum_id);
       }
@@ -829,6 +842,7 @@ export const googleSheetsService = {
       // Se a COMUM é manual, é "Visitas fora da Regional"
       // Se apenas o NOME é manual (em comum da regional), é "SAM Desatualizado"
       const isComumManual = registro.comum_id.startsWith('manual_');
+      const isComumFora = registro.comum_id.startsWith('comum_fora_');
       let anotacoes = '';
 
       const cargoUpperForSam = cargoReal.toUpperCase();
@@ -841,9 +855,9 @@ export const googleSheetsService = {
         cargoUpperForSam.includes('INSTRUTOR') ||
         isCargoFemininoOrganista(cargoReal);
 
-      if (isComumManual) {
+      if (isComumManual || isComumFora) {
         anotacoes = 'Visitas fora da Regional';
-        console.log('✏️ [GoogleSheets] Comum manual detectada - adicionando "Visitas fora da Regional"');
+        console.log('✏️ [GoogleSheets] Comum manual ou externa detectada - adicionando "Visitas fora da Regional"');
       } else if (isNomeManualRegional && isCargoMusicalParaSam) {
         anotacoes = 'SAM Desatualizado';
         console.log(
@@ -933,7 +947,7 @@ export const googleSheetsService = {
         SYNC_STATUS: 'ATUALIZADO',
         SYNCED_AT: new Date().toISOString(),
         ANOTACOES: (
-          anotacoesSanitizadas || (isComumManual ? 'Visitas fora da Regional' : isNomeManualRegional && isCargoMusicalParaSam ? 'SAM Desatualizado' : '')
+          anotacoesSanitizadas || (isComumManual || isComumFora ? 'Visitas fora da Regional' : isNomeManualRegional && isCargoMusicalParaSam ? 'SAM Desatualizado' : '')
         ).toUpperCase(),
         DUPLICATA: 'NÃO',
       };

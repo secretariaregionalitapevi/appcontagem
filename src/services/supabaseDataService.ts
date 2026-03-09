@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured, ensureSessionRestored } from './supabaseClient';
+﻿import { supabase, isSupabaseConfigured, ensureSessionRestored } from './supabaseClient';
 import { Comum, Cargo, Instrumento, Pessoa, RegistroPresenca } from '../types/models';
 import { getDatabase } from '../database/database';
 import { Platform } from 'react-native';
@@ -150,7 +150,7 @@ export const supabaseDataService = {
         const to = from + pageSize - 1;
 
         try {
-          // 🚨 SIMPLIFICAÇÃO: Buscar apenas a coluna comum. 
+          // �� SIMPLIFICAÇÃO: Buscar apenas a coluna comum. 
           // O usuário confirmou que o banco foi limpo manualmente.
           const result = await supabase
             .from(table)
@@ -802,7 +802,7 @@ export const supabaseDataService = {
           const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
 
           // Verificar se o cargo do item corresponde exatamente ou contém o cargo buscado
-          // Mas garantir que não seja substring de outro cargo
+          // Mas garantir que não seja substring de outro cargo conhecido
           if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
           if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
             // Verificar se não é substring de outro cargo conhecido
@@ -843,12 +843,12 @@ export const supabaseDataService = {
       // Aguardar sessão rapidamente (com timeout) antes de fazer query
       await sessionPromise;
 
-      // 🚨 CORREÇÃO: Extrair apenas o nome da comum (sem código) e normalizar
+      // �� CORREÇÃO: Extrair apenas o nome da comum (sem código) e normalizar
       // O nome da comum pode vir como "BR-22-1804 - JARDIM LAVAPES DAS GRACAS" ou "BR-22-1804 JARDIM LAVAPES DAS GRACAS"
       // mas no banco pode estar apenas como "JARDIM LAVAPES DAS GRACAS" ou com acentos
       let comumBusca = comumNome.trim();
 
-      // Extrair apenas o nome sem o código (usando a função extrairNomeComum)
+      // Extrair apenas o nome sem o código (using a função extrairNomeComum)
       // Tentar múltiplos formatos: "BR-XX-XXXX - NOME", "BR-XX-XXXX NOME", etc.
       if (comumBusca.includes(' - ') || comumBusca.includes(' -')) {
         const partes = comumBusca.split(/ - ?/);
@@ -985,7 +985,7 @@ export const supabaseDataService = {
           comumNomeSemCodigo = comumNomeSemCodigo.replace(/^BR-\d+-\d+\s+/, '').trim();
         }
 
-        // 🚀 OTIMIZAÇÃO: Tentar apenas 1 query primeiro (mais rápida)
+        // �� OTIMIZAÇÃO: Tentar apenas 1 query primeiro (mais rápida)
         // Se não encontrar, tentar as outras variações
         let combinedDataComum: any[] = [];
         const seenNames = new Set<string>();
@@ -1597,7 +1597,6 @@ export const supabaseDataService = {
       while (hasMore) {
         try {
           const pageResult = await fetchPage(tableName, currentPage);
-
           if (pageResult.error) {
             finalError = pageResult.error;
             console.error('❌ Erro ao buscar da tabela candidatos:', pageResult.error);
@@ -1709,11 +1708,127 @@ export const supabaseDataService = {
     }
   },
 
+  // Buscar pessoas da tabela cadastro_fora_regional (para visitantes de fora da regional)
+  async fetchPessoasForaRegional(
+    comumNome?: string,
+    cargoNome?: string,
+    instrumentoNome?: string
+  ): Promise<any[]> {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Supabase não está configurado');
+    }
+
+    try {
+      console.log('📚 Buscando pessoas da tabela cadastro_fora_regional...');
+
+      let query = supabase
+        .from('cadastro_fora_regional')
+        .select('id, nome, comum, cidade, instrumento, cargo, nivel');
+
+      if (comumNome) {
+        query = query.ilike('comum', `%${comumNome}%`);
+      }
+
+      if (cargoNome) {
+        // Normalizar cargo para busca
+        const cargoBusca = cargoNome.trim().toUpperCase();
+        query = query.ilike('cargo', `%${cargoBusca}%`);
+      }
+
+      if (instrumentoNome) {
+        query = query.ilike('instrumento', `%${instrumentoNome}%`);
+      }
+
+      const { data, error } = await query.order('nome', { ascending: true });
+
+      if (error) {
+        console.error('❌ Erro ao buscar da tabela cadastro_fora_regional:', error);
+        throw error;
+      }
+
+      console.log(`✅ ${data?.length || 0} registros encontrados em cadastro_fora_regional`);
+      return data || [];
+    } catch (error) {
+      console.error('❌ Erro ao buscar pessoas fora regional:', error);
+      throw error;
+    }
+  },
+
+  // Buscar comuns exclusivas da tabela cadastro_fora_regional (para Outras Localidades)
+  async fetchComunsForaRegional(): Promise<Comum[]> {
+    if (!isSupabaseConfigured() || !supabase) {
+      throw new Error('Supabase não está configurado');
+    }
+
+    try {
+      console.log('📚 Buscando comuns da tabela cadastro_fora_regional...');
+
+      const { data, error } = await supabase
+        .from('cadastro_fora_regional')
+        .select('comum, cidade')
+        .not('comum', 'is', null)
+        .neq('comum', '')
+        .order('comum', { ascending: true });
+
+      if (error) {
+        console.error('❌ Erro ao buscar comuns de fora da regional:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.log('⚠️ Nenhuma comum encontrada em cadastro_fora_regional');
+        return [];
+      }
+
+      // Remover duplicatas e formatar
+      const mapComuns = new Map<string, { original: string; display: string; cidade: string }>();
+
+      data.forEach((record: any) => {
+        const original = record.comum;
+        const cidade = record.cidade || '';
+        if (original && typeof original === 'string') {
+          // Extrair nome da comum, removendo o padrão "BR-XX-XXXX " se existir para a exibição
+          const display = original.replace(/^(?:BR-)?\d{2}-\d{4}\s+/, '').trim();
+          const key = normalizeString(display.toUpperCase());
+
+          if (key && !mapComuns.has(key)) {
+            mapComuns.set(key, { original, display, cidade });
+          }
+        }
+      });
+
+      // Converter Map para formato Comum[] e ordenar
+      const comuns: Comum[] = Array.from(mapComuns.values())
+        .map((item, index) => ({
+          id: `comum_fora_${index + 1}_${item.display.toLowerCase().replace(/\s+/g, '_')}|${item.cidade}|${item.original}`,
+          nome: item.original,
+          displayName: item.display,
+          cidade: item.cidade,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any))
+        .sort((a, b) => a.displayName.localeCompare(b.displayName, 'pt-BR'));
+
+      console.log(`✅ Retornando ${comuns.length} comuns únicas de cadastro_fora_regional`);
+      return comuns;
+    } catch (error) {
+      console.error('❌ Erro ao buscar comuns fora da regional:', error);
+      throw error;
+    }
+  },
+
   async getPessoasFromLocal(
     comumId?: string,
     cargoId?: string,
-    instrumentoId?: string
+    instrumentoId?: string,
+    isForaRegional?: boolean
   ): Promise<Pessoa[]> {
+    console.log('🚀 [getPessoasFromLocal] INÍCIO:', {
+      comumId,
+      cargoId,
+      instrumentoId,
+      isForaRegional,
+    });
     // Se temos IDs, precisamos buscar os nomes primeiro
     let comumNome: string | undefined;
     let cargoNome: string | undefined;
@@ -1727,13 +1842,23 @@ export const supabaseDataService = {
     ]);
 
     if (comumId) {
-      const comum = comuns.find(c => c.id === comumId);
-      comumNome = comum?.nome;
+      if (comumId.startsWith('manual_')) {
+        // Extrair nome da comum do ID manual (manual_NomeComum|Cidade)
+        const partes = comumId.replace(/^manual_/, '').split('|');
+        comumNome = partes[0] || 'Manual';
+      } else {
+        const comum = comuns.find(c => c.id === comumId);
+        comumNome = comum?.nome;
+      }
     }
 
     if (cargoId) {
-      const cargo = cargos.find(c => c.id === cargoId);
-      cargoNome = cargo?.nome;
+      if (cargoId.startsWith('manual_')) {
+        cargoNome = cargoId.replace(/^manual_/, '');
+      } else {
+        const cargo = cargos.find(c => c.id === cargoId);
+        cargoNome = cargo?.nome;
+      }
     }
 
     if (instrumentoId) {
@@ -1743,7 +1868,42 @@ export const supabaseDataService = {
 
     // Se não encontrou os nomes, retornar vazio
     if (!comumNome || !cargoNome) {
+      console.warn('⚠️ [getPessoasFromLocal] comumNome ou cargoNome não encontrados:', {
+        comumId,
+        cargoId,
+        comumNome,
+        cargoNome,
+      });
       return [];
+    }
+
+    // 🚨 NOVO: Se for Fora Regional, buscar da tabela específica
+    if (isForaRegional) {
+      try {
+        console.log('🔍 [getPessoasFromLocal] MODO FORA REGIONAL ATIVO para:', { comumNome, cargoNome });
+        const pessoasData = await this.fetchPessoasForaRegional(comumNome, cargoNome, instrumentoNome);
+
+        console.log(`✅ [getPessoasFromLocal] Retornando ${pessoasData.length} pessoas de cadastro_fora_regional`);
+
+        return pessoasData.map((p, index) => ({
+          id: p.id || `fora_${index}_${p.nome.toLowerCase().replace(/\s+/g, '_')}`,
+          nome: p.nome.split(' ')[0] || '',
+          sobrenome: p.nome.split(' ').slice(1).join(' ') || '',
+          nome_completo: p.nome,
+          comum_id: comumId || '',
+          cargo_id: cargoId || '',
+          cargo_real: (p.cargo || '').toUpperCase().trim(),
+          instrumento_id: instrumentoId || null,
+          cidade: (p.cidade || '').toUpperCase().trim(),
+          nivel: (p.nivel || '').trim().toUpperCase() || null,
+          ativo: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+      } catch (error) {
+        console.error('❌ Erro ao buscar pessoas fora regional:', error);
+        return [];
+      }
     }
 
     // Verificar se é cargo Candidato(a) - buscar da tabela candidatos
@@ -1845,7 +2005,7 @@ export const supabaseDataService = {
 
     // Buscar pessoas da tabela cadastro (para outros cargos)
     try {
-      console.log('🔍 [getPessoasFromLocal] Chamando fetchPessoasFromCadastro com:', {
+      console.log('🔍 [getPessoasFromLocal] Chamando fetchPessoasFromCadastro with:', {
         comumId,
         comumNome,
         cargoId,
@@ -2044,6 +2204,20 @@ export const supabaseDataService = {
       const partes = registro.comum_id.replace(/^manual_/, '').split('|');
       const comumNome = partes[0] || 'Manual';
       comum = { id: registro.comum_id, nome: comumNome, cidadeManual: partes[1] || '' };
+    } else if (registro.comum_id.startsWith('comum_fora_')) {
+      // 🚨 NOVO: Suporte para comuns da aba Outras Localidades
+      // ID: comum_fora_1_parque_viana|cidade|BR-22-1234 NOME
+      const partesID = registro.comum_id.split('|');
+      const cidadePart = partesID[1] || '';
+      const originalNomePart = partesID[2] || '';
+      const partesBase = partesID[0].split('_');
+      const comumNome = originalNomePart || partesBase.slice(3).join(' ') || 'Outra Localidade';
+      comum = {
+        id: registro.comum_id,
+        nome: comumNome.toUpperCase(),
+        cidadeManual: cidadePart || '',
+        isExternal: true
+      };
     } else {
       comum = comuns.find(c => c.id === registro.comum_id);
     }
@@ -2158,7 +2332,7 @@ export const supabaseDataService = {
     // Buscar nome do local de ensaio (se for ID, converter para nome)
     let localEnsaioNome = registro.local_ensaio || null;
     if (localEnsaioNome && /^\d+$/.test(localEnsaioNome)) {
-      // Se for um número (ID), buscar o nome correspondente
+      // Se for um número (ID), buscar the nome correspondente
       const locais: { id: string; nome: string }[] = [
         { id: '1', nome: 'Cotia' },
         { id: '2', nome: 'Caucaia do Alto' },
@@ -2402,7 +2576,6 @@ export const supabaseDataService = {
         console.warn('⚠️ Erro ao verificar duplicatas (continuando...):', error);
       }
     }
-
     // 🚨 OTIMIZAÇÃO: Log apenas se nivel estiver null (evitar logs desnecessários)
     if (!row.nivel) {
       console.warn('⚠️ Nivel será NULL no Supabase:', {
@@ -2712,7 +2885,7 @@ export const supabaseDataService = {
 
       // Também remover fallback individual se existir
       try {
-        await robustRemoveItem(`registro_fallback_${id}`);
+        await robustRemoveItem(`registro_fallback_${id} `);
         // Também tentar deletar na web Storage caso exista (resquício)
         if (typeof localStorage !== 'undefined') {
           const webFilaData = localStorage.getItem('fila_envio');
@@ -2732,7 +2905,7 @@ export const supabaseDataService = {
 
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
     // 🚨 BLOQUEIO CRÍTICO: Prevenir salvamentos simultâneos do mesmo registro
-    const saveKey = `${registro.pessoa_id}_${registro.comum_id}_${registro.cargo_id}_${registro.data_hora_registro}`;
+    const saveKey = `${registro.pessoa_id}_${registro.comum_id}_${registro.cargo_id}_${registro.data_hora_registro} `;
     const now = Date.now();
 
     // 🚨 CORREÇÃO: Ajustar lógica de bloqueio para ser menos restritiva
@@ -2869,7 +3042,7 @@ export const supabaseDataService = {
           comumBusca = comum?.nome.toUpperCase() || '';
           cargoBusca = cargo?.nome.toUpperCase() || '';
         } else if (comum && cargo && pessoa) {
-          nomeBusca = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`)
+          nomeBusca = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome} `)
             .trim()
             .toUpperCase();
           comumBusca = comum.nome.toUpperCase();
@@ -2935,7 +3108,7 @@ export const supabaseDataService = {
                 const rPessoa = rPessoas.find(p => p.id === r.pessoa_id);
 
                 if (rComum && rCargo && rPessoa) {
-                  rNome = (rPessoa.nome_completo || `${rPessoa.nome} ${rPessoa.sobrenome}`)
+                  rNome = (rPessoa.nome_completo || `${rPessoa.nome} ${rPessoa.sobrenome} `)
                     .trim()
                     .toUpperCase();
                   rComumBusca = rComum.nome.toUpperCase();
@@ -3119,7 +3292,7 @@ export const supabaseDataService = {
           ...registroCompletoFallback,
           _fallback: true, // Marcar como fallback para sincronizar depois
         };
-        await robustSetItem(`registro_fallback_${idFinal}`, JSON.stringify(fallbackData));
+        await robustSetItem(`registro_fallback_${idFinal} `, JSON.stringify(fallbackData));
         console.log('✅ Registro salvo em AsyncStorage como último recurso (ID:', idFinal, ')');
         // Não lançar erro - o registro foi salvo no fallback
         return; // Retornar sem erro para não bloquear o usuário
@@ -3293,7 +3466,7 @@ export const supabaseDataService = {
       console.log(`✅ Total de registros únicos encontrados: ${allData.length}`);
       return allData.slice(0, 500); // Limitar a 500 registros
     } catch (error) {
-      console.error('❌ Erro ao buscar registros do Supabase:', error);
+      console.error('❌ Erro ao buscar registros du Supabase:', error);
       throw error;
     }
   },
@@ -3353,6 +3526,20 @@ export const supabaseDataService = {
         success: false,
         error: error instanceof Error ? error.message : 'Erro desconhecido',
       };
+    }
+  },
+
+  async syncData(): Promise<void> {
+    try {
+      console.log('🔄 Sincronizando dados básicos (Comuns, Cargos, Instrumentos)...');
+      await Promise.all([
+        this.syncComunsToLocal(),
+        this.syncCargosToLocal(),
+        this.syncInstrumentosToLocal(),
+      ]);
+      console.log('✅ Sincronização básica concluída');
+    } catch (error) {
+      console.error('❌ Erro durante sincronização básica:', error);
     }
   },
 };

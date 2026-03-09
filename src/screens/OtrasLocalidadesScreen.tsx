@@ -56,7 +56,7 @@ const ORGANISTA_CLASSES = [
 
 export const OtrasLocalidadesScreen: React.FC = () => {
     const navigation = useNavigation();
-    const controller = useRegisterController();
+    const controller = useRegisterController({ isForaRegional: true });
     const {
         isOnline,
         pendingCount,
@@ -249,7 +249,8 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                     placeholder={controller.isComumManual ? `"${selectedComum}" (manual)` : 'Selecione a comum...'}
                                     allowManualEntry={true}
                                     onManualEntry={(text) => {
-                                        setSelectedComum(text);
+                                        const manualValue = `manual_${text}`;
+                                        setSelectedComum(manualValue);
                                         controller.setIsComumManual(true);
                                         setSelectedPessoa('');
                                     }}
@@ -269,7 +270,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                         }
                                         // Se estamos em modo manual, atualizar o selectedComum para o que está sendo digitado
                                         if (controller.isComumManual || !comunsOptions.some(opt => normalize(opt.label) === normalize(text))) {
-                                            setSelectedComum(text);
+                                            setSelectedComum(`manual_${text}`);
                                         }
                                     }}
                                 />
@@ -278,7 +279,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                 {controller.isComumManual && (
                                     <View style={{ marginTop: -8, marginBottom: 12 }}>
                                         <View style={styles.manualBadge}>
-                                            <Text style={styles.manualBadgeText}>✏️ Comum manual: "{selectedComum}"</Text>
+                                            <Text style={styles.manualBadgeText}>✏️ Comum manual: "{selectedComum.replace(/^manual_/, '')}"</Text>
                                             <TouchableOpacity
                                                 onPress={() => {
                                                     controller.setIsComumManual(false);
