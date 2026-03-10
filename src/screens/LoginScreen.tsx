@@ -169,7 +169,7 @@ export const LoginScreen: React.FC = () => {
           <View style={styles.card}>
             <View style={styles.inputGroup}>
               <View style={styles.inputGroupText}>
-                <Text style={styles.icon}>✉</Text>
+                <FontAwesome5 name="envelope" size={16} color={theme.colors.icon} />
               </View>
               <TextInput
                 style={styles.input}
@@ -185,7 +185,7 @@ export const LoginScreen: React.FC = () => {
 
             <View style={styles.inputGroup}>
               <View style={styles.inputGroupText}>
-                <Text style={styles.icon}>🔒</Text>
+                <FontAwesome5 name="lock" size={16} color={theme.colors.icon} />
               </View>
               <TextInput
                 style={styles.input}
@@ -199,7 +199,11 @@ export const LoginScreen: React.FC = () => {
                 style={styles.togglePassword}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                <Text style={styles.toggleIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <FontAwesome5
+                  name={showPassword ? 'eye-slash' : 'eye'}
+                  size={16}
+                  color={theme.colors.icon}
+                />
               </TouchableOpacity>
             </View>
 
@@ -207,9 +211,8 @@ export const LoginScreen: React.FC = () => {
               <View style={styles.inputGroupText}>
                 <FontAwesome5
                   name="map-marker-alt"
-                  size={theme.fontSize.md}
+                  size={16}
                   color={theme.colors.icon}
-                  style={styles.icon}
                 />
               </View>
               {Platform.OS === 'web' ? (
@@ -390,16 +393,12 @@ const styles = StyleSheet.create({
   },
   inputGroupText: {
     backgroundColor: theme.colors.surface,
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border,
+    borderRightWidth: 0,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 48,
-    borderTopLeftRadius: theme.borderRadius.md,
-    borderBottomLeftRadius: theme.borderRadius.md,
-    minHeight: 48,
+    minWidth: 40,
   },
   icon: {
     textAlign: 'center',
@@ -416,10 +415,10 @@ const styles = StyleSheet.create({
     borderLeftColor: theme.colors.border,
   },
   togglePassword: {
-    position: 'absolute',
-    right: theme.spacing.sm,
-    padding: theme.spacing.xs,
-    zIndex: 2,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   toggleIcon: {
     fontSize: theme.fontSize.lg,

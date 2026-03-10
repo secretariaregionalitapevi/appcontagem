@@ -50,6 +50,43 @@ function converterLocalEnsaioIdParaNome(localEnsaio: string | null | undefined):
   return localEncontrado?.nome || localEnsaio;
 }
 
+/**
+ * 🚨 FUNÇÃO AUXILIAR: Limpa prefixos internos dos nomes de comum
+ * Remove "manual_", "comum_fora_", "external_" etc.
+ */
+function limparPrefixoComum(comum: string): string {
+  if (!comum) return '';
+  
+  // 1. Se tem pipes (formato novo), extrair a parte original ou o nome
+  if (comum.includes('|')) {
+    const partes = comum.split('|');
+    // No formato comum_fora_identificador|cidade|nome_original
+    if (partes.length >= 3 && partes[2]) {
+      return partes[2].trim(); 
+    }
+    // No formato manual_Nome|Cidade
+    if (partes.length >= 2) {
+      return partes[0].replace(/^(manual_|external_|comum_fora_)+/gi, '').replace(/[-_]\d+$/, '').replace(/_/g, ' ').trim();
+    }
+  }
+  
+  // 2. Remover prefixos repetidos de manual_, external_ e comum_fora_
+  // 🚨 CORREÇÃO: Remover explicitamente o índice numérico (ex: comum_fora_162_)
+  let limpo = comum.replace(/^(manual_|external_|comum_fora_)+/gi, '');
+  
+  // Remover qualquer número seguido de underscore no início (índice da lista)
+  limpo = limpo.replace(/^\d+_/g, '');
+  
+  // 3. Remover sufixos de ID numérico se existirem (ex: _18 ou -18 no final)
+  // Fazemos isso ANTES de trocar underscores por espaços
+  limpo = limpo.replace(/[-_]\d+$/, '');
+
+  // 4. Trocar underscores por espaços (caso tenha vindo de um ID)
+  limpo = limpo.replace(/_/g, ' ');
+
+  return limpo.trim();
+}
+
 export const googleSheetsService = {
   // 🚨 FUNÇÃO ESPECÍFICA PARA REGISTROS EXTERNOS (MODAL DE NOVO REGISTRO)
   // Envia diretamente para Google Sheets sem validar contra listas locais
@@ -147,11 +184,14 @@ export const googleSheetsService = {
       );
 
       // 🛡️ SEGURANÇA: Sanitizar todos os inputs antes de enviar
+      // 🚨 CORREÇÃO: Limpar prefixos internos do nome da comum (ex: "manual_")
+      const comumLimpa = limparPrefixoComum(data.comum);
+      
       const nomeSanitizado = sanitizeInput(data.nome.trim(), {
         fieldType: 'nome',
         maxLength: FIELD_LIMITS.nome,
       });
-      const comumSanitizado = sanitizeInput(data.comum.trim(), {
+      const comumSanitizado = sanitizeInput(comumLimpa, {
         fieldType: 'comum',
         maxLength: FIELD_LIMITS.comum,
       });
@@ -596,27 +636,37 @@ export const googleSheetsService = {
 
       if (isExternalRegistro) {
         // Para registros externos, extrair nome da comum do ID
-        const comumNome = registro.comum_id.replace(/^external_/, '').replace(/_\d+$/, '');
+        const comumNome = limparPrefixoComum(registro.comum_id);
         comum = { id: registro.comum_id, nome: comumNome };
-      } else if (registro.comum_id.includes('manual_') || registro.comum_id.includes('|')) {
-        // 🚨 NOVO: Suporte para comum manual (página outras localidades)
-        // Remove qualquer prefixo manual_ (possivelmente repetido) para obter o nome limpo
-        const comumIdLimpo = registro.comum_id.replace(/^(manual_)+/i, '');
-        const partes = comumIdLimpo.split('|');
-        comum = { id: registro.comum_id, nome: partes[0] || 'Manual', cidadeManual: partes[1] || '' };
       } else if (registro.comum_id.startsWith('comum_fora_')) {
         // 🚨 NOVO: Suporte para comuns da aba Outras Localidades no fallback Sheets
         const partesID = registro.comum_id.split('|');
         const cidadePart = partesID[1] || '';
         const originalNomePart = partesID[2] || '';
-        const partesBase = partesID[0].split('_');
-        const comumNome = originalNomePart || partesBase.slice(3).join(' ') || 'Outra Localidade';
+        
+        let comumNome = '';
+        if (originalNomePart) {
+          comumNome = originalNomePart;
+        } else {
+          // Fallback: tentar extrair do ID removendo prefixo e índice
+          comumNome = partesID[0]
+            .replace(/^comum_fora_(\d+_)*/gi, '')
+            .replace(/_/g, ' ')
+            .trim();
+        }
+        
         comum = {
           id: registro.comum_id,
           nome: comumNome.toUpperCase(),
           cidadeManual: cidadePart || '',
           isExternal: true
         };
+      } else if (registro.comum_id.startsWith('manual_') || registro.comum_id.includes('|')) {
+        // 🚨 NOVO: Suporte para comum manual (página outras localidades)
+        // Remove qualquer prefixo manual_ (possivelmente repetido) para obter o nome limpo
+        const partes = registro.comum_id.split('|');
+        const nomeLimpo = limparPrefixoComum(partes[0]);
+        comum = { id: registro.comum_id, nome: nomeLimpo || 'Manual', cidadeManual: partes[1] || '' };
       } else {
         comum = comuns.find(c => c.id === registro.comum_id);
       }
@@ -792,6 +842,11 @@ export const googleSheetsService = {
 
       // Buscar nome do local de ensaio (se for ID, converter para nome)
       let localEnsaioNome = registro.local_ensaio || '';
+      
+      if (!localEnsaioNome || localEnsaioNome === 'Não definido') {
+        console.warn(`⚠️ [GoogleSheets] Local não definido para o registro de: ${nomeCompleto} (Responsável: ${registro.usuario_responsavel})`);
+      }
+
       if (localEnsaioNome && /^\d+$/.test(localEnsaioNome)) {
         // Se for um número (ID), buscar o nome correspondente
         const locais: { id: string; nome: string }[] = [
@@ -1056,7 +1111,9 @@ export const googleSheetsService = {
         sheetData['NOME COMPLETO'] = updateData.nome_completo.toUpperCase();
       }
       if (updateData.comum) {
-        sheetData['COMUM'] = updateData.comum.toUpperCase();
+        // 🚨 CORREÇÃO: Limpar prefixos internos antes de enviar atualização
+        const comumLimpa = limparPrefixoComum(updateData.comum);
+        sheetData['COMUM'] = comumLimpa.toUpperCase();
       }
       if (updateData.cidade !== undefined) {
         sheetData['CIDADE'] = updateData.cidade.toUpperCase();

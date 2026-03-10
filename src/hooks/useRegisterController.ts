@@ -34,6 +34,8 @@ import { normalizeString } from '../utils/stringNormalization';
 import { cacheManager } from '../utils/cacheManager';
 import { getCurrentDateTimeISO, formatDate, formatTime } from '../utils/dateUtils';
 import { localStorageService } from '../services/localStorageService';
+import { robustClear } from '../utils/robustStorage';
+import { handleHardReset } from '../utils/appActions';
 import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
@@ -106,9 +108,18 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   // Para Instrutora e Examinadora, forçamos como "OFICIALIZADA" no envio
   const showClasseOrganista = cargoNome.trim().toUpperCase() === 'ORGANISTA';
 
-  // Mostrar campo de instrumento apenas para Músico e Instrutor (não para Organista, Instrutora, Examinadora nem Candidato)
-  // Candidatos têm instrumento na tabela, será buscado automaticamente ao enviar
-  const showInstrumento = !isOrganista && !isCandidato && (selectedCargoObj?.is_musical || cargoNome.trim().toUpperCase() === 'MÚSICO' || isInstrutor);
+  const isEncarregado = cargoNome.trim().toUpperCase().includes('ENCARREGADO');
+  
+  // Mostrar campo de instrumento para: 
+  // 1. Músico (Musical=true)
+  // 2. Instrutor
+  // 3. Encarregados (Local/Regional) quando em "Outras Localidades" (isForaRegional=true)
+  const showInstrumento = !isOrganista && !isCandidato && (
+    selectedCargoObj?.is_musical || 
+    cargoNome.trim().toUpperCase() === 'MÚSICO' || 
+    isInstrutor || 
+    (isForaRegional && isEncarregado)
+  );
 
   // DEBUGGING VISIBILIDADE INSTRUMENTO
   console.log('🎸 [RegisterController] Visibilidade Instrumento:', {
@@ -558,6 +569,11 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     }
   }, [refreshing, syncing, isOnline, syncData, refreshCount, loadInitialData]);
 
+  // Função para Hard Reset (usando utilitário compartilhado)
+  const onHardReset = useCallback(async () => {
+    await handleHardReset();
+  }, []);
+
   const loadPessoas = async () => {
     console.log('🔍 [loadPessoas] Iniciando com:', {
       selectedComum,
@@ -714,6 +730,22 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
 
 
   const handleSubmit = async () => {
+    // 1. Buscar local de ensaio UMA ÚNICA VEZ para todo o processo de submissão
+    // Isso evita problemas se o storage falhar intermitentemente entre verificações
+    const localEnsaioUnico = await localStorageService.getLocalEnsaio();
+
+    // 2. Verificar se existe local de ensaio definido (Prevenção contra 'NÃO DEFINIDO')
+    if (!localEnsaioUnico || localEnsaioUnico === 'Não definido' || localEnsaioUnico.trim() === '') {
+      console.error('❌ Submissão bloqueada: Local de ensaio não definido');
+      showToast.error(
+        'Sessão expirada',
+        'Local de ensaio não localizado. Por favor, faça login novamente para continuar.'
+      );
+      setLoading(false);
+      isSubmittingRef.current = false;
+      return;
+    }
+
     // 🚨 BLOQUEIO SÍNCRONO: Se já estiver submetendo, bloquear imediatamente (mesmo se React state 'loading' não atualizou ainda)
     if (isSubmittingRef.current || loading) {
       console.warn('⚠️ [SUBMIT] Submissão bloqueada: já em andamento (duplo-clique detectado)');
@@ -773,10 +805,10 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         return;
       }
 
-      // Validar instrumento apenas para Músico (obrigatório)
-      // Organista não precisa de instrumento (sempre toca órgão)
+      // Validar instrumento apenas para Músico e Instrutor (obrigatório)
+      // Encarregados podem ter instrumento, mas NÃO é obrigatório
       const cargoNome = cargos.find(c => c.id === selectedCargo)?.nome || '';
-      const instrumentoObrigatorio = cargoNome === 'Músico'; // Organista removido
+      const instrumentoObrigatorio = cargoNome.trim().toUpperCase() === 'MÚSICO' || cargoNome.trim().toUpperCase() === 'INSTRUTOR'; 
       if (instrumentoObrigatorio && !selectedInstrumento) {
         console.warn('⚠️ [SUBMIT] Instrumento não selecionado para Músico');
         Alert.alert('Erro', 'Selecione o instrumento para Músico');
@@ -867,8 +899,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         // 🚨 CORREÇÃO: Modal pode permanecer aberto - não precisa fechar antes de salvar offline
 
         try {
-          // Preparar registro para salvar na fila
-          const localEnsaio = await localStorageService.getLocalEnsaio();
+          // Usar o localEnsaioUnico buscado no início
+          const localEnsaio = localEnsaioUnico;
 
           // Usar nome do usuário ao invés do ID
           let nomeCompletoUsuario = user.nome;
@@ -1016,7 +1048,6 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
 
           // Tentar novamente com novo ID
           try {
-            const localEnsaio = await localStorageService.getLocalEnsaio();
             let nomeCompletoUsuario = user.nome;
             if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
               const emailSemDominio = user.email?.split('@')[0] || '';
@@ -1048,10 +1079,13 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
             }
 
             const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
+            const comumIdFinal = isComumManual 
+              ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') 
+              : selectedComum;
 
             const registroComNovoId: RegistroPresenca = {
               pessoa_id: pessoaIdFinal,
-              comum_id: selectedComum,
+              comum_id: comumIdFinal,
               cargo_id: selectedCargo,
               instrumento_id: isCandidato
                 ? instrumentoCandidato
@@ -1059,7 +1093,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
                   ? selectedInstrumento
                   : null,
               classe_organista: classeOrganistaFinalRetry,
-              local_ensaio: localEnsaio || 'Não definido',
+              local_ensaio: localEnsaioUnico || 'Não definido',
               data_hora_registro: getCurrentDateTimeISO(),
               usuario_responsavel: nomeUsuario,
               status_sincronizacao: 'pending',
@@ -1090,9 +1124,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         }
       }
 
-      // Preparar registro ANTES do try/catch para estar disponível em todo o escopo
-      // Isso garante que o registro esteja disponível mesmo no catch
-      const localEnsaioOnline = await localStorageService.getLocalEnsaio();
+      // Usar o localEnsaioUnico buscado no início
+      const localEnsaioOnline = localEnsaioUnico;
 
       // Usar nome do usuário ao invés do ID
       let nomeCompletoUsuarioOnline = user.nome;
@@ -2022,6 +2055,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
+    handleHardReset: onHardReset,
     selectedClasseOrganista,
     setSelectedClasseOrganista,
     showClasseOrganista,

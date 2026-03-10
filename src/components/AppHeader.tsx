@@ -32,7 +32,8 @@ interface AppHeaderProps {
   title?: string;
 }
 
-import ccbLogo from '../img/ccb.png';
+const ccbLogo = require('../img/ccb.png');
+// const ccbLogo = require('../img/logo-ccb-light.png'); // Usando o mesmo logo do Login
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   onSettingsPress,
@@ -69,11 +70,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         const localEncontrado = locais.find(l => l.id === localId);
         setLocalEnsaio(localEncontrado?.nome || localId);
       } else {
-        setLocalEnsaio('Ensaio Regional Itapevi');
+        setLocalEnsaio('⚠️ Local não definido!');
       }
     } catch (error) {
       console.error('Erro ao carregar local de ensaio:', error);
-      setLocalEnsaio('Ensaio Regional Itapevi');
+      setLocalEnsaio('⚠️ Local não definido!');
     }
   };
 
@@ -214,18 +215,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <Ionicons name="musical-notes" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
             </TouchableOpacity>
           )}
-          {onRefresh && (
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={() => handlePressWithHaptic(onRefresh)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="refresh" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
-            </TouchableOpacity>
-          )}
           {onHardReset && (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.resetBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
               onPress={() => {
                 triggerHaptic('warning');
                 if (Platform.OS === 'web') {
@@ -238,7 +230,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               }}
               activeOpacity={0.7}
             >
-              <Ionicons name="power" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
+              <FontAwesome5 name="sync-alt" size={IS_SMALL_SCREEN ? 16 : 18} color="#ffffff" />
             </TouchableOpacity>
           )}
           {onSettingsPress && (

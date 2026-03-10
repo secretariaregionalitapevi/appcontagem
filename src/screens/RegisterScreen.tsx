@@ -78,6 +78,7 @@ export const RegisterScreen: React.FC = () => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
+    handleHardReset,
   } = controller;
 
   const { width } = useWindowDimensions();
@@ -120,6 +121,8 @@ export const RegisterScreen: React.FC = () => {
       <AppHeader
         onEditRegistrosPress={handleEditRegistros}
         onOrganistasEnsaioPress={handleOrganistasEnsaio}
+        onRefresh={onRefresh}
+        onHardReset={handleHardReset}
       />
       <KeyboardAvoidingView
         style={styles.keyboardView}

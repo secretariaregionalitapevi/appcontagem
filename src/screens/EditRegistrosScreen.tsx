@@ -23,6 +23,7 @@ import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Cargo } from '../types/models';
+import { handleHardReset } from '../utils/appActions';
 
 interface RegistroPresencaSupabase {
   uuid?: string;
@@ -320,7 +321,10 @@ export const EditRegistrosScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
+      <AppHeader 
+        onRefresh={onRefresh}
+        onHardReset={handleHardReset}
+      />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}

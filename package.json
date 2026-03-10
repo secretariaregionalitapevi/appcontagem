@@ -1,6 +1,6 @@
 {
   "name": "sistema-contagem-sac",
-  "version": "1.2.8",
+  "version": "1.4.4",
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start --host lan",

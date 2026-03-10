@@ -76,10 +76,9 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   // Como agora usamos o nome do cargo diretamente como valor, não precisamos buscar no array de cargos
   const cargoNome = selectedCargo || '';
   const isMusico = cargoNome.toLowerCase().includes('músico');
-  const isInstrutor = cargoNome === 'Instrutor'; // 🚨 Instrutor (masculino) = classe de músicos
-  const isOrganista = cargoNome === 'Organista';
-  // Mostrar instrumento para Músico e Instrutor (masculino)
-  const showInstrumento = (isMusico || isInstrutor) && !isOrganista;
+  const isEncarregado = cargoNome.toLowerCase().includes('encarregado');
+  // Mostrar instrumento para Músico, Instrutor (masculino) e Encarregados (opcional)
+  const showInstrumento = (isMusico || isInstrutor || isEncarregado) && !isOrganista;
 
   // 🚨 CARGOS QUE DEVEM SER OFICIALIZADAS AUTOMATICAMENTE (sem mostrar campo)
   // Apenas cargos femininos de organistas: Instrutora, Secretária da Música, Examinadora
@@ -161,8 +160,12 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
     if (!selectedCargo) {
       newErrors.cargo = 'Cargo é obrigatório';
     }
-    if (showInstrumento && !selectedInstrumento) {
-      newErrors.instrumento = 'Instrumento é obrigatório para músicos';
+    if (showInstrumento) {
+      const isEncarregado = selectedCargo.toLowerCase().includes('encarregado');
+      // Se NÃO for encarregado (ou seja, é músico/instrutor), o instrumento é obrigatório
+      if (!isEncarregado && !selectedInstrumento) {
+        newErrors.instrumento = 'Instrumento é obrigatório para músicos';
+      }
     }
     // Validar classe apenas se o campo estiver visível (Organista)
     // Cargos como Instrutora, Secretária da Música e Examinadora são oficializados automaticamente

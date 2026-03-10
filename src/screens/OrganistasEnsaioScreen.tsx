@@ -27,6 +27,7 @@ import { formatDate } from '../utils/dateUtils';
 import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
 import { formatRegistradoPor } from '../utils/userNameUtils';
+import { handleHardReset } from '../utils/appActions';
 
 interface OrganistaItem {
   nome: string;
@@ -304,7 +305,12 @@ export const OrganistasEnsaioScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <AppHeader title="Organistas no Ensaio" onBackPress={handleBack} />
+      <AppHeader 
+        title="Organistas no Ensaio" 
+        onBackPress={handleBack} 
+        onRefresh={onRefresh}
+        onHardReset={handleHardReset}
+      />
 
       {!isOnline && <OfflineBadge count={0} />}
 

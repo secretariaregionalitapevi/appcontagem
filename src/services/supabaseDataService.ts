@@ -1,4 +1,4 @@
-﻿import { supabase, isSupabaseConfigured, ensureSessionRestored } from './supabaseClient';
+import { supabase, isSupabaseConfigured, ensureSessionRestored } from './supabaseClient';
 import { Comum, Cargo, Instrumento, Pessoa, RegistroPresenca } from '../types/models';
 import { getDatabase } from '../database/database';
 import { Platform } from 'react-native';
@@ -2210,8 +2210,18 @@ export const supabaseDataService = {
       const partesID = registro.comum_id.split('|');
       const cidadePart = partesID[1] || '';
       const originalNomePart = partesID[2] || '';
-      const partesBase = partesID[0].split('_');
-      const comumNome = originalNomePart || partesBase.slice(3).join(' ') || 'Outra Localidade';
+      
+      let comumNome = '';
+      if (originalNomePart) {
+        comumNome = originalNomePart;
+      } else {
+        // Fallback: tentar extrair do ID removendo o prefixo e o índice
+        comumNome = partesID[0]
+          .replace(/^comum_fora_(\d+_)*/gi, '') // Remove o prefixo e o índice numérico
+          .replace(/_/g, ' ')
+          .trim();
+      }
+
       comum = {
         id: registro.comum_id,
         nome: comumNome.toUpperCase(),

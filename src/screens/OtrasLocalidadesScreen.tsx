@@ -97,6 +97,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
         selectedClasseOrganista,
         setSelectedClasseOrganista,
         showClasseOrganista,
+        handleHardReset,
     } = controller;
 
     const comumFieldRef = useRef<AutocompleteFieldRef>(null);
@@ -178,7 +179,11 @@ export const OtrasLocalidadesScreen: React.FC = () => {
     return (
         <View style={styles.container}>
             {/* Header igual ao principal com botão de volta no lado direito */}
-            <AppHeader onBackPress={() => navigation.goBack()} />
+            <AppHeader 
+                onBackPress={() => navigation.goBack()} 
+                onRefresh={controller.onRefresh}
+                onHardReset={handleHardReset}
+            />
 
             <KeyboardAvoidingView
                 style={styles.keyboardView}

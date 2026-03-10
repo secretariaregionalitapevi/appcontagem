@@ -11,6 +11,7 @@ import { OtrasLocalidadesScreen } from '../screens/OtrasLocalidadesScreen';
 import { useAuthContext } from '../context/AuthContext';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { theme } from '../theme';
+import { localStorageService } from '../services/localStorageService';
 
 const Stack = createNativeStackNavigator();
 
@@ -45,23 +46,31 @@ export const AppNavigator: React.FC = () => {
     previousUserRef.current = user;
   }, [user, loading]);
 
-  // Forçar login se não houver usuário autenticado
+  // Forçar login se não houver usuário autenticado ou se o local de ensaio estiver ausente
   useEffect(() => {
-    if (!loading && !user && navigationRef.current?.isReady()) {
-      // Pequeno delay para garantir que o estado foi atualizado
-      const timer = setTimeout(() => {
-        try {
-          navigationRef.current?.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-          });
-        } catch (error) {
-          console.warn('Erro ao navegar para Login:', error);
+    const checkAuthAndLocal = async () => {
+      if (!loading && navigationRef.current?.isReady()) {
+        const localId = await localStorageService.getLocalEnsaio();
+        
+        if (!user || !localId) {
+          console.log(`🛡️ [AppNavigator] Redirecionando para Login: user=${!!user}, localId=${!!localId}`);
+          
+          // Pequeno delay para garantir que o estado foi atualizado
+          setTimeout(() => {
+            try {
+              navigationRef.current?.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.warn('Erro ao navegar para Login:', error);
+            }
+          }, 100);
         }
-      }, 100);
+      }
+    };
 
-      return () => clearTimeout(timer);
-    }
+    checkAuthAndLocal();
   }, [user, loading]);
 
   if (loading) {
@@ -93,7 +102,11 @@ export const AppNavigator: React.FC = () => {
           component={RegisterScreen}
           options={{ title: 'CCB | Contagem EnR' }}
         />
-        <Stack.Screen name="EditRegistros" component={EditRegistrosScreen} />
+        <Stack.Screen 
+          name="EditRegistros" 
+          component={EditRegistrosScreen} 
+          options={{ title: 'CCB | Editar Registros' }}
+        />
         <Stack.Screen
           name="EditRecordDetail"
           component={EditRecordDetailScreen}
