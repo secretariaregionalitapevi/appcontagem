@@ -218,13 +218,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {onHardReset && (
             <TouchableOpacity
               style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={() => {
+              onPress={async () => {
                 triggerHaptic('warning');
-                if (Platform.OS === 'web') {
-                  if (confirm('Deseja reiniciar o aplicativo e limpar o cache?')) {
-                    onHardReset();
-                  }
-                } else {
+                const confirmed = await showToast.confirm(
+                  'Reiniciar Aplicativo',
+                  'Deseja reiniciar o aplicativo e limpar o cache?',
+                  'generic'
+                );
+                if (confirmed) {
                   onHardReset();
                 }
               }}

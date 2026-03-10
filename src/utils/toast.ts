@@ -288,29 +288,52 @@ export const showToast = {
     }
   },
 
-  confirm: async (title: string, message: string): Promise<boolean> => {
+  confirm: async (
+    title: string, 
+    message: string, 
+    type: 'delete' | 'generic' = 'delete',
+    options?: { confirmText?: string; cancelText?: string }
+  ): Promise<boolean> => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        return (await showToast.confirmCustom({
-          title: title,
-          html: `Você deseja mesmo excluir o registro de <strong style="color: #4a4a4a;">${message}</strong>?<br><small style="color: #999;">Esta ação não poderá ser revertida.</small>`,
-          icon: 'warning',
-          confirmButtonText: '<i class="fas fa-check" style="margin-right: 8px;"></i> Sim, excluir',
-          cancelButtonText: '<i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar',
-          confirmButtonColor: '#255ec8',
-          cancelButtonColor: '#e74c3c',
-        }));
+        if (type === 'delete') {
+          return (await showToast.confirmCustom({
+            title: title,
+            html: `Você deseja mesmo excluir o registro de <strong style="color: #4a4a4a;">${message}</strong>?<br><small style="color: #999;">Esta ação não poderá ser revertida.</small>`,
+            icon: 'warning',
+            confirmButtonText: '<i class="fas fa-check" style="margin-right: 8px;"></i> Sim, excluir',
+            cancelButtonText: '<i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar',
+            confirmButtonColor: '#255ec8',
+            cancelButtonColor: '#e74c3c',
+          }));
+        } else {
+          return (await showToast.confirmCustom({
+            title: title,
+            html: message,
+            icon: 'question',
+            confirmButtonText: options?.confirmText || '<i class="fas fa-sync-alt" style="margin-right: 8px;"></i> Sim, continuar',
+            cancelButtonText: options?.cancelText || '<i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar',
+            confirmButtonColor: '#255ec8',
+            cancelButtonColor: '#64748b',
+          }));
+        }
       }
-      return window.confirm(`${title}\n${message}`);
+      return typeof window !== 'undefined' && window.confirm ? window.confirm(`${title}\n${message}`) : false;
     } else {
       return new Promise((resolve) => {
         Alert.alert(
           title,
-          `Deseja mesmo excluir o registro de ${message}?\n\nVocê não poderá reverter esta exclusão.`,
+          type === 'delete' 
+            ? `Deseja mesmo excluir o registro de ${message}?\n\nVocê não poderá reverter esta exclusão.`
+            : message,
           [
-            { text: 'Cancelar', onPress: () => resolve(false), style: 'cancel' },
-            { text: 'Sim, excluir', onPress: () => resolve(true), style: 'destructive' },
+            { text: options?.cancelText || 'Cancelar', onPress: () => resolve(false), style: 'cancel' },
+            { 
+              text: options?.confirmText || (type === 'delete' ? 'Sim, excluir' : 'Continuar'), 
+              onPress: () => resolve(true), 
+              style: type === 'delete' ? 'destructive' : 'default' 
+            },
           ],
           { cancelable: true, onDismiss: () => resolve(false) }
         );

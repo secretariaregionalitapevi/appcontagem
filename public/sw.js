@@ -1,6 +1,6 @@
 // Force SW update for visual fix v1.5.0 - v15 Icon and Text fix
-const CACHE_NAME = 'app-presenca-v20';
-const RUNTIME_CACHE = 'runtime-cache-v20';
+const CACHE_NAME = 'app-presenca-v22';
+const RUNTIME_CACHE = 'runtime-cache-v22';
 
 // ... (resto do sw.js)
 

@@ -25,7 +25,7 @@ import { logDeviceInfo } from './src/utils/deviceDetection';
 import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
 import { showToast } from './src/utils/toast';
 
-const CURRENT_APP_VERSION = '1.4.4';
+const CURRENT_APP_VERSION = '1.4.6';
 
 // Importar SpeedInsights apenas para web
 // Para React/React Native, usar injectSpeedInsights ao invés de componente
