@@ -38,25 +38,22 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
     link.href = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css';
     document.head.appendChild(link);
 
-    // Carregar fonte Inter do Google Fonts
-    const fontLink = document.createElement('link');
-    fontLink.rel = 'preconnect';
-    fontLink.href = 'https://fonts.googleapis.com';
-    document.head.appendChild(fontLink);
+    // Carregar fontes Google Fonts e FontAwesome
+    const fontLinks = [
+      'https://fonts.googleapis.com',
+      'https://fonts.gstatic.com',
+      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Outfit:wght@400;500;600&display=swap',
+      'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+    ];
 
-    const fontLink2 = document.createElement('link');
-    fontLink2.rel = 'preconnect';
-    fontLink2.href = 'https://fonts.gstatic.com';
-    fontLink2.crossOrigin = 'anonymous';
-    document.head.appendChild(fontLink2);
-
-    const fontStyle = document.createElement('link');
-    fontStyle.href =
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
-    fontStyle.rel = 'stylesheet';
-    document.head.appendChild(fontStyle);
-
-    // Removido CSS customizado que estava quebrando os ícones do SweetAlert
+    fontLinks.forEach((href, index) => {
+      const link = document.createElement('link');
+      if (index < 2) link.rel = 'preconnect';
+      else link.rel = 'stylesheet';
+      if (index === 1) link.crossOrigin = 'anonymous';
+      link.href = href;
+      document.head.appendChild(link);
+    });
   }
 }
 
@@ -64,27 +61,71 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 2000, position: any = 'center', toast = false) => {
   return {
     icon: icon,
-    title: `<span style="font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 600; color: #333; font-size: ${toast ? '16px' : '22px'};">${title}</span>`,
-    html: message ? `<span style="font-family: 'Inter', 'Segoe UI', sans-serif; color: #555; font-size: ${toast ? '14px' : '16px'};">${message}</span>` : '',
+    title: `<span style="font-weight: 700; color: #4a4a4a; font-size: ${toast ? '18px' : '24px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${title}</span>`,
+    html: message ? `<div style="color: #666; font-size: ${toast ? '14px' : '16px'}; margin-top: 10px; line-height: 1.5; font-weight: 400;">${message}</div>` : '',
     showConfirmButton: showConfirm,
-    confirmButtonText: 'OK',
-    confirmButtonColor: '#0ea5e9',
+    confirmButtonText: 'Continuar',
+    confirmButtonColor: '#255ec8',
     timer: timer,
     timerProgressBar: !!timer,
-    width: toast ? 'auto' : '260px',
-    padding: '16px 12px',
-    backdrop: false,
+    width: toast ? 'auto' : '450px',
+    padding: toast ? '12px 20px' : '1.5rem', // Reduzido de 2rem para 1.5rem
+    backdrop: toast ? false : `rgba(10, 14, 23, 0.4)`,
     position: position,
     toast: toast,
+    showClass: {
+      popup: 'animate__animated animate__fadeInDown animate__faster'
+    },
+    hideClass: {
+      popup: 'animate__animated animate__fadeOutUp animate__faster'
+    },
     didOpen: () => {
       const Swal = getSwal();
       if (!Swal) return;
       const popup = Swal.getPopup();
       if (popup) {
-        popup.style.fontFamily = "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-        popup.style.borderRadius = '12px';
-        popup.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)';
+        popup.style.borderRadius = '20px';
+        popup.style.boxShadow = toast 
+          ? '0 10px 30px rgba(0,0,0,0.1)' 
+          : '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
         popup.style.border = '1px solid rgba(0,0,0,0.05)';
+        
+        // Responsividade para mobile
+        if (window.innerWidth < 480) {
+          popup.style.width = '92%';
+          popup.style.padding = toast ? '10px 15px' : '1.2rem';
+          const htmlContainer = Swal.getHtmlContainer();
+          if (htmlContainer) {
+            htmlContainer.style.fontSize = '14px'; // Levemente menor no mobile
+          }
+        }
+        
+        const confirmBtn = Swal.getConfirmButton();
+        if (confirmBtn) {
+          confirmBtn.style.borderRadius = '12px';
+          confirmBtn.style.fontWeight = '700';
+          confirmBtn.style.fontFamily = "'Inter', sans-serif";
+          confirmBtn.style.background = 'linear-gradient(180deg, #2f71e8 0%, #255ec8 100%)';
+          confirmBtn.style.padding = '12px 24px';
+          confirmBtn.style.fontSize = '15px';
+          confirmBtn.style.display = 'inline-flex';
+          confirmBtn.style.alignItems = 'center';
+          confirmBtn.style.justifyContent = 'center';
+          confirmBtn.style.gap = '8px';
+        }
+        
+        const cancelBtn = Swal.getCancelButton();
+        if (cancelBtn) {
+          cancelBtn.style.borderRadius = '12px';
+          cancelBtn.style.fontWeight = '600';
+          cancelBtn.style.fontFamily = "'Inter', sans-serif";
+          cancelBtn.style.padding = '12px 24px';
+          cancelBtn.style.fontSize = '15px';
+          cancelBtn.style.display = 'inline-flex';
+          cancelBtn.style.alignItems = 'center';
+          cancelBtn.style.justifyContent = 'center';
+          cancelBtn.style.gap = '8px';
+        }
       }
     },
   };
@@ -180,7 +221,7 @@ export const showToast = {
           message,
           'warning',
           !(isDuplicidade || isSalvoLocalmente),
-          (isDuplicidade || isSalvoLocalmente) ? 2000 : 2500,
+          (isDuplicidade || isSalvoLocalmente) ? 2000 : 4000, // Tempo maior para avisos que precisam ser lidos
           (isDuplicidade || isSalvoLocalmente) ? 'top-end' : 'center',
           (isDuplicidade || isSalvoLocalmente)
         );
@@ -251,26 +292,15 @@ export const showToast = {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        const result = await Swal.fire({
-          title: `<span style="font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 700; color: #444; font-size: 32px; letter-spacing: -0.5px;">Tem certeza?</span>`,
-          html: `
-            <div style="font-family: 'Inter', 'Segoe UI', sans-serif; color: #666; font-size: 18px; margin-top: 15px; margin-bottom: 25px;">
-              Você não poderá reverter esta exclusão.
-            </div>
-          `,
+        return (await showToast.confirmCustom({
+          title: title,
+          html: `Você deseja mesmo excluir o registro de <strong style="color: #4a4a4a;">${message}</strong>?<br><small style="color: #999;">Esta ação não poderá ser revertida.</small>`,
           icon: 'warning',
-          iconColor: '#f8bb86',
-          showCancelButton: true,
-          confirmButtonColor: '#2b58a1',
-          cancelButtonColor: '#d33',
-          confirmButtonText: 'Sim, excluir',
-          cancelButtonText: 'Cancelar',
-          reverseButtons: false,
-          padding: '2em',
-          borderRadius: '1.25em',
-          width: '32em',
-        });
-        return result.isConfirmed;
+          confirmButtonText: '<i class="fas fa-check" style="margin-right: 8px;"></i> Sim, excluir',
+          cancelButtonText: '<i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar',
+          confirmButtonColor: '#255ec8',
+          cancelButtonColor: '#e74c3c',
+        }));
       }
       return window.confirm(`${title}\n${message}`);
     } else {
@@ -287,4 +317,60 @@ export const showToast = {
       });
     }
   },
+
+  confirmCustom: async (options: {
+    title: string;
+    html: string;
+    icon?: any;
+    confirmButtonText?: string;
+    cancelButtonText?: string;
+    confirmButtonColor?: string;
+    cancelButtonColor?: string;
+    width?: string;
+  }): Promise<boolean> => {
+    if (Platform.OS === 'web') {
+      const Swal = getSwal();
+      if (Swal) {
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 480;
+        const result = await Swal.fire({
+          title: `<span style="font-weight: 700; color: #4a4a4a; font-size: ${isMobile ? '22px' : '26px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${options.title}</span>`,
+          html: `<div style="color: #666; font-size: ${isMobile ? '15px' : '16px'}; margin-top: 10px; line-height: 1.5;">${options.html}</div>`,
+          icon: options.icon || 'question',
+          showCancelButton: true,
+          confirmButtonText: options.confirmButtonText || 'Confirmar',
+          cancelButtonText: options.cancelButtonText || 'Cancelar',
+          confirmButtonColor: options.confirmButtonColor || '#2160c4',
+          cancelButtonColor: options.cancelButtonColor || '#e6453d',
+          width: options.width || (isMobile ? '92%' : '480px'),
+          padding: isMobile ? '1.5rem' : '2rem',
+          backdrop: `rgba(10, 14, 23, 0.4)`,
+          allowOutsideClick: false,
+          didOpen: () => {
+            const popup = Swal.getPopup();
+            if (popup) {
+              popup.style.borderRadius = '20px';
+              popup.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
+              
+              const cBtn = Swal.getConfirmButton();
+              if (cBtn) {
+                cBtn.style.borderRadius = '12px';
+                cBtn.style.fontWeight = '700';
+                cBtn.style.fontFamily = "'Inter', sans-serif";
+                cBtn.style.padding = '12px 24px';
+              }
+              const canBtn = Swal.getCancelButton();
+              if (canBtn) {
+                canBtn.style.borderRadius = '12px';
+                canBtn.style.fontWeight = '600';
+                canBtn.style.fontFamily = "'Inter', sans-serif";
+                canBtn.style.padding = '12px 24px';
+              }
+            }
+          }
+        });
+        return result.isConfirmed;
+      }
+    }
+    return false;
+  }
 };

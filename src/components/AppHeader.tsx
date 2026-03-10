@@ -32,6 +32,8 @@ interface AppHeaderProps {
   title?: string;
 }
 
+import ccbLogo from '../img/ccb.png';
+
 export const AppHeader: React.FC<AppHeaderProps> = ({
   onSettingsPress,
   onLogoutPress,
@@ -133,7 +135,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <View style={styles.brandSection}>
             <View style={[styles.brandLogo, IS_SMALL_SCREEN && styles.brandLogoSmall]}>
               <Image
-                source={require('../img/ccb.png')}
+                source={ccbLogo}
                 style={styles.brandLogoImage}
                 resizeMode="contain"
               />

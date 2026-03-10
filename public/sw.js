@@ -1,6 +1,14 @@
-// Force SW update for delete fix v1.2.8
-const CACHE_NAME = 'appcont-cache-v8';
-const RUNTIME_CACHE = 'appcont-runtime-v8';
+// Force SW update for visual fix v1.5.0 - v15 Icon and Text fix
+const CACHE_NAME = 'appcont-cache-v15';
+const RUNTIME_CACHE = 'appcont-runtime-v15';
+
+// ... (resto do sw.js)
+
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
 
 const PRECACHE_ASSETS = [
     '/',

@@ -163,8 +163,11 @@ export const googleSheetsService = {
         fieldType: 'cargo',
         maxLength: FIELD_LIMITS.cargo,
       });
-      const classeSanitizada = data.classe
-        ? sanitizeInput(data.classe.trim(), { fieldType: 'classe', maxLength: FIELD_LIMITS.classe })
+      // 🚨 CORREÇÃO: Forçar "OFICIALIZADA" apenas para Instrutora/Examinadora/Secretária. 
+      // Para o cargo "Organista", respeitar o que veio do formulário (sem forçar se estiver vazio).
+      const isForcedOficializada = isExaminadora || isInstrutora || isSecretariaMusica;
+      const classeSanitizada = (data.classe || (isForcedOficializada ? 'OFICIALIZADA' : ''))
+        ? sanitizeInput((data.classe || (isForcedOficializada ? 'OFICIALIZADA' : '')).trim(), { fieldType: 'classe', maxLength: FIELD_LIMITS.classe })
         : '';
       const localEnsaioSanitizado = sanitizeInput(localEnsaioConvertido, { maxLength: 100 });
 
@@ -595,9 +598,11 @@ export const googleSheetsService = {
         // Para registros externos, extrair nome da comum do ID
         const comumNome = registro.comum_id.replace(/^external_/, '').replace(/_\d+$/, '');
         comum = { id: registro.comum_id, nome: comumNome };
-      } else if (registro.comum_id.startsWith('manual_')) {
+      } else if (registro.comum_id.includes('manual_') || registro.comum_id.includes('|')) {
         // 🚨 NOVO: Suporte para comum manual (página outras localidades)
-        const partes = registro.comum_id.replace(/^manual_/, '').split('|');
+        // Remove qualquer prefixo manual_ (possivelmente repetido) para obter o nome limpo
+        const comumIdLimpo = registro.comum_id.replace(/^(manual_)+/i, '');
+        const partes = comumIdLimpo.split('|');
         comum = { id: registro.comum_id, nome: partes[0] || 'Manual', cidadeManual: partes[1] || '' };
       } else if (registro.comum_id.startsWith('comum_fora_')) {
         // 🚨 NOVO: Suporte para comuns da aba Outras Localidades no fallback Sheets
@@ -679,6 +684,11 @@ export const googleSheetsService = {
         nivelPessoa =
           normalizarNivel(nivelPessoaOriginal, instrumentoParaUsar?.nome, cargoReal) || '';
       }
+
+      // 🚨 DEFINIR FLAGS DE CARGO PARA MAPEAR NO SHEETS
+      const cargoUpper = cargoReal.toUpperCase().trim();
+      const isExaminadora = cargoUpper.includes('EXAMINADORA');
+      const isInstrutora = cargoUpper === 'INSTRUTORA';
 
       const cargo = { ...cargoSelecionado, nome: cargoReal };
 
@@ -937,10 +947,10 @@ export const googleSheetsService = {
         COMUM: comumNomeSanitizado.toUpperCase(),
         CIDADE: cidadeSanitizada.toUpperCase(),
         CARGO: cargoRealSanitizado.toUpperCase(),
-        NÍVEL: nivelPessoaSanitizado.toUpperCase(),
+        NÍVEL: (nivelPessoaSanitizado || (isExaminadora || isInstrutora ? 'OFICIALIZADA' : registro.classe_organista || '')).toUpperCase(),
         INSTRUMENTO: instrumentoFinalSanitizado.toUpperCase(),
         NAIPE_INSTRUMENTO: naipeInstrumentoSanitizado.toUpperCase(),
-        CLASSE_ORGANISTA: (classeOrganistaFinalSanitizada || nivelPessoaSanitizado).toUpperCase(),
+        CLASSE_ORGANISTA: (classeOrganistaFinalSanitizada || nivelPessoaSanitizado || (isExaminadora || isInstrutora ? 'OFICIALIZADA' : '')).toUpperCase(),
         LOCAL_ENSAIO: localEnsaioNomeSanitizado.toUpperCase(),
         DATA_ENSAIO: dataEnsaioFormatada,
         REGISTRADO_POR: registradoPorNomeSanitizado.toUpperCase(),
@@ -1083,7 +1093,11 @@ export const googleSheetsService = {
       const requestBody = {
         op: 'update',
         sheet: SHEET_NAME,
-        match: { UUID: uuid },
+        match: {
+          UUID: uuid,
+          uuid: uuid,
+          id: uuid
+        },
         data: sheetData,
       };
 
@@ -1124,36 +1138,53 @@ export const googleSheetsService = {
 
   async deleteRegistroFromSheet(uuid: string): Promise<{ success: boolean; error?: string }> {
     if (!uuid) {
+      console.warn('⚠️ Tentativa de exclusão no Google Sheets sem UUID');
       return { success: false, error: 'UUID não fornecido' };
     }
 
     try {
-      console.log(`🗑️ Projetando deleção no Google Sheets para o registro ${uuid}...`);
+      // Garantir que o UUID seja uma string limpa
+      const cleanUuid = String(uuid).trim();
 
-      const requestBody = JSON.stringify({
+      console.log(`🗑️ [GoogleSheets] Preparando deleção para o registro: ${cleanUuid}`);
+
+      // 🚨 ESTRATÉGIA ROBUSTA: Enviar match com UUID e id (algumas tabelas usam id)
+      // E também garantir que o sheet seja o correto
+      const requestBody = {
         op: 'delete',
         sheet: SHEET_NAME,
-        data: { UUID: uuid }
-      });
+        match: {
+          UUID: cleanUuid,
+          uuid: cleanUuid, // Fallback para case-insensitive
+          id: cleanUuid    // Fallback para nome de coluna genérico
+        }
+      };
 
-      console.log('🌐 [GoogleSheets] Enviando DELETE para:', GOOGLE_SHEETS_API_URL);
+      console.log('🌐 [GoogleSheets] Enviando payload de DELETE:', JSON.stringify(requestBody, null, 2));
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 16000);
 
       // Usar fetch com no-cors para evitar problemas de CORS com Apps Script
-      // O Google Apps Script processa o POST mesmo com no-cors
+      // Em no-cors não podemos ver a resposta, mas garantimos que a requisição chegue
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
-        body: requestBody,
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
 
-      // Em no-cors, não conseguimos ler a resposta JSON
-      // Mas o status 0 ou response.ok=false (em no-cors) costuma indicar que o envio foi feito
-      console.log('✅ [GoogleSheets] Comando de deleção enviado');
+      clearTimeout(timeoutId);
+
+      // Em no-cors, o fetch não lança erro de rede e response.type é 'opaque'
+      // Admitimos sucesso se o fetch completou sem exceção
+      console.log('✅ [GoogleSheets] Comando de deleção enviado com sucesso (no-cors)');
       return { success: true };
     } catch (error) {
-      console.error('❌ Erro ao deletar registro no Google Sheets:', error);
+      console.error('❌ [GoogleSheets] Erro crítico ao deletar registro:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Erro desconhecido',

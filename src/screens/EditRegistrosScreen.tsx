@@ -209,25 +209,39 @@ export const EditRegistrosScreen: React.FC = () => {
 
     try {
       setDeleting(registro.uuid!);
-      console.log('🗑️ Iniciando exclusão de:', registro.uuid);
+      console.log('🗑️ [UI] Iniciando processo de exclusão...');
+      console.log('🗑️ [UI] UUID:', registro.uuid);
+      console.log('🗑️ [UI] Nome:', registro.nome_completo);
 
-      // Tentar deletar do Supabase
+      // 1. Tentar deletar do Supabase (prioridade, pois define se o registro "existe" no app)
       const supabaseResult = await supabaseDataService.deleteRegistro(registro.uuid!);
 
       if (!supabaseResult.success) {
+        console.error('❌ [UI] Erro ao deletar do Supabase:', supabaseResult.error);
         showToast.error('Erro ao remover do banco de dados', supabaseResult.error);
         setDeleting(null);
         return;
       }
 
-      // Tentar deletar do Google Sheets (não bloqueia se falhar)
-      googleSheetsService.deleteRegistroFromSheet?.(registro.uuid!);
+      console.log('✅ [UI] Removido do Supabase com sucesso');
+
+      // 2. Tentar deletar do Google Sheets (processo secundário, não bloqueia UI se falhar tecnicamente)
+      try {
+        console.log('📤 [UI] Solicitando remoção no Google Sheets...');
+        const sheetsResult = await googleSheetsService.deleteRegistroFromSheet?.(registro.uuid!);
+        console.log('📊 [UI] Resultado da solicitação Google Sheets:', sheetsResult);
+      } catch (sheetsError) {
+        console.warn('⚠️ [UI] Erro não tratado ao chamar deleteRegistroFromSheet:', sheetsError);
+      }
 
       showToast.success('Registro excluído com sucesso!');
 
-      // Recarregar a lista
+      // 3. Recarregar a lista para refletir a exclusão
       if (searchTerm.trim()) {
         performSearch(searchTerm.trim());
+      } else {
+        // Se estiver vazio, pelo menos limpar o estado local ou recarregar
+        onRefresh();
       }
     } catch (error) {
       console.error('❌ Erro na exclusão:', error);

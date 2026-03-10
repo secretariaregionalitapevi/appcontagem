@@ -90,11 +90,13 @@ export const OtrasLocalidadesScreen: React.FC = () => {
         handleSubmit: originalHandleSubmit,
         comunsOptions,
         instrumentosOptions,
+        pessoas,
         pessoasOptions,
         cidadeManual,
         setCidadeManual,
         selectedClasseOrganista,
         setSelectedClasseOrganista,
+        showClasseOrganista,
     } = controller;
 
     const comumFieldRef = useRef<AutocompleteFieldRef>(null);
@@ -365,8 +367,8 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                 )}
                             </View>
 
-                            {/* CLASSE DA ORGANISTA (Condicional: Somente para Organista de Comum Manual) */}
-                            {isOrganista && controller.isComumManual && (
+                            {/* CLASSE DA ORGANISTA (Condicional: Somente para Cargo Organista) */}
+                            {showClasseOrganista && (
                                 <View
                                     style={[
                                         styles.field,
@@ -485,8 +487,17 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                                 setIsNomeManual(false);
                                                 return;
                                             }
-                                            setSelectedPessoa(option.value || option.id);
+                                            const pessoaId = option.value || option.id;
+                                            setSelectedPessoa(pessoaId);
                                             setIsNomeManual(false);
+
+                                            // Preencher automaticamente a classe se a pessoa selecionada já tiver uma
+                                            if (isOrganista) {
+                                                const pessoaSelecionada = (pessoas as any[]).find(p => p.id === pessoaId);
+                                                if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+                                                    setSelectedClasseOrganista(pessoaSelecionada.classe_organista);
+                                                }
+                                            }
                                         }
                                     }}
                                     placeholder="Selecione o nome..."

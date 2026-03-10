@@ -40,6 +40,8 @@ import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { generateExternalUUID } from '../utils/uuid';
 
+import { isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
+
 export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const { user } = useAuthContext();
 
@@ -96,11 +98,15 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const selectedCargoObj = cargos.find(c => c.id === selectedCargo);
   const cargoNome = selectedCargoObj?.nome || (selectedCargo.startsWith('manual_') ? selectedCargo.replace('manual_', '') : '');
 
-  const isOrganista = cargoNome.trim().toUpperCase() === 'ORGANISTA';
+  const isOrganista = isCargoFemininoOrganista(cargoNome);
   const isCandidato = cargoNome.trim().toUpperCase() === 'CANDIDATO (A)';
-  const isInstrutor = cargoNome.trim().toUpperCase().includes('INSTRUTOR');
+  const isInstrutor = cargoNome.trim().toUpperCase() === 'INSTRUTOR';
 
-  // Mostrar campo de instrumento apenas para Músico e Instrutor (não para Organista nem Candidato)
+  // O campo de classe só deve aparecer para o cargo específico "Organista"
+  // Para Instrutora e Examinadora, forçamos como "OFICIALIZADA" no envio
+  const showClasseOrganista = cargoNome.trim().toUpperCase() === 'ORGANISTA';
+
+  // Mostrar campo de instrumento apenas para Músico e Instrutor (não para Organista, Instrutora, Examinadora nem Candidato)
   // Candidatos têm instrumento na tabela, será buscado automaticamente ao enviar
   const showInstrumento = !isOrganista && !isCandidato && (selectedCargoObj?.is_musical || cargoNome.trim().toUpperCase() === 'MÚSICO' || isInstrutor);
 
@@ -900,7 +906,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
 
           const registro: RegistroPresenca = {
             pessoa_id: pessoaIdFinal,
-            comum_id: isComumManual ? `manual_${selectedComum}${cidadeManual ? `|${cidadeManual}` : ''}` : selectedComum,
+            comum_id: isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum,
             cargo_id: selectedCargo,
             instrumento_id: isCandidato
               ? instrumentoCandidato
@@ -1099,15 +1105,18 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       // Buscar classe da organista
       let classeOrganistaFinalOnline: string | undefined = undefined;
       if (isOrganista) {
-        if (selectedClasseOrganista) {
+        if (showClasseOrganista && selectedClasseOrganista) {
           classeOrganistaFinalOnline = selectedClasseOrganista;
-        } else if (!isNomeManual) {
+        } else if (showClasseOrganista && !isNomeManual) {
           const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
           if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
             classeOrganistaFinalOnline = pessoaSelecionada.classe_organista;
           } else {
             classeOrganistaFinalOnline = 'OFICIALIZADA';
           }
+        } else {
+          // Para Instrutora/Examinadora ou Organista sem classe selecionada
+          classeOrganistaFinalOnline = 'OFICIALIZADA';
         }
       }
 
@@ -1124,7 +1133,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
 
       const registroOnline: RegistroPresenca = {
         pessoa_id: pessoaIdFinalOnline,
-        comum_id: isComumManual ? `manual_${selectedComum}${cidadeManual ? `|${cidadeManual}` : ''}` : selectedComum,
+        comum_id: isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum,
         cargo_id: selectedCargo,
         instrumento_id: isCandidato
           ? instrumentoCandidatoOnline
@@ -1168,45 +1177,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           const foiEnviado = !result.error || !result.error.includes('salvo localmente');
 
           if (foiEnviado) {
-            // 🚀 MELHORIA: Alerta de sucesso centralizado estilo SweetAlert2 para Web
-            if (Platform.OS === 'web') {
-              try {
-                const Swal = typeof window !== 'undefined' ? require('sweetalert2') : null;
-                if (Swal) {
-                  const SwalConf = Swal.default || Swal;
-                  SwalConf.fire({
-                    title:
-                      "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; font-weight: 600; color: #333; font-size: 22px;\">Registro Enviado!</span>",
-                    html: "<span style=\"font-family: 'Inter', 'Segoe UI', sans-serif; color: #555;\">A presença foi registrada com sucesso.</span>",
-                    icon: 'success',
-                    showConfirmButton: false,
-                    timer: 1500,
-                    timerProgressBar: true,
-                    width: '260px',
-                    padding: '16px 12px',
-                    backdrop: false,
-                    customClass: {
-                      popup: 'swal-success-popup',
-                    },
-                    didOpen: () => {
-                      // Injetando css direto caso não exista no app
-                      const popup = SwalConf.getPopup();
-                      if (popup) {
-                        popup.style.fontFamily =
-                          "'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-                        popup.style.borderRadius = '8px'; // Menos arredondado
-                      }
-                    },
-                  });
-                } else {
-                  showToast.success('Registro enviado com sucesso');
-                }
-              } catch (e) {
-                showToast.success('Registro enviado com sucesso');
-              }
-            } else {
-              showToast.success('Registro enviado com sucesso');
-            }
+            // 🚀 MELHORIA: Usar showToast centralizado (já possui estilo premium para Web)
+            showToast.success('Registro Enviado!', 'A presença foi registrada com sucesso.');
             // Limpar formulário usando função helper
             clearAllFields();
           } else {
@@ -1339,65 +1311,15 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
                 </div>
               `;
 
-                const isMobileDevice =
-                  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                    typeof navigator !== 'undefined' ? navigator.userAgent : ''
-                  );
-
-                // Garantir que FontAwesome está carregado
-                if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-                  const linkId = 'fontawesome-css';
-                  if (!document.getElementById(linkId)) {
-                    const link = document.createElement('link');
-                    link.id = linkId;
-                    link.rel = 'stylesheet';
-                    link.href =
-                      'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-                    document.head.appendChild(link);
-                  }
-                }
-
-                Swal.fire({
+                showToast.confirmCustom({
                   title: 'Cadastro Duplicado!',
                   html: mensagem,
                   icon: 'warning',
-                  iconColor: '#f8bb86',
-                  showCancelButton: true,
-                  confirmButtonText: '<i class="fas fa-check"></i> Cadastrar Mesmo Assim',
-                  cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+                  confirmButtonText: 'Cadastrar Mesmo Assim',
+                  cancelButtonText: 'Cancelar',
                   confirmButtonColor: '#d33',
-                  cancelButtonColor: '#6e7881',
-                  reverseButtons: true,
-                  width: isMobileDevice ? '90%' : '500px',
-                  padding: isMobileDevice ? '1.5rem' : '2rem',
-                  position: 'center',
-                  backdrop: true,
-                  allowOutsideClick: false,
-                  allowEscapeKey: true,
-                  focusConfirm: false,
-                  focusCancel: false,
-                  buttonsStyling: true,
-                  customClass: {
-                    confirmButton: 'swal-duplicity-confirm',
-                    cancelButton: 'swal-duplicity-cancel',
-                    title: 'swal-duplicity-title',
-                  },
-                  didOpen: () => {
-                    const popupEl = Swal.getPopup();
-                    if (popupEl) {
-                      popupEl.style.fontFamily =
-                        "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-                    }
-
-                    const titleEl = Swal.getTitle();
-                    if (titleEl) {
-                      titleEl.style.color = '#545454';
-                      titleEl.style.fontSize = '26px';
-                      titleEl.style.fontWeight = '600';
-                    }
-                  },
-                }).then(async (result: any) => {
-                  if (!result.isConfirmed) {
+                }).then(async (confirmed: boolean) => {
+                  if (!confirmed) {
                     // Usuário cancelou - limpar campos e recarregar página
                     console.log(
                       '❌ Usuário cancelou registro por duplicata - limpando campos e recarregando página...'
@@ -1537,6 +1459,9 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
               local_ensaio: localEnsaioFallback || 'Não definido',
               data_hora_registro: getCurrentDateTimeISO(),
               usuario_responsavel: nomeUsuarioFallback,
+              classe_organista: isOrganista 
+                ? (showClasseOrganista && selectedClasseOrganista ? selectedClasseOrganista : 'OFICIALIZADA')
+                : undefined,
               status_sincronizacao: 'pending',
             };
           }
@@ -2099,5 +2024,6 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     handleSaveNewRegistration,
     selectedClasseOrganista,
     setSelectedClasseOrganista,
+    showClasseOrganista,
   };
-};
+}
