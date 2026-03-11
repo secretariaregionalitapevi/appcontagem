@@ -33,17 +33,24 @@ import { formatDate, formatTime } from '../utils/dateUtils';
 import { cacheManager } from '../utils/cacheManager';
 import { authService } from './authService';
 
+// 🚨 FUNÇÃO AUXILIAR: Substituir vogais e Ç por wildcard _ para busca robusta a acentos
+const buildAccentWildcard = (str: string): string => {
+  if (!str) return '';
+  return str.replace(/[AEIOUÁÉÍÓÚÂÊÎÔÛÃÕÄËÏÖÜCÇaeiouáéíóúâêîôûãõäëïöücç]/g, '_');
+};
+
 // 🚨 FUNÇÃO AUXILIAR: Verificar se é Secretário da Música (excluir) vs Secretário do GEM (incluir como instrutor)
-const isSecretarioDaMusica = (cargo: string): boolean => {
+const isSecretarioDaMusica = (cargo: string | undefined): boolean => {
   if (!cargo) return false;
   const cargoUpper = cargo.toUpperCase();
-  // Secretário do GEM deve ser tratado como Instrutor, não como Secretário da Música
   return (
     cargoUpper.includes('SECRETÁRIO') &&
     cargoUpper.includes('MÚSICA') &&
     !cargoUpper.includes('GEM')
   );
 };
+
+// --- LOG FORENSE INICIAL ---
 
 // Cache em memória para web (quando SQLite não está disponível)
 const memoryCache: {
@@ -911,22 +918,29 @@ export const supabaseDataService = {
             supabase
               .from(table)
               .select('nome, comum, cargo, instrumento, cidade, nivel')
-              .ilike('comum', `%${comumBusca}%`)
+              .ilike('comum', `%${buildAccentWildcard(comumBusca)}%`)
               .ilike('instrumento', '%SAXOFONE SOPRANO RET%')
               .order('nome', { ascending: true })
               .range(from, to),
             supabase
               .from(table)
               .select('nome, comum, cargo, instrumento, cidade, nivel')
-              .ilike('comum', `%${comumBusca}%`)
+              .ilike('comum', `%${buildAccentWildcard(comumBusca)}%`)
               .ilike('instrumento', '%SAXOFONE SOPRANO RETO%')
               .order('nome', { ascending: true })
               .range(from, to),
             supabase
               .from(table)
               .select('nome, comum, cargo, instrumento, cidade, nivel')
-              .ilike('comum', `%${comumBusca}%`)
+              .ilike('comum', `%${buildAccentWildcard(comumBusca)}%`)
               .ilike('instrumento', '%SAXOFONE SOPRANO (RETO)%')
+              .order('nome', { ascending: true })
+              .range(from, to),
+            supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', `%${buildAccentWildcard(comumBusca)}%`)
+              .ilike('instrumento', '%SAX%RET%')
               .order('nome', { ascending: true })
               .range(from, to),
           ];
@@ -1126,9 +1140,6 @@ export const supabaseDataService = {
             return q.order('nome', { ascending: true }).range(from, to);
           };
 
-          const buildAccentWildcard = (str: string) => {
-            return str.replace(/[AEIOUÁÉÍÓÚÂÊÎÔÛÃÕÄËÏÖÜCÇaeiouáéíóúâêîôûãõäëïöücç]/g, '_');
-          };
 
           const queriesComum = [
             buildFallbackQuery(`%${comumNomeSemCodigo.toUpperCase()}%`), // Nome original (com acentos)
@@ -3586,14 +3597,14 @@ export const supabaseDataService = {
       }
 
       // Remover do cache em memória
-      memoryCache.registros = memoryCache.registros.filter(r => r.uuid !== uuid);
+      memoryCache.registros = memoryCache.registros.filter(r => (r as any).uuid !== uuid && r.id !== uuid);
 
       // Remover do robustStorage (cache web)
       try {
         const cached = await robustGetItem('cache_registros_presenca');
         if (cached) {
           const registros = JSON.parse(cached);
-          const filtrados = registros.filter((r: any) => r.uuid !== uuid);
+          const filtrados = registros.filter((r: any) => (r.uuid || r.id) !== uuid);
           await robustSetItem('cache_registros_presenca', JSON.stringify(filtrados));
         }
       } catch (e) {

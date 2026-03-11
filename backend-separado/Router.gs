@@ -16,11 +16,9 @@
  */
 
 function doPost(e) {
-  try {
-    const raw = e?.postData?.contents || '{}';
     const body = JSON.parse(raw);
-
     const op = String(body?.op || '').toLowerCase();
+    
     if (op === 'ping') return jsonResponse({ ok: true, pong: true });
     
     if (op === 'atualizar_resumo') {
@@ -361,29 +359,143 @@ function doPost(e) {
         console.warn(`⚠️ Sem regional para Local="${localEnsaioValue}", Cidade="${cidadeValue}"`);
       }
       
-      // 🔍 ESCREVER DEBUG NA PLANILHA MESTRE (aba "Debug")
-      try {
-        const shDebug = openOrCreateSheet('Debug');
-        if (shDebug.getLastColumn() === 0) {
-          shDebug.getRange(1,1,1,5).setValues([['TIMESTAMP','UUID','LOCAL_ENSAIO','CIDADE','RESULTADO']]);
-        }
-        shDebug.appendRow([
-          new Date().toLocaleString('pt-BR'),
-          data['UUID'] || '',
-          localEnsaioValue,
-          cidadeValue,
-          debugMsg
-        ]);
-      } catch(debugErr) {
-        console.warn('Debug tab write failed:', debugErr.message);
-      }
-      
       return jsonResponse({ 
         ok: true, 
         op: 'append', 
-        version: '1.3.0_debug',
+        version: '1.3.0_clean',
         uuid: data['UUID'],
         diag: diag
+      });
+    }
+
+    if (op === 'update' || op === 'delete') {
+      const targetSheetName = body?.sheet || body?.Sheet || SHEET_NAME;
+      const match = body?.match || {};
+      const uuid = (match.UUID || '').toString().trim().toLowerCase();
+      
+      if (!uuid) return jsonResponse({ ok: false, error: 'UUID é obrigatório' });
+
+      // --- ESTRATÉGIA DE BUSCA ROBUSTA ---
+      let shMaster = null;
+      let ssMaster = SpreadsheetApp.openById(DEFAULT_SHEET_ID);
+      
+      // 1. Tenta pela aba solicitada
+      shMaster = ssMaster.getSheetByName(targetSheetName);
+      
+      // 2. Fallback: Procura qualquer aba que tenha "UUID" na primeira linha
+      if (!shMaster) {
+        const allSheets = ssMaster.getSheets();
+        for (const s of allSheets) {
+          const firstRow = s.getRange(1, 1, 1, Math.min(s.getLastColumn(), 20)).getValues()[0];
+          if (firstRow.some(h => String(h).toUpperCase().trim() === 'UUID')) {
+            shMaster = s;
+            break;
+          }
+        }
+      }
+      
+      if (!shMaster) return jsonResponse({ ok: false, error: 'Aba de dados não encontrada ou sem coluna UUID' });
+
+      const lastRow = shMaster.getLastRow();
+      let affectedMaster = 0;
+      let regionalId = null;
+      let details = `TargetSheet=${shMaster.getName()}, LastRow=${lastRow}`;
+
+      if (lastRow > 1) {
+        const headers = shMaster.getRange(1, 1, 1, shMaster.getLastColumn()).getValues()[0].map(h => (h || '').toString().trim().toUpperCase());
+        const idxUuid = headers.indexOf('UUID');
+        const idxLocal = headers.indexOf('LOCAL_ENSAIO');
+
+        if (idxUuid >= 0) {
+          const values = shMaster.getRange(2, 1, lastRow - 1, headers.length).getValues();
+          
+          for (let i = values.length - 1; i >= 0; i--) {
+            const rowUuid = (values[i][idxUuid] || '').toString().trim().toLowerCase();
+            
+            if (rowUuid === uuid) {
+              const rowNum = i + 2;
+              if (idxLocal >= 0) regionalId = getRegionalId(values[i][idxLocal]);
+              
+              if (op === 'update') {
+                const patch = body?.data || {};
+                Object.keys(patch).forEach(k => {
+                  const idx = headers.indexOf(k.toUpperCase());
+                  if (idx >= 0) shMaster.getRange(rowNum, idx + 1).setValue(patch[k]);
+                });
+                affectedMaster++;
+              } else {
+                shMaster.deleteRow(rowNum);
+                affectedMaster++;
+              }
+            }
+          }
+        } else {
+          details += " | ERROR_COL_UUID_NOT_FOUND";
+        }
+      }
+
+      // Sincronizar com Regional
+      let affectedRegional = 0;
+      if (regionalId) {
+        try {
+          const shRegional = openOrCreateSheet('Registros', regionalId);
+          const regLastRow = shRegional.getLastRow();
+          if (regLastRow > 1) {
+            const regHeaders = shRegional.getRange(1, 1, 1, shRegional.getLastColumn()).getValues()[0].map(h => (h || '').toString().trim().toUpperCase());
+            const regIdxUuid = regHeaders.indexOf('UUID');
+            
+            if (regIdxUuid >= 0) {
+              const regValues = shRegional.getRange(2, 1, regLastRow - 1, regHeaders.length).getValues();
+              for (let i = regValues.length - 1; i >= 0; i--) {
+                const regRowUuid = (regValues[i][regIdxUuid] || '').toString().trim().toLowerCase();
+                
+                if (regRowUuid === uuid) {
+                  const regRowNum = i + 2;
+                  if (op === 'update') {
+                    const patch = body?.data || {};
+                    Object.keys(patch).forEach(k => {
+                      const idx = regHeaders.indexOf(k.toUpperCase());
+                      if (idx >= 0) shRegional.getRange(regRowNum, idx + 1).setValue(patch[k]);
+                    });
+                    affectedRegional++;
+                  } else {
+                    shRegional.deleteRow(regRowNum);
+                    affectedRegional++;
+                  }
+                }
+              }
+            }
+          }
+        } catch(e) { 
+          details += ` | REGIONAL_SYNC_ERR=${e.message}`;
+        }
+      }
+
+      // Log de Auditoria (Apenas para Deletion/Update)
+      try {
+        const shLog = openOrCreateSheet('Log_Sync');
+        if (shLog.getLastColumn() === 0) {
+          shLog.appendRow(['Data', 'Op', 'UUID', 'Nome', 'Responsável']);
+        }
+        
+        const metaNome = body?.meta?.nome || '';
+        const metaResp = body?.meta?.responsavel || '';
+        
+        shLog.appendRow([
+          new Date().toLocaleString('pt-BR'), 
+          op, 
+          uuid, 
+          metaNome, 
+          metaResp
+        ]);
+      } catch(logErr) {}
+
+      return jsonResponse({ 
+        ok: true, 
+        op: op, 
+        master: affectedMaster, 
+        regional: affectedRegional,
+        sheet: shMaster.getName()
       });
     }
 

@@ -152,7 +152,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 <View style={styles.brandSubtitleContainer}>
                   <Ionicons name="location-sharp" size={12} color="#ff6b6b" />
                   <Text style={styles.brandSubtitle} numberOfLines={1}>
-                    {localEnsaio}
+                    Local do Ensaio: {localEnsaio}
                   </Text>
                 </View>
               )}
@@ -269,7 +269,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <View style={styles.brandSubtitleContainer}>
               <Ionicons name="location-sharp" size={12} color="#ff6b6b" />
               <Text style={styles.brandSubtitle} numberOfLines={1}>
-                {localEnsaio}
+                Local do Ensaio: {localEnsaio}
               </Text>
             </View>
           </View>
@@ -311,6 +311,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     // Alinhar com o título: logo width (28 em small, 35 normal) + gap (8 em small, 12 normal)
     marginLeft: IS_SMALL_SCREEN ? 36 : 47,
+    marginTop: -2, // Subir um pouco para aproximar do texto de cima
   },
   headerLeftSection: {
     flexDirection: 'row',

@@ -97,7 +97,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           {/* Ícone de alerta no topo */}
           <View style={styles.iconContainer}>
             <View style={styles.iconCircle}>
-              <FontAwesome5 name="exclamation" size={38} color="#f8bb86" />
+              <FontAwesome5 name="copy" size={36} color="#255ec8" />
             </View>
           </View>
 
@@ -148,7 +148,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
               activeOpacity={0.6}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <FontAwesome5 name="check" size={14} color="#fff" style={styles.buttonIcon} />
+              <FontAwesome5 name="check-double" size={12} color="#fff" style={styles.buttonIcon} />
               <Text style={styles.confirmButtonText}>Cadastrar Mesmo Assim</Text>
             </TouchableOpacity>
           </View>
@@ -202,8 +202,8 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 4,
-    borderColor: '#f8bb86',
-    backgroundColor: 'transparent',
+    borderColor: '#e8f0fe',
+    backgroundColor: '#f0f7ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -270,9 +270,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 6,
-    backgroundColor: '#6e7881',
-    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: '#64748b',
+    minHeight: 46,
     ...(Platform.OS === 'web'
       ? {
           transition: 'all 0.2s ease',
@@ -308,9 +308,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 6,
-    backgroundColor: '#d33',
-    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: '#255ec8',
+    minHeight: 46,
     ...(Platform.OS === 'web'
       ? {
           transition: 'all 0.2s ease',

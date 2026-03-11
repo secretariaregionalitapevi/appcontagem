@@ -229,7 +229,11 @@ export const EditRegistrosScreen: React.FC = () => {
       // 2. Tentar deletar do Google Sheets (processo secundário, não bloqueia UI se falhar tecnicamente)
       try {
         console.log('📤 [UI] Solicitando remoção no Google Sheets...');
-        const sheetsResult = await googleSheetsService.deleteRegistroFromSheet?.(registro.uuid!);
+        const sheetsResult = await googleSheetsService.deleteRegistroFromSheet(
+          registro.uuid!,
+          registro.nome_completo,
+          user?.nome || user?.email || 'Desconhecido'
+        );
         console.log('📊 [UI] Resultado da solicitação Google Sheets:', sheetsResult);
       } catch (sheetsError) {
         console.warn('⚠️ [UI] Erro não tratado ao chamar deleteRegistroFromSheet:', sheetsError);

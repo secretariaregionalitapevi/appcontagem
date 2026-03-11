@@ -85,17 +85,16 @@ export function expandInstrumentoSearch(instrumento: string): string[] {
 
   // 🚨 CORREÇÃO CRÍTICA: Para SAXOFONE SOPRANO, criar todas as variações possíveis
   if (instrumentoUpper.includes('SAXOFONE') && instrumentoUpper.includes('SOPRANO')) {
-    // Variação 1: Com "(RETO)" completo
-    variations.push('SAXOFONE SOPRANO (RETO)');
-    // Variação 2: Com "RETO" sem parênteses
-    variations.push('SAXOFONE SOPRANO RETO');
-    // Variação 3: Com "RET" abreviado (como está no banco)
-    variations.push('SAXOFONE SOPRANO RET');
     // Variação 4: Com "RET" no final (caso tenha espaço)
     variations.push('SAXOFONE SOPRANO  RET');
     // Variação 5: Sem espaço antes de RET/RETO
     variations.push('SAXOFONE SOPRANORET');
     variations.push('SAXOFONE SOPRANORETO');
+    // Variações adicionais para "Saxofone Reto" (sem "Soprano")
+    variations.push('SAXOFONE RETO');
+    variations.push('SAXOFONE (RETO)');
+    variations.push('SAX RETO');
+    variations.push('SAX (RETO)');
   }
 
   // 🚨 CORREÇÃO: Para EUFÔNIO, adicionar variações com e sem acento

@@ -14,9 +14,11 @@ import { sanitizeInput, sanitizeForLogging, FIELD_LIMITS } from '../utils/securi
 import { env } from '../config/env';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
-const GOOGLE_SHEETS_API_URL =
+// 🚨 ATENÇÃO: Verificando se há espaços ou quebras de linha na URL
+const GOOGLE_SHEETS_API_URL = (
   env.SHEETS_ENDPOINT_URL ||
-  'https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec';
+  'https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec'
+).trim();
 const SHEET_NAME = 'Dados';
 
 export interface SheetsResponse {
@@ -1030,7 +1032,7 @@ export const googleSheetsService = {
         },
         body: JSON.stringify({
           op: 'append',
-          sheet: SHEET_NAME,
+          Sheet: SHEET_NAME,
           data: sheetRow,
         }),
         signal: controller.signal,
@@ -1149,11 +1151,9 @@ export const googleSheetsService = {
 
       const requestBody = {
         op: 'update',
-        sheet: SHEET_NAME,
+        Sheet: SHEET_NAME,
         match: {
           UUID: uuid,
-          uuid: uuid,
-          id: uuid
         },
         data: sheetData,
       };
@@ -1193,7 +1193,7 @@ export const googleSheetsService = {
     }
   },
 
-  async deleteRegistroFromSheet(uuid: string): Promise<{ success: boolean; error?: string }> {
+  async deleteRegistroFromSheet(uuid: string, nome?: string, responsavel?: string): Promise<{ success: boolean; error?: string }> {
     if (!uuid) {
       console.warn('⚠️ Tentativa de exclusão no Google Sheets sem UUID');
       return { success: false, error: 'UUID não fornecido' };
@@ -1209,35 +1209,35 @@ export const googleSheetsService = {
       // E também garantir que o sheet seja o correto
       const requestBody = {
         op: 'delete',
-        sheet: SHEET_NAME,
+        Sheet: SHEET_NAME,
         match: {
           UUID: cleanUuid,
-          uuid: cleanUuid, // Fallback para case-insensitive
-          id: cleanUuid    // Fallback para nome de coluna genérico
-        }
+        },
+        meta: {
+          nome: nome || '',
+          responsavel: responsavel || '',
+        },
       };
 
-      console.log('🌐 [GoogleSheets] Enviando payload de DELETE:', JSON.stringify(requestBody, null, 2));
+      console.log(`🌐 [GoogleSheets] Enviando payload de DELETE para URL: ${GOOGLE_SHEETS_API_URL}`);
+      console.log('🌐 [GoogleSheets] Payload:', JSON.stringify(requestBody));
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 16000);
 
       // Usar fetch com no-cors para evitar problemas de CORS com Apps Script
-      // Em no-cors não podemos ver a resposta, mas garantimos que a requisição chegue
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
+          'Content-Type': 'text/plain',
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
-
-      // Em no-cors, o fetch não lança erro de rede e response.type é 'opaque'
-      // Admitimos sucesso se o fetch completou sem exceção
+      
       console.log('✅ [GoogleSheets] Comando de deleção enviado com sucesso (no-cors)');
       return { success: true };
     } catch (error) {
