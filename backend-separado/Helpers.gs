@@ -693,14 +693,14 @@ function sincronizarMestreParaRegionais() {
     for (let i = 1; i < allData.length; i++) {
       const row = allData[i];
       const uuid = (row[idxUuid] || '').toString().trim();
-      const localEnsaio = idxLocal >= 0 ? (row[idxLocal] || '').toString().trim() : '';
-      const cidade = idxCidade >= 0 ? (row[idxCidade] || '').toString().trim() : '';
-      const comum = idxComum >= 0 ? (row[idxComum] || '').toString().trim() : '';
+      const localValue = idxLocal >= 0 ? (row[idxLocal] || '').toString().trim() : '';
+      const cidadeValue = idxCidade >= 0 ? (row[idxCidade] || '').toString().trim() : '';
+      const comumValue = idxComum >= 0 ? (row[idxComum] || '').toString().trim() : '';
       
       if (!uuid) continue;
       
-      // Determinar regional SOMENTE pelo LOCAL_ENSAIO
-      let regionalId = getRegionalId(localEnsaio);
+      // Determinar regional com fallback robusto (igual ao Router.gs)
+      let regionalId = getRegionalId(localValue) || getRegionalId(cidadeValue) || getRegionalId(comumValue);
       if (!regionalId) continue;
       
       if (!porRegional[regionalId]) porRegional[regionalId] = [];
@@ -718,40 +718,21 @@ function sincronizarMestreParaRegionais() {
     
     // Para cada regional, verificar UUIDs existentes e inserir apenas novos
     for (const [regionalId, registros] of Object.entries(porRegional)) {
-      try {
-        const shRegional = openOrCreateSheet('Registros', regionalId);
-        ensureHeaders(shRegional);
-        
-        // Ler UUIDs já existentes na regional
-        const regLastRow = shRegional.getLastRow();
-        const regLastCol = shRegional.getLastColumn();
-        const regHeaders = shRegional.getRange(1, 1, 1, regLastCol).getValues()[0].map(h => (h || '').toString().trim().toUpperCase());
-        const regIdxUuid = regHeaders.indexOf('UUID');
-        
-        const uuidsExistentes = new Set();
-        if (regLastRow > 1 && regIdxUuid >= 0) {
-          const uuidCol = shRegional.getRange(2, regIdxUuid + 1, regLastRow - 1, 1).getValues();
-          uuidCol.forEach(r => {
-            const u = (r[0] || '').toString().trim();
-            if (u) uuidsExistentes.add(u);
-          });
+       try {
+        // Sync padrão para a regional
+        const inseridos = syncToSpreadsheet(regionalId, registros, 'Registros');
+        totalNovos += inseridos;
+
+        // 🚨 NOVO: Se a regional for Itapevi, espelhar também na Planilha do Cardoso
+        if (regionalId === ITAPEVI_SHEET_ID) {
+          try {
+            console.log('📋 [MIRROR] Espelhando dados de Itapevi na Planilha do Cardoso...');
+            syncToSpreadsheet(CARDOSO_SHEET_ID, registros, 'registros');
+          } catch (mirrorErr) {
+            console.error(`❌ [MIRROR] Erro ao espelhar para Cardoso: ${mirrorErr.message}`);
+          }
         }
-        
-        // Inserir apenas registros novos (não existentes pela UUID)
-        let inseridos = 0;
-        for (const { uuid, record } of registros) {
-          if (uuidsExistentes.has(uuid)) continue;
-          
-          // Mapear dados para as colunas da regional
-          const novaLinha = regHeaders.map(h => record[h] != null ? record[h] : '');
-          shRegional.appendRow(novaLinha);
-          inseridos++;
-          totalNovos++;
-        }
-        
-        if (inseridos > 0) {
-          console.log(`✅ [AUTO-SYNC] ${inseridos} novo(s) registro(s) → Regional ${regionalId}`);
-        }
+
       } catch (regErr) {
         console.error(`❌ [AUTO-SYNC] Erro na regional ${regionalId}: ${regErr.message}`);
       }
@@ -762,6 +743,64 @@ function sincronizarMestreParaRegionais() {
   } catch (e) {
     console.error(`❌ [AUTO-SYNC] Erro geral: ${e.message}`);
   }
+}
+
+/**
+ * Função interna para sincronizar um conjunto de registros para uma planilha específica
+ * @param {string} spreadsheetId - ID da planilha de destino
+ * @param {Array} registros - Lista de {uuid, record}
+ * @param {string} sheetName - Nome da aba (default: 'Registros')
+ * @returns {number} Quantidade de registros inseridos
+ */
+function syncToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
+  if (!spreadsheetId || !registros || registros.length === 0) return 0;
+  
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const sh = openOrCreateSheet(sheetName, spreadsheetId);
+  ensureHeaders(sh);
+  
+  const regLastRow = sh.getLastRow();
+  const regLastCol = sh.getLastColumn();
+  const regHeaders = sh.getRange(1, 1, 1, regLastCol).getValues()[0].map(h => (h || '').toString().trim().toUpperCase());
+  const regIdxUuid = regHeaders.indexOf('UUID');
+  
+  const uuidsExistentes = new Set();
+  if (regLastRow > 1 && regIdxUuid >= 0) {
+    const uuidCol = sh.getRange(2, regIdxUuid + 1, regLastRow - 1, 1).getValues();
+    uuidCol.forEach(r => {
+      const u = (r[0] || '').toString().trim();
+      if (u) uuidsExistentes.add(u);
+    });
+  }
+  
+  let inseridos = 0;
+  for (const item of registros) {
+    const uuid = item.uuid || (item.record ? item.record.UUID : null);
+    if (!uuid || uuidsExistentes.has(uuid)) continue;
+    
+    const record = item.record || {};
+    // Criar mapa do record com chaves uppercase para busca insensível
+    const recordUp = {};
+    Object.keys(record).forEach(k => {
+      recordUp[k.toUpperCase()] = record[k];
+    });
+    
+    // Mapear dados para as colunas do destino
+    const novaLinha = regHeaders.map(h => {
+      const val = recordUp[h];
+      return val != null ? val : '';
+    });
+    
+    sh.appendRow(novaLinha);
+    uuidsExistentes.add(uuid); // Evita duplicata no mesmo lote
+    inseridos++;
+  }
+  
+  if (inseridos > 0) {
+    console.log(`✅ [SYNC] ${inseridos} novo(s) registro(s) → [${ss.getName()}] Aba: ${sheetName}`);
+  }
+  
+  return inseridos;
 }
 
 /**

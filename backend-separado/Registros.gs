@@ -139,6 +139,20 @@ function openVargemGrandeSheet() {
   }
 }
 
+// Função para abrir a planilha externa do Cardoso (Planilha do Cardoso)
+function openCardosoSheet() {
+  try {
+    console.log('🏛️ Acessando planilha externa do Cardoso...');
+    const ss = SpreadsheetApp.openById(CARDOSO_SHEET_ID);
+    ss.getSheets(); // Força o carregamento
+    console.log('✅ Planilha do Cardoso acessada com sucesso (mesmo fechada)');
+    return ss;
+  } catch (error) {
+    console.error('❌ Erro ao acessar planilha do Cardoso:', error);
+    throw new Error(`Não foi possível acessar a planilha do Cardoso: ${error.message}`);
+  }
+}
+
 // Função para limpar cache
 
 function configurarTriggerAutoSync() {

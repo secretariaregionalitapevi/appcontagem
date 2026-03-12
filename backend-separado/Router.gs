@@ -16,6 +16,8 @@
  */
 
 function doPost(e) {
+  const raw = e.postData.contents;
+  try {
     const body = JSON.parse(raw);
     const op = String(body?.op || '').toLowerCase();
     
@@ -323,32 +325,31 @@ function doPost(e) {
         diag.regional.local = localEnsaioValue;
         
         try {
-          const regionalSheetName = 'Registros';
-          const shRegional = openOrCreateSheet(regionalSheetName, regionalId);
-          ensureHeaders(shRegional);
+          const registrosInternos = [{ uuid: data['UUID'], record: data }];
           
-          if (!recordUpper['SYNCED_AT']) {
-            data['SYNCED_AT'] = new Date().toISOString();
+          // 1. Sincronização padrão para a regional identificada
+          // Usamos syncToSpreadsheet pois ele garante headers e evita duplicatas por UUID
+          const inseridosReg = syncToSpreadsheet(regionalId, registrosInternos, 'Registros');
+          
+          if (inseridosReg > 0 || isDuplicate) {
+            diag.regional.ok = true;
+            diag.regional.sheetUsed = 'Registros';
+            debugMsg += ` → ✅ Regional OK (${regionalId})`;
+          } else {
+            diag.regional.error = 'Registro já existente na regional (UUID)';
+            debugMsg += ` → ℹ️ Já existe na regional`;
           }
 
-          const rowRegional = buildRow(shRegional, data);
-          console.log(`📋 Colunas regional: ${shRegional.getLastColumn()}, Linha: [${rowRegional.join('|')}]`);
-          if (!isDuplicate && rowRegional.length > 0) {
-            shRegional.appendRow(rowRegional);
-            diag.regional.ok = true;
-            diag.regional.sheetUsed = shRegional.getName();
-            debugMsg += ` → ✅ Regional OK (${regionalId})`;
-            console.log(`✅ Espelhamento concluído para regional [${shRegional.getName()}] - ${regionalId}`);
-          } else if (isDuplicate) {
-            diag.regional.ok = true; // Simula sucesso para não encadear novos retries
-            diag.regional.sheetUsed = shRegional.getName();
-            debugMsg += ` → ✅ Regional Ignorou Duplicata (${regionalId})`;
-            console.log(`⚠️ Duplicata ignorada também para regional [${shRegional.getName()}] - ${regionalId}`);
-          } else {
-            diag.regional.error = 'Linha vazia (0 colunas na regional)';
-            debugMsg += ` → ❌ Linha vazia na regional`;
-            console.warn(`⚠️ Linha vazia para regional: ${regionalId}`);
+          // 🚨 REAL-TIME MIRROR SIMULTÂNEO: Se a regional for Itapevi, espelhar também na Planilha do Cardoso
+          if (regionalId === ITAPEVI_SHEET_ID) {
+            try {
+              console.log('🚀 [REAL-TIME MIRROR] Espelhando Itapevi na Planilha do Cardoso...');
+              syncToSpreadsheet(CARDOSO_SHEET_ID, registrosInternos, 'registros');
+            } catch (mirrorErr) {
+              console.error('❌ Erro no mirror em tempo real (Cardoso):', mirrorErr.message);
+            }
           }
+
         } catch (regError) {
           diag.regional.error = regError.message;
           debugMsg += ` → ❌ ERRO: ${regError.message}`;
@@ -362,7 +363,7 @@ function doPost(e) {
       return jsonResponse({ 
         ok: true, 
         op: 'append', 
-        version: '1.3.0_clean',
+        version: '1.4.0_realtime',
         uuid: data['UUID'],
         diag: diag
       });
@@ -470,9 +471,6 @@ function doPost(e) {
           details += ` | REGIONAL_SYNC_ERR=${e.message}`;
         }
       }
-
-      // Auditoria removida a pedido do usuário
-
 
       return jsonResponse({ 
         ok: true, 
