@@ -471,24 +471,8 @@ function doPost(e) {
         }
       }
 
-      // Log de Auditoria (Apenas para Deletion/Update)
-      try {
-        const shLog = openOrCreateSheet('Log_Sync');
-        if (shLog.getLastColumn() === 0) {
-          shLog.appendRow(['Data', 'Op', 'UUID', 'Nome', 'Responsável']);
-        }
-        
-        const metaNome = body?.meta?.nome || '';
-        const metaResp = body?.meta?.responsavel || '';
-        
-        shLog.appendRow([
-          new Date().toLocaleString('pt-BR'), 
-          op, 
-          uuid, 
-          metaNome, 
-          metaResp
-        ]);
-      } catch(logErr) {}
+      // Auditoria removida a pedido do usuário
+
 
       return jsonResponse({ 
         ok: true, 

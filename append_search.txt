@@ -1,0 +1,5 @@
+﻿1288:      if (!isDuplicate && rowMaster.length > 0) sh.appendRow(rowMaster);
+1333:            shRegional.appendRow(rowRegional);
+1447:      shRegional.appendRow(row);
+1513:      shRegional.appendRow(row);
+1614:          shRegional.appendRow(novaLinha);

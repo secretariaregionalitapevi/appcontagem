@@ -49,6 +49,7 @@ export interface RegistroPresenca {
   data_hora_registro: string;
   usuario_responsavel: string;
   status_sincronizacao: 'pending' | 'synced';
+  cidade?: string; // Cidade para registros externos ou manuais
   created_at?: string;
   updated_at?: string;
 }

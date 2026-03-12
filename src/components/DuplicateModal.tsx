@@ -104,29 +104,23 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           {/* Título */}
           <Text style={styles.title}>Cadastro Duplicado!</Text>
 
-          {/* Mensagem */}
+          {/* Mensagem principal estilo EnR */}
           <View style={styles.messageContainer}>
             <Text style={styles.message}>
-              <Text style={styles.bold}>{nome}</Text> de <Text style={styles.bold}>{comum}</Text> já
-              foi cadastrado(a).
+              <Text style={styles.bold}>{nome || 'Nome não encontrado'}</Text> de <Text style={styles.bold}>{comum || 'Comum não encontrada'}</Text>
             </Text>
+            <Text style={styles.messageSuffix}>já foi cadastrado(a).</Text>
           </View>
 
-          {/* Detalhes */}
+          {/* Box de Detalhes (Backup style) */}
           <View style={styles.detailsContainer}>
             <View style={styles.detailRow}>
-              <FontAwesome5 name="calendar-alt" size={14} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>
-                <Text style={styles.detailLabel}>Data: </Text>
-                {data}
-              </Text>
+              <Text style={styles.detailLabel}>Data: </Text>
+              <Text style={styles.detailValue}>{data || '--/--/----'}</Text>
             </View>
             <View style={styles.detailRow}>
-              <FontAwesome5 name="clock" size={14} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>
-                <Text style={styles.detailLabel}>Horário: </Text>
-                {horario}
-              </Text>
+              <Text style={styles.detailLabel}>Horário: </Text>
+              <Text style={styles.detailValue}>{horario || '--:--'}</Text>
             </View>
           </View>
 
@@ -138,7 +132,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
               activeOpacity={0.6}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <FontAwesome5 name="times" size={14} color="#666" style={styles.buttonIcon} />
+              <FontAwesome5 name="times" size={14} color="#fff" style={styles.buttonIcon} />
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
 
@@ -148,8 +142,8 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
               activeOpacity={0.6}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <FontAwesome5 name="check-double" size={12} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.confirmButtonText}>Cadastrar Mesmo Assim</Text>
+              <FontAwesome5 name="check-double" size={14} color="#fff" style={styles.buttonIcon} />
+              <Text style={styles.confirmButtonText} numberOfLines={1}>Cadastrar Mesmo Assim</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -220,10 +214,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
   },
   message: {
-    fontSize: 16,
+    fontSize: 18, // Um pouco maior conforme imagem
     color: '#545454',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 26,
+    fontWeight: '600',
+  },
+  messageSuffix: {
+    fontSize: 16,
+    color: '#797979',
+    textAlign: 'center',
+    marginTop: 4,
   },
   bold: {
     fontWeight: '700',
@@ -253,70 +254,68 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailLabel: {
-    fontWeight: '600',
+    fontWeight: '700', // Mais negrito conforme modelo
     color: '#495057',
+    width: 65, // Alinhamento fixo
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   buttonsContainer: {
     flexDirection: 'row',
-    gap: theme.spacing.sm,
-    padding: theme.spacing.md,
+    gap: 12, // Gap fixo conforme modelo
+    padding: theme.spacing.lg,
     justifyContent: 'center',
     backgroundColor: '#ffffff',
-    alignItems: 'center', // Garantir que ambos os botões tenham a mesma altura
+    alignItems: 'center',
   },
   cancelButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
-    backgroundColor: '#64748b',
+    backgroundColor: '#dc2626', // Vermelho para cancelar
     minHeight: 46,
     ...(Platform.OS === 'web'
       ? {
           transition: 'all 0.2s ease',
           cursor: 'pointer',
           ':hover': {
-            backgroundColor: '#5a6268',
+            backgroundColor: '#b91c1c',
           },
         }
       : {}),
   },
   buttonIcon: {
-    // Garantir que o ícone esteja alinhado verticalmente
-    ...(Platform.OS === 'web'
-      ? {
-          // @ts-ignore
-          display: 'flex',
-          // @ts-ignore
-          alignItems: 'center',
-          // @ts-ignore
-          justifyContent: 'center',
-        }
-      : {}),
+    marginRight: 8, // Espaço entre ícone e texto conforme modelo
   },
   cancelButtonText: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#ffffff',
     textAlign: 'center',
   },
   confirmButton: {
+    flex: 2, // Aumentar flex para garantir linha única
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
-    backgroundColor: '#255ec8',
+    backgroundColor: '#255ec8', // Azul original
     minHeight: 46,
     ...(Platform.OS === 'web'
       ? {
           transition: 'all 0.2s ease',
           cursor: 'pointer',
           ':hover': {
-            backgroundColor: '#bd2b2b',
+            backgroundColor: '#1d4ed8',
           },
           ':active': {
             transform: 'scale(0.98)',
@@ -326,7 +325,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#ffffff',
     textAlign: 'center',
   },

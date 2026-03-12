@@ -78,6 +78,7 @@ export const RegisterScreen: React.FC = () => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
+    handleConfirmDuplicate,
     handleHardReset,
   } = controller;
 
@@ -479,98 +480,7 @@ export const RegisterScreen: React.FC = () => {
             setSelectedPessoa('');
             setIsNomeManual(false);
           }}
-          onConfirm={async () => {
-            if (!pendingRegistro) {
-              setDuplicateModalVisible(false);
-              setDuplicateInfo(null);
-              return;
-            }
-
-            setDuplicateModalVisible(false);
-            setLoading(true);
-            try {
-              // Forçar duplicata - criar registro mesmo assim
-              // Pular verificação de duplicata (skipDuplicateCheck = true)
-              const registroForce = { ...pendingRegistro };
-              const resultForce = await (offlineSyncService as any).createRegistro(
-                registroForce,
-                true
-              );
-
-              if (resultForce.success) {
-                if (isOnline && !syncing) {
-                  setTimeout(() => {
-                    syncData();
-                  }, 500);
-                }
-                showToast.success(
-                  'Registro enviado!',
-                  'Registro duplicado cadastrado com sucesso!'
-                );
-                // Limpar formulário
-                setSelectedComum('');
-                setSelectedCargo('');
-                setSelectedInstrumento('');
-                setSelectedPessoa('');
-                setIsNomeManual(false);
-              } else {
-                // Se ainda for duplicata, mostrar modal novamente
-                if (
-                  resultForce.error &&
-                  (resultForce.error.includes('DUPLICATA:') ||
-                    resultForce.error.includes('DUPLICATA_BLOQUEADA'))
-                ) {
-                  // Extrair informações novamente
-                  let nome = duplicateInfo.nome;
-                  let comumNome = duplicateInfo.comum;
-                  let dataFormatada = duplicateInfo.data;
-                  let horarioFormatado = duplicateInfo.horario;
-
-                  if (resultForce.error.includes('DUPLICATA:')) {
-                    const parts = resultForce.error.split('DUPLICATA:')[1]?.split('|');
-                    if (parts && parts.length >= 4) {
-                      nome = parts[0];
-                      comumNome = parts[1];
-                      dataFormatada = parts[2];
-                      horarioFormatado = parts[3];
-                    }
-                  }
-
-                  setDuplicateInfo({
-                    nome,
-                    comum: comumNome,
-                    data: dataFormatada,
-                    horario: horarioFormatado,
-                  });
-                  setDuplicateModalVisible(true);
-                } else {
-                  showToast.error(
-                    'Erro',
-                    resultForce.error || 'Erro ao cadastrar registro duplicado'
-                  );
-                  // Limpar formulário
-                  setSelectedComum('');
-                  setSelectedCargo('');
-                  setSelectedInstrumento('');
-                  setSelectedPessoa('');
-                  setIsNomeManual(false);
-                }
-              }
-            } catch (error) {
-              showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
-              console.error('Erro ao criar registro duplicado:', error);
-              // Limpar formulário
-              setSelectedComum('');
-              setSelectedCargo('');
-              setSelectedInstrumento('');
-              setSelectedPessoa('');
-              setIsNomeManual(false);
-            } finally {
-              setLoading(false);
-              setDuplicateInfo(null);
-              setPendingRegistro(null);
-            }
-          }}
+          onConfirm={handleConfirmDuplicate}
         />
       )}
 

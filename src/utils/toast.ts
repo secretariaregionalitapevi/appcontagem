@@ -132,11 +132,11 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
 };
 
 export const showToast = {
-  success: (title: string, message?: string) => {
+  success: (title: string, message?: string, duration: number = 2000) => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire(getSwalOptions(title, message, 'success', false, 2000));
+        Swal.fire(getSwalOptions(title, message, 'success', false, duration));
       } else {
         console.log(`✅ ${title}: ${message || ''}`);
       }
@@ -147,7 +147,7 @@ export const showToast = {
         text1: title,
         text2: message,
         position: 'top',
-        visibilityTime: 2000,
+        visibilityTime: duration,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
       });

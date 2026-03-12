@@ -182,7 +182,7 @@ export const offlineSyncService = {
   },
 
   // 🚨 FUNÇÃO MELHORADA: processarFilaLocal com retry e validação robusta
-  async processarFilaLocal(): Promise<{ successCount: number; errorCount: number }> {
+  async processarFilaLocal(silent: boolean = false): Promise<{ successCount: number; errorCount: number }> {
     // 🚨 PROTEÇÃO: Evitar processamento duplicado simultâneo (ex: F5, múltiplos eventos online)
     const now = Date.now();
     if (isProcessingQueue) {
@@ -410,8 +410,8 @@ export const offlineSyncService = {
 
       console.log(`✅ Fila processada: ${result.successCount} enviados, ${result.errorCount} com erro`);
 
-      // Mostrar toast quando processa fila
-      if (result.successCount > 0) {
+      // Mostrar toast quando processa fila (apenas se não for modo silencioso)
+      if (result.successCount > 0 && !silent) {
         if (result.errorCount > 0) {
           showToast.success(
             'Fila processada',
@@ -421,7 +421,7 @@ export const offlineSyncService = {
           showToast.success('Fila processada', `${result.successCount} registro(s) enviado(s) com sucesso!`);
         }
         console.log(`✅ ${result.successCount} registro(s) enviado(s) com sucesso!`);
-      } else if (result.errorCount > 0) {
+      } else if (result.errorCount > 0 && !silent) {
         showToast.warning('Fila não processada', `${result.errorCount} registro(s) aguardando conexão estável`);
       }
 

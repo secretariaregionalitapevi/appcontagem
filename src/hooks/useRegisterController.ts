@@ -44,6 +44,14 @@ import { generateExternalUUID } from '../utils/uuid';
 
 import { isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
 
+// Função auxiliar para pegar apenas Primeiro e Último nome conforme padrão EnR
+const obterNomeCurto = (nc: string): string => {
+  if (!nc) return '';
+  const pedacos = nc.trim().split(/\s+/);
+  if (pedacos.length <= 1) return pedacos[0] || '';
+  return `${pedacos[0]} ${pedacos[pedacos.length - 1]}`;
+};
+
 export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const { user } = useAuthContext();
 
@@ -264,9 +272,9 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
             console.log('✅ Conectividade real confirmada - processando fila');
             // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando volta online
             // showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
-            // Usar processarFilaLocal que é exatamente como BACKUPCONT
-            await offlineSyncService.processarFilaLocal();
-            console.log('✅ Fila processada automaticamente');
+            // Usar syncData para garantir que o estado syncing seja atualizado (mostra no badge)
+            await syncData();
+            console.log('✅ Fila processada automaticamente via syncData');
           } else {
             console.log('⚠️ Evento online falso - mantendo modo offline');
           }
@@ -310,7 +318,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
                 if (isReallyOnline) {
                   console.log('✅ Conectividade real confirmada - processando fila');
                   // showToast.success('Conexão restaurada', 'Enviando registros pendentes...', 3000);
-                  await offlineSyncService.processarFilaLocal();
+                  await syncData();
                 }
               } catch (e) {
                 console.error('❌ Erro ao verificar conectividade:', e);
@@ -362,8 +370,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           // Verifica conectividade real antes de processar (como BACKUPCONT)
           const isOnline = await offlineSyncService.isOnline();
           if (isOnline) {
-            // Usar processarFilaLocal que é exatamente como BACKUPCONT
-            await offlineSyncService.processarFilaLocal();
+            // Usar syncData para que apareça "Sincronizando" no badge (recuperação de fila)
+            await syncData();
           } else {
             console.log('📵 Sem conectividade real - mantendo fila');
           }
@@ -823,706 +831,190 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         return;
       }
 
-      console.log('✅ [SUBMIT] Validações passaram, iniciando processamento...');
+      console.log('✅ [SUBMIT] Validações passaram, iniciando processamento otimista...');
       setLoading(true);
 
-      // 🚨 ESTRATÉGIA SIMPLIFICADA: Verificar status de conexão de forma mais confiável
-      let isOfflineNow = false;
-
-      // Verificar status de conexão de forma mais robusta
       try {
-        // 1. Verificar hook primeiro (mais confiável)
-        const hookOffline = !isOnline;
+        // 1. Preparar os dados do registro (mesma lógica de antes)
+        const localEnsaio = localEnsaioUnico;
 
-        // 2. Verificar nossa função robusta (engloba NetInfo e Fallbacks Web)
-        let netInfoOffline = false;
-        try {
-          const isReallyOnline = await offlineSyncService.isOnline();
-          netInfoOffline = !isReallyOnline;
-          console.log(`📡 [${Platform.OS}] Serviço OfflineSync:`, {
-            isReallyOnline,
-          });
-        } catch (netError) {
-          console.warn(`⚠️ [${Platform.OS}] Serviço OfflineSync falhou:`, netError);
-          // Se falhar, confiar no hook
-          netInfoOffline = hookOffline;
+        let nomeCompletoUsuario = user.nome;
+        if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
+          const emailSemDominio = user.email?.split('@')[0] || '';
+          nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
+        }
+        const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
+
+        let classeOrganistaFinal: string | undefined = undefined;
+        if (isOrganista) {
+          if (selectedClasseOrganista) {
+            classeOrganistaFinal = selectedClasseOrganista;
+          } else if (!isNomeManual) {
+            const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+            if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
+              classeOrganistaFinal = pessoaSelecionada.classe_organista;
+            } else {
+              classeOrganistaFinal = 'OFICIALIZADA';
+            }
+          } else {
+            classeOrganistaFinal = 'OFICIALIZADA';
+          }
         }
 
-        // 3. Verificar navigator.onLine (se disponível)
-        const navigatorOffline =
-          typeof navigator !== 'undefined' && 'onLine' in navigator && navigator.onLine === false;
-
-        // 🚨 ESTRATÉGIA: Se QUALQUER verificação indicar offline, considerar offline
-        // No iOS, ser mais conservador - se houver qualquer dúvida, salvar na fila
-        if (Platform.OS === 'ios') {
-          // iOS: Se NetInfo OU hook indicar offline, salvar na fila
-          isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-          console.log(`🍎 [iOS] Status offline:`, {
-            netInfoOffline,
-            hookOffline,
-            navigatorOffline,
-            isOfflineNow,
-          });
-        } else if (Platform.OS === 'android') {
-          // Android: Se NetInfo OU hook indicar offline, salvar na fila
-          isOfflineNow = netInfoOffline || hookOffline || navigatorOffline;
-          console.log(`🤖 [Android] Status offline:`, {
-            netInfoOffline,
-            hookOffline,
-            navigatorOffline,
-            isOfflineNow,
-          });
-        } else {
-          // Web: Usar navigator.onLine diretamente
-          isOfflineNow = typeof navigator !== 'undefined' ? !navigator.onLine : hookOffline;
-          console.log(`🌐 [Web] Status offline:`, { navigatorOffline, hookOffline, isOfflineNow });
+        let instrumentoCandidato: string | null = null;
+        if (isCandidato && !isNomeManual) {
+          const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
+          if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
+            instrumentoCandidato = pessoaSelecionada.instrumento_id;
+          }
         }
-      } catch (error) {
-        console.error('❌ Erro ao verificar status de conexão:', error);
-        // Em caso de erro, assumir offline para segurança
-        isOfflineNow = true;
-      }
 
-      // 🚨 CRÍTICO: Se estiver offline, salvar IMEDIATAMENTE na fila (SEM tentar online)
-      if (isOfflineNow) {
-        // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar alerta quando fica offline
-        showToast.warning('Modo offline', 'Registros serão salvos na fila');
+        const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
 
-        console.log(`📴 [${Platform.OS}] Modo offline detectado - salvando diretamente na fila`);
-        console.log(`📊 [${Platform.OS}] Dados do registro:`, {
-          pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
-          comum_id: selectedComum,
+        const registro: RegistroPresenca = {
+          pessoa_id: pessoaIdFinal,
+          comum_id: isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum,
           cargo_id: selectedCargo,
-          instrumento_id: selectedInstrumento,
+          instrumento_id: isCandidato
+            ? instrumentoCandidato
+            : showInstrumento && selectedInstrumento
+              ? selectedInstrumento
+              : null,
+          classe_organista: classeOrganistaFinal,
+          local_ensaio: localEnsaio || 'Não definido',
+          data_hora_registro: getCurrentDateTimeISO(),
+          usuario_responsavel: nomeUsuario,
+          status_sincronizacao: 'pending',
+          id: generateExternalUUID(), // Garantir UUID único para a fila
+        };
+
+        // 2. Trava de Segurança: Verificar duplicata na fila local (rápido)
+        const dupLocal = await supabaseDataService.checkDuplicataLocal({
+          pessoaId: registro.pessoa_id,
+          comumId: registro.comum_id,
+          instrumentoId: registro.instrumento_id, // Usar instrumento agora
+          dataIso: registro.data_hora_registro
         });
 
-        // 🚨 CORREÇÃO: Modal pode permanecer aberto - não precisa fechar antes de salvar offline
-
-        try {
-          // Usar o localEnsaioUnico buscado no início
-          const localEnsaio = localEnsaioUnico;
-
-          // Usar nome do usuário ao invés do ID
-          let nomeCompletoUsuario = user.nome;
-          if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
-            const emailSemDominio = user.email?.split('@')[0] || '';
-            nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
-          }
-          const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
-
-          // Buscar classe da organista
-          let classeOrganistaFinal: string | undefined = undefined;
-          if (isOrganista) {
-            if (selectedClasseOrganista) {
-              classeOrganistaFinal = selectedClasseOrganista;
-            } else if (!isNomeManual) {
-              const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-              if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-                classeOrganistaFinal = pessoaSelecionada.classe_organista;
-              } else {
-                classeOrganistaFinal = 'OFICIALIZADA';
-              }
-            }
+        if (dupLocal) {
+          console.warn('🚨 Duplicata detectada na fila local');
+          let nomePessoa = registro.pessoa_id.startsWith('manual_') 
+            ? registro.pessoa_id.replace('manual_', '') 
+            : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
+          
+          if (!nomePessoa && !registro.pessoa_id.startsWith('manual_')) {
+            const p = pessoas.find(p => p.id === registro.pessoa_id);
+            if (p) nomePessoa = `${p.nome} ${p.sobrenome || ''}`.trim();
           }
 
-          // Para Candidatos: buscar instrumento da pessoa selecionada
-          let instrumentoCandidato: string | null = null;
-          if (isCandidato && !isNomeManual) {
-            const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-            if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
-              instrumentoCandidato = pessoaSelecionada.instrumento_id;
-            }
-          }
-
-          const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
-
-          const registro: RegistroPresenca = {
-            pessoa_id: pessoaIdFinal,
-            comum_id: isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum,
-            cargo_id: selectedCargo,
-            instrumento_id: isCandidato
-              ? instrumentoCandidato
-              : showInstrumento && selectedInstrumento
-                ? selectedInstrumento
-                : null,
-            classe_organista: classeOrganistaFinal,
-            local_ensaio: localEnsaio || 'Não definido',
-            data_hora_registro: getCurrentDateTimeISO(),
-            usuario_responsavel: nomeUsuario,
-            status_sincronizacao: 'pending',
-          };
-
-          // 🚨 VERIFICAÇÃO CRÍTICA: Verificar duplicata ANTES de salvar
-          const registrosPendentes = await supabaseDataService.getRegistrosPendentesFromLocal();
-          const dataRegistro = new Date(registro.data_hora_registro);
-          const dataRegistroStr = dataRegistro.toISOString().split('T')[0];
-
-          // Verificação rápida de duplicata
-          const isDuplicata = registrosPendentes.some(r => {
-            const rData = new Date(r.data_hora_registro);
-            const rDataStr = rData.toISOString().split('T')[0];
-            return (
-              r.pessoa_id === registro.pessoa_id &&
-              r.comum_id === registro.comum_id &&
-              r.cargo_id === registro.cargo_id &&
-              rDataStr === dataRegistroStr &&
-              r.status_sincronizacao === 'pending'
-            );
+          const nomeComum = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+          
+          setDuplicateInfo({ 
+            nome: obterNomeCurto(nomePessoa), // Usar nome curto conforme backup
+            comum: nomeComum, 
+            data: dupLocal.data, 
+            horario: dupLocal.horario 
           });
-
-          if (isDuplicata) {
-            console.warn('🚨 Registro duplicado - já está na fila');
-            showToast.warning('Atenção', 'Este registro já está na fila');
-            setLoading(false);
-            isSubmittingRef.current = false;
-            return;
-          }
-
-          // 🚨 CRÍTICO: Salvar na fila com tratamento robusto de erros
-          console.log(`💾 [${Platform.OS}] Salvando registro na fila offline...`);
-          console.log(
-            `📋 [${Platform.OS}] Dados completos do registro:`,
-            JSON.stringify(registro, null, 2)
-          );
-
-          try {
-            await supabaseDataService.saveRegistroToLocal(registro);
-            console.log(`✅ [${Platform.OS}] saveRegistroToLocal executado com sucesso`);
-          } catch (saveError) {
-            console.error(`❌ [${Platform.OS}] Erro ao chamar saveRegistroToLocal:`, saveError);
-            throw saveError; // Re-lançar para ser tratado no catch externo
-          }
-
-          // Verificar se foi realmente salvo (especialmente importante no iOS/Android)
-          console.log(`🔍 [${Platform.OS}] Verificando se registro foi salvo...`);
-          const registrosAposSalvar = await supabaseDataService.getRegistrosPendentesFromLocal();
-          console.log(
-            `📊 [${Platform.OS}] Total de registros na fila após salvar:`,
-            registrosAposSalvar.length
-          );
-
-          const foiSalvo = registrosAposSalvar.some(
-            r =>
-              r.pessoa_id === registro.pessoa_id &&
-              r.comum_id === registro.comum_id &&
-              r.cargo_id === registro.cargo_id &&
-              r.status_sincronizacao === 'pending'
-          );
-
-          console.log(`✅ [${Platform.OS}] Registro foi salvo?`, foiSalvo);
-
-          if (!foiSalvo) {
-            // Se não foi salvo, tentar novamente com novo ID
-            console.warn(
-              `⚠️ [${Platform.OS}] Registro não encontrado após salvar, tentando novamente com novo ID...`
-            );
-            const registroComNovoId = {
-              ...registro,
-              id: generateExternalUUID(),
-            };
-            try {
-              await supabaseDataService.saveRegistroToLocal(registroComNovoId);
-              console.log(`✅ [${Platform.OS}] Registro salvo com novo ID`);
-            } catch (retryError) {
-              console.error(`❌ [${Platform.OS}] Erro ao salvar com novo ID:`, retryError);
-              throw retryError;
-            }
-          }
-
-          console.log(`🔄 [${Platform.OS}] Atualizando contador da fila...`);
-          await refreshCount();
-          console.log(`✅ [${Platform.OS}] Contador atualizado`);
-
-          showToast.success('Salvo offline', 'Será enviado quando voltar online');
-          console.log(`✅ [${Platform.OS}] Toast de sucesso exibido`);
-
-          // Limpar apenas formulário de nome para digitação pesada
-          clearAllFields();
-
-          console.log(`✅ [${Platform.OS}] Formulário limpo, finalizando...`);
+          setPendingRegistro(registro);
+          setDuplicateModalVisible(true);
           setLoading(false);
           isSubmittingRef.current = false;
           return;
-        } catch (error) {
-          console.error(`❌ [${Platform.OS}] Erro crítico ao salvar registro offline:`, error);
+        }
 
-          // Tentar novamente com novo ID
+        // 3. Trava de Segurança: Verificar duplicata remota (rápido - 3s timeout) - SOMENTE SE ONLINE
+        const isOnlineNow = await offlineSyncService.isOnline();
+        if (isOnlineNow) {
           try {
-            let nomeCompletoUsuario = user.nome;
-            if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
-              const emailSemDominio = user.email?.split('@')[0] || '';
-              nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
-            }
-            const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
-
-            // Buscar classe da organista
-            let classeOrganistaFinalRetry: string | undefined = undefined;
-            if (isOrganista) {
-              if (selectedClasseOrganista) {
-                classeOrganistaFinalRetry = selectedClasseOrganista;
-              } else if (!isNomeManual) {
-                const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-                if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-                  classeOrganistaFinalRetry = pessoaSelecionada.classe_organista;
-                } else {
-                  classeOrganistaFinalRetry = 'OFICIALIZADA';
-                }
-              }
-            }
-
-            let instrumentoCandidato: string | null = null;
-            if (isCandidato && !isNomeManual) {
-              const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-              if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
-                instrumentoCandidato = pessoaSelecionada.instrumento_id;
-              }
-            }
-
-            const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
-            const comumIdFinal = isComumManual 
-              ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') 
-              : selectedComum;
-
-            const registroComNovoId: RegistroPresenca = {
-              pessoa_id: pessoaIdFinal,
-              comum_id: comumIdFinal,
-              cargo_id: selectedCargo,
-              instrumento_id: isCandidato
-                ? instrumentoCandidato
-                : showInstrumento && selectedInstrumento
-                  ? selectedInstrumento
-                  : null,
-              classe_organista: classeOrganistaFinalRetry,
-              local_ensaio: localEnsaioUnico || 'Não definido',
-              data_hora_registro: getCurrentDateTimeISO(),
-              usuario_responsavel: nomeUsuario,
-              status_sincronizacao: 'pending',
-              id: generateExternalUUID(),
-            };
-
-            await supabaseDataService.saveRegistroToLocal(registroComNovoId);
-            await refreshCount();
-            showToast.success('Salvo offline', 'Será enviado quando voltar online');
-
-            // Limpar formulário
-            setSelectedComum('');
-            setSelectedCargo('');
-            setSelectedInstrumento('');
-            setSelectedPessoa('');
-            setIsNomeManual(false);
-
-            setLoading(false);
-            isSubmittingRef.current = false;
-            return;
-          } catch (retryError) {
-            console.error(`❌ [${Platform.OS}] Erro mesmo na segunda tentativa:`, retryError);
-            showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
-            setLoading(false);
-            isSubmittingRef.current = false;
-            return;
-          }
-        }
-      }
-
-      // Usar o localEnsaioUnico buscado no início
-      const localEnsaioOnline = localEnsaioUnico;
-
-      // Usar nome do usuário ao invés do ID
-      let nomeCompletoUsuarioOnline = user.nome;
-      if (!nomeCompletoUsuarioOnline || nomeCompletoUsuarioOnline.trim() === '') {
-        const emailSemDominio = user.email?.split('@')[0] || '';
-        nomeCompletoUsuarioOnline = emailSemDominio.replace(/[._]/g, ' ').trim();
-      }
-      const nomeUsuarioOnline = formatRegistradoPor(nomeCompletoUsuarioOnline || user.id);
-
-      // Buscar classe da organista
-      let classeOrganistaFinalOnline: string | undefined = undefined;
-      if (isOrganista) {
-        if (showClasseOrganista && selectedClasseOrganista) {
-          classeOrganistaFinalOnline = selectedClasseOrganista;
-        } else if (showClasseOrganista && !isNomeManual) {
-          const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-          if (pessoaSelecionada && pessoaSelecionada.classe_organista) {
-            classeOrganistaFinalOnline = pessoaSelecionada.classe_organista;
-          } else {
-            classeOrganistaFinalOnline = 'OFICIALIZADA';
-          }
-        } else {
-          // Para Instrutora/Examinadora ou Organista sem classe selecionada
-          classeOrganistaFinalOnline = 'OFICIALIZADA';
-        }
-      }
-
-      // Para Candidatos: buscar instrumento da pessoa selecionada
-      let instrumentoCandidatoOnline: string | null = null;
-      if (isCandidato && !isNomeManual) {
-        const pessoaSelecionada = pessoas.find(p => p.id === selectedPessoa);
-        if (pessoaSelecionada && pessoaSelecionada.instrumento_id) {
-          instrumentoCandidatoOnline = pessoaSelecionada.instrumento_id;
-        }
-      }
-
-      const pessoaIdFinalOnline = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
-
-      const registroOnline: RegistroPresenca = {
-        pessoa_id: pessoaIdFinalOnline,
-        comum_id: isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum,
-        cargo_id: selectedCargo,
-        instrumento_id: isCandidato
-          ? instrumentoCandidatoOnline
-          : showInstrumento && selectedInstrumento
-            ? selectedInstrumento
-            : null,
-        classe_organista: classeOrganistaFinalOnline,
-        local_ensaio: localEnsaioOnline || 'Não definido',
-        data_hora_registro: getCurrentDateTimeISO(),
-        usuario_responsavel: nomeUsuarioOnline,
-        status_sincronizacao: 'pending',
-      };
-
-      // Se estiver offline, já foi tratado acima - não chegará aqui
-      // Se chegou aqui, está online - tentar enviar online
-      try {
-        console.log('🚀 [ONLINE] Iniciando envio de registro online...', {
-          isOnline,
-          isOfflineNow,
-          pessoa_id: registroOnline.pessoa_id,
-          comum_id: registroOnline.comum_id,
-          cargo_id: registroOnline.cargo_id,
-        });
-
-        const result = await (offlineSyncService as any).createRegistro(registroOnline);
-
-        console.log('📋 Resultado do createRegistro:', result);
-        console.log('🔍 Verificando duplicata - success:', result.success, 'error:', result.error);
-
-        // Atualizar contador da fila após criar registro (sempre, mesmo se houver erro)
-        try {
-          await refreshCount();
-          console.log('✅ Contador da fila atualizado');
-        } catch (countError) {
-          console.warn('⚠️ Erro ao atualizar contador da fila:', countError);
-          // Não bloquear o fluxo por erro no contador
-        }
-
-        if (result.success) {
-          // Verificar se foi enviado com sucesso ou salvo localmente
-          const foiEnviado = !result.error || !result.error.includes('salvo localmente');
-
-          if (foiEnviado) {
-            // 🚀 MELHORIA: Usar showToast centralizado (já possui estilo premium para Web)
-            showToast.success('Registro Enviado!', 'A presença foi registrada com sucesso.');
-            // Limpar formulário usando função helper
-            clearAllFields();
-          } else {
-            // Registro foi salvo localmente (sem internet ou erro de conectividade)
-            if (!isOnline) {
-              // Modo offline - mostrar mensagem informativa
-              showToast.info('Salvo offline', 'Enviado quando voltar online');
-            } else {
-              // Online mas erro de conectividade - mostrar mensagem informativa
-              showToast.warning('Salvo localmente', 'Será enviado automaticamente quando possível');
-            }
-            // Não limpar formulário se foi salvo localmente (usuário pode querer tentar novamente)
-          }
-        } else {
-          // Verificar se é erro de duplicata
-          const isDuplicateError =
-            result.error &&
-            (result.error.includes('DUPLICATA') ||
-              result.error.includes('duplicat') ||
-              result.error.includes('já foi cadastrado hoje') ||
-              result.error.includes('DUPLICATA_BLOQUEADA'));
-
-          console.log('❌ Registro falhou - Verificando se é duplicata...');
-          console.log('   Error:', result.error);
-          console.log('   É duplicata?:', isDuplicateError);
-
-          if (isDuplicateError) {
-            console.log('✅ DUPLICATA DETECTADA! Processando erro:', result.error);
-
-            let nome = '';
-            let comumNome = '';
-            let dataFormatada = '';
-            let horarioFormatado = '';
-
-            // SEMPRE usar dados do formulário primeiro (mais confiável)
-            nome = isNomeManual
-              ? selectedPessoa
-              : pessoas.find(p => p.id === selectedPessoa)?.nome_completo ||
-              (
-                pessoas.find(p => p.id === selectedPessoa)?.nome +
-                ' ' +
-                (pessoas.find(p => p.id === selectedPessoa)?.sobrenome || '')
-              ).trim() ||
-              '';
-            comumNome = comuns.find(c => c.id === selectedComum)?.nome || '';
-
-            // Tentar extrair informações do formato DUPLICATA:nome|comum|data|horario
-            if (result.error && result.error.includes('DUPLICATA:')) {
-              const errorPart = result.error.split('DUPLICATA:')[1]?.trim() || '';
-
-              // Tentar formato com pipes primeiro: DUPLICATA:nome|comum|data|horario
-              if (errorPart.includes('|')) {
-                const parts = errorPart.split('|');
-                if (parts.length >= 4) {
-                  nome = parts[0].trim() || nome;
-                  comumNome = parts[1].trim() || comumNome;
-                  dataFormatada = parts[2].trim();
-                  horarioFormatado = parts[3].trim();
-                }
-              } else {
-                // Tentar formato sem pipes: DUPLICATA: nome comum data/horario
-                // Exemplo: "DUPLICATA: ADRIANO MOTA BR-22-1739 - JARDIM MIRANDA 21/11/2025/13:18"
-                const match = errorPart.match(
-                  /^(.+?)\s+(BR-\d+-\d+\s*-\s*.+?)\s+(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/
-                );
-                if (match) {
-                  nome = match[1].trim() || nome;
-                  comumNome = match[2].trim() || comumNome;
-                  dataFormatada = match[3].trim();
-                  horarioFormatado = match[4].trim();
-                } else {
-                  // Tentar extrair apenas data e horário do formato: ... data/horario
-                  const dataHorarioMatch = errorPart.match(/(\d{2}\/\d{2}\/\d{4})\/(\d{2}:\d{2})/);
-                  if (dataHorarioMatch) {
-                    dataFormatada = dataHorarioMatch[1];
-                    horarioFormatado = dataHorarioMatch[2];
-                  }
-                }
-              }
-            }
-
-            // Se não conseguiu extrair data/horário, usar data/horário atual via nosso utils (com timezone America/Sao_Paulo fixado)
-            if (!dataFormatada || !horarioFormatado) {
-              dataFormatada = formatDate();
-              horarioFormatado = formatTime();
-            }
-
-            // ---- NOVA FUNÇÃO AUXILIAR PARA O NOME ----
-            // Pega apenas "PRIMEIRONOME ÚLTIMONOME"
-            const obterNomeCurto = (nc: string): string => {
-              if (!nc) return '';
-              const pedacos = nc.trim().split(/\s+/);
-              if (pedacos.length <= 1) return pedacos[0] || '';
-              return `${pedacos[0]} ${pedacos[pedacos.length - 1]}`;
-            };
-
-            const nomeExibicao = obterNomeCurto(nome);
-
-            console.log('📋 Informações extraídas:', {
-              nome: nomeExibicao,
-              comumNome,
-              dataFormatada,
-              horarioFormatado,
+            await supabaseDataService.checkDuplicataRemota({
+              nome: registro.pessoa_id.startsWith('manual_') ? registro.pessoa_id.replace('manual_', '') : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || ''),
+              comum: (comuns.find(c => c.id === registro.comum_id)?.nome || ''),
+              instrumento: (instrumentos.find(i => i.id === registro.instrumento_id)?.nome || ''), // Passar instrumento
+              dataIso: registro.data_hora_registro
             });
-
-            // Mostrar alerta de duplicata usando SweetAlert2 (igual ao backupcont)
-            if (Platform.OS === 'web') {
-              // Usar SweetAlert2 na web (igual ao backupcont)
-              const getSwal = (): any => {
-                if (typeof window === 'undefined') return null;
-                try {
-                  const sweetalert2 = require('sweetalert2');
-                  return sweetalert2.default || sweetalert2;
-                } catch (error) {
-                  console.warn('SweetAlert2 não disponível:', error);
-                  return null;
-                }
-              };
-
-              const Swal = getSwal();
-              if (Swal) {
-                const mensagem = `
-                <div style="color: #545454; font-size: 16px; margin-top: 5px;">
-                  <strong style="color: #545454;">${nomeExibicao || 'Nome não encontrado'}</strong> de <strong style="color: #545454;">${comumNome || 'Comum não encontrada'}</strong><br>
-                  já foi cadastrado(a).<br><br>
-                  <div style="text-align: left; background-color: #f8f9fa; padding: 12px 16px; border-radius: 8px; border: 1px solid #e9ecef; width: 100%; box-sizing: border-box; margin: 0 auto; overflow: hidden;">
-                    <span style="font-weight: 600; color: #495057;">Data:</span> <span style="color: #6c757d">${dataFormatada}</span><br>
-                    <span style="font-weight: 600; color: #495057;">Horário:</span> <span style="color: #6c757d">${horarioFormatado}</span>
-                  </div>
-                </div>
-              `;
-
-                showToast.confirmCustom({
-                  title: 'Cadastro Duplicado!',
-                  html: mensagem,
-                  icon: 'warning',
-                  confirmButtonText: 'Cadastrar Mesmo Assim',
-                  cancelButtonText: 'Cancelar',
-                  confirmButtonColor: '#d33',
-                }).then(async (confirmed: boolean) => {
-                  if (!confirmed) {
-                    // Usuário cancelou - limpar campos e recarregar página
-                    console.log(
-                      '❌ Usuário cancelou registro por duplicata - limpando campos e recarregando página...'
-                    );
-                    setSelectedComum('');
-                    setSelectedCargo('');
-                    setSelectedInstrumento('');
-                    setSelectedPessoa('');
-                    setIsNomeManual(false);
-
-                    return;
-                  }
-
-                  // Usuário confirmou - criar registro mesmo assim
-                  console.log('✅ Usuário confirmou registro mesmo com duplicata');
-                  setLoading(true);
-                  try {
-                    const registroForce = { ...registroOnline };
-                    const resultForce = await (offlineSyncService as any).createRegistro(
-                      registroForce,
-                      true
-                    );
-
-                    if (resultForce.success) {
-                      if (isOnline && !syncing) {
-                        setTimeout(() => {
-                          syncData();
-                        }, 500);
-                      }
-                      showToast.success(
-                        'Registro enviado!',
-                        'Registro duplicado cadastrado com sucesso!'
-                      );
-                      // Limpar formulário ANTES de recarregar
-                      clearAllFields();
-                      // Recarregar página após sucesso
-                    } else {
-                      showToast.error(
-                        'Erro',
-                        resultForce.error || 'Erro ao cadastrar registro duplicado'
-                      );
-                      // Limpar formulário ANTES de recarregar
-                      setSelectedComum('');
-                      setSelectedCargo('');
-                      setSelectedInstrumento('');
-                      setSelectedPessoa('');
-                      setIsNomeManual(false);
-                      // Recarregar página mesmo em caso de erro
-                    }
-                  } catch (error) {
-                    showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
-                    console.error('Erro ao criar registro duplicado:', error);
-                    // Limpar formulário ANTES de recarregar
-                    setSelectedComum('');
-                    setSelectedCargo('');
-                    setSelectedInstrumento('');
-                    setSelectedPessoa('');
-                    setIsNomeManual(false);
-                    // Recarregar página mesmo em caso de erro
-                  } finally {
-                    setLoading(false);
-                  }
+          } catch (dupError: any) {
+            if (dupError.message?.includes('DUPLICATA_BLOQUEADA')) {
+              console.warn('🚨 Duplicata remota detectada:', dupError.message);
+              
+              // Parsing robusto: Ignorar prefixos e colons que fogem do padrão (ex: colons no horário)
+              const msg = dupError.message;
+              let infoStr = '';
+              if (msg.includes('DUPLICATA:')) {
+                infoStr = msg.split('DUPLICATA:')[1];
+              } else if (msg.includes('DUPLICATA_BLOQUEADA:')) {
+                infoStr = msg.split('DUPLICATA_BLOQUEADA:')[1];
+              }
+              
+              const details = infoStr ? infoStr.split('|') : [];
+              
+              if (details.length >= 4) {
+                setDuplicateInfo({ 
+                  nome: obterNomeCurto(details[0]), 
+                  comum: details[1], 
+                  data: details[2], 
+                  horario: details[3] 
                 });
               } else {
-                // Fallback: usar modal React Native
-                setDuplicateInfo({
-                  nome: nome || 'Nome não encontrado',
-                  comum: comumNome || 'Comum não encontrada',
-                  data: dataFormatada,
-                  horario: horarioFormatado,
+                console.error('❌ Falha ao parsear detalhes da duplicata remota:', infoStr);
+                // Usar dados do formulário mas marcar como desconhecido se o parsing falhar
+                const nomeFallback = registro.pessoa_id.startsWith('manual_') ? registro.pessoa_id.replace('manual_', '') : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
+                const comumFallback = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+                setDuplicateInfo({ 
+                  nome: obterNomeCurto(nomeFallback), 
+                  comum: comumFallback, 
+                  data: '--/--/----', 
+                  horario: '--:--:--' 
                 });
-                setPendingRegistro(registroOnline);
-                setDuplicateModalVisible(true);
               }
-            } else {
-              // Mobile: usar modal React Native
-              setDuplicateInfo({
-                nome: nome || 'Nome não encontrado',
-                comum: comumNome || 'Comum não encontrada',
-                data: dataFormatada,
-                horario: horarioFormatado,
-              });
-              setPendingRegistro(registroOnline);
+              
+              setPendingRegistro(registro);
               setDuplicateModalVisible(true);
-            }
-          } else {
-            // Erro não é duplicata - mostrar erro
-            const errorMessage = result.error || 'Erro ao enviar registro';
-            console.error('❌ Erro ao enviar registro:', errorMessage);
-            showToast.error('Erro', errorMessage);
-
-            // Se for erro de salvamento local, tentar salvar manualmente como fallback
-            if (errorMessage.includes('salvar') || errorMessage.includes('localmente')) {
-              console.log('🔄 Tentando salvar registro manualmente como fallback...');
-              try {
-                await supabaseDataService.saveRegistroToLocal({
-                  ...registroOnline,
-                  status_sincronizacao: 'pending',
-                });
-                console.log('✅ Registro salvo manualmente com sucesso');
-                showToast.info('Salvo offline', 'Registro salvo na fila local');
-                await refreshCount();
-              } catch (fallbackError) {
-                console.error('❌ Erro ao salvar registro manualmente:', fallbackError);
-              }
+              setLoading(false);
+              isSubmittingRef.current = false;
+              return;
             }
           }
         }
-      } catch (error) {
-        console.error('❌ ERRO CRÍTICO ao processar registro:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
 
-        // Tentar salvar localmente como último recurso
-        try {
-          console.log('🔄 Tentando salvar registro localmente como último recurso...');
-          // Usar registroOnline se disponível, senão criar um novo
-          // Criar registro fallback se registroOnline não estiver disponível
-          let registroFallback: RegistroPresenca;
-          if (registroOnline) {
-            registroFallback = registroOnline;
-          } else {
-            const localEnsaioFallback = await localStorageService.getLocalEnsaio();
-            let nomeCompletoUsuarioFallback = user?.nome || '';
-            if (!nomeCompletoUsuarioFallback || nomeCompletoUsuarioFallback.trim() === '') {
-              const emailSemDominio = user?.email?.split('@')[0] || '';
-              nomeCompletoUsuarioFallback = emailSemDominio.replace(/[._]/g, ' ').trim();
-            }
-            const nomeUsuarioFallback = formatRegistradoPor(
-              nomeCompletoUsuarioFallback || user?.id || ''
-            );
+        // 4. Salvar localmente (quase instantâneo)
+        console.log('💾 [SUBMIT] Salvando registro na fila para processamento em segundo plano...');
+        await supabaseDataService.saveRegistroToLocal(registro);
+        
+        // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)
+        // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
+        showToast.success('Registro Salvo!', 'O registro foi realizado com sucesso!', 2000);
+        
+        // Limpar campos imediatamente
+        clearAllFields();
+        await refreshCount();
 
-            registroFallback = {
-              pessoa_id: isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa,
-              comum_id: selectedComum,
-              cargo_id: selectedCargo,
-              instrumento_id: showInstrumento && selectedInstrumento ? selectedInstrumento : null,
-              local_ensaio: localEnsaioFallback || 'Não definido',
-              data_hora_registro: getCurrentDateTimeISO(),
-              usuario_responsavel: nomeUsuarioFallback,
-              classe_organista: isOrganista 
-                ? (showClasseOrganista && selectedClasseOrganista ? selectedClasseOrganista : 'OFICIALIZADA')
-                : undefined,
-              status_sincronizacao: 'pending',
-            };
-          }
-          await supabaseDataService.saveRegistroToLocal({
-            ...registroFallback,
-            status_sincronizacao: 'pending',
+        // 5. Encerrar estado de loading e trava de submissão
+        setLoading(false);
+        isSubmittingRef.current = false;
+
+        // 6. Disparar sincronização em segundo plano (SEM AWAIT)
+        // 🚨 SILENCIO NO ONLINE: Não setar 'syncing' para não aparecer no badge enquanto online
+        console.log('🔄 [SUBMIT] Disparando sincronização silenciosa em background...');
+        offlineSyncService
+          .processarFilaLocal(true) // 🚨 MODO SILENCIOSO: Não mostrar alerta de fila processada no online
+          .catch(err => {
+
+            console.error('❌ [SUBMIT] Erro na sincronização em background:', err);
+          })
+          .finally(() => {
+            refreshCount(); // Atualizar contagem final
           });
-          console.log('✅ Registro salvo localmente como último recurso');
-          showToast.warning('Salvo offline', 'Registro salvo na fila. Será enviado quando possível.');
-          await refreshCount();
-        } catch (fallbackError) {
-          console.error(
-            '❌ ERRO CRÍTICO: Não foi possível salvar registro nem localmente:',
-            fallbackError
-          );
-          Alert.alert(
-            'Erro Crítico',
-            'Não foi possível salvar o registro. Tente novamente ou verifique sua conexão.'
-          );
-        }
-      } finally {
+
+      } catch (error) {
+        console.error('❌ [SUBMIT] Erro no processamento otimista:', error);
+        showToast.error('Erro', 'Ocorreu um erro ao salvar o registro localmente.');
         setLoading(false);
         isSubmittingRef.current = false;
       }
     } finally {
-      // 🚨 GARANTIA ABSOLUTA: Destravar mesmo em return antecipado ou exceção não mapeada
-      isSubmittingRef.current = false;
+      // Garantia final
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -1641,16 +1133,10 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       }, 50);
     } catch (error) {
       console.error('❌ [handleOrganistasEnsaio] Erro ao navegar para OrganistasEnsaio:', error);
-      console.error('❌ [handleOrganistasEnsaio] Detalhes do erro:', {
-        message: error instanceof Error ? error.message : String(error),
-        name: error instanceof Error ? error.name : 'Unknown',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-      showToast.error('Erro', 'Não foi possível acessar a página de organistas. Tente novamente.');
+      showToast.error('Erro', 'Não foi possível acessar a página de organistas.');
     }
   };
 
-  // Função para salvar novo registro do modal (pessoas de outras cidades)
   const handleSaveNewRegistration = async (data: {
     comum: string;
     cidade: string;
@@ -1664,15 +1150,14 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       return;
     }
 
-    try {
-      let localEnsaio = await localStorageService.getLocalEnsaio();
+    console.log('✅ [MODAL] Iniciando processamento otimista para novo registro...');
 
-      // 🚨 CRÍTICO: Converter ID para nome do local (mesma lógica do registro principal)
-      // Garantir que sempre salvamos o nome, nunca o ID
+    try {
+      // 1. Preparar os dados (mesma lógica de conversão de local e nome)
+      let localEnsaio = await localStorageService.getLocalEnsaio();
       let localEnsaioNome: string = 'Não definido';
       if (localEnsaio) {
         if (/^\d+$/.test(localEnsaio.trim())) {
-          // Se é um número (ID), converter para nome
           const locais: { id: string; nome: string }[] = [
             { id: '1', nome: 'Cotia' },
             { id: '2', nome: 'Caucaia do Alto' },
@@ -1684,317 +1169,199 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           ];
           const localEncontrado = locais.find(l => l.id === localEnsaio!.trim());
           localEnsaioNome = localEncontrado?.nome || localEnsaio;
-          console.log('🔄 [MODAL] Local de ensaio convertido de ID para nome:', localEnsaioNome);
         } else {
-          // Já é um nome, usar diretamente
           localEnsaioNome = localEnsaio.trim();
         }
       }
 
-      // Extrair apenas primeiro e último nome do usuário
-      // Se não tem nome no perfil, extrair do email (remover @gmail.com e formatar)
       let nomeCompletoUsuario = user.nome;
       if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
-        // Extrair nome do email: ricardograngeiro@gmail.com -> ricardograngeiro
-        // A função formatRegistradoPor vai separar e formatar corretamente
         const emailSemDominio = user.email?.split('@')[0] || '';
-        // Substituir pontos e underscores por espaços, mas manter minúsculas para a função separar
         nomeCompletoUsuario = emailSemDominio.replace(/[._]/g, ' ').trim();
       }
-      // formatRegistradoPor extrai primeiro e último nome, separa palavras juntas e converte para maiúscula
       const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
 
-      // 🚨 CRÍTICO: Buscar cargo e garantir que usamos o ID, não o nome
-      // No modal de novo registro, data.cargo é o NOME do cargo (ex: "Instrutora")
-      // Precisamos encontrar o ID correspondente
-      console.log('🔍 [MODAL] Buscando cargo:', {
-        cargoNome: data.cargo,
-        totalCargos: cargos.length,
-        cargosDisponiveis: cargos.map(c => c.nome),
-      });
-
+      // Buscar ID do cargo correspondente ao nome recebido do modal
       let cargoObj = cargos.find(c => c.nome === data.cargo);
       if (!cargoObj) {
-        // Tentar buscar por ID também (caso já venha como ID)
         cargoObj = cargos.find(c => c.id === data.cargo);
       }
 
       if (!cargoObj) {
-        console.error('❌ [MODAL] Cargo não encontrado:', {
-          cargoProcurado: data.cargo,
-          cargosDisponiveis: cargos.map(c => ({ id: c.id, nome: c.nome })),
-        });
-        Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado na lista de cargos`);
+        console.error('❌ [MODAL] Cargo não encontrado:', data.cargo);
+        Alert.alert('Erro', `Cargo "${data.cargo}" não encontrado`);
         return;
       }
 
-      console.log('✅ [MODAL] Cargo encontrado:', {
-        id: cargoObj.id,
-        nome: cargoObj.nome,
-      });
-
-      const instrumentoObj = data.instrumento
-        ? instrumentos.find(i => i.id === data.instrumento)
-        : null;
-
-      // Criar registro com dados do modal
-      // 🚨 CRÍTICO: Usar cargoObj.id (ID do cargo), não data.cargo (nome)
-      const registro: RegistroPresenca & { cidade?: string } = {
+      // Criar o registro externo
+      const registro: RegistroPresenca = {
         pessoa_id: `manual_${data.nome.toUpperCase()}`,
-        comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`, // ID temporário
-        cargo_id: cargoObj.id, // 🚨 USAR ID DO CARGO, NÃO O NOME
+        comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
+        cargo_id: cargoObj.id,
         instrumento_id: data.instrumento || undefined,
         classe_organista: data.classe || undefined,
         local_ensaio: localEnsaioNome,
         data_hora_registro: getCurrentDateTimeISO(),
         usuario_responsavel: nomeUsuario,
         status_sincronizacao: 'pending',
-        cidade: data.cidade, // Adicionar cidade ao registro
+        cidade: data.cidade, // Campo agora suportado no modelo
+        id: generateExternalUUID(),
       };
 
-      // 🚨 CRÍTICO: Verificar se está offline ANTES de tentar enviar
-      const isOfflineNow = !(await offlineSyncService.isOnline());
-      console.log('🌐 [MODAL] Status de conexão:', isOfflineNow ? 'OFFLINE' : 'ONLINE');
+      // 2. Trava de Segurança: Verificar duplicata na fila local
+      const dupLocal = await supabaseDataService.checkDuplicataLocal({
+        pessoaId: registro.pessoa_id,
+        comumId: registro.comum_id,
+        instrumentoId: registro.instrumento_id,
+        dataIso: registro.data_hora_registro
+      });
 
-      if (isOfflineNow) {
-        // 🚨 CORREÇÃO CRÍTICA: Se offline, salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
-        console.log('📴 [MODAL] Modo offline detectado - salvando usando saveRegistroToLocal');
+      if (dupLocal) {
+        console.warn('🚨 Duplicata detectada no modal (fila local)');
+        setDuplicateInfo({ 
+          nome: obterNomeCurto(data.nome.toUpperCase()), 
+          comum: data.comum.toUpperCase(), 
+          data: dupLocal.data, 
+          horario: dupLocal.horario 
+        });
+        setPendingRegistro(registro);
+        setDuplicateModalVisible(true);
+        setNewRegistrationModalVisible(false);
+        setLoading(false);
+        isSubmittingRef.current = false;
+        return;
+      }
 
+      // 3. Trava de Segurança: Verificar duplicata remota (SOMENTE SE ONLINE)
+      const isOnlineNow = await offlineSyncService.isOnline();
+      if (isOnlineNow) {
         try {
-          // Usar o mesmo formato de registro que o sistema principal usa
-          const registroOffline: RegistroPresenca & { cidade?: string } = {
-            pessoa_id: `manual_${data.nome.toUpperCase()}`,
-            comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
-            cargo_id: cargoObj.id,
-            instrumento_id: data.instrumento || undefined,
-            classe_organista: data.classe || undefined,
-            local_ensaio: localEnsaioNome,
-            data_hora_registro: getCurrentDateTimeISO(),
-            usuario_responsavel: nomeUsuario,
-            status_sincronizacao: 'pending',
-            cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro offline
-          };
-
-          // Salvar usando saveRegistroToLocal (funciona em Android/iOS/Web)
-          await supabaseDataService.saveRegistroToLocal(registroOffline);
-          console.log('✅ [MODAL] Registro salvo offline com sucesso');
-
-          showToast.success('Salvo offline', 'Registro será enviado quando voltar online');
-
-          // Limpar formulário ANTES de recarregar
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
-
-          // Recarregar página após salvar (apenas web)
-          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          await supabaseDataService.checkDuplicataRemota({
+            nome: data.nome.toUpperCase(),
+            comum: data.comum.toUpperCase(),
+            instrumento: (instrumentos.find(i => i.id === registro.instrumento_id)?.nome || ''), // Passar instrumento
+            dataIso: registro.data_hora_registro
+          });
+        } catch (dupError: any) {
+          if (dupError.message?.includes('DUPLICATA_BLOQUEADA')) {
+            console.warn('🚨 Duplicata remota detectada no modal:', dupError.message);
+            
+            const msg = dupError.message;
+            let infoStr = '';
+            if (msg.includes('DUPLICATA:')) {
+              infoStr = msg.split('DUPLICATA:')[1];
+            } else if (msg.includes('DUPLICATA_BLOQUEADA:')) {
+              infoStr = msg.split('DUPLICATA_BLOQUEADA:')[1];
+            }
+            
+            const details = infoStr ? infoStr.split('|') : [];
+            
+            if (details.length >= 4) {
+              setDuplicateInfo({ 
+                nome: obterNomeCurto(details[0]), 
+                comum: details[1], 
+                data: details[2], 
+                horario: details[3] 
+              });
+            } else {
+              setDuplicateInfo({ 
+                nome: obterNomeCurto(data.nome.toUpperCase()), 
+                comum: data.comum.toUpperCase(), 
+                data: '--/--/----', 
+                horario: '--:--:--' 
+              });
+            }
+            
+            setPendingRegistro(registro);
+            setDuplicateModalVisible(true);
+            setNewRegistrationModalVisible(false);
+            setLoading(false);
+            isSubmittingRef.current = false;
+            return;
           }
-          return;
-        } catch (filaError) {
-          console.error('❌ [MODAL] Erro ao salvar offline:', filaError);
-          showToast.error('Erro', 'Erro ao salvar registro offline. Tente novamente.');
-          throw filaError;
         }
       }
 
-      // 🚨 CRÍTICO: Para registros externos (modal de novo registro), enviar DIRETAMENTE para Google Sheets
-      // NÃO usar createRegistro que tenta validar contra listas locais
-      // Seguir o mesmo padrão do backupcont: enviar direto para Google Sheets, NÃO para Supabase
-      console.log(
-        '📤 [MODAL] Enviando registro externo diretamente para Google Sheets (sem validação local)'
-      );
-      console.log('📤 [MODAL] Dados do registro:', {
-        nome: data.nome,
-        comum: data.comum,
-        cidade: data.cidade,
-        cargo: cargoObj.nome,
-        instrumento: instrumentoObj?.nome,
-        classe: data.classe,
-        localEnsaio: localEnsaioNome,
-        localEnsaioOriginal: localEnsaio,
-        registradoPor: nomeUsuario,
-        userId: user.id,
-      });
-      console.log('🔄 [MODAL] Verificação de conversão de local:', {
-        original: localEnsaio,
-        convertido: localEnsaioNome,
-        ehNumero: localEnsaio ? /^\d+$/.test(localEnsaio.trim()) : false,
-      });
+      // 4. Salvar localmente (quase instantâneo)
+      console.log('💾 [MODAL] Salvando registro externo na fila...');
+      await supabaseDataService.saveRegistroToLocal(registro);
 
-      console.log('🔄 [MODAL] ========== INICIANDO ENVIO PARA GOOGLE SHEETS ==========');
-      console.log('🔄 [MODAL] Chamando sendExternalRegistroToSheet...');
-      console.log('🔄 [MODAL] Parâmetros que serão enviados:', {
-        nome: data.nome,
-        comum: data.comum,
-        cidade: data.cidade,
-        cargo: cargoObj.nome,
-        instrumento: instrumentoObj?.nome,
-        classe: data.classe,
-        localEnsaio: localEnsaioNome,
-        localEnsaioOriginal: localEnsaio,
-        registradoPor: nomeUsuario,
-        userId: user.id,
-      });
-      console.log(
-        '✅ [MODAL] CONFIRMAÇÃO: localEnsaio que será enviado é:',
-        localEnsaioNome,
-        '(deve ser nome, não ID)'
-      );
-      let result;
-      try {
-        console.log('🔄 [MODAL] ANTES de chamar sendExternalRegistroToSheet');
-        console.log('📤 [MODAL] Dados que serão enviados:', {
-          nome: data.nome,
-          comum: data.comum,
-          cidade: data.cidade,
-          cargo: cargoObj.nome,
-          instrumento: instrumentoObj?.nome,
-          classe: data.classe,
-        });
-        result = await googleSheetsService.sendExternalRegistroToSheet({
-          nome: data.nome,
-          comum: data.comum,
-          cidade: data.cidade,
-          cargo: cargoObj.nome, // Usar nome do cargo encontrado
-          instrumento: instrumentoObj?.nome,
-          classe: data.classe,
-          localEnsaio: localEnsaioNome,
-          registradoPor: nomeUsuario,
-          userId: user.id,
-        });
-        console.log('🔄 [MODAL] DEPOIS de chamar sendExternalRegistroToSheet');
-        console.log('📥 [MODAL] Resultado do envio recebido:', result);
-        console.log('📥 [MODAL] Tipo do resultado:', typeof result);
-        console.log('📥 [MODAL] result.success:', result?.success);
-        console.log('📥 [MODAL] result.error:', result?.error);
-        console.log('📥 [MODAL] Resultado completo (JSON):', JSON.stringify(result, null, 2));
+      // 3. Feedback imediato ao usuário
+      showToast.success('Registro Salvo!', 'O registro foi realizado com sucesso!', 2000);
 
-        // 🚨 CRÍTICO: Se result.success não é true, lançar exceção IMEDIATAMENTE
-        // Isso garante que o modal não feche silenciosamente
-        if (!result || result.success !== true) {
-          const errorMsg = result?.error || 'Erro desconhecido ao enviar registro';
-          console.error('❌ [MODAL] Envio falhou - lançando exceção:', errorMsg);
-          throw new Error(errorMsg);
-        }
-      } catch (sendError: any) {
-        console.error('❌ [MODAL] Erro ao chamar sendExternalRegistroToSheet:', sendError);
-        console.error('❌ [MODAL] Detalhes do erro:', {
-          message: sendError.message,
-          name: sendError.name,
-          stack: sendError.stack,
-        });
-
-        // 🚨 CRÍTICO: Mostrar erro IMEDIATAMENTE para o usuário
-        const errorMessage = sendError.message || 'Erro ao enviar registro. Tente novamente.';
-        console.error('❌ [MODAL] Exibindo toast de erro:', errorMessage);
-        showToast.error('Erro ao salvar', errorMessage);
-
-        // Se falhou, tentar salvar usando saveRegistroToLocal como fallback (funciona em Android/iOS/Web)
-        console.log('🔄 [MODAL] Tentando salvar usando saveRegistroToLocal como fallback...');
-        try {
-          const registroFallback: RegistroPresenca & { cidade?: string } = {
-            pessoa_id: `manual_${data.nome.toUpperCase()}`,
-            comum_id: `external_${data.comum.toUpperCase()}_${Date.now()}`,
-            cargo_id: cargoObj.id,
-            instrumento_id: data.instrumento || undefined,
-            classe_organista: data.classe || undefined,
-            local_ensaio: localEnsaioNome,
-            data_hora_registro: getCurrentDateTimeISO(),
-            usuario_responsavel: nomeUsuario,
-            status_sincronizacao: 'pending',
-            cidade: data.cidade, // 🚨 CORREÇÃO: Incluir cidade no registro fallback
-          };
-
-          await supabaseDataService.saveRegistroToLocal(registroFallback);
-          console.log('✅ [MODAL] Registro salvo como fallback');
-          showToast.warning(
-            'Salvo na fila',
-            'Erro ao enviar. Registro será enviado quando possível.'
-          );
-
-          // Limpar formulário ANTES de recarregar
-          setSelectedComum('');
-          setSelectedCargo('');
-          setSelectedInstrumento('');
-          setSelectedPessoa('');
-          setIsNomeManual(false);
-
-          if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          }
-          return;
-        } catch (fallbackError) {
-          console.error('❌ [MODAL] Erro crítico ao salvar fallback:', fallbackError);
-          // Não mostrar outro toast de erro aqui - já mostramos acima
-          throw sendError; // Re-lançar erro original
-        }
-      }
-
-      // 🚨 CRÍTICO: Se chegou aqui, result.success é true (já verificamos acima)
-      // Se não fosse true, teria lançado exceção no catch acima
-      console.log('✅ [MODAL] Registro enviado com sucesso para Google Sheets');
-      console.log('✅ [MODAL] Cargo que foi salvo:', cargoObj.nome);
-      console.log('✅ [MODAL] Resultado completo:', result);
-
-      // 🚨 CORREÇÃO: Salvar também no Supabase após envio bem-sucedido para Google Sheets
-      console.log('💾 [MODAL] Salvando registro no Supabase...');
-      console.log('💾 [MODAL] Dados do registro que será salvo no Supabase:', {
-        pessoa_id: registro.pessoa_id,
-        comum_id: registro.comum_id,
-        cargo_id: registro.cargo_id,
-        cargo_nome: cargoObj.nome,
-        instrumento_id: registro.instrumento_id,
-        classe_organista: registro.classe_organista,
-        cidade: registro.cidade,
-      });
-      try {
-        await supabaseDataService.createRegistroPresenca(registro, true);
-        console.log('✅ [MODAL] Registro salvo no Supabase com sucesso');
-        console.log('✅ [MODAL] Cargo "Instrutora" foi salvo corretamente:', {
-          cargo_id: registro.cargo_id,
-          cargo_nome: cargoObj.nome,
-        });
-      } catch (supabaseError) {
-        // Não bloquear se Supabase falhar - Google Sheets já foi salvo
-        console.error('❌ [MODAL] Erro ao salvar no Supabase:', supabaseError);
-        console.error('❌ [MODAL] Detalhes do erro Supabase:', {
-          error: supabaseError,
-          cargo_id: registro.cargo_id,
-          cargo_nome: cargoObj.nome,
-          registro_completo: registro,
-        });
-        // Salvar na fila local para tentar novamente depois
-        try {
-          await supabaseDataService.saveRegistroToLocal(registro);
-          console.log('✅ [MODAL] Registro salvo na fila local para sincronização posterior');
-        } catch (filaError) {
-          console.error('❌ [MODAL] Erro ao salvar na fila local:', filaError);
-        }
-      }
-
-      // 🚀 MELHORIA: Toast compacto e elegante (uma linha)
-      showToast.success('Registro de visita salvo com sucesso');
-
-      // Limpar formulário ANTES de recarregar
+      // 4. Limpar e fechar
+      setNewRegistrationModalVisible(false); // Fechar o modal imediatamente
       setSelectedComum('');
       setSelectedCargo('');
       setSelectedInstrumento('');
       setSelectedPessoa('');
       setIsNomeManual(false);
+      await refreshCount();
 
-      // Recarregar página após salvar (aguardar mais tempo para toast aparecer)
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        // Aumentado de 1500ms para 2000ms para dar tempo do toast aparecer
-      }
+      // 5. Disparar sincronização em background (SEM AWAIT)
+      console.log('🔄 [MODAL] Disparando sincronização em background...');
+      offlineSyncService.processarFilaLocal(true).catch(err => {
+        console.error('❌ [MODAL] Erro na sincronização em background:', err);
+      });
+
     } catch (error) {
-      console.error('❌ [MODAL] Erro ao salvar novo registro:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erro ao salvar registro. Tente novamente.';
-      showToast.error('Erro', errorMessage);
-      throw error; // Re-lançar para o modal tratar
+      console.error('❌ [MODAL] Erro no processamento otimista:', error);
+      showToast.error('Erro', 'Ocorreu um erro ao salvar o registro localmente.');
     }
   };
+
+  const handleConfirmDuplicate = async () => {
+    if (!pendingRegistro) {
+      setDuplicateModalVisible(false);
+      setDuplicateInfo(null);
+      return;
+    }
+
+    try {
+      console.log('💾 [DUP_CONFIRM] Iniciando registro ultra-rápido de duplicata...');
+      
+      // 1. Fechar modal IMEDIATAMENTE e travar submissão
+      setDuplicateModalVisible(false);
+      setDuplicateInfo(null);
+      setLoading(true);
+      isSubmittingRef.current = true;
+
+      // 2. Salvar localmente (quase instantâneo)
+      const registro = { ...pendingRegistro };
+      await supabaseDataService.saveRegistroToLocal(registro);
+
+      // 3. Feedback imediato ao usuário (Mesma mensagem do handleSubmit)
+      showToast.success('Registro Salvo!', 'O registro foi realizado com sucesso!', 2000);
+
+      // 4. Limpar campos e liberar UI
+      clearAllFields();
+      setPendingRegistro(null);
+      await refreshCount();
+
+      // 4. Se for visitinte de outra localidade, voltar após o toast (conforme comportamento da tela)
+      if (isForaRegional) {
+        setTimeout(() => {
+          navigation.goBack();
+        }, 500);
+      }
+
+      setLoading(false);
+      isSubmittingRef.current = false;
+
+      // 6. Disparar sincronização silenciosa em background
+      console.log('🔄 [DUP_CONFIRM] Disparando sincronização silenciosa...');
+      offlineSyncService.processarFilaLocal(true).catch(err => {
+        console.error('❌ [DUP_CONFIRM] Erro na sincronização em background:', err);
+      });
+
+    } catch (error) {
+      console.error('❌ [DUP_CONFIRM] Erro no processamento otimista:', error);
+      showToast.error('Erro', 'Ocorreu um erro ao salvar o registro localmente.');
+      setLoading(false);
+      isSubmittingRef.current = false;
+    }
+  };
+
 
   // 🚨 REMOVIDO: Log desnecessário que estava causando loop - função já está definida e funcionando
 
@@ -2055,6 +1422,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
+    handleConfirmDuplicate,
     handleHardReset: onHardReset,
     selectedClasseOrganista,
     setSelectedClasseOrganista,

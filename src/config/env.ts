@@ -20,4 +20,5 @@ export const env = {
   SUPABASE_URL: getEnvVar('SUPABASE_URL', ''),
   SUPABASE_ANON_KEY: getEnvVar('SUPABASE_ANON_KEY', ''),
   SHEETS_ENDPOINT_URL: getEnvVar('SHEETS_ENDPOINT_URL', ''),
+  SITE_URL: getEnvVar('SITE_URL', ''),
 };

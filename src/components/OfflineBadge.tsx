@@ -27,7 +27,9 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
     if (syncing) {
       return [styles.badge, styles.badgeSyncing];
     }
-    if (count === 0) {
+    // 🚨 OTIMIZAÇÃO UX: Se estiver online, sempre mostrar estilo "VAZIO" (verde) 
+    // mesmo que existam itens na fila em processamento silencioso
+    if (isOnline || count === 0) {
       return [styles.badge, styles.badgeEmpty];
     }
     return [styles.badge, styles.badgePending];
@@ -37,7 +39,7 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
     if (syncing) {
       return [styles.badgeText, styles.badgeTextSyncing];
     }
-    if (count === 0) {
+    if (isOnline || count === 0) {
       return [styles.badgeText, styles.badgeTextEmpty];
     }
     return [styles.badgeText, styles.badgeTextPending];
@@ -47,7 +49,7 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
     if (syncing) {
       return 'sync-alt';
     }
-    if (count === 0) {
+    if (isOnline || count === 0) {
       return 'check-circle';
     }
     // Usar hourglass (ampulheta) quando há pendentes, como no contpedras
@@ -58,7 +60,7 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
     if (syncing) {
       return '#1e40af';
     }
-    if (count === 0) {
+    if (isOnline || count === 0) {
       return '#166534';
     }
     return '#92400e';
@@ -68,25 +70,35 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
     if (syncing) {
       return 'Sincronizando...';
     }
+    // 🚨 OTIMIZAÇÃO UX: "Silêncio Total" no Online.
+    // Se estiver online, mostrar sempre "VAZIO" para dar a sensação de ultra-fast
+    if (isOnline) {
+      return 'VAZIO';
+    }
     if (count === 0) {
       return 'VAZIO';
     }
     return `${count} ${count === 1 ? 'pendente' : 'pendentes'}`;
   };
 
-  // 🚨 CRÍTICO: Badge SEMPRE deve aparecer, especialmente no mobile
-  // Esta é a função mais importante do app - mostrar status de conexão e fila
-  // NUNCA ocultar, mesmo offline e vazio
+  // 🚨 CRÍTICO: O badge deve estar sempre visível (como o usuário pediu para "voltar")
+  // Mas o conteúdo muda conforme o status de rede
+  const showBadge = true;
+
+
 
   return (
     <View style={styles.wrapper}>
       <View style={styles.container}>
-        <View style={getBadgeStyle()}>
-          <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
-          <Text style={getBadgeTextStyle()}>{getText()}</Text>
-        </View>
+        {showBadge && (
+          <View style={getBadgeStyle()}>
+            <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
+            <Text style={getBadgeTextStyle()}>{getText()}</Text>
+          </View>
+        )}
       </View>
       {/* Status Online/Offline - abaixo do badge */}
+
       <View style={styles.statusIndicator}>
         <FontAwesome5
           name={isOnline ? 'wifi' : 'wifi'}

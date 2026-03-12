@@ -97,6 +97,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
         selectedClasseOrganista,
         setSelectedClasseOrganista,
         showClasseOrganista,
+        handleConfirmDuplicate,
         handleHardReset,
     } = controller;
 
@@ -556,34 +557,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                     }}
-                    onConfirm={async () => {
-                        if (!pendingRegistro) {
-                            setDuplicateModalVisible(false);
-                            setDuplicateInfo(null);
-                            return;
-                        }
-                        setDuplicateModalVisible(false);
-                        setLoading(true);
-                        try {
-                            const registroForce = { ...pendingRegistro };
-                            const resultForce = await (offlineSyncService as any).createRegistro(registroForce, true);
-                            if (resultForce.success) {
-                                if (isOnline && !syncing) {
-                                    setTimeout(() => syncData(), 500);
-                                }
-                                showToast.success('Registro enviado!', 'Registro cadastrado com sucesso!');
-                                setTimeout(() => navigation.goBack(), 600);
-                            } else {
-                                showToast.error('Erro', resultForce.error || 'Erro ao cadastrar registro');
-                            }
-                        } catch (error) {
-                            showToast.error('Erro', 'Ocorreu um erro ao processar o registro duplicado');
-                        } finally {
-                            setLoading(false);
-                            setDuplicateInfo(null);
-                            setPendingRegistro(null);
-                        }
-                    }}
+                    onConfirm={handleConfirmDuplicate}
                 />
             )}
         </View>

@@ -1,0 +1,3 @@
+﻿282:    // Log dos primeiros registros para debug
+432:    // Log dos primeiros 3 nomes dos registros para debug
+3373:      // Log detalhado de cada organista

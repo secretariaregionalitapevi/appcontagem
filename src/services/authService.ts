@@ -389,7 +389,11 @@ export const authService = {
 
     try {
       // Definir URL de redirecionamento (PWA/WEB)
-      const redirectTo = Platform.OS === 'web' ? window.location.origin : undefined;
+      // 🚀 MELHORIA: Priorizar SITE_URL do env, fallback para origin na web
+      const { env } = require('../config/env');
+      const redirectTo = env.SITE_URL || (Platform.OS === 'web' ? window.location.origin : undefined);
+
+      console.log('🔗 [authService] Solicitando reset de senha. Redirect para:', redirectTo);
 
       const { data, error } = await supabase.auth.resetPasswordForEmail(emailSanitizado, {
         redirectTo,

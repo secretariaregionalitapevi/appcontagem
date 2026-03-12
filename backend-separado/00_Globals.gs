@@ -48,6 +48,9 @@ const PIRAPORA_SHEET_ID = '1OHdjW0oUBIFJjubWg4DmxPJnegQzQNk7qb1v7M6Ymk0';
 // ID da planilha de VargemGrande (planilha externa)
 const VARGEMGRANDE_SHEET_ID = '1BtCETMduDOV-FV6lzvEwgs5gimhYtwZbjy7tlzR8nYI';
 
+// ID da planilha do Cardoso (planilha externa)
+const CARDOSO_SHEET_ID = '18sYfMSixvXIA2iNMR0dWdZW0uMpOzZrrGtFbao8VDGc';
+
 const REQUIRED_HEADERS = [
   'UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÍVEL','INSTRUMENTO',
   'NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO',

@@ -1355,22 +1355,8 @@ function doPost(e) {
         console.warn(`⚠️ Sem regional para Local="${localEnsaioValue}", Cidade="${cidadeValue}"`);
       }
       
-      // 🔍 ESCREVER DEBUG NA PLANILHA MESTRE (aba "Debug")
-      try {
-        const shDebug = openOrCreateSheet('Debug');
-        if (shDebug.getLastColumn() === 0) {
-          shDebug.getRange(1,1,1,5).setValues([['TIMESTAMP','UUID','LOCAL_ENSAIO','CIDADE','RESULTADO']]);
-        }
-        shDebug.appendRow([
-          new Date().toLocaleString('pt-BR'),
-          data['UUID'] || '',
-          localEnsaioValue,
-          cidadeValue,
-          debugMsg
-        ]);
-      } catch(debugErr) {
-        console.warn('Debug tab write failed:', debugErr.message);
-      }
+      // Registro de Debug removido a pedido do usuário
+
       
       return jsonResponse({ 
         ok: true, 
