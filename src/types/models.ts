@@ -57,6 +57,8 @@ export interface Usuario {
   id: string;
   email: string;
   nome?: string;
+  cargo?: string;
+  congregacao?: string;
   role?: string; // 'user' | 'master' | 'admin'
 }
 

@@ -74,13 +74,27 @@ export const userProfileService = {
     }
 
     try {
-      // 🚨 CORREÇÃO: Buscar campos corretos da tabela profiles (nome, role)
-      const result = await supabase
-        .from('profiles')
-        .select('id, email, name, role, created_at, updated_at')
-        .eq('id', userId)
-        .single();
+      console.log('🔍 [userProfileService] getProfile iniciado para:', userId);
+      
+      // Criar uma promise de timeout para não travar o app se o Supabase não responder
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout na consulta ao Supabase')), 12000)
+      );
 
+      // A query propriamente dita
+      const queryPromise = (async () => {
+        const result = await supabase!
+          .from('profiles')
+          .select('id, email, name, role, created_at, updated_at')
+          .eq('id', userId)
+          .single();
+        return result;
+      })();
+
+      // Correr contra o relógio
+      const result = await Promise.race([queryPromise, timeoutPromise]) as any;
+
+      console.log('🔍 [userProfileService] Resposta do Supabase para getProfile:', result.error ? 'Erro' : 'Sucesso');
       if (result.error) {
         // Se o perfil não existe, não é um erro crítico
         if (result.error.code === 'PGRST116') {

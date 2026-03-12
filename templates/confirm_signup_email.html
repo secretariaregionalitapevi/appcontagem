@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirme seu Cadastro - SAC Regional Itapevi</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #ffffff;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .header {
+      margin-bottom: 30px;
+    }
+    .logo {
+      height: 60px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 24px;
+      color: #1a1a1b;
+      margin-bottom: 20px;
+    }
+    p {
+      font-size: 16px;
+      color: #4a4a4a;
+      margin-bottom: 20px;
+    }
+    .button-container {
+      margin: 30px 0;
+    }
+    .button {
+      background-color: #007bff;
+      color: #ffffff !important;
+      padding: 12px 24px;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      display: inline-block;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #eeeeee;
+      font-size: 12px;
+      color: #888;
+    }
+    .bold {
+      font-weight: bold;
+      color: #1a1a1b;
+    }
+    .section-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 30px;
+      margin-bottom: 10px;
+      color: #1a1a1b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <!-- Logo do SAC / CCB -->
+      <img src="https://congregacaocristanobrasil.org.br/assets/images/logo-ccb-light.png" alt="SAC Logic" class="logo">
+    </div>
+
+    <h1>A paz de Deus!</h1>
+
+    <p>Olá, <span class="bold">regionalitapevi</span>!</p>
+
+    <p>Parabéns, sua conta foi criada! Clique em <a href="{{ .ConfirmationURL }}" style="color: #007bff; text-decoration: none;">confirmar e-mail</a> para ativar seu acesso ao Sistema Administrativo de Contagem da <span class="bold">Regional Itapevi</span>.</p>
+
+    <div class="button-container">
+      <a href="{{ .ConfirmationURL }}" class="button shadow">Confirmar E-mail</a>
+    </div>
+
+    <p>Para ajudar você a começar, confira a documentação do sistema ou lance seu primeiro registro para aprender.</p>
+
+    <div class="section-title">Conceitos Chave do SAC</div>
+    <p>
+      Aprenda as bases do SAC e os benefícios de centralizar as contagens musicais.
+    </p>
+
+    <div class="section-title">Como configurar seu ambiente</div>
+    <p>
+      Acesse o aplicativo pelo seu smartphone ou navegador e comece a gerenciar a contagem em poucos passos.
+    </p>
+
+    <div class="footer">
+      © Secretária da Administração Musical - Regional Itapevi<br>
+      Este é um e-mail automático, por favor não responda.
+    </div>
+  </div>
+</body>
+</html>

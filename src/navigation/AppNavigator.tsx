@@ -8,20 +8,25 @@ import { EditRegistrosScreen } from '../screens/EditRegistrosScreen';
 import { EditRecordDetailScreen } from '../screens/EditRecordDetailScreen';
 import { OrganistasEnsaioScreen } from '../screens/OrganistasEnsaioScreen';
 import { OtrasLocalidadesScreen } from '../screens/OtrasLocalidadesScreen';
+import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { useAuthContext } from '../context/AuthContext';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-native';
 import { theme } from '../theme';
 import { localStorageService } from '../services/localStorageService';
 
 const Stack = createNativeStackNavigator();
 
 export const AppNavigator: React.FC = () => {
-  const { user, loading } = useAuthContext();
+  const { user, loading, isRecoveringPassword, setIsRecoveringPassword } = useAuthContext();
   const navigationRef = useRef<any>(null);
   const previousUserRef = useRef<typeof user>(user);
 
   // Navegar para Login quando o usuário fizer logout
   useEffect(() => {
+    // Se estiver em recuperação de senha, não forçar logout
+    if (isRecoveringPassword) return;
+
     // Só navegar se houve mudança de autenticado para não autenticado
     const wasAuthenticated = previousUserRef.current !== null;
     const isNowUnauthenticated = !loading && !user;
@@ -49,19 +54,26 @@ export const AppNavigator: React.FC = () => {
   // Forçar login se não houver usuário autenticado ou se o local de ensaio estiver ausente
   useEffect(() => {
     const checkAuthAndLocal = async () => {
+      // Se estiver em recuperação de senha, não forçar login
+      if (isRecoveringPassword) return;
+
       if (!loading && navigationRef.current?.isReady()) {
         const localId = await localStorageService.getLocalEnsaio();
         
-        if (!user || !localId) {
-          console.log(`🛡️ [AppNavigator] Redirecionando para Login: user=${!!user}, localId=${!!localId}`);
+        const currentRoute = navigationRef.current?.getCurrentRoute()?.name;
+        
+        if ((!user || !localId) && currentRoute !== 'Login') {
+          console.log(`🛡️ [AppNavigator] Redirecionando para Login: user=${!!user}, localId=${!!localId}, currentRoute=${currentRoute}`);
           
           // Pequeno delay para garantir que o estado foi atualizado
           setTimeout(() => {
             try {
-              navigationRef.current?.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
+              if (navigationRef.current?.isReady()) {
+                navigationRef.current?.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }
             } catch (error) {
               console.warn('Erro ao navegar para Login:', error);
             }
@@ -72,6 +84,34 @@ export const AppNavigator: React.FC = () => {
 
     checkAuthAndLocal();
   }, [user, loading]);
+
+  // Lidar com Redirecionamento de Recuperação de Senha (Web/PWA)
+  useEffect(() => {
+    const handleRecovery = async () => {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const hash = window.location.hash;
+        const isRecoveryRedirect = hash && (hash.includes('type=recovery') || hash.includes('access_token='));
+        
+        if (isRecoveryRedirect) {
+          console.log('🔄 Redirecionamento de recuperação detectado na URL');
+          setIsRecoveringPassword(true);
+          
+          // Aguardar o Supabase processar a sessão e o navigator estar pronto
+          const checkAndNavigate = () => {
+            if (navigationRef.current?.isReady()) {
+              console.log('🚀 Navegando para ResetPassword...');
+              navigationRef.current?.navigate('ResetPassword');
+            } else {
+              setTimeout(checkAndNavigate, 100);
+            }
+          };
+          
+          checkAndNavigate();
+        }
+      }
+    };
+    handleRecovery();
+  }, []);
 
   if (loading) {
     return (
@@ -96,6 +136,16 @@ export const AppNavigator: React.FC = () => {
           name="SignUp"
           component={SignUpScreen}
           options={{ title: 'CCB | Cadastro' }}
+        />
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
+          options={{ title: 'CCB | Recuperar Senha' }}
+        />
+        <Stack.Screen
+          name="ResetPassword"
+          component={ResetPasswordScreen}
+          options={{ title: 'CCB | Redefinir Senha' }}
         />
         <Stack.Screen
           name="Register"

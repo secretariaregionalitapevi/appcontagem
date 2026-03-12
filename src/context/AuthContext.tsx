@@ -15,6 +15,10 @@ interface AuthContextType {
     nome?: string
   ) => Promise<{ user: Usuario | null; error: Error | null }>;
   signOut: () => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
+  isRecoveringPassword: boolean;
+  setIsRecoveringPassword: (value: boolean) => void;
   isAuthenticated: boolean;
 }
 

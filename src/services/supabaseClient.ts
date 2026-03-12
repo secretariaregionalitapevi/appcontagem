@@ -1,6 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../config/env';
-import { authService } from './authService';
 
 // Criar cliente Supabase apenas se as variáveis estiverem configuradas
 let supabase: SupabaseClient | null = null;
@@ -51,6 +50,7 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
           console.log('✅ Sessão renovada com sucesso');
           // Salvar nova sessão no authService para consistência
           try {
+            const { authService } = require('./authService');
             await authService.saveSession({
               access_token: refreshed.access_token,
               refresh_token: refreshed.refresh_token,
@@ -64,6 +64,7 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
 
     // 2. Nenhuma sessão ativa - tentar restaurar do authService (fallback)
     try {
+      const { authService } = require('./authService');
       const sessionData = await authService.getSession();
       if (sessionData?.access_token && sessionData?.refresh_token) {
         console.log('🔑 Restaurando sessão do authService...');
@@ -80,20 +81,22 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
           const { data: { session: refreshed2 }, error: refreshError2 } = await supabase.auth.refreshSession({
             refresh_token: sessionData.refresh_token,
           });
-          if (refreshed2 && !refreshError2) {
-            try {
-              await authService.saveSession({
-                access_token: refreshed2.access_token,
-                refresh_token: refreshed2.refresh_token,
-                expires_at: refreshed2.expires_at,
-              });
-            } catch (_) { }
-            return true;
-          } else {
-            // Refresh falhou - sessão inválida, limpar
-            console.warn('⚠️ Refresh falhou, clearing stale session');
-            await authService.clearSession().catch(() => { });
-          }
+            if (refreshed2 && !refreshError2) {
+              try {
+                const { authService } = require('./authService');
+                await authService.saveSession({
+                  access_token: refreshed2.access_token,
+                  refresh_token: refreshed2.refresh_token,
+                  expires_at: refreshed2.expires_at,
+                });
+              } catch (_) { }
+              return true;
+            } else {
+              // Refresh falhou - sessão inválida, limpar
+              console.warn('⚠️ Refresh falhou, clearing stale session');
+              const { authService } = require('./authService');
+              await authService.clearSession().catch(() => { });
+            }
         }
       }
     } catch (authError) {

@@ -1,3 +1,4 @@
+
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
@@ -167,6 +168,15 @@ export const authService = {
           await this.saveSession(data.session);
           console.log('🔑 Sessão configurada prematuramente para autorizar o upsert no profiles.');
         }
+
+        console.log('🔍 [userProfileService] Buscando na tabela profiles para ID:', data.user.id);
+        const result = await supabase
+          .from('profiles')
+          .select('id, email, name, role, created_at, updated_at')
+          .eq('id', data.user.id)
+          .single();
+        
+        console.log('🔍 [userProfileService] Resposta do Supabase profiles:', result.error ? 'Erro' : 'Sucesso', result.data || result.error);
 
         // Criar ou atualizar perfil na tabela profiles
         const { profile, error: profileError } = await userProfileService.createOrUpdateProfile(
@@ -362,6 +372,55 @@ export const authService = {
     }
   },
 
+  async resetPasswordForEmail(email: string): Promise<{ data: any; error: Error | null }> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return { data: null, error: new Error('Supabase não configurado') };
+    }
+
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      return { data: null, error: new Error(emailValidation.error || 'Email inválido') };
+    }
+
+    const emailSanitizado = sanitizeInput(email.trim().toLowerCase(), {
+      fieldType: 'email',
+      maxLength: FIELD_LIMITS.email,
+    });
+
+    try {
+      // Definir URL de redirecionamento (PWA/WEB)
+      const redirectTo = Platform.OS === 'web' ? window.location.origin : undefined;
+
+      const { data, error } = await supabase.auth.resetPasswordForEmail(emailSanitizado, {
+        redirectTo,
+      });
+
+      return { data, error };
+    } catch (error) {
+      return { data: null, error: error as Error };
+    }
+  },
+
+  async updatePassword(password: string): Promise<{ data: any; error: Error | null }> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return { data: null, error: new Error('Supabase não configurado') };
+    }
+
+    if (!password || password.length < 6) {
+      return { data: null, error: new Error('A senha deve ter pelo menos 6 caracteres') };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      return { data, error };
+    } catch (error) {
+      return { data: null, error: error as Error };
+    }
+  },
+
   async signOut(): Promise<void> {
     if (isSupabaseConfigured() && supabase) {
       await supabase.auth.signOut();
@@ -370,7 +429,25 @@ export const authService = {
     await secureStore.deleteItemAsync(USER_KEY);
   },
 
+  onAuthStateChange(callback: (event: any, session: any) => void) {
+    if (!isSupabaseConfigured() || !supabase) {
+      return { data: { subscription: { unsubscribe: () => { } } } };
+    }
+    return supabase.auth.onAuthStateChange(callback);
+  },
+
+  async getUserProfile(userId: string) {
+    console.log('🔍 [authService] getUserProfile para:', userId);
+    // Importado dinamicamente para evitar dependência circular se houver
+    const { userProfileService } = require('./userProfileService');
+    console.log('🔍 [authService] Chamando userProfileService.getProfile...');
+    const { profile } = await userProfileService.getProfile(userId);
+    console.log('🔍 [authService] Perfil retornado:', !!profile);
+    return profile;
+  },
+
   async getCurrentUser(): Promise<Usuario | null> {
+    console.log('🔍 [authService] getCurrentUser inicializado');
     try {
       // 🔑 PRIMEIRO: Tentar restaurar a sessão Supabase na memória usando tokens salvos
       // Isso é crítico para mobile/PWA onde o cliente Supabase perde a sessão após reload
@@ -412,18 +489,22 @@ export const authService = {
 
       // Buscar usuário do secure store
       const userStr = await secureStore.getItemAsync(USER_KEY);
+      console.log('🔍 [authService] Usuário no secureStore:', userStr ? 'Encontrado' : 'Não encontrado');
       if (userStr) {
         try {
           const cachedUser = JSON.parse(userStr);
 
           // Se temos sessão válida, buscar perfil atualizado do Supabase
           const session = await this.getSession();
+          console.log('🔍 [authService] Sessão atual para getCurrentUser:', !!session);
           if (session && isSupabaseConfigured() && supabase) {
             try {
+              console.log('🔍 [authService] Chamando supabase.auth.getUser()...');
               const {
                 data: { user: authUser },
               } = await supabase.auth.getUser();
               if (authUser) {
+                console.log('🔍 [authService] Usuário auth encontrado:', authUser.id, 'Buscando perfil...');
                 const { profile, error: profileError } = await userProfileService.getProfile(
                   authUser.id
                 );
@@ -434,6 +515,24 @@ export const authService = {
 
                 if (profile) {
                   const updatedUser = userProfileService.profileToUsuario(profile);
+                  
+                  // 🔄 SINCRONIZAÇÃO: Se o nome não estiver no metadado do Auth, salvar agora
+                  // Isso garante que e-mails enviados pelo Supabase (como reset password) tenham o nome
+                  try {
+                    const nomeParaMetadata = profile.nome || profile.name;
+                    if (nomeParaMetadata && !authUser.user_metadata?.nome) {
+                      console.log('🔄 Sincronizando nome para user_metadata:', nomeParaMetadata);
+                      await supabase.auth.updateUser({
+                        data: { 
+                          nome: nomeParaMetadata,
+                          full_name: nomeParaMetadata 
+                        }
+                      }).catch(e => console.warn('Erro ao sincronizar metadata:', e));
+                    }
+                  } catch (syncError) {
+                    console.warn('Erro silencioso na sincronização de metadata:', syncError);
+                  }
+
                   if (updatedUser) {
                     console.log('✅ Perfil atualizado carregado:', {
                       id: updatedUser.id,

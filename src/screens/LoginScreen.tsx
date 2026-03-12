@@ -17,6 +17,8 @@ import pkg from '../../package.json';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthContext } from '../context/AuthContext';
+import { showToast } from '../utils/toast';
+import { translateAuthError } from '../utils/authUtils';
 
 type RootStackParamList = {
   Login: undefined;
@@ -32,7 +34,6 @@ import { theme } from '../theme';
 import { localStorageService } from '../services/localStorageService';
 import { LocalEnsaio } from '../types/models';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { showToast } from '../utils/toast';
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
@@ -110,25 +111,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   const translateErrorMessage = (message: string): string => {
-    if (!message) return 'Ocorreu um erro ao realizar o login.';
-    const msg = String(message);
-
-    // 🚨 MELHORIA: Mensagens mais claras e amigáveis
-    if (msg.includes('Invalid login credentials') || msg.includes('Invalid email or password')) {
-      return 'E-mail ou senha incorretos. Verifique suas credenciais.';
-    }
-    if (msg.includes('Email not confirmed'))
-      return 'E-mail não confirmado. Verifique sua caixa de entrada.';
-    if (msg.includes('User not found')) return 'Usuário não encontrado. Verifique o e-mail.';
-    if (msg.includes('JWT expired')) return 'Sessão expirada. Faça login novamente.';
-    if (msg.includes('rate limit') || msg.includes('Rate limit'))
-      return 'Muitas tentativas. Aguarde alguns instantes e tente novamente.';
-    if (msg.includes('Network') || msg.includes('Failed to fetch'))
-      return 'Falha de conexão. Verifique sua internet e tente novamente.';
-    if (msg.includes('FetchError') || msg.includes('timeout'))
-      return 'Tempo de resposta esgotado. Verifique sua conexão e tente novamente.';
-
-    return msg;
+    return translateAuthError(message);
   };
 
   return (
@@ -246,6 +229,15 @@ export const LoginScreen: React.FC = () => {
               loading={loading}
               style={styles.loginButton}
             />
+
+            {!isSignUp && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword' as any)}
+                style={styles.forgotPasswordContainer}
+              >
+                <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.divider} />
 
@@ -432,7 +424,16 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  forgotPasswordContainer: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
+  },
+  forgotPasswordText: {
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.sm,
+    fontWeight: '500',
   },
   divider: {
     height: 1,

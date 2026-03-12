@@ -189,28 +189,47 @@ export const supabaseDataService = {
         }
       };
 
-      // Loop de busca (apenas na tabela cadastro)
+      // 🚀 OTIMIZAÇÃO: Buscar em lotes paralelos (3 páginas por vez) para acelerar
+      console.log('🚀 Iniciando busca paralela de comuns...');
+      
       while (hasMore) {
-        try {
-          const pageResult = await fetchPage(tableName, currentPage);
+        const batchSize = 3;
+        const pagePromises = [];
+        
+        for (let i = 0; i < batchSize; i++) {
+          pagePromises.push(fetchPage(tableName, currentPage + i));
+        }
 
+        const results = await Promise.all(pagePromises);
+        let foundStop = false;
+
+        for (const pageResult of results) {
           if (pageResult.error) {
             finalError = pageResult.error;
+            foundStop = true;
             break;
           }
 
           if (pageResult.data && pageResult.data.length > 0) {
             allData = allData.concat(pageResult.data);
             console.log(
-              `📄 Página ${currentPage + 1}: ${pageResult.data.length} registros (total: ${allData.length})`
+              `📄 Carregados +${pageResult.data.length} registros (total: ${allData.length})`
             );
           }
 
-          hasMore = pageResult.hasMore;
-          currentPage++;
-        } catch (error) {
-          console.error(`❌ Erro ao buscar página ${currentPage + 1}:`, error);
-          finalError = error;
+          if (!pageResult.hasMore) {
+            hasMore = false;
+            foundStop = true;
+            break;
+          }
+        }
+
+        if (foundStop) break;
+        currentPage += batchSize;
+        
+        // Proteção contra loop infinito em caso de dados massivos
+        if (currentPage > 50) { // 50.000 registros
+          console.warn('⚠️ Limite de 50k registros atingido, parando busca de comuns.');
           break;
         }
       }
@@ -230,15 +249,23 @@ export const supabaseDataService = {
       // Função para extrair apenas o nome da comum (remover código de localização)
       const extrairNomeComum = (comumCompleto: string): string => {
         if (!comumCompleto) return '';
-        if (comumCompleto.includes(' - ')) {
-          const partes = comumCompleto.split(' - ');
-          return partes.slice(1).join(' - ').trim();
+        const texto = comumCompleto.trim();
+        
+        // Regex para detectar apenas o código BR-XX-XXXX ou XX-XXXX no INÍCIO
+        const regexCodigo = /^(?:BR-)?\d{2}-\d{3,6}/i;
+        
+        if (regexCodigo.test(texto)) {
+          // Se tem " - ", o nome real vem depois
+          if (texto.includes(' - ')) {
+            const partes = texto.split(' - ');
+            // Pegar tudo depois do primeiro separador (preserva hifens do nome real)
+            return partes.slice(1).join(' - ').trim();
+          }
+          // Se não tem " - ", mas tem espaço (ex: "BR-21-1251 NOMECONGR")
+          return texto.replace(regexCodigo, '').trim();
         }
-        if (comumCompleto.includes(' -')) {
-          const partes = comumCompleto.split(' -');
-          return partes.slice(1).join(' -').trim();
-        }
-        return comumCompleto.trim();
+        
+        return texto;
       };
 
       // --- LÓGICA DE DEDUPLICAÇÃO ROBUSTA POR CÓDIGO REGIONAL ---
@@ -251,35 +278,22 @@ export const supabaseDataService = {
         if (original && typeof original === 'string') {
           const display = extrairNomeComum(original);
 
-          // Tentar extrair código regional (ex: BR-22-1234)
-          const matchCodigo = original.match(/BR-\d{2}-\d+/);
-          const codigoKey = matchCodigo ? matchCodigo[0] : null;
+          // --- CORREÇÃO CRÍTICA DE DEDUPLICAÇÃO ---
+          // Não unificar pelo Código Regional (codigoKey), pois Capela Velha e Alphaville dividem o mesmo!
+          // Chave de unificação: Nome Normalizado
+          const key = normalizeString(display.toUpperCase());
 
-          // Chave de unificação: Código Regional ou Nome Normalizado (se sem código)
-          const key = codigoKey || normalizeString(display.toUpperCase());
+          // 🎯 TRACE ALVO: Se for o item que estamos buscando, apenas para controle interno se necessário
+          const isTarget = original.toUpperCase().includes('SURU') || original.toUpperCase().includes('CAPELA VELHA');
 
           if (key) {
             const existing = mapComuns.get(key);
-
+            
             // Lógica de Prioridade:
             // 1. Se não houver registro anterior, inserir.
-            // 2. Se o novo nome for mais curto e o código for o mesmo, ele ganha (ex: "PEDRAS" ganha de "PEDRAS (CHACARA)")
-            // 3. Se um tem código e o outro não, o com código ganha (se por acaso a chave for o nome)
             let isBetter = !existing;
-            if (existing && codigoKey) {
-              const displayNovo = display.trim();
-              const displayVelho = existing.display.trim();
-
-              // Se o novo nome for mais curto ou não tiver parênteses, é provavelmente mais "limpo"
-              const temParentesesVelho = displayVelho.includes('(');
-              const temParentesesNovo = displayNovo.includes('(');
-
-              if (temParentesesVelho && !temParentesesNovo) {
-                isBetter = true;
-              } else if (!temParentesesVelho && !temParentesesNovo && displayNovo.length < displayVelho.length) {
-                isBetter = true;
-              }
-            }
+            // Se já existe e os nomes são idênticos, não precisamos trocar
+            // Se existisse lógica de código, faríamos aqui, mas agora priorizamos nomes únicos
 
             if (isBetter) {
               mapComuns.set(key, { original, display });
@@ -328,8 +342,8 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v3', JSON.stringify(comuns));
-        console.log('✅ Comuns salvas no cache');
+        await robustSetItem('cache_comuns_v6', JSON.stringify(comuns));
+        console.log('✅ Comuns salvas no cache V6');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
       }
@@ -368,7 +382,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v3');
+        const cached = await robustGetItem('cache_comuns_v6');
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -380,7 +394,7 @@ export const supabaseDataService = {
             }));
 
           memoryCache.comuns = validComuns;
-          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto`);
+          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V6`);
           return validComuns;
         }
       } catch (error) {
