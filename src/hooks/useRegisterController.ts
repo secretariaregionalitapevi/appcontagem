@@ -885,6 +885,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           data_hora_registro: getCurrentDateTimeISO(),
           usuario_responsavel: nomeUsuario,
           status_sincronizacao: 'pending',
+          is_offline_manual: isNomeManual && !isOnline, // 🚨 NOVO: Marcar se foi manual por falta de rede
           id: generateExternalUUID(), // Garantir UUID único para a fila
         };
 

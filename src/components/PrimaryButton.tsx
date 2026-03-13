@@ -58,7 +58,14 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
             color={theme.colors.surface}
             style={styles.icon}
           />
-          <Text style={styles.buttonText}>{title}</Text>
+          <Text 
+            style={styles.buttonText}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
+            minimumFontScale={0.5}
+          >
+            {title}
+          </Text>
         </View>
       )}
     </Pressable>

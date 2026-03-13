@@ -50,6 +50,7 @@ export interface RegistroPresenca {
   usuario_responsavel: string;
   status_sincronizacao: 'pending' | 'synced';
   cidade?: string; // Cidade para registros externos ou manuais
+  is_offline_manual?: boolean; // 🚨 NOVO: Identificar se foi manual porque estava offline
   created_at?: string;
   updated_at?: string;
 }

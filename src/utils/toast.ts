@@ -58,13 +58,15 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 }
 
 // Configuração base de layout idêntica ao alerta de "Registro Enviado"
-const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 2000, position: any = 'center', toast = false) => {
+const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 2000, position: any = 'center', toast = false, showCancel = false) => {
   return {
     icon: icon,
     title: `<span style="font-weight: 700; color: #4a4a4a; font-size: ${toast ? '18px' : '24px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${title}</span>`,
     html: message ? `<div style="color: #666; font-size: ${toast ? '14px' : '16px'}; margin-top: 10px; line-height: 1.5; font-weight: 400;">${message}</div>` : '',
     showConfirmButton: showConfirm,
+    showCancelButton: showCancel,
     confirmButtonText: 'Continuar',
+    cancelButtonText: 'Cancelar',
     confirmButtonColor: '#255ec8',
     timer: timer,
     timerProgressBar: !!timer,
@@ -112,6 +114,11 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
           confirmBtn.style.alignItems = 'center';
           confirmBtn.style.justifyContent = 'center';
           confirmBtn.style.gap = '8px';
+          
+          // Adicionar ícone se não tiver
+          if (!confirmBtn.innerHTML.includes('<i')) {
+            confirmBtn.innerHTML = `<i class="fas fa-check"></i> ${confirmBtn.innerText}`;
+          }
         }
         
         const cancelBtn = Swal.getCancelButton();
@@ -125,6 +132,20 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
           cancelBtn.style.alignItems = 'center';
           cancelBtn.style.justifyContent = 'center';
           cancelBtn.style.gap = '8px';
+          cancelBtn.style.margin = '0 5px';
+          
+          // Adicionar ícone se não tiver
+          if (!cancelBtn.innerHTML.includes('<i')) {
+            cancelBtn.innerHTML = `<i class="fas fa-times"></i> ${cancelBtn.innerText}`;
+          }
+        }
+
+        const actions = Swal.getActions();
+        if (actions) {
+          actions.style.flexDirection = 'row';
+          actions.style.justifyContent = 'center';
+          actions.style.gap = '10px';
+          actions.style.marginTop = '20px';
         }
       }
     },
@@ -213,17 +234,29 @@ export const showToast = {
       if (Swal) {
         // Exceção do alerta de duplicidade pedida em contexto anterior
         const isDuplicidade = title === 'Atenção' && message?.includes('fila');
-        const isSalvoLocalmente = message?.includes('Salvo localmente') || message?.includes('Será enviado automaticamente');
+        const isSalvoLocalmente = 
+          message?.toLowerCase().includes('salvo localmente') || 
+          message?.toLowerCase().includes('salvos localmente') ||
+          message?.toLowerCase().includes('será enviado automaticamente') ||
+          title === 'Modo offline';
 
-        // Se for "Salvo localmente", não mostrar botão de confirmação e usar timer menor
+        // Se for "Modo offline", mostrar botões Continuar/Cancelar lado a lado
+        const isModoOffline = title === 'Modo offline';
+
+        // Se for "Salvo localmente" (toast automático), não mostrar botão e usar timer menor
+        // Mas se for o alerta de "Modo offline" (bloqueante), mostrar botões
+        const showConfirm = isModoOffline || !(isDuplicidade || isSalvoLocalmente);
+        const showCancel = isModoOffline;
+
         const swalOpts = getSwalOptions(
           title,
           message,
           'warning',
-          !(isDuplicidade || isSalvoLocalmente),
-          (isDuplicidade || isSalvoLocalmente) ? 2000 : 4000, // Tempo maior para avisos que precisam ser lidos
-          (isDuplicidade || isSalvoLocalmente) ? 'top-end' : 'center',
-          (isDuplicidade || isSalvoLocalmente)
+          showConfirm,
+          (isDuplicidade || isSalvoLocalmente) && !isModoOffline ? 2000 : undefined, // Sem timer se for modo offline
+          (isDuplicidade || isSalvoLocalmente) && !isModoOffline ? 'top-end' : 'center',
+          (isDuplicidade || isSalvoLocalmente) && !isModoOffline,
+          showCancel
         );
         Swal.fire(swalOpts);
       } else {

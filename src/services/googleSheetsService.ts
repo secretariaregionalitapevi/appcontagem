@@ -622,7 +622,7 @@ export const googleSheetsService = {
       // 🚨 CORREÇÃO: Verificar se é nome manual de uma comum da regional (não do modal)
       // Nomes manuais de comuns da regional indicam que o cadastro está desatualizado
       const isNomeManual = registro.pessoa_id.startsWith('manual_');
-      const isNomeManualRegional = isNomeManual && !isExternalRegistro;
+      const isNomeManualRegional = isNomeManual && !isExternalRegistro && !registro.is_offline_manual;
 
       let comum: any = null;
       // 🚨 CRÍTICO: Tentar buscar cargo por ID primeiro, depois por nome (fallback)
