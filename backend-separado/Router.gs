@@ -291,7 +291,19 @@ function doPost(e) {
       const rowMaster = buildRow(sh, data);
       
       // Se não for duplicata, faz o append
-      if (!isDuplicate && rowMaster.length > 0) sh.appendRow(rowMaster);
+      if (!isDuplicate && rowMaster.length > 0) {
+        sh.appendRow(rowMaster);
+        
+        // --- FORMATAÇÃO AUTOMÁTICA ---
+        // 1. Aplicar bordas em toda a nova linha
+        const lastRowNum = sh.getLastRow();
+        sh.getRange(lastRowNum, 1, 1, sh.getLastColumn()).setBorder(true, true, true, true, true, true);
+        
+        // 2. Se for a aba Organistas, garantir largura da Coluna F (180px)
+        if (sheetName === 'Organistas') {
+          sh.setColumnWidth(6, 180);
+        }
+      }
       
       const diag = {
         master: { ok: true, id: sh.getParent().getId(), sheet: sh.getName() },

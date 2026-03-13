@@ -296,17 +296,15 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     // 🚨 CRÍTICO: Se há itens filtrados na lista, NÃO fechar a lista no blur
     // Isso permite que o usuário clique nos itens mesmo após o blur do input
     if (filtered.length > 0 && !isManualMode) {
-      console.log('📋 [NameSelectField] Blur ignorado - há itens na lista, mantendo lista aberta');
-      // Não fechar a lista, apenas marcar como não focado
-      setIsFocused(false);
-      return;
+      console.log('📋 [NameSelectField] Blur - mantendo lista aberta por um momento para clique');
+      // Não fechar IMEDIATAMENTE, dar tempo para o clique no item ser processado
     }
 
     setIsFocused(false);
 
-    // 🚨 CORREÇÃO CRÍTICA: Se há texto digitado que não corresponde a nenhuma opção, tratar como manual
-    // 🚨 CORREÇÃO: NÃO mudar para manual se ainda está carregando OU se não há opções ainda - aguardar carregamento terminar
-    // Só mudar para manual DEPOIS que a lista carregou completamente
+    // 🚨 REDUZIDO: Apenas entrar em modo manual se o usuário explicitamente der Enter ou se o texto for curto e não houver opções
+    // No blur, apenas fechar a lista. Não forçar modo manual para evitar "prisão" no campo.
+    /* 
     if (searchText.trim() && !isManualMode && !loading && options && options.length > 0) {
       const textoNormalizado = normalize(searchText);
       const encontrouNaLista = options.some(opt => {
@@ -314,7 +312,6 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         return labelNorm === textoNormalizado;
       });
 
-      // Se não encontrou na lista e há texto E lista já carregou, é nome manual
       if (!encontrouNaLista) {
         console.log(
           '✏️ [NameSelectField] Texto digitado não encontrado na lista, tratando como manual:',
@@ -324,15 +321,14 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
       }
     }
+    */
 
     // Só fechar lista se não há itens filtrados
     // 🚨 CRÍTICO: Android precisa de delay maior para capturar toques
-    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 600 : 300;
+    // 🚨 CRÍTICO: Fechar a lista após o delay para permitir o clique
+    const delay = Platform.OS === 'web' ? 400 : Platform.OS === 'android' ? 600 : 300;
     blurTimeoutRef.current = setTimeout(() => {
-      // Verificar novamente se não há itens antes de fechar
-      if (filtered.length === 0) {
-        setShowList(false);
-      }
+      setShowList(false);
       blurTimeoutRef.current = null;
     }, delay);
   };
@@ -518,11 +514,11 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
                 error ? styles.inputError : undefined,
                 isFocused ? { borderColor: theme.colors.primary, borderWidth: 1.5 } : undefined,
                 Platform.OS === 'web'
-                  ? {
+                  ? ({
                     position: 'relative' as ViewStyle['position'],
                     outlineStyle: 'none',
                     outlineWidth: 0,
-                  }
+                  } as any)
                   : undefined,
               ]}
               value={searchText}

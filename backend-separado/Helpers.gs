@@ -792,6 +792,17 @@ function syncToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
     });
     
     sh.appendRow(novaLinha);
+    
+    // --- FORMATAÇÃO AUTOMÁTICA ---
+    // 1. Aplicar bordas em toda a nova linha
+    const lastRowNum = sh.getLastRow();
+    sh.getRange(lastRowNum, 1, 1, sh.getLastColumn()).setBorder(true, true, true, true, true, true);
+    
+    // 2. Se for a aba Organistas, garantir largura da Coluna F (180px)
+    if (sheetName === 'Organistas') {
+      sh.setColumnWidth(6, 180);
+    }
+    
     uuidsExistentes.add(uuid); // Evita duplicata no mesmo lote
     inseridos++;
   }

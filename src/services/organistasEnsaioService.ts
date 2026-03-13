@@ -112,7 +112,7 @@ export const organistasEnsaioService = {
       const { data, error } = await supabase
         .from(TABLE_NAME)
         .select('*')
-        .eq('local_ensaio', localEnsaio)
+        .ilike('local_ensaio', localEnsaio)
         .eq('data_ensaio', dataEnsaio)
         .order('organista_nome', { ascending: true });
 
@@ -145,8 +145,8 @@ export const organistasEnsaioService = {
       const { data: existing } = await supabase
         .from(TABLE_NAME)
         .select('id')
-        .eq('organista_nome', registro.organista_nome)
-        .eq('local_ensaio', registro.local_ensaio)
+        .ilike('organista_nome', registro.organista_nome.trim())
+        .ilike('local_ensaio', registro.local_ensaio.trim())
         .eq('data_ensaio', registro.data_ensaio)
         .maybeSingle();
 
@@ -227,6 +227,59 @@ export const organistasEnsaioService = {
     } catch (error: any) {
       console.error('❌ Erro ao deletar registro de organista:', error);
       return { success: false, error: error.message || 'Erro desconhecido' };
+    }
+  },
+
+  /**
+   * Buscar a última presença de uma organista específica na tabela de ensaios
+   * Retorna a data e se ela efetivamente tocou
+   */
+  async fetchLastPresence(nome: string): Promise<{ data: string | null; tocou: boolean } | null> {
+    if (!isSupabaseConfigured() || !supabase) {
+      return null;
+    }
+
+    try {
+      await ensureSessionRestored();
+
+      // Primeiro buscar na tabela específica de organistas de ensaio (mais precisa para este contexto)
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select('data_ensaio, tocou')
+        .ilike('organista_nome', nome.trim())
+        .order('data_ensaio', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('❌ Erro ao buscar última presença em organistas_ensaio:', error);
+      }
+
+      if (data && data.length > 0) {
+        return {
+          data: data[0].data_ensaio,
+          tocou: data[0].tocou
+        };
+      }
+
+      // Fallback: buscar na tabela presencas geral se não houver no histórico de ensaios específicos
+      const { data: presencasData, error: presencasError } = await supabase
+        .from('presencas')
+        .select('data_ensaio')
+        .ilike('nome_completo', nome.trim())
+        .order('data_ensaio', { ascending: false })
+        .limit(1);
+
+      if (presencasError) {
+        console.error('❌ Erro ao buscar última presença em presencas:', presencasError);
+        return null;
+      }
+
+      return presencasData && presencasData.length > 0 
+        ? { data: presencasData[0].data_ensaio, tocou: true } 
+        : null;
+    } catch (error) {
+      console.error('❌ Erro ao buscar última presença:', error);
+      return null;
     }
   },
 };

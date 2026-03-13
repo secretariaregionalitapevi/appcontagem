@@ -831,10 +831,10 @@ function alimentarAbaOrganistasItapevi(localEnsaio = 'Itapevi') {
       console.log(`⚠️ [alimentarAbaOrganistasItapevi] localEnsaio não fornecido ou padrão, tentando extrair da planilha...`);
       
       if (idxLocalEnsaio >= 0) {
-        // Pega o primeiro local encontrado nos dados
+        // Pega o primeiro local encontrado nos dados que pertence a esta localidade
         for (let i = 0; i < Math.min(data.length, 100); i++) {
           const localEncontrado = norm(data[i][idxLocalEnsaio] || '');
-          if (localEncontrado && localEncontrado !== '(Sem local definido)') {
+          if (localEncontrado && localEncontrado !== '(Sem local definido)' && compararLocaisEnsaio(localEncontrado, 'Itapevi')) {
             localEnsaio = localEncontrado;
             console.log(`✅ [alimentarAbaOrganistasItapevi] Local extraído da planilha: "${localEnsaio}"`);
             break;
@@ -1073,7 +1073,7 @@ function alimentarAbaOrganistasItapevi(localEnsaio = 'Itapevi') {
      shOrganistas.setColumnWidth(3, 220); // Coluna C (Cargo)
      shOrganistas.setColumnWidth(4, 134); // Coluna D (Nível da organista)
      shOrganistas.setColumnWidth(5, 315); // Coluna E (Comum)
-     shOrganistas.setColumnWidth(6, 120); // Coluna F (Cidade) - mantém 120
+     shOrganistas.setColumnWidth(6, 180); // Coluna F (Cidade) - ajustado para 180px
      shOrganistas.setColumnWidth(7, 180); // Coluna G (Tocou no último ensaio?)
     
     console.log(`✅ Aba Organistas da planilha externa de Itapevi alimentada com sucesso para: ${localEnsaio}`);
@@ -1133,6 +1133,29 @@ function alimentarAbaOrganistasVargemGrande(localEnsaio = 'VargemGrande') {
 
     if (idxNome < 0 || idxCargo < 0) {
       throw new Error('Colunas "nome" ou "cargo" não encontradas');
+    }
+
+    // Se localEnsaio não foi fornecido ou está vazio, tenta extrair da planilha
+    if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '' || localEnsaio === 'VargemGrande') {
+      console.log(`⚠️ [alimentarAbaOrganistasVargemGrande] localEnsaio não fornecido ou padrão, tentando extrair da planilha...`);
+      
+      if (idxLocalEnsaio >= 0) {
+        // Pega o primeiro local encontrado nos dados que pertence a esta localidade
+        for (let i = 0; i < Math.min(data.length, 100); i++) {
+          const localEncontrado = norm(data[i][idxLocalEnsaio] || '');
+          if (localEncontrado && localEncontrado !== '(Sem local definido)' && compararLocaisEnsaio(localEncontrado, 'VargemGrande')) {
+            localEnsaio = localEncontrado;
+            console.log(`✅ [alimentarAbaOrganistasVargemGrande] Local extraído da planilha: "${localEnsaio}"`);
+            break;
+          }
+        }
+      }
+      
+      // Se ainda não encontrou, usa o padrão
+      if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '') {
+        localEnsaio = 'VargemGrande';
+        console.log(`⚠️ [alimentarAbaOrganistasVargemGrande] Usando local padrão: "${localEnsaio}"`);
+      }
     }
     
     // Buscar a data do ensaio (pegar a primeira data encontrada nos dados deste local)
@@ -1327,7 +1350,7 @@ function alimentarAbaOrganistasVargemGrande(localEnsaio = 'VargemGrande') {
      shOrganistas.setColumnWidth(3, 220); // Coluna C (Cargo)
      shOrganistas.setColumnWidth(4, 134); // Coluna D (Nível da organista)
      shOrganistas.setColumnWidth(5, 315); // Coluna E (Comum)
-     shOrganistas.setColumnWidth(6, 120); // Coluna F (Cidade) - mantém 120
+     shOrganistas.setColumnWidth(6, 180); // Coluna F (Cidade) - ajustado para 180px
      shOrganistas.setColumnWidth(7, 180); // Coluna G (Tocou no último ensaio?)
     
     console.log(`✅ Aba Organistas da planilha externa de VargemGrande alimentada com sucesso para: ${localEnsaio}`);
@@ -1387,6 +1410,29 @@ function alimentarAbaOrganistasPirapora(localEnsaio = 'Pirapora') {
 
     if (idxNome < 0 || idxCargo < 0) {
       throw new Error('Colunas "nome" ou "cargo" não encontradas');
+    }
+
+    // Se localEnsaio não foi fornecido ou está vazio, tenta extrair da planilha
+    if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '' || localEnsaio === 'Pirapora') {
+      console.log(`⚠️ [alimentarAbaOrganistasPirapora] localEnsaio não fornecido ou padrão, tentando extrair da planilha...`);
+      
+      if (idxLocalEnsaio >= 0) {
+        // Pega o primeiro local encontrado nos dados que pertence a esta localidade
+        for (let i = 0; i < Math.min(data.length, 100); i++) {
+          const localEncontrado = norm(data[i][idxLocalEnsaio] || '');
+          if (localEncontrado && localEncontrado !== '(Sem local definido)' && compararLocaisEnsaio(localEncontrado, 'Pirapora')) {
+            localEnsaio = localEncontrado;
+            console.log(`✅ [alimentarAbaOrganistasPirapora] Local extraído da planilha: "${localEnsaio}"`);
+            break;
+          }
+        }
+      }
+      
+      // Se ainda não encontrou, usa o padrão
+      if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '') {
+        localEnsaio = 'Pirapora';
+        console.log(`⚠️ [alimentarAbaOrganistasPirapora] Usando local padrão: "${localEnsaio}"`);
+      }
     }
     
     // Buscar a data do ensaio (pegar a primeira data encontrada nos dados deste local)
@@ -1581,7 +1627,7 @@ function alimentarAbaOrganistasPirapora(localEnsaio = 'Pirapora') {
      shOrganistas.setColumnWidth(3, 220); // Coluna C (Cargo)
      shOrganistas.setColumnWidth(4, 134); // Coluna D (Nível da organista)
      shOrganistas.setColumnWidth(5, 315); // Coluna E (Comum)
-     shOrganistas.setColumnWidth(6, 120); // Coluna F (Cidade) - mantém 120
+     shOrganistas.setColumnWidth(6, 180); // Coluna F (Cidade) - ajustado para 180px
      shOrganistas.setColumnWidth(7, 180); // Coluna G (Tocou no último ensaio?)
     
     console.log(`✅ Aba Organistas da planilha externa de Pirapora alimentada com sucesso para: ${localEnsaio}`);
@@ -1641,6 +1687,29 @@ function alimentarAbaOrganistasFazendinha(localEnsaio = 'Fazendinha') {
 
     if (idxNome < 0 || idxCargo < 0) {
       throw new Error('Colunas "nome" ou "cargo" não encontradas');
+    }
+
+    // Se localEnsaio não foi fornecido ou está vazio, tenta extrair da planilha
+    if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '' || localEnsaio === 'Fazendinha') {
+      console.log(`⚠️ [alimentarAbaOrganistasFazendinha] localEnsaio não fornecido ou padrão, tentando extrair da planilha...`);
+      
+      if (idxLocalEnsaio >= 0) {
+        // Pega o primeiro local encontrado nos dados que pertence a esta localidade
+        for (let i = 0; i < Math.min(data.length, 100); i++) {
+          const localEncontrado = norm(data[i][idxLocalEnsaio] || '');
+          if (localEncontrado && localEncontrado !== '(Sem local definido)' && compararLocaisEnsaio(localEncontrado, 'Fazendinha')) {
+            localEnsaio = localEncontrado;
+            console.log(`✅ [alimentarAbaOrganistasFazendinha] Local extraído da planilha: "${localEnsaio}"`);
+            break;
+          }
+        }
+      }
+      
+      // Se ainda não encontrou, usa o padrão
+      if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '') {
+        localEnsaio = 'Fazendinha';
+        console.log(`⚠️ [alimentarAbaOrganistasFazendinha] Usando local padrão: "${localEnsaio}"`);
+      }
     }
     
     // Buscar a data do ensaio (pegar a primeira data encontrada nos dados deste local)
@@ -1835,7 +1904,7 @@ function alimentarAbaOrganistasFazendinha(localEnsaio = 'Fazendinha') {
      shOrganistas.setColumnWidth(3, 220); // Coluna C (Cargo)
      shOrganistas.setColumnWidth(4, 134); // Coluna D (Nível da organista)
      shOrganistas.setColumnWidth(5, 315); // Coluna E (Comum)
-     shOrganistas.setColumnWidth(6, 120); // Coluna F (Cidade) - mantém 120
+     shOrganistas.setColumnWidth(6, 180); // Coluna F (Cidade) - ajustado para 180px
      shOrganistas.setColumnWidth(7, 180); // Coluna G (Tocou no último ensaio?)
     
     console.log(`✅ Aba Organistas da planilha externa de Fazendinha alimentada com sucesso para: ${localEnsaio}`);
@@ -1895,6 +1964,29 @@ function alimentarAbaOrganistasJandira(localEnsaio = 'Jandira') {
 
     if (idxNome < 0 || idxCargo < 0) {
       throw new Error('Colunas "nome" ou "cargo" não encontradas');
+    }
+
+    // Se localEnsaio não foi fornecido ou está vazio, tenta extrair da planilha
+    if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '' || localEnsaio === 'Jandira') {
+      console.log(`⚠️ [alimentarAbaOrganistasJandira] localEnsaio não fornecido ou padrão, tentando extrair da planilha...`);
+      
+      if (idxLocalEnsaio >= 0) {
+        // Pega o primeiro local encontrado nos dados que pertence a esta localidade
+        for (let i = 0; i < Math.min(data.length, 100); i++) {
+          const localEncontrado = norm(data[i][idxLocalEnsaio] || '');
+          if (localEncontrado && localEncontrado !== '(Sem local definido)' && compararLocaisEnsaio(localEncontrado, 'Jandira')) {
+            localEnsaio = localEncontrado;
+            console.log(`✅ [alimentarAbaOrganistasJandira] Local extraído da planilha: "${localEnsaio}"`);
+            break;
+          }
+        }
+      }
+      
+      // Se ainda não encontrou, usa o padrão
+      if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '') {
+        localEnsaio = 'Jandira';
+        console.log(`⚠️ [alimentarAbaOrganistasJandira] Usando local padrão: "${localEnsaio}"`);
+      }
     }
     
     // Buscar a data do ensaio (pegar a primeira data encontrada nos dados deste local)
@@ -2089,7 +2181,7 @@ function alimentarAbaOrganistasJandira(localEnsaio = 'Jandira') {
      shOrganistas.setColumnWidth(3, 220); // Coluna C (Cargo)
      shOrganistas.setColumnWidth(4, 134); // Coluna D (Nível da organista)
      shOrganistas.setColumnWidth(5, 315); // Coluna E (Comum)
-     shOrganistas.setColumnWidth(6, 120); // Coluna F (Cidade) - mantém 120
+     shOrganistas.setColumnWidth(6, 180); // Coluna F (Cidade) - ajustado para 180px
      shOrganistas.setColumnWidth(7, 180); // Coluna G (Tocou no último ensaio?)
     
     console.log(`✅ Aba Organistas da planilha externa de Jandira alimentada com sucesso para: ${localEnsaio}`);
@@ -2149,6 +2241,29 @@ function alimentarAbaOrganistasCaucaia(localEnsaio = 'Caucaia') {
 
     if (idxNome < 0 || idxCargo < 0) {
       throw new Error('Colunas "nome" ou "cargo" não encontradas');
+    }
+
+    // Se localEnsaio não foi fornecido ou está vazio, tenta extrair da planilha
+    if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '' || localEnsaio === 'Caucaia') {
+      console.log(`⚠️ [alimentarAbaOrganistasCaucaia] localEnsaio não fornecido ou padrão, tentando extrair da planilha...`);
+      
+      if (idxLocalEnsaio >= 0) {
+        // Pega o primeiro local encontrado nos dados que pertence a esta localidade
+        for (let i = 0; i < Math.min(data.length, 100); i++) {
+          const localEncontrado = norm(data[i][idxLocalEnsaio] || '');
+          if (localEncontrado && localEncontrado !== '(Sem local definido)' && compararLocaisEnsaio(localEncontrado, 'Caucaia')) {
+            localEnsaio = localEncontrado;
+            console.log(`✅ [alimentarAbaOrganistasCaucaia] Local extraído da planilha: "${localEnsaio}"`);
+            break;
+          }
+        }
+      }
+      
+      // Se ainda não encontrou, usa o padrão
+      if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '') {
+        localEnsaio = 'Caucaia';
+        console.log(`⚠️ [alimentarAbaOrganistasCaucaia] Usando local padrão: "${localEnsaio}"`);
+      }
     }
     
     // Buscar a data do ensaio (pegar a primeira data encontrada nos dados deste local)
@@ -2343,7 +2458,7 @@ function alimentarAbaOrganistasCaucaia(localEnsaio = 'Caucaia') {
      shOrganistas.setColumnWidth(3, 220); // Coluna C (Cargo)
      shOrganistas.setColumnWidth(4, 134); // Coluna D (Nível da organista)
      shOrganistas.setColumnWidth(5, 315); // Coluna E (Comum)
-     shOrganistas.setColumnWidth(6, 120); // Coluna F (Cidade) - mantém 120
+     shOrganistas.setColumnWidth(6, 180); // Coluna F (Cidade) - ajustado para 180px
      shOrganistas.setColumnWidth(7, 180); // Coluna G (Tocou no último ensaio?)
     
     console.log(`✅ Aba Organistas da planilha externa de Caucaia alimentada com sucesso para: ${localEnsaio}`);
@@ -2403,6 +2518,29 @@ function alimentarAbaOrganistasCotia(localEnsaio = 'Cotia') {
 
     if (idxNome < 0 || idxCargo < 0) {
       throw new Error('Colunas "nome" ou "cargo" não encontradas');
+    }
+
+    // Se localEnsaio não foi fornecido ou está vazio, tenta extrair da planilha
+    if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '' || localEnsaio === 'Cotia') {
+      console.log(`⚠️ [alimentarAbaOrganistasCotia] localEnsaio não fornecido ou padrão, tentando extrair da planilha...`);
+      
+      if (idxLocalEnsaio >= 0) {
+        // Pega o primeiro local encontrado nos dados que pertence a esta localidade
+        for (let i = 0; i < Math.min(data.length, 100); i++) {
+          const localEncontrado = norm(data[i][idxLocalEnsaio] || '');
+          if (localEncontrado && localEncontrado !== '(Sem local definido)' && compararLocaisEnsaio(localEncontrado, 'Cotia')) {
+            localEnsaio = localEncontrado;
+            console.log(`✅ [alimentarAbaOrganistasCotia] Local extraído da planilha: "${localEnsaio}"`);
+            break;
+          }
+        }
+      }
+      
+      // Se ainda não encontrou, usa o padrão
+      if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '') {
+        localEnsaio = 'Cotia';
+        console.log(`⚠️ [alimentarAbaOrganistasCotia] Usando local padrão: "${localEnsaio}"`);
+      }
     }
     
     // Buscar a data do ensaio (pegar a primeira data encontrada nos dados deste local)
@@ -2597,7 +2735,7 @@ function alimentarAbaOrganistasCotia(localEnsaio = 'Cotia') {
      shOrganistas.setColumnWidth(3, 220); // Coluna C (Cargo)
      shOrganistas.setColumnWidth(4, 134); // Coluna D (Nível da organista)
      shOrganistas.setColumnWidth(5, 315); // Coluna E (Comum)
-     shOrganistas.setColumnWidth(6, 120); // Coluna F (Cidade) - mantém 120
+     shOrganistas.setColumnWidth(6, 180); // Coluna F (Cidade) - ajustado para 180px
      shOrganistas.setColumnWidth(7, 180); // Coluna G (Tocou no último ensaio?)
     
     console.log(`✅ Aba Organistas da planilha externa de Cotia alimentada com sucesso para: ${localEnsaio}`);

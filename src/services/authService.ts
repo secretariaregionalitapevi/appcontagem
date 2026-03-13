@@ -505,8 +505,28 @@ export const authService = {
             try {
               console.log('🔍 [authService] Chamando supabase.auth.getUser()...');
               const {
-                data: { user: authUser },
+                data: authData,
+                error: authError
               } = await supabase.auth.getUser();
+
+              if (authError) {
+                // 🚨 CORREÇÃO: Se for erro 403 ou similar, não deslogar imediatamente
+                // Pode ser um rate limit ou erro temporário de rotação de token
+                console.warn('⚠️ Erro ao validar usuário no Supabase:', authError.message);
+                
+                // Se o erro indicar que a sessão é REALMENTE inválida (não apenas expirada)
+                if (authError.message?.includes('invalid claim') || authError.status === 401) {
+                  console.error('🚫 Sessão inválida detectada pelo servidor. Limpando...');
+                  await this.clearSession().catch(() => {});
+                  return null;
+                }
+                
+                // Para outros erros (403 forbidden, timeout, etc), confiamos no cache por enquanto
+                console.log('📦 Mantendo usuário do cache devido a erro transitório no servidor');
+                return cachedUser;
+              }
+
+              const authUser = authData?.user;
               if (authUser) {
                 console.log('🔍 [authService] Usuário auth encontrado:', authUser.id, 'Buscando perfil...');
                 const { profile, error: profileError } = await userProfileService.getProfile(

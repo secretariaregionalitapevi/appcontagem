@@ -21,93 +21,74 @@ try {
   console.error('Erro ao inicializar Supabase:', error);
 }
 
+// Flag para evitar múltiplas tentativas de restauração simultâneas
+let isRestoring = false;
+let restorePromise: Promise<boolean> | null = null;
+
 // Função helper para garantir que a sessão está restaurada antes de fazer queries
 export const ensureSessionRestored = async (): Promise<boolean> => {
   if (!supabase || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
     return false;
   }
 
-  try {
-    // 1. Verificar se já existe sessão ativa (Supabase gerencia automaticamente com persistSession: true)
-    const { data: { session }, error } = await supabase.auth.getSession();
-    console.log('🔐 [ensureSessionRestored] Current session state:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      error: error?.message
-    });
-
-    if (session && session.user && !error) {
-      const expiresAt = session.expires_at;
-      // Sessão válida por mais de 1 minuto
-      if (expiresAt && expiresAt * 1000 > Date.now() + 60000) {
-        return true;
-      }
-      // Sessão quase expirando ou expirada - tentar refresh
-      console.log('🔄 Sessão expirando, fazendo refresh...');
-      try {
-        const { data: { session: refreshed }, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshed && !refreshError) {
-          console.log('✅ Sessão renovada com sucesso');
-          // Salvar nova sessão no authService para consistência
-          try {
-            const { authService } = require('./authService');
-            await authService.saveSession({
-              access_token: refreshed.access_token,
-              refresh_token: refreshed.refresh_token,
-              expires_at: refreshed.expires_at,
-            });
-          } catch (_) { }
-          return true;
-        }
-      } catch (_) { }
-    }
-
-    // 2. Nenhuma sessão ativa - tentar restaurar do authService (fallback)
-    try {
-      const { authService } = require('./authService');
-      const sessionData = await authService.getSession();
-      if (sessionData?.access_token && sessionData?.refresh_token) {
-        console.log('🔑 Restaurando sessão do authService...');
-        const { data: { session: restored }, error: setError } = await supabase.auth.setSession({
-          access_token: sessionData.access_token,
-          refresh_token: sessionData.refresh_token,
-        });
-        if (restored && !setError) {
-          console.log('✅ Sessão restaurada do authService');
-          return true;
-        }
-        // Se falhou, tentar refresh direto
-        if (sessionData.refresh_token) {
-          const { data: { session: refreshed2 }, error: refreshError2 } = await supabase.auth.refreshSession({
-            refresh_token: sessionData.refresh_token,
-          });
-            if (refreshed2 && !refreshError2) {
-              try {
-                const { authService } = require('./authService');
-                await authService.saveSession({
-                  access_token: refreshed2.access_token,
-                  refresh_token: refreshed2.refresh_token,
-                  expires_at: refreshed2.expires_at,
-                });
-              } catch (_) { }
-              return true;
-            } else {
-              // Refresh falhou - sessão inválida, limpar
-              console.warn('⚠️ Refresh falhou, clearing stale session');
-              const { authService } = require('./authService');
-              await authService.clearSession().catch(() => { });
-            }
-        }
-      }
-    } catch (authError) {
-      console.warn('⚠️ Erro ao restaurar do authService:', authError);
-    }
-
-    return false;
-  } catch (error) {
-    console.warn('⚠️ Erro ao verificar sessão:', error);
-    return false;
+  // Se já estiver restaurando, aguardar a promessa existente
+  if (isRestoring && restorePromise) {
+    return restorePromise;
   }
+
+  isRestoring = true;
+  restorePromise = (async () => {
+    try {
+      // 1. Verificar se já existe sessão ativa
+      // getSession() é local e rápido. Se autoRefreshToken estiver ligado, Supabase cuidará do resto.
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (session && session.user && !error) {
+        const expiresAt = session.expires_at;
+        // Se a sessão for válida por mais de 30 segundos, não forçamos refresh manual
+        // O autoRefreshToken do Supabase cuidará disso em background.
+        if (expiresAt && expiresAt * 1000 > Date.now() + 30000) {
+          return true;
+        }
+
+        // Se estiver quase expirando, vamos apenas tentar um getUser() que força validação leve
+        // ou deixar o autoRefreshToken agir. Evitamos refreshSession manual pra não causar conflito de token reuse.
+        console.log('🔄 Sessão próxima da expiração, notificando Supabase...');
+      }
+
+      // 2. Tentar restaurar do authService apenas se necessário (fallback para primeiro carregamento)
+      try {
+        const { authService } = require('./authService');
+        const sessionData = await authService.getSession();
+        
+        if (sessionData?.access_token && sessionData?.refresh_token) {
+          // Só definir se o cliente atual realmente estiver sem nada
+          if (!session) {
+            console.log('🔑 Restaurando sessão do authService (fallback)...');
+            const { data: { session: restored }, error: setError } = await supabase.auth.setSession({
+              access_token: sessionData.access_token,
+              refresh_token: sessionData.refresh_token,
+            });
+            if (restored && !setError) return true;
+          }
+        }
+      } catch (authError) {
+        console.warn('⚠️ Erro ao restaurar do authService:', authError);
+      }
+
+      // Se chegamos aqui, apenas retornamos o estado atual do getSession
+      const { data: { session: finalSession } } = await supabase.auth.getSession();
+      return !!finalSession?.user;
+    } catch (error) {
+      console.warn('⚠️ Erro ao verificar sessão:', error);
+      return false;
+    } finally {
+      isRestoring = false;
+      restorePromise = null;
+    }
+  })();
+
+  return restorePromise;
 };
 
 // Exportar com fallback seguro

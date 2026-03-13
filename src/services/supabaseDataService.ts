@@ -2133,42 +2133,11 @@ export const supabaseDataService = {
     }
 
     // 🚨 CORREÇÃO CRÍTICA: Garantir que sessão está restaurada antes de inserir
-    // 🚀 OTIMIZAÇÃO: Timeout de 1 segundo para não bloquear muito tempo
-    // Mas não bloquear se não conseguir restaurar (RLS pode permitir algumas operações)
+    // 🚀 OTIMIZAÇÃO: Usar a nova versão simplificada e com lock de ensureSessionRestored
     try {
-      const sessionPromise = Promise.race([
-        ensureSessionRestored(),
-        new Promise(resolve => setTimeout(() => resolve(false), 1000)), // Timeout de 1s
-      ]).catch(() => false);
-
-      const sessionRestored = await sessionPromise;
-
-      if (sessionRestored) {
-        // 🚀 OTIMIZAÇÃO: Verificar autenticação com timeout também (não bloquear)
-        const authPromise = Promise.race([
-          supabase.auth.getUser(),
-          new Promise(resolve =>
-            setTimeout(() => resolve({ data: { user: null }, error: null }), 500)
-          ),
-        ]).catch(() => ({ data: { user: null }, error: null }));
-
-        const {
-          data: { user },
-          error: authError,
-        } = (await authPromise) as any;
-        if (authError) {
-          console.warn('⚠️ Erro ao verificar autenticação:', authError.message);
-        } else if (user) {
-          console.log('🔐 Sessão restaurada com sucesso:', { userId: user.id });
-        }
-      } else {
-        console.warn(
-          '⚠️ Não foi possível restaurar sessão. Tentando inserir mesmo assim (RLS pode permitir).'
-        );
-      }
+      await ensureSessionRestored();
     } catch (sessionError) {
       console.warn('⚠️ Erro ao restaurar sessão (continuando...):', sessionError);
-      // Continuar mesmo com erro - pode funcionar sem autenticação dependendo das políticas RLS
     }
 
     // Buscar nomes a partir dos IDs

@@ -19,6 +19,7 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { AppHeader } from '../components/AppHeader';
 import { OfflineBadge } from '../components/OfflineBadge';
 import { theme } from '../theme';
+import { RegistrationSuccessModal } from '../components/RegistrationSuccessModal';
 import { organistasEnsaioService } from '../services/organistasEnsaioService';
 import { localStorageService } from '../services/localStorageService';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -28,6 +29,10 @@ import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { handleHardReset } from '../utils/appActions';
+import { AutocompleteField } from '../components/AutocompleteField';
+import { SimpleSelectField } from '../components/SimpleSelectField';
+import { supabaseDataService } from '../services/supabaseDataService';
+import { Comum, Cargo, Pessoa } from '../types/models';
 
 interface OrganistaItem {
   nome: string;
@@ -54,27 +59,76 @@ export const OrganistasEnsaioScreen: React.FC = () => {
 
   const [organistas, setOrganistas] = useState<any[]>([]);
   const [organistasRegistradas, setOrganistasRegistradas] = useState<OrganistaItem[]>([]);
-  const [selectedOrganista, setSelectedOrganista] = useState<string>('');
-  const [tocou, setTocou] = useState<boolean>(false);
+  const [selectedOrganista, setSelectedOrganista] = useState('');
+  const [organistaSelecionada, setOrganistaSelecionada] = useState<any>(null);
   const [localEnsaio, setLocalEnsaio] = useState<string>('Não definido');
   const [dataEnsaio, setDataEnsaio] = useState<string>(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
   const [loadingOrganistas, setLoadingOrganistas] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [organistaFieldKey, setOrganistaFieldKey] = useState(0); // Key para forçar remontagem do NameSelectField
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    nome: string, 
+    tocou: boolean, 
+    ultimaPresenca?: string,
+    ultimoTocou?: boolean
+  }>({
+    nome: '',
+    tocou: false
+  });
 
-  // Carregar local do ensaio e buscar organistas
+  // Estados para busca de toda a regional
+  const [comuns, setComuns] = useState<Comum[]>([]);
+  const [cargos, setCargos] = useState<Cargo[]>([]);
+  const [selectedComum, setSelectedComum] = useState<string>('');
+  const [selectedCargo, setSelectedCargo] = useState<string>('');
+  const [initialSearchLoading, setInitialSearchLoading] = useState(true);
+
+  // Carregar local do ensaio, comuns e cargos
   useEffect(() => {
     loadLocalEnsaio();
+    loadInitialData();
   }, []);
 
-  // Buscar organistas quando o local for carregado
+  const loadInitialData = async () => {
+    try {
+      setInitialSearchLoading(true);
+      const [comunsData, cargosData] = await Promise.all([
+        supabaseDataService.getComunsFromLocal(),
+        supabaseDataService.getCargosFromLocal(),
+      ]);
+
+      setComuns(comunsData);
+
+      // Filtrar apenas cargos de organistas/instrutoras/examinadoras
+      const organistaCargos = cargosData.filter(c => {
+        const nome = c.nome.toUpperCase();
+        return (
+          nome === 'ORGANISTA' || nome === 'INSTRUTORA' || nome === 'EXAMINADORA'
+        );
+      });
+      setCargos(organistaCargos);
+      
+      // Se houver cargo de Organista, selecionar por padrão
+      const organistaDefault = organistaCargos.find(c => c.nome.toUpperCase() === 'ORGANISTA');
+      if (organistaDefault) {
+        setSelectedCargo(organistaDefault.id);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados iniciais:', error);
+    } finally {
+      setInitialSearchLoading(false);
+    }
+  };
+
+  // Buscar organistas quando o local ou filtros mudarem
   useEffect(() => {
     if (localEnsaio && localEnsaio !== 'Não definido') {
       loadOrganistas();
       loadRegistros();
     }
-  }, [localEnsaio, dataEnsaio]);
+  }, [localEnsaio, dataEnsaio, selectedComum, selectedCargo]);
 
   const loadLocalEnsaio = async () => {
     try {
@@ -105,23 +159,76 @@ export const OrganistasEnsaioScreen: React.FC = () => {
     }
   };
 
-  const loadOrganistas = async () => {
-    if (!isOnline) {
-      showToast.warning('Offline', 'Conecte-se à internet para buscar organistas');
-      return;
+  // Função para garantir que o nome da comum inclua o código (se disponível)
+  const sanitizeComumName = (nomeOriginal?: string) => {
+    if (!nomeOriginal) return undefined;
+    
+    // Se já tiver o código (formato BR-XX-XXXX), retornar original
+    if (/^[A-Z]{2}-\d{2}-\d{4}/.test(nomeOriginal)) {
+      return nomeOriginal;
     }
 
+    // Tentar encontrar na lista de comuns pelo nome
+    if (comuns.length > 0) {
+      const comumEncontrada = comuns.find(c => 
+        c.nome.toUpperCase() === nomeOriginal.toUpperCase() ||
+        c.displayName?.toUpperCase().includes(nomeOriginal.toUpperCase())
+      );
+      if (comumEncontrada && comumEncontrada.displayName) {
+        return comumEncontrada.displayName;
+      }
+    }
+
+    return nomeOriginal;
+  };
+
+  const loadOrganistas = async () => {
     setLoadingOrganistas(true);
     try {
-      const data = await organistasEnsaioService.fetchOrganistasByLocalEnsaio(localEnsaio);
+      let data: any[] = [];
+
+      // Se tiver comum e cargo selecionados, buscar de toda a regional via supabaseDataService
+      if (selectedComum && selectedCargo) {
+        const pessoas = await supabaseDataService.getPessoasFromLocal(selectedComum, selectedCargo);
+        data = pessoas.map(p => {
+          // Extrair nome da comum se for o formato técnico (incluindo código)
+          let comumDisplay = p.comum_id;
+          if (comuns.length > 0) {
+            const comumEncontrada = comuns.find(c => c.id === p.comum_id);
+            if (comumEncontrada) {
+              comumDisplay = comumEncontrada.displayName || comumEncontrada.nome;
+            }
+          }
+
+          return {
+            nome: p.nome_completo,
+            comum: comumDisplay,
+            cidade: p.cidade,
+            cargo: p.cargo_real,
+            id: p.id
+          };
+        });
+      } else {
+        // Fallback: buscar organistas que já estiveram nesse local (lógica original)
+        const rawData = await organistasEnsaioService.fetchOrganistasByLocalEnsaio(localEnsaio);
+        // Normalizar nomes das comuns do histórico
+        data = rawData.map(org => ({
+          ...org,
+          comum: sanitizeComumName(org.comum)
+        }));
+      }
 
       // Converter para formato de opções do NameSelectField
-      const opcoes = data.map((org, index) => ({
-        id: `organista_${index}_${org.nome.toLowerCase().replace(/\s+/g, '_')}`,
-        label: `${org.nome}${org.comum ? ` - ${org.comum}` : ''}${org.cargo ? ` (${org.cargo})` : ''}`,
-        value: org.nome,
-        data: org, // Guardar dados completos
-      }));
+      const opcoes = data.map((org, index) => {
+        // Para esta página dedicada, exibir SEMPRE apenas o nome na lista de resultados principal
+        // Isso evita confusão com comum/cargo repetidos
+        return {
+          id: org.id || `organista_${index}_${org.nome.toLowerCase().replace(/\s+/g, '_')}`,
+          label: org.nome,
+          value: org.nome,
+          data: org, // Guardar dados completos
+        };
+      });
 
       setOrganistas(opcoes);
       console.log(`✅ ${opcoes.length} organistas carregadas`);
@@ -144,10 +251,10 @@ export const OrganistasEnsaioScreen: React.FC = () => {
         dataEnsaio
       );
 
-      // Converter registros para formato de lista
+      // Converter registros para formato de lista e sanitizar nomes de comuns
       const items: OrganistaItem[] = registros.map(reg => ({
         nome: reg.organista_nome,
-        comum: reg.organista_comum,
+        comum: sanitizeComumName(reg.organista_comum),
         cidade: reg.organista_cidade,
         tocou: reg.tocou,
         registroId: reg.id,
@@ -160,34 +267,91 @@ export const OrganistasEnsaioScreen: React.FC = () => {
     }
   };
 
-  const handleSelectOrganista = (option: { id: string; label: string; value: unknown }) => {
+  const handleSelectOrganista = (option: { id: string; label: string; value: unknown; data: any }) => {
     if (typeof option.value === 'string') {
       setSelectedOrganista(option.value);
-      // Verificar se já existe registro para esta organista
-      const registroExistente = organistasRegistradas.find(reg => reg.nome === option.value);
-      if (registroExistente) {
-        setTocou(registroExistente.tocou || false);
-      } else {
-        setTocou(false);
-      }
+      setOrganistaSelecionada(option.data);
     }
   };
 
   // Função helper para limpar o campo de organista
   const clearOrganistaField = () => {
-    console.log('🧹 Limpando campo de organista');
     setSelectedOrganista('');
-    setTocou(false);
-    // Incrementar key para forçar remontagem do NameSelectField
+    setOrganistaSelecionada(null);
     setOrganistaFieldKey(prev => prev + 1);
   };
 
+  const clearFilters = () => {
+    setSelectedComum('');
+    // Manter o cargo Organista como padrão se existir
+    const organistaDefault = cargos.find(c => c.nome.toUpperCase() === 'ORGANISTA');
+    if (organistaDefault) {
+      setSelectedCargo(organistaDefault.id);
+    } else {
+      setSelectedCargo('');
+    }
+    clearOrganistaField();
+  };
+
+  const reloadPage = () => {
+    // Resetar estados e carregar do zero
+    setSelectedComum('');
+    const organistaDefault = cargos.find(c => c.nome.toUpperCase() === 'ORGANISTA');
+    if (organistaDefault) {
+      setSelectedCargo(organistaDefault.id);
+    }
+    clearOrganistaField();
+    loadRegistersAndOrganistas();
+  };
+
+  const loadRegistersAndOrganistas = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([loadOrganistas(), loadRegistros()]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
-    if (!selectedOrganista || selectedOrganista.trim() === '') {
-      Alert.alert('Atenção', 'Selecione uma organista');
+    if (!selectedOrganista) {
+      showToast.error('Erro', 'Selecione uma organista');
       return;
     }
 
+    setLoading(true);
+    try {
+      // Tentar obter a data da última presença se não tiver nos dados da busca
+      let ultimaPresenca = organistaSelecionada?.ultimaPresenca;
+      let ultimoTocou = true; // Por padrão assume true se vier da busca (presencas)
+
+      if (!ultimaPresenca) {
+        const lastPresence = await organistasEnsaioService.fetchLastPresence(selectedOrganista);
+        if (lastPresence) {
+          ultimaPresenca = lastPresence.data || undefined;
+          ultimoTocou = lastPresence.tocou;
+        }
+      } else {
+        ultimoTocou = true;
+      }
+
+      // Preparar dados para o modal de confirmação
+      setSuccessData({
+        nome: selectedOrganista,
+        tocou: true, // Será definido no confirmação
+        ultimaPresenca: ultimaPresenca || undefined,
+        ultimoTocou: ultimoTocou
+      });
+      setSuccessModalVisible(true);
+    } catch (error) {
+      console.error('❌ Erro ao preparar registro:', error);
+      showToast.error('Erro', 'Não foi possível preparar o registro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmSave = async (tocouNoEnsaio: boolean) => {
     if (!user) {
       Alert.alert('Erro', 'Usuário não autenticado');
       return;
@@ -199,12 +363,8 @@ export const OrganistasEnsaioScreen: React.FC = () => {
     }
 
     setLoading(true);
-
     try {
-      // Buscar dados completos da organista selecionada
-      const organistaSelecionada = organistas.find(opt => opt.value === selectedOrganista)?.data;
-
-      // Preparar nome do usuário
+      // Preparar nome do usuário para o campo "registrado_por"
       let nomeCompletoUsuario = user.nome;
       if (!nomeCompletoUsuario || nomeCompletoUsuario.trim() === '') {
         const emailSemDominio = user.email?.split('@')[0] || '';
@@ -212,37 +372,52 @@ export const OrganistasEnsaioScreen: React.FC = () => {
       }
       const nomeUsuario = formatRegistradoPor(nomeCompletoUsuario || user.id);
 
+      // Buscar comum selecionada se não houver na organista selecionada
+      let organistaComum = organistaSelecionada?.comum;
+      let organistaCidade = organistaSelecionada?.cidade;
+
+      if (!organistaComum && selectedComum) {
+        const comumData = comuns.find(c => c.id === selectedComum);
+        // Priorizar displayName (que contém o código)
+        organistaComum = comumData?.displayName || comumData?.nome || selectedComum;
+        
+        // Se a comum for manual e tiver o pipe (Nome|Cidade)
+        if (selectedComum.includes('|')) {
+          const partes = selectedComum.split('|');
+          organistaComum = partes[0];
+          organistaCidade = partes[1];
+        }
+      }
+
+      // Sanitarizar nome da comum garantindo o código antes de salvar
+      const comumSanitizada = sanitizeComumName(organistaComum);
+
       const registro: OrganistaEnsaio = {
         organista_nome: selectedOrganista,
-        organista_comum: organistaSelecionada?.comum || undefined,
-        organista_cidade: organistaSelecionada?.cidade || undefined,
+        organista_comum: comumSanitizada || undefined,
+        organista_cidade: organistaCidade || undefined,
         local_ensaio: localEnsaio,
         data_ensaio: dataEnsaio,
-        tocou: tocou,
+        tocou: tocouNoEnsaio,
         usuario_responsavel: nomeUsuario,
       };
 
+      console.log('💾 Salvando registro com tocou:', tocouNoEnsaio);
       const result = await organistasEnsaioService.saveOrganistaEnsaio(registro);
 
       if (result.success) {
-        showToast.success(
-          'Salvo!',
-          `${selectedOrganista} ${tocou ? 'tocou' : 'não tocou'} no ensaio`
-        );
-
-        // Limpar seleção IMEDIATAMENTE usando função helper
+        setSuccessModalVisible(false);
+        // Limpar os campos para o próximo registro (mantendo a data do ensaio)
         clearOrganistaField();
-
-        // Recarregar registros para atualizar a lista
-        await loadRegistros();
-
-        // NÃO recarregar a página - permanecer na mesma tela para novos registros
+        // Recarregar registros para atualizar a lista abaixo
+        loadRegistros();
+        showToast.success('Sucesso', 'Registro realizado com sucesso!');
       } else {
-        Alert.alert('Erro', result.error || 'Não foi possível salvar o registro');
+        showToast.error('Erro', result.error || 'Erro ao salvar registro');
       }
-    } catch (error: any) {
-      console.error('❌ Erro ao salvar registro:', error);
-      Alert.alert('Erro', 'Não foi possível salvar o registro');
+    } catch (error) {
+      console.error('❌ Erro ao salvar organista:', error);
+      showToast.error('Erro', 'Falha na conexão com o servidor');
     } finally {
       setLoading(false);
     }
@@ -382,9 +557,54 @@ export const OrganistasEnsaioScreen: React.FC = () => {
             )}
           </View>
 
-          {/* Buscar e Registrar Nova Organista */}
           <View style={[styles.section, styles.registrarSection]}>
-            <Text style={styles.sectionTitle}>Registrar Organista</Text>
+            <View 
+              style={
+                Platform.OS === 'web'
+                  ? {
+                    position: 'relative' as any,
+                    zIndex: 999999,
+                    overflow: 'visible' as any,
+                    // @ts-ignore
+                    isolation: 'isolate',
+                    marginBottom: theme.spacing.md,
+                  }
+                  : styles.filterSection
+              }
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, zIndex: 1005 }}>
+                <Text style={styles.sectionTitle}>Registrar Organista</Text>
+              </View>
+              <View style={[styles.field, Platform.OS === 'web' ? { zIndex: 10002, position: 'relative' } : {}]}>
+                <Text style={styles.label}>Comum Congregação</Text>
+                <AutocompleteField
+                  label=""
+                  placeholder="Selecione a comum..."
+                  value={selectedComum}
+                  options={comuns.map(c => ({
+                    id: c.id,
+                    label: c.displayName || c.nome,
+                    value: c.id,
+                  }))}
+                  onSelect={option => setSelectedComum(String(option.value))}
+                />
+              </View>
+
+              {/* Cargo oculto - fixo como Organista para esta página */}
+              <View style={{ display: 'none' }}>
+                <SimpleSelectField
+                  label=""
+                  placeholder="Selecione o cargo..."
+                  value={selectedCargo}
+                  options={cargos.map(c => ({
+                    id: c.id,
+                    label: c.nome,
+                    value: c.id,
+                  }))}
+                  onSelect={option => setSelectedCargo(String(option.value))}
+                />
+              </View>
+            </View>
 
             <View
               style={[
@@ -410,20 +630,6 @@ export const OrganistasEnsaioScreen: React.FC = () => {
                 loading={loadingOrganistas}
               />
             </View>
-
-            {selectedOrganista && (
-              <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel} numberOfLines={2} ellipsizeMode="tail">
-                  {selectedOrganista} tocou no ensaio?
-                </Text>
-                <Switch
-                  value={tocou}
-                  onValueChange={setTocou}
-                  trackColor={{ false: '#767577', true: theme.colors.primary }}
-                  thumbColor={tocou ? '#fff' : '#f4f3f4'}
-                />
-              </View>
-            )}
 
             {selectedOrganista && (
               <PrimaryButton
@@ -476,6 +682,17 @@ export const OrganistasEnsaioScreen: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+
+      <RegistrationSuccessModal
+        visible={successModalVisible}
+        nome={successData.nome}
+        tocou={successData.tocou}
+        ultimaPresenca={successData.ultimaPresenca}
+        ultimoTocou={successData.ultimoTocou}
+        onConfirm={handleConfirmSave}
+        onClose={() => setSuccessModalVisible(false)}
+        loading={loading}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -543,7 +760,36 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
     position: 'relative' as any,
     zIndex: 1,
-    overflow: 'hidden' as any,
+    overflow: 'visible' as any,
+  },
+  filterSection: {
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    zIndex: 1000,
+    overflow: 'visible' as any,
+  },
+  field: {
+    marginBottom: theme.spacing.sm,
+    position: 'relative' as any,
+    overflow: 'visible' as any,
+  },
+  label: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  clearFiltersBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+  },
+  clearFiltersText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   nameSelectWrapper: {
     position: 'relative' as any,
@@ -566,26 +812,22 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  saveButton: {
+    marginTop: theme.spacing.md,
+  },
   switchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between', // 🚀 Mudado de flex-end para space-between para melhor distribuição
     gap: theme.spacing.sm,
-    marginTop: theme.spacing.md,
-    padding: theme.spacing.sm,
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.sm,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   switchLabel: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text,
-    flex: 1, // 🚀 Permite que o texto ocupe o espaço disponível
-    flexShrink: 1, // 🚀 Permite que o texto encolha se necessário
-    marginRight: theme.spacing.sm,
-    lineHeight: 20,
-  },
-  saveButton: {
-    marginTop: theme.spacing.md,
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
   },
   organistaItem: {
     padding: theme.spacing.md,
