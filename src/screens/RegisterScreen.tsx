@@ -78,7 +78,6 @@ export const RegisterScreen: React.FC = () => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
-    handleConfirmDuplicate,
     handleHardReset,
   } = controller;
 
@@ -480,7 +479,6 @@ export const RegisterScreen: React.FC = () => {
             setSelectedPessoa('');
             setIsNomeManual(false);
           }}
-          onConfirm={handleConfirmDuplicate}
         />
       )}
 

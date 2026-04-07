@@ -137,7 +137,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
         // Converter ID para nome se necessário
         let localNome = local;
         if (/^\d+$/.test(local.trim())) {
-          const locais: { id: string; nome: string }[] = [
+          const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
             { id: '1', nome: 'Cotia' },
             { id: '2', nome: 'Caucaia do Alto' },
             { id: '3', nome: 'Fazendinha' },

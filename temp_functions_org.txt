@@ -1,0 +1,19 @@
+﻿18: function buscarTodosRegistrosTocou(localEnsaio) {
+143: function buscarTocouNosRegistros(organistaNome, registros) {
+285: function compararLocaisEnsaio(local1, local2) {
+321: function criarResumoPorEnsaio() {
+711: function listarLocaisEnsaio() {
+789: function alimentarAbaOrganistasItapevi(localEnsaio = 'Itapevi') {
+917:     function obterPrioridadeCargo(cargo) {
+1098: function alimentarAbaOrganistasVargemGrande(localEnsaio = 'VargemGrande') {
+1224:     function obterPrioridadeCargo(cargo) {
+1375: function alimentarAbaOrganistasPirapora(localEnsaio = 'Pirapora') {
+1501:     function obterPrioridadeCargo(cargo) {
+1652: function alimentarAbaOrganistasFazendinha(localEnsaio = 'Fazendinha') {
+1778:     function obterPrioridadeCargo(cargo) {
+1929: function alimentarAbaOrganistasJandira(localEnsaio = 'Jandira') {
+2055:     function obterPrioridadeCargo(cargo) {
+2206: function alimentarAbaOrganistasCaucaia(localEnsaio = 'Caucaia') {
+2332:     function obterPrioridadeCargo(cargo) {
+2483: function alimentarAbaOrganistasCotia(localEnsaio = 'Cotia') {
+2609:     function obterPrioridadeCargo(cargo) {

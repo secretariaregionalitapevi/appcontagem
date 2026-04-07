@@ -116,10 +116,32 @@ function jsonResponse(obj) {
 
 // Função para abrir ou criar sheet
 
+/**
+ * Retorna o ID da planilha da regional com base no nome do local.
+ * O mapeamento deve estar configurado nas Propriedades do Script como um JSON.
+ * Chave: REGIONAL_MAPPING
+ * Valor Exemplo: {"itapevi":"ID_PLANILHA", "cotia":"ID_PLANILHA", ...}
+ */
 function getRegionalId(local) {
   if (!local) return null;
   const l = local.toLowerCase().trim();
   
+  const mappingStr = PropertiesService.getScriptProperties().getProperty('REGIONAL_MAPPING');
+  if (mappingStr) {
+    try {
+      const mapping = JSON.parse(mappingStr);
+      // Busca a chave que está contida no nome do local fornecido
+      for (const key in mapping) {
+        if (l.includes(key.toLowerCase())) {
+          return mapping[key];
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao ler REGIONAL_MAPPING:', e.message);
+    }
+  }
+
+  // Fallback para os valores originais de Itapevi se a propriedade não estiver definida
   if (l.includes('itapevi')) return ITAPEVI_SHEET_ID;
   if (l.includes('cotia')) return COTIA_SHEET_ID;
   if (l.includes('caucaia')) return CAUCAIA_SHEET_ID;
@@ -226,8 +248,9 @@ function classificarCargo(cargo) {
   if (cargoLower.includes('ancião') || cargoLower.includes('diácono') || 
       cargoLower.includes('cooperador do ofício') || cargoLower.includes('cooperador do ofício ministerial') ||
       cargoLower.includes('cooperador de jovens') || cargoLower.includes('cooperador de jovens e menores') ||
-      cargoLower.includes('encarregado') || cargoLower.includes('secretária') || 
-      cargoLower.includes('secretário')) {
+      cargoLower.includes('encarregado') || 
+      cargoLower.includes('secretária') || cargoLower.includes('secretaria') ||
+      cargoLower.includes('secretário') || cargoLower.includes('secretario')) {
     return 'ministerio';
   }
   
@@ -244,12 +267,55 @@ function classificarCargo(cargo) {
   return 'outros';
 }
 
+// Função robusta para mapear cargo exato para contagem nas abas Resumo
+function mapearCargoParaContagem(cargoOriginal) {
+  if (!cargoOriginal) return null;
+  
+  // Normaliza: minúsculas, remove acentos e espaços extras
+  const cLower = cargoOriginal.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  // Cargos ministeriais
+  if (cLower.includes('anciao')) return 'Ancião';
+  if (cLower.includes('diacono')) return 'Diácono';
+  
+  if (cLower.includes('cooperador de jovens')) return 'Cooperador de Jovens';
+  // Fallback se for só "Cooperador do Ofício" ou "Cooperador"
+  if (cLower.includes('cooperador')) return 'Cooperador do Ofício'; 
+  
+  if (cLower.includes('encarregado regional')) return 'Encarregado Regional';
+  if (cLower.includes('encarregado local') || cLower.includes('encarregado de local') || cLower.includes('encarregado')) return 'Encarregado Local';
+  
+  if (cLower.includes('examinador')) return 'Examinadora';
+  
+  // Para Secretários(as) do GEM -> viram Instrutores(as)
+  if (cLower.includes('secretaria') && cLower.includes('gem')) return 'Instrutora';
+  if (cLower.includes('secretario') && cLower.includes('gem')) return 'Instrutor';
+  
+  // Para Secretários(as) da Música -> continuam Secretários(as)
+  if (cLower.includes('secretario') && (cLower.includes('music') || cLower.includes('musica'))) return 'Secretário da Música';
+  if (cLower.includes('secretaria') && (cLower.includes('music') || cLower.includes('musica') || !cLower.includes('municipio'))) return 'Secretária da Música';
+  
+  if (cLower.includes('instrutora')) return 'Instrutora';
+  if (cLower.includes('instrutor')) return 'Instrutor';
+  
+  // Cargos de apoio
+  if (cLower.includes('porteir')) return 'Porteiro (a)';
+  if (cLower.includes('bombeir')) return 'Bombeiro (a)';
+  if (cLower.includes('medic')) return 'Médico (a)';
+  if (cLower.includes('enfermeir')) return 'Enfermeiro (a)';
+  if (cLower.includes('irma')) return 'Irmandade';
+  
+  return null;
+}
+
 // Função para formatar texto corretamente
 
 function formatarTexto(texto) {
   if (!texto) return '';
-  const textoMinusculo = texto.toLowerCase();
-  return textoMinusculo.replace(/\b\w/g, l => l.toUpperCase());
+  // Converte para minúsculo e remove espaços extras
+  const textoMinusculo = String(texto).toLowerCase().trim();
+  // Capitaliza a primeira letra de cada palavra (lidando corretamente com acentos)
+  return textoMinusculo.replace(/(?:^|\s)\S/g, l => l.toUpperCase());
 }
 
 // Função para comparar locais de ensaio de forma flexível
@@ -773,39 +839,38 @@ function syncToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
     });
   }
   
-  let inseridos = 0;
-  for (const item of registros) {
-    const uuid = item.uuid || (item.record ? item.record.UUID : null);
-    if (!uuid || uuidsExistentes.has(uuid)) continue;
+    const loteNovasLinhas = [];
     
-    const record = item.record || {};
-    // Criar mapa do record com chaves uppercase para busca insensível
-    const recordUp = {};
-    Object.keys(record).forEach(k => {
-      recordUp[k.toUpperCase()] = record[k];
-    });
-    
-    // Mapear dados para as colunas do destino
-    const novaLinha = regHeaders.map(h => {
-      const val = recordUp[h];
-      return val != null ? val : '';
-    });
-    
-    sh.appendRow(novaLinha);
-    
-    // --- FORMATAÇÃO AUTOMÁTICA ---
-    // 1. Aplicar bordas em toda a nova linha
-    const lastRowNum = sh.getLastRow();
-    sh.getRange(lastRowNum, 1, 1, sh.getLastColumn()).setBorder(true, true, true, true, true, true);
-    
-    // 2. Se for a aba Organistas, garantir largura da Coluna F (180px)
-    if (sheetName === 'Organistas') {
-      sh.setColumnWidth(6, 180);
+    for (const item of registros) {
+      const uuid = item.uuid || (item.record ? item.record.UUID : null);
+      if (!uuid || uuidsExistentes.has(uuid)) continue;
+      
+      const record = item.record || {};
+      const recordUp = {};
+      Object.keys(record).forEach(k => { recordUp[k.toUpperCase()] = record[k]; });
+      
+      const novaLinha = regHeaders.map(h => {
+        const val = recordUp[h];
+        return val != null ? val : '';
+      });
+      
+      loteNovasLinhas.push(novaLinha);
+      uuidsExistentes.add(uuid);
+      inseridos++;
     }
     
-    uuidsExistentes.add(uuid); // Evita duplicata no mesmo lote
-    inseridos++;
-  }
+    if (loteNovasLinhas.length > 0) {
+      const startRow = regLastRow + 1;
+      sh.getRange(startRow, 1, loteNovasLinhas.length, regHeaders.length).setValues(loteNovasLinhas);
+      
+      // Aplicar bordas e formatação em lote
+      try {
+        sh.getRange(startRow, 1, loteNovasLinhas.length, regHeaders.length).setBorder(true, true, true, true, true, true);
+        if (sheetName === 'Organistas' || sheetName === 'Organistas'.toLowerCase()) {
+          sh.setColumnWidth(6, 180);
+        }
+      } catch (e) { }
+    }
   
   if (inseridos > 0) {
     console.log(`✅ [SYNC] ${inseridos} novo(s) registro(s) → [${ss.getName()}] Aba: ${sheetName}`);
@@ -2022,91 +2087,93 @@ function mapearInstrumento(instrumento) {
 // Função para limpar todos os contadores do resumo antes de atualizar
 
 function limparContadoresResumo(sheet, linhasComFormulas = [28, 41, 48, 50]) {
-  console.log('🧹 Limpando contadores do resumo...');
+  console.log('🧹 Limpando contadores do resumo (Memória Bulk)...');
   
   try {
-    // Pega todo o range da planilha para limpeza completa
     const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
+    if (lastRow < 2) return;
     
-    if (lastRow < 2) {
-      console.log('📋 Planilha vazia, nada para limpar');
-      return;
-    }
-    
-    // Pega todos os dados da planilha
-    const data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    const range = sheet.getRange(1, 1, lastRow, 2);
+    const values = range.getValues();
+    const formulas = range.getFormulas();
     
     let contadoresLimpos = 0;
+    const mixedValues = [];
     
-    // Percorre todas as linhas da planilha
-    for (let i = 1; i < data.length; i++) { // Começa da linha 2 (índice 1)
-      const row = i + 1; // Linha real na planilha
+    for (let i = 0; i < values.length; i++) {
+      const row = i + 1;
+      let newValue = values[i][1];
       
-      // Verifica se a linha contém fórmulas que devem ser preservadas
-      if (linhasComFormulas.includes(row)) {
-        console.log(`📊 Preservando fórmula na linha ${row}`);
-        continue; // Não limpa esta linha
+      if (i > 0 && !linhasComFormulas.includes(row) && !formulas[i][1]) {
+        const rotulo = values[i][0];
+        if (rotulo && typeof rotulo === 'string' && rotulo.trim() !== '') {
+          if (typeof newValue === 'number' && newValue > 0) {
+            newValue = 0;
+            contadoresLimpos++;
+          }
+        }
       }
-      
-      // Verifica se a linha tem dados na coluna A (rótulo)
-      const rotulo = data[i][0]; // Coluna A
-      if (!rotulo || typeof rotulo !== 'string' || rotulo.trim() === '') {
-        continue; // Pula linhas vazias
-      }
-      
-      // Verifica se a coluna B tem um valor numérico (contador)
-      const valorAtual = data[i][1]; // Coluna B
-      if (typeof valorAtual === 'number' && valorAtual > 0) {
-        // Limpa o valor na coluna B
-        sheet.getRange(row, 2).setValue(0);
-        contadoresLimpos++;
-        console.log(`🧹 Limpo: "${rotulo}" = 0 (linha ${row}, valor anterior: ${valorAtual})`);
-      }
+      mixedValues.push([formulas[i][1] ? formulas[i][1] : newValue]);
+    }
+    
+    if (contadoresLimpos > 0) {
+      sheet.getRange(1, 2, lastRow, 1).setValues(mixedValues);
     }
     
     console.log(`✅ Limpeza concluída: ${contadoresLimpos} contadores zerados`);
-    
   } catch (error) {
     console.error('❌ Erro durante a limpeza:', error);
     throw error;
   }
 }
 
-// Função para atualizar apenas coluna B preservando fórmulas em linhas específicas
+// Função Otimizada para atualizar Tudo de Uma Vez
+function atualizarTodosContadoresResumoBulk(sheet, arrayDeAtualizacoes, linhasComFormulas = [28, 41, 48, 50]) {
+  console.log(`🔍 Atualizando múltiplos rótulos em memória bulk...`);
+  
+  try {
+    // Prepara um dicionário com todos os textos normalizados que precisamos procurar
+    const currentDict = {};
+    arrayDeAtualizacoes.forEach(item => {
+      const normRotulo = normalizarNome(item.rotulo);
+      currentDict[normRotulo] = item.valor;
+    });
 
-function atualizarColunaBPreservandoFormulas(sheet, rotulo, valor, linhasComFormulas = [28, 41, 48, 50]) {
-  console.log(`🔍 Buscando rótulo: "${rotulo}" com valor: ${valor}`);
-  
-  const tf = sheet.createTextFinder(rotulo).matchEntireCell(true);
-  const matches = tf.findAll();
-  
-  console.log(`📋 Encontrados ${matches.length} matches para "${rotulo}"`);
-  
-  if (matches.length === 0) {
-    console.log(`⚠️ Nenhum match encontrado para "${rotulo}"`);
-    return;
-  }
-  
-  matches.forEach((m, index) => {
-    const row = m.getRow();
-    const col = m.getColumn();
-    const cellValue = m.getValue();
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return;
     
-    console.log(`📍 Match ${index + 1}: Linha ${row}, Coluna ${col}, Valor: "${cellValue}"`);
+    const range = sheet.getRange(1, 1, lastRow, 2);
+    const values = range.getValues();
+    const formulas = range.getFormulas();
+    let atualizados = 0;
     
-    // Verifica se a linha contém fórmulas que devem ser preservadas
-    if (linhasComFormulas.includes(row)) {
-      console.log(`📊 Preservando fórmula na linha ${row} para: ${rotulo}`);
-      return; // Não atualiza esta linha
+    const mixedValues = [];
+    
+    for (let i = 0; i < values.length; i++) {
+      const row = i + 1;
+      let newValue = values[i][1];
+      
+      if (!linhasComFormulas.includes(row) && !formulas[i][1]) {
+        const rotuloV = values[i][0];
+        if (rotuloV && typeof rotuloV === 'string') {
+          const normRowLabel = normalizarNome(rotuloV);
+          if (currentDict.hasOwnProperty(normRowLabel)) {
+             newValue = currentDict[normRowLabel];
+             atualizados++;
+          }
+        }
+      }
+      mixedValues.push([formulas[i][1] ? formulas[i][1] : newValue]);
     }
     
-    // Atualiza apenas a coluna B (offset 0, 1)
-    const targetCell = m.offset(0, 1);
-    const oldValue = targetCell.getValue();
-    targetCell.setValue(valor);
-    console.log(`📊 Atualizado: ${rotulo} = ${valor} (linha ${row}, coluna ${col + 1}, valor anterior: ${oldValue})`);
-  });
+    if (atualizados > 0) {
+      sheet.getRange(1, 2, lastRow, 1).setValues(mixedValues);
+    }
+    console.log(`📋 Atualizados ${atualizados} valores na coluna B com sucesso na memória`);
+  } catch(e) {
+    console.error('❌ Erro na atualizacao bulk: ', e);
+    throw e;
+  }
 }
 
 // ===== FUNÇÕES PARA LISTA DE IGREJAS COM SAM DESATUALIZADO =====

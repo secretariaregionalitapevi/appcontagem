@@ -2322,7 +2322,7 @@ export const supabaseDataService = {
     let localEnsaioNome = registro.local_ensaio || null;
     if (localEnsaioNome && /^\d+$/.test(localEnsaioNome)) {
       // Se for um número (ID), buscar the nome correspondente
-      const locais: { id: string; nome: string }[] = [
+      const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
         { id: '1', nome: 'Cotia' },
         { id: '2', nome: 'Caucaia do Alto' },
         { id: '3', nome: 'Fazendinha' },

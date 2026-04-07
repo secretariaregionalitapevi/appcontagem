@@ -102,7 +102,7 @@ export const EditRegistrosScreen: React.FC = () => {
       const localId = await localStorageService.getLocalEnsaio();
       if (localId) {
         // Converter ID para nome
-        const locais: { id: string; nome: string }[] = [
+        const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
           { id: '1', nome: 'Cotia' },
           { id: '2', nome: 'Caucaia do Alto' },
           { id: '3', nome: 'Fazendinha' },

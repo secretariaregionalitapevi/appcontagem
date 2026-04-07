@@ -97,7 +97,6 @@ export const OtrasLocalidadesScreen: React.FC = () => {
         selectedClasseOrganista,
         setSelectedClasseOrganista,
         showClasseOrganista,
-        handleConfirmDuplicate,
         handleHardReset,
     } = controller;
 
@@ -557,7 +556,6 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                     }}
-                    onConfirm={handleConfirmDuplicate}
                 />
             )}
         </View>

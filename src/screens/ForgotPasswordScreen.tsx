@@ -26,12 +26,26 @@ export const ForgotPasswordScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
+  // Configurações carregadas do config.js (ou fallback padrão)
+  const appConfig = (typeof window !== 'undefined' && window.APP_CONFIG) || {
+    REGIONAL_NAME: 'Regional Itapevi',
+    LOCAIS_ENSAIO: (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
+      { id: '1', nome: 'Cotia' },
+      { id: '2', nome: 'Caucaia do Alto' },
+      { id: '3', nome: 'Fazendinha' },
+      { id: '4', nome: 'Itapevi' },
+      { id: '5', nome: 'Jandira' },
+      { id: '6', nome: 'Pirapora' },
+      { id: '7', nome: 'Vargem Grande' },
+    ]
+  };
+
   // Definir título da página na web
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'CCB | Recuperar Senha';
+      document.title = `CCB | Recuperar Senha - ${appConfig.REGIONAL_NAME}`;
     }
-  }, []);
+  }, [appConfig.REGIONAL_NAME]);
 
   const handleResetPassword = async () => {
     if (!email.trim()) {
@@ -84,6 +98,10 @@ export const ForgotPasswordScreen: React.FC = () => {
           <Text style={styles.title}>Recuperar Senha</Text>
           
           <Text style={styles.leadText}>
+            Sistema Administrativo de Contagem
+            {'\n'}
+            <Text style={styles.boldText}>{appConfig.REGIONAL_NAME}</Text>.
+            {'\n\n'}
             {sent 
               ? 'Um link de recuperação foi enviado para o seu e-mail. Por favor, verifique sua caixa de entrada.' 
               : 'Informe seu e-mail cadastrado e enviaremos um link para você redefinir sua senha.'}
@@ -129,7 +147,7 @@ export const ForgotPasswordScreen: React.FC = () => {
             <Text style={styles.footerText}>
               <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v{pkg.version || '1.0'}
               {'\n'}
-              <Text style={styles.footerBold}>Regional Itapevi</Text>
+              <Text style={styles.footerBold}>{appConfig.REGIONAL_NAME}</Text>
             </Text>
           </View>
         </View>
@@ -241,5 +259,8 @@ const styles = StyleSheet.create({
   },
   footerBold: {
     fontWeight: '700',
+  },
+  boldText: {
+    fontWeight: '600',
   },
 });

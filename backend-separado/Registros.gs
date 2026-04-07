@@ -276,61 +276,7 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
         // Conta cargos ministeriais e de apoio
         if (x.cargo) {
           const cargoOriginal = x.cargo;
-          const cargoFormatado = formatarTexto(cargoOriginal);
-          
-          const mapeamentoCargos = {
-            'ancião': 'Ancião',
-            'diácono': 'Diácono',
-            'cooperador do ofício': 'Cooperador do Ofício',
-            'cooperador do oficio': 'Cooperador do Ofício',
-            'cooperador do ofício ministerial': 'Cooperador do Ofício',
-            'cooperador do oficio ministerial': 'Cooperador do Ofício',
-            'cooperador de jovens': 'Cooperador de Jovens',
-            'cooperador de jovens e menores': 'Cooperador de Jovens',
-            'encarregado regional': 'Encarregado Regional',
-            'encarregado local': 'Encarregado Local',
-            'examinadora': 'Examinadora',
-            'examinadoras': 'Examinadora',
-            'examinador': 'Examinadora',
-            'examinadores': 'Examinadora',
-            'examinadora de organistas': 'Examinadora',
-            'examinadoras de organistas': 'Examinadora',
-            'examinador de organistas': 'Examinadora',
-            'examinadores de organistas': 'Examinadora',
-            'secretária da música': 'Secretária da Música',
-            'secretarias da música': 'Secretária da Música',
-            'secretaria da musica': 'Secretária da Música',
-            'secretarias da musica': 'Secretária da Música',
-            'secretário da música': 'Secretário da Música',
-            'secretarios da música': 'Secretário da Música',
-            'secretario da musica': 'Secretário da Música',
-            'secretarios da musica': 'Secretário da Música',
-            'instrutor': 'Instrutor',
-            'instrutora': 'Instrutora',
-            'instrutores': 'Instrutor',
-            'instrutoras': 'Instrutora',
-            'porteiro (a)': 'Porteiro (a)',
-            'porteiro': 'Porteiro (a)',
-            'porteira': 'Porteiro (a)',
-            'bombeiro (a)': 'Bombeiro (a)',
-            'bombeiro': 'Bombeiro (a)',
-            'bombeira': 'Bombeiro (a)',
-            'médico (a)': 'Médico (a)',
-            'medico': 'Médico (a)',
-            'medica': 'Médico (a)',
-            'enfermeiro (a)': 'Enfermeiro (a)',
-            'enfermeiro': 'Enfermeiro (a)',
-            'enfermeira': 'Enfermeiro (a)',
-            'irmandade': 'Irmandade',
-            'irma': 'Irmandade',
-            'irmao': 'Irmandade',
-            'irmão': 'Irmandade',
-            'irmã': 'Irmandade',
-            'irmãos': 'Irmandade',
-            'irmãs': 'Irmandade'
-          };
-          
-          const cargoMapeado = mapeamentoCargos[cargoFormatado.toLowerCase()];
+        const cargoMapeado = mapearCargoParaContagem(cargoOriginal);
           if (cargoMapeado) {
             // Lista de cargos ministeriais
             const listaCompletaCargosMinisteriais = [
@@ -366,6 +312,7 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
           if (cargoLower.includes('organista') || 
               cargoLower.includes('examinadora') ||
               cargoLower.includes('instrutora') ||
+              cargoLower.includes('instrutoras') ||
               isSecretariaMusica) {
             contadores.organistas++;
           }
@@ -384,6 +331,21 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
     // LIMPA todos os contadores antes de atualizar (correção do problema)
     limparContadoresResumo(shResumo, [28, 41, 48, 50]);
     
+    // SINÔNIMOS para garantir que encontre os rótulos corretos na planilha (mesmo com plurais ou acentos)
+    const SYNONYMS = {
+      'Organista': ['Organista', 'Organistas'],
+      'Examinadora': ['Examinadora', 'Examinadoras'],
+      'Secretária da Música': ['Secretária da Música', 'Secretárias da Música', 'Secretaria da Música', 'Secretarias da Música'],
+      'Secretário da Música': ['Secretário da Música', 'Secretários da Música', 'Secretario da Música', 'Secretarios da Música'],
+      'Instrutor': ['Instrutor', 'Instrutores'],
+      'Instrutora': ['Instrutora', 'Instrutoras'],
+      'Porteiro (a)': ['Porteiro (a)', 'Porteiros (as)', 'Porteiro', 'Porteira'],
+      'Bombeiro (a)': ['Bombeiro (a)', 'Bombeiros (as)', 'Bombeiro', 'Bombeira'],
+      'Médico (a)': ['Médico (a)', 'Médicos (as)', 'Medico (a)', 'Médicos (as) / Ambulatório'],
+      'Enfermeiro (a)': ['Enfermeiro (a)', 'Enfermeiros (as)', 'Enfermeiro', 'Enfermeira'],
+      'Irmandade': ['Irmandade', 'Irmãos', 'Irmãs']
+    };
+
     // Atualiza dados em lotes (otimização)
     const atualizacoes = [];
     
@@ -410,7 +372,10 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
     // Executa todas as atualizações de uma vez (otimização)
     atualizacoes.forEach(atualizacao => {
       try {
-        atualizarColunaBPreservandoFormulas(shResumo, atualizacao.rotulo, atualizacao.valor, [28, 41, 48, 50]);
+        const labelsToTry = SYNONYMS[atualizacao.rotulo] || [atualizacao.rotulo];
+        labelsToTry.forEach(rotuloLabel => {
+          atualizarColunaBPreservandoFormulas(shResumo, rotuloLabel, atualizacao.valor, [28, 41, 48, 50]);
+        });
       } catch (e) {
         console.log(`⚠️ Não foi possível atualizar ${atualizacao.rotulo}: ${e.message}`);
       }
@@ -429,11 +394,10 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
   }
 }
 
-// Função para alimentar aba Organistas na planilha externa de Itapevi
-
-function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
+// Função principal genérica para exportar resumo de ensaio para qualquer planilha destino
+function exportarParaPlanilhaDestinoCompleta(localEnsaio, ssDestino, nomePlanilha) {
   try {
-    console.log(`🏛️ Iniciando exportação completa para planilha externa de Itapevi: ${localEnsaio}`);
+    console.log(`🏛️ Iniciando exportação completa para planilha externa de ${nomePlanilha}: ${localEnsaio}`);
     
     const shDados = openOrCreateSheet(SHEET_NAME);
     const lastRow = shDados.getLastRow();
@@ -446,13 +410,11 @@ function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
     const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
     const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
 
-    // Mapeia os índices das colunas
     const headerMap = {};
     headerRow.forEach((h, i) => { 
       if (h) headerMap[h.toString().trim()] = i; 
     });
 
-    // Filtra dados apenas do local especificado
     const linhasLocal = [];
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
@@ -463,7 +425,6 @@ function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
       const cidade = norm(row[headerMap['CIDADE']] || '') || '(Sem cidade)';
       const localEnsaioRow = norm(row[headerMap['LOCAL_ENSAIO']] || '') || '(Sem local definido)';
       
-      // Só processa se for do local especificado (comparação flexível)
       if (!compararLocaisEnsaio(localEnsaioRow, localEnsaio)) continue;
       
       const cargoRaw = norm(row[headerMap['CARGO']] || '');
@@ -481,7 +442,6 @@ function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
 
     console.log(`📊 Encontrados ${linhasLocal.length} membros para o local: ${localEnsaio}`);
 
-    // Lista completa de instrumentos
     const listaCompletaInstrumentos = [
       'Organista', 'Acordeon', 'Violino', 'Viola', 'Violoncelo', 'Flauta transversal',
       'Oboé', "Oboé d'amore", 'Corne inglês', 'Clarinete', 'Clarinete alto', 
@@ -490,7 +450,6 @@ function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
       'Trombone', 'Trombonito', 'Barítono (pisto)', 'Eufônio', 'Tuba'
     ];
 
-    // Lista completa de cargos ministeriais e de apoio
     const listaCompletaCargosMinisteriais = [
       'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
       'Encarregado Regional', 'Encarregado Local', 'Examinadora',
@@ -501,152 +460,62 @@ function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
       'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
     ];
 
-    // Conta instrumentos e cargos
-    const contadores = {
-      instrumentos: {},
-      musicos: {},
-      cargosMinisteriais: {},
-      cargosApoio: {},
-      total: 0
-    };
+    const contadores = { instrumentos: {}, musicos: {}, cargosMinisteriais: {}, cargosApoio: {}, total: 0 };
 
-    // Inicializa todos os instrumentos com 0
     listaCompletaInstrumentos.forEach(inst => {
       contadores.instrumentos[inst] = 0;
       contadores.musicos[inst] = 0;
     });
 
-    // Inicializa todos os cargos ministeriais com 0
-    listaCompletaCargosMinisteriais.forEach(cargo => {
-      contadores.cargosMinisteriais[cargo] = 0;
-    });
+    listaCompletaCargosMinisteriais.forEach(cargo => { contadores.cargosMinisteriais[cargo] = 0; });
+    listaCompletaCargosApoio.forEach(cargo => { contadores.cargosApoio[cargo] = 0; });
 
-    // Inicializa todos os cargos de apoio com 0
-    listaCompletaCargosApoio.forEach(cargo => {
-      contadores.cargosApoio[cargo] = 0;
-    });
-
-    // Processa cada linha do local
     linhasLocal.forEach(x => {
       if (!estevePresente(x)) return;
-      
       contadores.total++;
       
-      // LÓGICA CORRETA: Organistas são contados por CARGO
       const cargoLower = x.cargo ? x.cargo.toLowerCase() : '';
+      const isSecretariaMusica = (cargoLower.includes('secretária') || cargoLower.includes('secretaria')) &&
+                                 (cargoLower.includes('música') || cargoLower.includes('musica')) &&
+                                 !cargoLower.includes('secretário') && !cargoLower.includes('secretario');
+      
       if (cargoLower.includes('organista') || cargoLower.includes('examinadora') || 
-          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras')) {
+          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras') || isSecretariaMusica) {
         contadores.instrumentos['Organista']++;
         contadores.musicos['Organista']++;
-        console.log(`🎹 Organista contado por cargo: ${x.nome} (cargo: ${x.cargo})`);
       } else if (x.instrumento && !cargoLower.includes('secretário da música') && !cargoLower.includes('secretaria da musica') && !cargoLower.includes('secretarios da musica') && !cargoLower.includes('secretarias da musica')) {
-        // Mapeia o instrumento para a lista padrão (excluindo secretários da música)
         const instrumentoMapeado = mapearInstrumento(x.instrumento);
-        
         if (instrumentoMapeado && contadores.instrumentos.hasOwnProperty(instrumentoMapeado) && instrumentoMapeado !== 'Organista') {
           contadores.instrumentos[instrumentoMapeado]++;
           contadores.musicos[instrumentoMapeado]++;
-          console.log(`🎵 Instrumento contado: ${x.instrumento} -> ${instrumentoMapeado} - ${x.nome}`);
-        } else if (instrumentoMapeado) {
-          console.log(`⚠️ Instrumento não mapeado: ${x.instrumento} (mapeado: ${instrumentoMapeado})`);
         }
       }
       
-      // Conta cargos ministeriais específicos
       if (x.cargo) {
         const cargoOriginal = x.cargo;
-        const cargoFormatado = formatarTexto(cargoOriginal);
-        
-        const mapeamentoCargos = {
-          'ancião': 'Ancião',
-          'diácono': 'Diácono',
-          'cooperador do ofício': 'Cooperador do Ofício',
-          'cooperador do oficio': 'Cooperador do Ofício',
-          'cooperador de jovens': 'Cooperador de Jovens',
-          'encarregado regional': 'Encarregado Regional',
-          'encarregado local': 'Encarregado Local',
-          'examinadora': 'Examinadora',
-          'examinadoras': 'Examinadora',
-          'examinador': 'Examinadora',
-          'examinadores': 'Examinadora',
-          'examinadora de organistas': 'Examinadora',
-          'examinadoras de organistas': 'Examinadora',
-          'examinador de organistas': 'Examinadora',
-          'examinadores de organistas': 'Examinadora',
-          'secretária da música': 'Secretária da Música',
-          'secretarias da música': 'Secretária da Música',
-          'secretaria da musica': 'Secretária da Música',
-          'secretarias da musica': 'Secretária da Música',
-          'secretário da música': 'Secretário da Música',
-          'secretarios da música': 'Secretário da Música',
-          'secretario da musica': 'Secretário da Música',
-          'secretarios da musica': 'Secretário da Música',
-          'instrutor': 'Instrutor',
-          'instrutora': 'Instrutora',
-          'instrutores': 'Instrutor',
-          'instrutoras': 'Instrutora',
-          'porteiro (a)': 'Porteiro (a)',
-          'porteiro': 'Porteiro (a)',
-          'porteira': 'Porteiro (a)',
-          'bombeiro (a)': 'Bombeiro (a)',
-          'bombeiro': 'Bombeiro (a)',
-          'bombeira': 'Bombeiro (a)',
-          'médico (a)': 'Médico (a)',
-          'medico': 'Médico (a)',
-          'medica': 'Médico (a)',
-          'enfermeiro (a)': 'Enfermeiro (a)',
-          'enfermeiro': 'Enfermeiro (a)',
-          'enfermeira': 'Enfermeiro (a)',
-          'irmandade': 'Irmandade',
-          'irma': 'Irmandade',
-          'irmao': 'Irmandade',
-          'irmão': 'Irmandade',
-          'irmã': 'Irmandade',
-          'irmãos': 'Irmandade',
-          'irmãs': 'Irmandade'
-        };
-        
-        const cargoMapeado = mapeamentoCargos[cargoFormatado.toLowerCase()];
-        
-        if (contadores.cargosMinisteriais.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosMinisteriais[cargoMapeado]++;
-        }
-        
-        if (contadores.cargosApoio.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosApoio[cargoMapeado]++;
+        const cargoMapeado = mapearCargoParaContagem(cargoOriginal);
+        if (cargoMapeado) {
+          if (listaCompletaCargosMinisteriais.includes(cargoMapeado)) {
+            contadores.cargosMinisteriais[cargoMapeado]++;
+          } else if (listaCompletaCargosApoio.includes(cargoMapeado)) {
+            contadores.cargosApoio[cargoMapeado]++;
+          }
         }
       }
     });
 
-    // Acessa a planilha externa de Itapevi
-    const ssItapevi = openItapeviSheet();
+    const shResumo = ssDestino.getSheetByName('Resumo');
+    if (!shResumo) throw new Error(`Aba "Resumo" não encontrada na planilha de ${nomePlanilha}.`);
     
-    // Acessa a aba Resumo da planilha externa de Itapevi
-    const shResumo = ssItapevi.getSheetByName('Resumo');
-    if (!shResumo) {
-      throw new Error('Aba "Resumo" não encontrada na planilha externa de Itapevi.');
-    }
-    
-    // LIMPA todos os contadores antes de atualizar (correção do problema)
     limparContadoresResumo(shResumo, [28, 41, 48, 50]);
+    console.log(`📊 Atualizando aba Resumo da planilha externa de ${nomePlanilha}...`);
     
-    console.log(`📊 Atualizando aba Resumo da planilha externa de Itapevi com dados do ensaio de ${localEnsaio}...`);
-    
-    // Atualiza apenas os valores usando a função escreveAoLado
-    console.log('📊 Atualizando valores na aba Resumo...');
-    
-    // Sinônimos de rótulo para INSTRUMENTOS
-    const INSTR_LABEL_SYNONYMS = {
-      'Organista': ['Organista','Organistas']
-    };
-
+    const INSTR_LABEL_SYNONYMS = { 'Organista': ['Organista','Organistas'] };
     const CARGO_MIN_ORD = [
       'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
       'Encarregado Regional','Encarregado Local','Examinadora',
-      'Secretária da Música','Secretário da Música',
-      'Instrutor','Instrutora'
+      'Secretária da Música','Secretário da Música','Instrutor','Instrutora'
     ];
-
     const APOIO_LABEL_SYNONYMS = {
       'Porteiro (a)': ['Porteiros (as)', 'Porteiro (a)'],
       'Bombeiro (a)': ['Bombeiros (as)', 'Bombeiro (a)'],
@@ -655,7 +524,6 @@ function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
       'Irmandade': ['Irmandade']
     };
     const APOIO_IRM_ORD = Object.keys(APOIO_LABEL_SYNONYMS);
-
     const MIN_LABEL_SYNONYMS = {
       'Ancião': ['Ancião','Anciao'],
       'Diácono': ['Diácono','Diacono'],
@@ -663,1796 +531,130 @@ function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
       'Cooperador de Jovens': ['Cooperador de Jovens','Cooperador de Jovens e Menores'],
       'Encarregado Regional': ['Encarregado Regional'],
       'Encarregado Local': ['Encarregado Local'],
-      'Examinadora': ['Examinadora'],
-      'Secretária da Música': ['Secretária da Música','Secretarias da Música','Secretaria da Música'],
-      'Secretário da Música': ['Secretário da Música','Secretarios da Música','Secretario da Música'],
-      'Instrutores': ['Instrutores','Instrutor'],
-      'Instrutoras': ['Instrutoras','Instrutora']
+      'Examinadora': ['Examinadora', 'Examinadoras'],
+      'Secretária da Música': ['Secretárias da Música','Secretária da Música','Secretarias da Música','Secretaria da Música'],
+      'Secretário da Música': ['Secretários da Música','Secretário da Música','Secretarios da Música','Secretario da Música'],
+      'Instrutor': ['Instrutores','Instrutor'],
+      'Instrutora': ['Instrutoras','Instrutora']
     };
 
-    // Atualiza instrumentos com sinônimos
+    const arrayAtualizacoes = [];
+
     listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.instrumentos[canonical] || 0;
+      const valInstr = contadores.instrumentos[canonical] || 0;
+      const valMusicos = contadores.musicos[canonical] || 0;
       const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
+      
+      rLabels.forEach(rot => {
+        // Se houver "Organistas" e "Organista", ambos recebem o mesmo valor
+        // Mas note que a planilha pode ter rótulos diferentes para instrumentos vs musicos
+        // Na prática, os instrumentos e músicos usam os mesmos nomes de instrumentos no resumo
+        // Se o valor de instrumentos e músicos for o mesmo (como é o caso atual), basta um.
+        arrayAtualizacoes.push({ rotulo: rot, valor: valInstr });
+      });
     });
 
-    // Atualiza músicos por instrumento
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.musicos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos ministeriais com sinônimos
     CARGO_MIN_ORD.forEach(canonical => {
       const val = contadores.cargosMinisteriais[canonical] || 0;
       const rLabels = MIN_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
+      rLabels.forEach(rot => arrayAtualizacoes.push({ rotulo: rot, valor: val }));
     });
 
-    // Atualiza cargos de apoio com sinônimos
     APOIO_IRM_ORD.forEach(canonical => {
       const val = contadores.cargosApoio[canonical] || 0;
-      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
+      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => arrayAtualizacoes.push({ rotulo: rot, valor: val }));
     });
-
-    console.log(`✅ Aba Resumo da planilha externa de Itapevi atualizada com sucesso com dados do ensaio de ${localEnsaio}`);
-    console.log(`📈 Total de membros: ${contadores.total}`);
     
+    atualizarTodosContadoresResumoBulk(shResumo, arrayAtualizacoes, [28, 41, 48, 50]);
+
+    console.log(`✅ Aba Resumo atualizada com sucesso em ${nomePlanilha}`);
     return {
       ok: true,
       localEnsaio: localEnsaio,
       abaAtualizada: 'Resumo',
-      planilhaId: ITAPEVI_SHEET_ID,
+      planilhaId: ssDestino.getId(),
       totalMembros: contadores.total,
       instrumentos: contadores.instrumentos,
       cargosMinisteriais: contadores.cargosMinisteriais,
       cargosApoio: contadores.cargosApoio
     };
-
   } catch (error) {
-    console.error(`❌ Erro ao atualizar aba Resumo da planilha externa de Itapevi com dados do ensaio de ${localEnsaio}:`, error);
+    console.error(`❌ Erro ao atualizar aba Resumo de ${nomePlanilha}:`, error);
     throw error;
   }
+}
+
+// Função para alimentar aba Organistas na planilha externa de Itapevi
+
+function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
+  return exportarParaPlanilhaDestinoCompleta(localEnsaio, openItapeviSheet(), 'Itapevi');
 }
 
 // Função para exportar dados completos para planilha externa de Caucaia (com instrumentos e cargos)
 
 function exportarParaPlanilhaCaucaiaCompleta(localEnsaio) {
-  try {
-    console.log(`🏛️ Iniciando exportação completa para planilha externa de Caucaia: ${localEnsaio}`);
-    
-    const shDados = openOrCreateSheet(SHEET_NAME);
-    const lastRow = shDados.getLastRow();
-    const lastCol = shDados.getLastColumn();
-    
-    if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
-    }
-
-    const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-    const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
-
-    // Mapeia os índices das colunas
-    const headerMap = {};
-    headerRow.forEach((h, i) => { 
-      if (h) headerMap[h.toString().trim()] = i; 
-    });
-
-    // Filtra dados apenas do local especificado
-    const linhasLocal = [];
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const nome = norm(row[headerMap['NOME COMPLETO']] || '');
-      if (!nome) continue;
-
-      const comum = norm(row[headerMap['COMUM']] || '') || '(Sem comum)';
-      const cidade = norm(row[headerMap['CIDADE']] || '') || '(Sem cidade)';
-      const localEnsaioRow = norm(row[headerMap['LOCAL_ENSAIO']] || '') || '(Sem local definido)';
-      
-      // Só processa se for do local especificado (comparação flexível)
-      if (!compararLocaisEnsaio(localEnsaioRow, localEnsaio)) continue;
-      
-      const cargoRaw = norm(row[headerMap['CARGO']] || '');
-      const cargoK = key(cargoRaw);
-      const cargo = aliasCargo[cargoK] || (cargoK ? cap(cargoRaw) : '');
-      
-      const instrumento = norm(row[headerMap['INSTRUMENTO']] || '');
-      const vaiTocar = norm(row[headerMap['VAI_TOCAR']] || '');
-      const nivel = norm(row[headerMap['CLASSE_ORGANISTA']] || '');
-
-      linhasLocal.push({
-        nome, comum, cidade, cargo, instrumento, vai_tocar: vaiTocar, nivel, local_ensaio: localEnsaioRow, _ord: i
-      });
-    }
-
-    console.log(`📊 Encontrados ${linhasLocal.length} membros para o local: ${localEnsaio}`);
-
-    // Lista completa de instrumentos
-    const listaCompletaInstrumentos = [
-      'Organista', 'Acordeon', 'Violino', 'Viola', 'Violoncelo', 'Flauta transversal',
-      'Oboé', "Oboé d'amore", 'Corne inglês', 'Clarinete', 'Clarinete alto', 
-      'Clarinete baixo (clarone)', 'Fagote', 'Saxofone soprano (reto)', 'Saxofone alto',
-      'Saxofone tenor', 'Saxofone barítono', 'Trompete', 'Cornet', 'Flugelhorn', 'Trompa',
-      'Trombone', 'Trombonito', 'Barítono (pisto)', 'Eufônio', 'Tuba'
-    ];
-
-    // Lista completa de cargos ministeriais e de apoio
-    const listaCompletaCargosMinisteriais = [
-      'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
-      'Encarregado Regional', 'Encarregado Local', 'Examinadora',
-      'Secretária da Música', 'Secretário da Música', 'Instrutor', 'Instrutora'
-    ];
-
-    const listaCompletaCargosApoio = [
-      'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
-    ];
-
-    // Conta instrumentos e cargos
-    const contadores = {
-      instrumentos: {},
-      musicos: {},
-      cargosMinisteriais: {},
-      cargosApoio: {},
-      total: 0
-    };
-
-    // Inicializa todos os instrumentos com 0
-    listaCompletaInstrumentos.forEach(inst => {
-      contadores.instrumentos[inst] = 0;
-      contadores.musicos[inst] = 0;
-    });
-
-    // Inicializa todos os cargos ministeriais com 0
-    listaCompletaCargosMinisteriais.forEach(cargo => {
-      contadores.cargosMinisteriais[cargo] = 0;
-    });
-
-    // Inicializa todos os cargos de apoio com 0
-    listaCompletaCargosApoio.forEach(cargo => {
-      contadores.cargosApoio[cargo] = 0;
-    });
-
-    // Processa cada linha do local
-    linhasLocal.forEach(x => {
-      if (!estevePresente(x)) return;
-      
-      contadores.total++;
-      
-      // LÓGICA CORRETA: Organistas são contados por CARGO
-      const cargoLower = x.cargo ? x.cargo.toLowerCase() : '';
-      if (cargoLower.includes('organista') || cargoLower.includes('examinadora') || 
-          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras')) {
-        contadores.instrumentos['Organista']++;
-        contadores.musicos['Organista']++;
-        console.log(`🎹 Organista contado por cargo: ${x.nome} (cargo: ${x.cargo})`);
-      } else if (x.instrumento && !cargoLower.includes('secretário da música') && !cargoLower.includes('secretaria da musica') && !cargoLower.includes('secretarios da musica') && !cargoLower.includes('secretarias da musica')) {
-        // Mapeia o instrumento para a lista padrão (excluindo secretários da música)
-        const instrumentoMapeado = mapearInstrumento(x.instrumento);
-        
-        if (instrumentoMapeado && contadores.instrumentos.hasOwnProperty(instrumentoMapeado) && instrumentoMapeado !== 'Organista') {
-          contadores.instrumentos[instrumentoMapeado]++;
-          contadores.musicos[instrumentoMapeado]++;
-          console.log(`🎵 Instrumento contado: ${x.instrumento} -> ${instrumentoMapeado} - ${x.nome}`);
-        } else if (instrumentoMapeado) {
-          console.log(`⚠️ Instrumento não mapeado: ${x.instrumento} (mapeado: ${instrumentoMapeado})`);
-        }
-      }
-      
-      // Conta cargos ministeriais específicos
-      if (x.cargo) {
-        const cargoOriginal = x.cargo;
-        const cargoFormatado = formatarTexto(cargoOriginal);
-        
-        const mapeamentoCargos = {
-          'ancião': 'Ancião',
-          'diácono': 'Diácono',
-          'cooperador do ofício': 'Cooperador do Ofício',
-          'cooperador do oficio': 'Cooperador do Ofício',
-          'cooperador de jovens': 'Cooperador de Jovens',
-          'encarregado regional': 'Encarregado Regional',
-          'encarregado local': 'Encarregado Local',
-          'examinadora': 'Examinadora',
-          'examinadoras': 'Examinadora',
-          'examinador': 'Examinadora',
-          'examinadores': 'Examinadora',
-          'examinadora de organistas': 'Examinadora',
-          'examinadoras de organistas': 'Examinadora',
-          'examinador de organistas': 'Examinadora',
-          'examinadores de organistas': 'Examinadora',
-          'secretária da música': 'Secretária da Música',
-          'secretarias da música': 'Secretária da Música',
-          'secretaria da musica': 'Secretária da Música',
-          'secretarias da musica': 'Secretária da Música',
-          'secretário da música': 'Secretário da Música',
-          'secretarios da música': 'Secretário da Música',
-          'secretario da musica': 'Secretário da Música',
-          'secretarios da musica': 'Secretário da Música',
-          'secretário do gem': 'Secretário da Música',
-          'secretarios do gem': 'Secretário da Música',
-          'secretario do gem': 'Secretário da Música',
-          'instrutor': 'Instrutor',
-          'instrutora': 'Instrutora',
-          'instrutores': 'Instrutor',
-          'instrutoras': 'Instrutora',
-          'porteiro (a)': 'Porteiro (a)',
-          'bombeiro (a)': 'Bombeiro (a)',
-          'médico (a)': 'Médico (a)',
-          'medico (a)': 'Médico (a)',
-          'enfermeiro (a)': 'Enfermeiro (a)',
-          'irmandade': 'Irmandade'
-        };
-        
-        const cargoMapeado = mapeamentoCargos[cargoFormatado];
-        if (cargoMapeado) {
-          if (listaCompletaCargosMinisteriais.includes(cargoMapeado)) {
-            contadores.cargosMinisteriais[cargoMapeado]++;
-            console.log(`👔 Cargo ministerial contado: ${cargoOriginal} -> ${cargoMapeado} - ${x.nome}`);
-          } else if (listaCompletaCargosApoio.includes(cargoMapeado)) {
-            contadores.cargosApoio[cargoMapeado]++;
-            console.log(`🤝 Cargo de apoio contado: ${cargoOriginal} -> ${cargoMapeado} - ${x.nome}`);
-          }
-        }
-      }
-    });
-
-    console.log(`📊 Contadores finais para ${localEnsaio}:`, contadores);
-
-    // Acessa a planilha externa de Caucaia
-    const ssCaucaia = openCaucaiaSheet();
-    const shResumo = ssCaucaia.getSheetByName('Resumo');
-    
-    if (!shResumo) {
-      throw new Error('Aba "Resumo" não encontrada na planilha externa de Caucaia');
-    }
-    
-    // LIMPA todos os contadores antes de atualizar (correção do problema)
-    limparContadoresResumo(shResumo, [28, 41, 48, 50]);
-    
-    console.log(`📊 Atualizando aba Resumo da planilha externa de Caucaia com dados do ensaio de ${localEnsaio}...`);
-    
-    // Atualiza apenas os valores usando a função escreveAoLado
-    console.log('📊 Atualizando valores na aba Resumo...');
-    
-    // Sinônimos de rótulo para INSTRUMENTOS
-    const INSTR_LABEL_SYNONYMS = {
-      'Organista': ['Organista','Organistas']
-    };
-
-    const CARGO_MIN_ORD = [
-      'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
-      'Encarregado Regional','Encarregado Local','Examinadora',
-      'Secretária da Música','Secretário da Música',
-      'Instrutor','Instrutora'
-    ];
-
-    const APOIO_LABEL_SYNONYMS = {
-      'Porteiro (a)': ['Porteiros (as)', 'Porteiro (a)'],
-      'Bombeiro (a)': ['Bombeiros (as)', 'Bombeiro (a)'],
-      'Médico (a)': ['Médicos (as) / Ambulatório', 'Medicos (as) / Ambulatorio', 'Médico (a)', 'Medico (a)'],
-      'Enfermeiro (a)': ['Enfermeiros (as)', 'Enfermeiro (a)'],
-      'Irmandade': ['Irmandade']
-    };
-    const APOIO_IRM_ORD = Object.keys(APOIO_LABEL_SYNONYMS);
-
-    const MIN_LABEL_SYNONYMS = {
-      'Ancião': ['Ancião','Anciao'],
-      'Diácono': ['Diácono','Diacono'],
-      'Cooperador do Ofício': ['Cooperador do Ofício','Cooperador do Oficio','Cooperador do Ofício Ministerial'],
-      'Cooperador de Jovens': ['Cooperador de Jovens','Cooperador de Jovens e Menores'],
-      'Encarregado Regional': ['Encarregado Regional'],
-      'Encarregado Local': ['Encarregado Local'],
-      'Examinadora': ['Examinadora'],
-      'Secretária da Música': ['Secretária da Música','Secretarias da Música','Secretaria da Música'],
-      'Secretário da Música': ['Secretário da Música','Secretarios da Música','Secretario da Música'],
-      'Instrutores': ['Instrutores','Instrutor'],
-      'Instrutoras': ['Instrutoras','Instrutora']
-    };
-
-    // Atualiza instrumentos com sinônimos
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.instrumentos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza músicos por instrumento
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.musicos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos ministeriais com sinônimos
-    CARGO_MIN_ORD.forEach(canonical => {
-      const val = contadores.cargosMinisteriais[canonical] || 0;
-      const rLabels = MIN_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos de apoio com sinônimos
-    APOIO_IRM_ORD.forEach(canonical => {
-      const val = contadores.cargosApoio[canonical] || 0;
-      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    console.log(`✅ Aba Resumo da planilha externa de Caucaia atualizada com sucesso com dados do ensaio de ${localEnsaio}`);
-    console.log(`📈 Total de membros: ${contadores.total}`);
-    
-    return {
-      ok: true,
-      localEnsaio: localEnsaio,
-      abaAtualizada: 'Resumo',
-      planilhaId: CAUCAIA_SHEET_ID,
-      totalMembros: contadores.total,
-      instrumentos: contadores.instrumentos,
-      cargosMinisteriais: contadores.cargosMinisteriais,
-      cargosApoio: contadores.cargosApoio
-    };
-
-  } catch (error) {
-    console.error(`❌ Erro ao atualizar aba Resumo da planilha externa de Caucaia com dados do ensaio de ${localEnsaio}:`, error);
-    throw error;
-  }
+  return exportarParaPlanilhaDestinoCompleta(localEnsaio, openCaucaiaSheet(), 'Caucaia');
 }
 
 // Função para exportar dados completos para planilha externa de VargemGrande (com instrumentos e cargos)
 
 function exportarParaPlanilhaVargemGrandeCompleta(localEnsaio) {
-  try {
-    console.log(`🏛️ Iniciando exportação completa para planilha externa de VargemGrande: ${localEnsaio}`);
-    
-    const shDados = openOrCreateSheet(SHEET_NAME);
-    const lastRow = shDados.getLastRow();
-    const lastCol = shDados.getLastColumn();
-    
-    if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
-    }
-
-    const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-    const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
-
-    // Mapeia os índices das colunas
-    const headerMap = {};
-    headerRow.forEach((h, i) => { 
-      if (h) headerMap[h.toString().trim()] = i; 
-    });
-
-    // Filtra dados apenas do local especificado
-    const linhasLocal = [];
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const nome = norm(row[headerMap['NOME COMPLETO']] || '');
-      if (!nome) continue;
-
-      const comum = norm(row[headerMap['COMUM']] || '') || '(Sem comum)';
-      const cidade = norm(row[headerMap['CIDADE']] || '') || '(Sem cidade)';
-      const localEnsaioRow = norm(row[headerMap['LOCAL_ENSAIO']] || '') || '(Sem local definido)';
-      
-      // Só processa se for do local especificado (comparação flexível)
-      if (!compararLocaisEnsaio(localEnsaioRow, localEnsaio)) continue;
-      
-      const cargoRaw = norm(row[headerMap['CARGO']] || '');
-      const cargoK = key(cargoRaw);
-      const cargo = aliasCargo[cargoK] || (cargoK ? cap(cargoRaw) : '');
-      
-      const instrumento = norm(row[headerMap['INSTRUMENTO']] || '');
-      const vaiTocar = norm(row[headerMap['VAI_TOCAR']] || '');
-      const nivel = norm(row[headerMap['CLASSE_ORGANISTA']] || '');
-
-      linhasLocal.push({
-        nome, comum, cidade, cargo, instrumento, vai_tocar: vaiTocar, nivel, local_ensaio: localEnsaioRow, _ord: i
-      });
-    }
-
-    console.log(`📊 Encontrados ${linhasLocal.length} membros para o local: ${localEnsaio}`);
-
-    // Lista completa de instrumentos
-    const listaCompletaInstrumentos = [
-      'Organista', 'Acordeon', 'Violino', 'Viola', 'Violoncelo', 'Flauta transversal',
-      'Oboé', "Oboé d'amore", 'Corne inglês', 'Clarinete', 'Clarinete alto', 
-      'Clarinete baixo (clarone)', 'Fagote', 'Saxofone soprano (reto)', 'Saxofone alto',
-      'Saxofone tenor', 'Saxofone barítono', 'Trompete', 'Cornet', 'Flugelhorn', 'Trompa',
-      'Trombone', 'Trombonito', 'Barítono (pisto)', 'Eufônio', 'Tuba'
-    ];
-
-    // Lista completa de cargos ministeriais e de apoio
-    const listaCompletaCargosMinisteriais = [
-      'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
-      'Encarregado Regional', 'Encarregado Local', 'Examinadora',
-      'Secretária da Música', 'Secretário da Música', 'Instrutor', 'Instrutora'
-    ];
-
-    const listaCompletaCargosApoio = [
-      'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
-    ];
-
-    // Conta instrumentos e cargos
-    const contadores = {
-      instrumentos: {},
-      musicos: {},
-      cargosMinisteriais: {},
-      cargosApoio: {},
-      total: 0
-    };
-
-    // Inicializa todos os instrumentos com 0
-    listaCompletaInstrumentos.forEach(inst => {
-      contadores.instrumentos[inst] = 0;
-      contadores.musicos[inst] = 0;
-    });
-
-    // Inicializa todos os cargos ministeriais com 0
-    listaCompletaCargosMinisteriais.forEach(cargo => {
-      contadores.cargosMinisteriais[cargo] = 0;
-    });
-
-    // Inicializa todos os cargos de apoio com 0
-    listaCompletaCargosApoio.forEach(cargo => {
-      contadores.cargosApoio[cargo] = 0;
-    });
-
-    // Processa cada linha do local
-    linhasLocal.forEach(x => {
-      if (!estevePresente(x)) return;
-      
-      contadores.total++;
-      
-      // LÓGICA CORRETA: Organistas são contados por CARGO
-      const cargoLower = x.cargo ? x.cargo.toLowerCase() : '';
-      if (cargoLower.includes('organista') || cargoLower.includes('examinadora') || 
-          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras')) {
-        contadores.instrumentos['Organista']++;
-        contadores.musicos['Organista']++;
-        console.log(`🎹 Organista contado por cargo: ${x.nome} (cargo: ${x.cargo})`);
-      } else if (x.instrumento && !cargoLower.includes('secretário da música') && !cargoLower.includes('secretaria da musica') && !cargoLower.includes('secretarios da musica') && !cargoLower.includes('secretarias da musica')) {
-        // Mapeia o instrumento para a lista padrão (excluindo secretários da música)
-        const instrumentoMapeado = mapearInstrumento(x.instrumento);
-        
-        if (instrumentoMapeado && contadores.instrumentos.hasOwnProperty(instrumentoMapeado) && instrumentoMapeado !== 'Organista') {
-          contadores.instrumentos[instrumentoMapeado]++;
-          contadores.musicos[instrumentoMapeado]++;
-          console.log(`🎵 Instrumento contado: ${x.instrumento} -> ${instrumentoMapeado} - ${x.nome}`);
-        } else if (instrumentoMapeado) {
-          console.log(`⚠️ Instrumento não mapeado: ${x.instrumento} (mapeado: ${instrumentoMapeado})`);
-        }
-      }
-      
-      // Conta cargos ministeriais específicos
-      if (x.cargo) {
-        const cargoOriginal = x.cargo;
-        const cargoFormatado = formatarTexto(cargoOriginal);
-        
-        const mapeamentoCargos = {
-          'ancião': 'Ancião',
-          'diácono': 'Diácono',
-          'cooperador do ofício': 'Cooperador do Ofício',
-          'cooperador do oficio': 'Cooperador do Ofício',
-          'cooperador de jovens': 'Cooperador de Jovens',
-          'encarregado regional': 'Encarregado Regional',
-          'encarregado local': 'Encarregado Local',
-          'examinadora': 'Examinadora',
-          'examinadoras': 'Examinadora',
-          'examinador': 'Examinadora',
-          'examinadores': 'Examinadora',
-          'examinadora de organistas': 'Examinadora',
-          'examinadoras de organistas': 'Examinadora',
-          'examinador de organistas': 'Examinadora',
-          'examinadores de organistas': 'Examinadora',
-          'secretária da música': 'Secretária da Música',
-          'secretarias da música': 'Secretária da Música',
-          'secretaria da musica': 'Secretária da Música',
-          'secretarias da musica': 'Secretária da Música',
-          'secretário da música': 'Secretário da Música',
-          'secretarios da música': 'Secretário da Música',
-          'secretario da musica': 'Secretário da Música',
-          'secretarios da musica': 'Secretário da Música',
-          'secretário do gem': 'Secretário da Música',
-          'secretarios do gem': 'Secretário da Música',
-          'secretario do gem': 'Secretário da Música',
-          'instrutor': 'Instrutor',
-          'instrutora': 'Instrutora',
-          'instrutores': 'Instrutor',
-          'instrutoras': 'Instrutora',
-          'porteiro (a)': 'Porteiro (a)',
-          'porteiro': 'Porteiro (a)',
-          'porteira': 'Porteiro (a)',
-          'bombeiro (a)': 'Bombeiro (a)',
-          'bombeiro': 'Bombeiro (a)',
-          'bombeira': 'Bombeiro (a)',
-          'médico (a)': 'Médico (a)',
-          'medico': 'Médico (a)',
-          'medica': 'Médico (a)',
-          'enfermeiro (a)': 'Enfermeiro (a)',
-          'enfermeiro': 'Enfermeiro (a)',
-          'enfermeira': 'Enfermeiro (a)',
-          'irmandade': 'Irmandade',
-          'irma': 'Irmandade',
-          'irmao': 'Irmandade',
-          'irmão': 'Irmandade',
-          'irmã': 'Irmandade',
-          'irmãos': 'Irmandade',
-          'irmãs': 'Irmandade'
-        };
-        
-        const cargoMapeado = mapeamentoCargos[cargoFormatado.toLowerCase()];
-        if (cargoMapeado) {
-          if (listaCompletaCargosMinisteriais.includes(cargoMapeado)) {
-            contadores.cargosMinisteriais[cargoMapeado]++;
-            console.log(`👔 Cargo ministerial contado: ${cargoOriginal} -> ${cargoMapeado} - ${x.nome}`);
-          } else if (listaCompletaCargosApoio.includes(cargoMapeado)) {
-            contadores.cargosApoio[cargoMapeado]++;
-            console.log(`🤝 Cargo de apoio contado: ${cargoOriginal} -> ${cargoMapeado} - ${x.nome}`);
-          }
-        }
-      }
-    });
-
-    console.log(`📊 Contadores finais para ${localEnsaio}:`, contadores);
-
-    // Acessa a planilha externa de VargemGrande
-    const ssVargemGrande = openVargemGrandeSheet();
-    
-    // Acessa a aba Resumo da planilha externa de VargemGrande
-    const shResumo = ssVargemGrande.getSheetByName('Resumo');
-    if (!shResumo) {
-      throw new Error('Aba "Resumo" não encontrada na planilha externa de VargemGrande.');
-    }
-    
-    // LIMPA todos os contadores antes de atualizar (correção do problema)
-    limparContadoresResumo(shResumo, [28, 41, 48, 50]);
-    
-    console.log(`📊 Atualizando aba Resumo da planilha externa de VargemGrande com dados do ensaio de ${localEnsaio}...`);
-    
-    // Atualiza apenas os valores usando a função escreveAoLado
-    console.log('📊 Atualizando valores na aba Resumo...');
-    
-    // Sinônimos de rótulo para INSTRUMENTOS
-    const INSTR_LABEL_SYNONYMS = {
-      'Organista': ['Organista','Organistas']
-    };
-
-    const CARGO_MIN_ORD = [
-      'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
-      'Encarregado Regional','Encarregado Local','Examinadora',
-      'Secretária da Música','Secretário da Música',
-      'Instrutor','Instrutora'
-    ];
-
-    const APOIO_LABEL_SYNONYMS = {
-      'Porteiro (a)': ['Porteiros (as)', 'Porteiro (a)'],
-      'Bombeiro (a)': ['Bombeiros (as)', 'Bombeiro (a)'],
-      'Médico (a)': ['Médicos (as) / Ambulatório', 'Medicos (as) / Ambulatorio', 'Médico (a)', 'Medico (a)'],
-      'Enfermeiro (a)': ['Enfermeiros (as)', 'Enfermeiro (a)'],
-      'Irmandade': ['Irmandade']
-    };
-    const APOIO_IRM_ORD = Object.keys(APOIO_LABEL_SYNONYMS);
-
-    const MIN_LABEL_SYNONYMS = {
-      'Ancião': ['Ancião','Anciao'],
-      'Diácono': ['Diácono','Diacono'],
-      'Cooperador do Ofício': ['Cooperador do Ofício','Cooperador do Oficio','Cooperador do Ofício Ministerial'],
-      'Cooperador de Jovens': ['Cooperador de Jovens','Cooperador de Jovens e Menores'],
-      'Encarregado Regional': ['Encarregado Regional'],
-      'Encarregado Local': ['Encarregado Local'],
-      'Examinadora': ['Examinadora'],
-      'Secretária da Música': ['Secretária da Música','Secretarias da Música','Secretaria da Música'],
-      'Secretário da Música': ['Secretário da Música','Secretarios da Música','Secretario da Música'],
-      'Instrutores': ['Instrutores','Instrutor'],
-      'Instrutoras': ['Instrutoras','Instrutora']
-    };
-
-    // Atualiza instrumentos com sinônimos
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.instrumentos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza músicos por instrumento
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.musicos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos ministeriais com sinônimos
-    CARGO_MIN_ORD.forEach(canonical => {
-      const val = contadores.cargosMinisteriais[canonical] || 0;
-      const rLabels = MIN_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos de apoio com sinônimos
-    APOIO_IRM_ORD.forEach(canonical => {
-      const val = contadores.cargosApoio[canonical] || 0;
-      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    console.log(`✅ Aba Resumo da planilha externa de VargemGrande atualizada com sucesso com dados do ensaio de ${localEnsaio}`);
-    console.log(`📈 Total de membros: ${contadores.total}`);
-    
-    return {
-      ok: true,
-      localEnsaio: localEnsaio,
-      abaAtualizada: 'Resumo',
-      planilhaId: VARGEMGRANDE_SHEET_ID,
-      totalMembros: contadores.total,
-      instrumentos: contadores.instrumentos,
-      cargosMinisteriais: contadores.cargosMinisteriais,
-      cargosApoio: contadores.cargosApoio
-    };
-
-  } catch (error) {
-    console.error(`❌ Erro ao atualizar aba Resumo da planilha externa de VargemGrande com dados do ensaio de ${localEnsaio}:`, error);
-    throw error;
-  }
-}
-
-// Função para exportar dados completos para planilha externa de Pirapora (com instrumentos e cargos)
-
-function exportarParaPlanilhaPiraporaCompleta(localEnsaio) {
-  try {
-    console.log(`🏛️ Iniciando exportação completa para planilha externa de Pirapora: ${localEnsaio}`);
-    
-    const shDados = openOrCreateSheet(SHEET_NAME);
-    const lastRow = shDados.getLastRow();
-    const lastCol = shDados.getLastColumn();
-    
-    if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
-    }
-
-    const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-    const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
-
-    // Mapeia os índices das colunas
-    const headerMap = {};
-    headerRow.forEach((h, i) => { 
-      if (h) headerMap[h.toString().trim()] = i; 
-    });
-
-    // Filtra dados apenas do local especificado
-    const linhasLocal = [];
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const nome = norm(row[headerMap['NOME COMPLETO']] || '');
-      if (!nome) continue;
-
-      const comum = norm(row[headerMap['COMUM']] || '') || '(Sem comum)';
-      const cidade = norm(row[headerMap['CIDADE']] || '') || '(Sem cidade)';
-      const localEnsaioRow = norm(row[headerMap['LOCAL_ENSAIO']] || '') || '(Sem local definido)';
-      
-      // Só processa se for do local especificado (comparação flexível)
-      if (!compararLocaisEnsaio(localEnsaioRow, localEnsaio)) continue;
-      
-      const cargoRaw = norm(row[headerMap['CARGO']] || '');
-      const cargoK = key(cargoRaw);
-      const cargo = aliasCargo[cargoK] || (cargoK ? cap(cargoRaw) : '');
-      
-      const instrumento = norm(row[headerMap['INSTRUMENTO']] || '');
-      const vaiTocar = norm(row[headerMap['VAI_TOCAR']] || '');
-      const nivel = norm(row[headerMap['CLASSE_ORGANISTA']] || '');
-
-      linhasLocal.push({
-        nome, comum, cidade, cargo, instrumento, vai_tocar: vaiTocar, nivel, local_ensaio: localEnsaioRow, _ord: i
-      });
-    }
-
-    console.log(`📊 Encontrados ${linhasLocal.length} membros para o local: ${localEnsaio}`);
-
-    // Lista completa de instrumentos
-    const listaCompletaInstrumentos = [
-      'Organista', 'Acordeon', 'Violino', 'Viola', 'Violoncelo', 'Flauta transversal',
-      'Oboé', "Oboé d'amore", 'Corne inglês', 'Clarinete', 'Clarinete alto', 
-      'Clarinete baixo (clarone)', 'Fagote', 'Saxofone soprano (reto)', 'Saxofone alto',
-      'Saxofone tenor', 'Saxofone barítono', 'Trompete', 'Cornet', 'Flugelhorn', 'Trompa',
-      'Trombone', 'Trombonito', 'Barítono (pisto)', 'Eufônio', 'Tuba'
-    ];
-
-    // Lista completa de cargos ministeriais e de apoio
-    const listaCompletaCargosMinisteriais = [
-      'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
-      'Encarregado Regional', 'Encarregado Local', 'Examinadora',
-      'Secretária da Música', 'Secretário da Música', 'Instrutor', 'Instrutora'
-    ];
-
-    const listaCompletaCargosApoio = [
-      'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
-    ];
-
-    // Conta instrumentos e cargos
-    const contadores = {
-      instrumentos: {},
-      musicos: {},
-      cargosMinisteriais: {},
-      cargosApoio: {},
-      total: 0
-    };
-
-    // Inicializa todos os instrumentos com 0
-    listaCompletaInstrumentos.forEach(inst => {
-      contadores.instrumentos[inst] = 0;
-      contadores.musicos[inst] = 0;
-    });
-
-    // Inicializa todos os cargos ministeriais com 0
-    listaCompletaCargosMinisteriais.forEach(cargo => {
-      contadores.cargosMinisteriais[cargo] = 0;
-    });
-
-    // Inicializa todos os cargos de apoio com 0
-    listaCompletaCargosApoio.forEach(cargo => {
-      contadores.cargosApoio[cargo] = 0;
-    });
-
-    // Processa cada linha do local
-    linhasLocal.forEach(x => {
-      if (!estevePresente(x)) return;
-      
-      contadores.total++;
-      
-      // LÓGICA CORRETA: Organistas são contados por CARGO
-      const cargoLower = x.cargo ? x.cargo.toLowerCase() : '';
-      if (cargoLower.includes('organista') || cargoLower.includes('examinadora') || 
-          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras')) {
-        contadores.instrumentos['Organista']++;
-        contadores.musicos['Organista']++;
-        console.log(`🎹 Organista contado por cargo: ${x.nome} (cargo: ${x.cargo})`);
-      } else if (x.instrumento && !cargoLower.includes('secretário da música') && !cargoLower.includes('secretaria da musica') && !cargoLower.includes('secretarios da musica') && !cargoLower.includes('secretarias da musica')) {
-        // Mapeia o instrumento para a lista padrão (excluindo secretários da música)
-        const instrumentoMapeado = mapearInstrumento(x.instrumento);
-        
-        if (instrumentoMapeado && contadores.instrumentos.hasOwnProperty(instrumentoMapeado) && instrumentoMapeado !== 'Organista') {
-          contadores.instrumentos[instrumentoMapeado]++;
-          contadores.musicos[instrumentoMapeado]++;
-          console.log(`🎵 Instrumento contado: ${x.instrumento} -> ${instrumentoMapeado} - ${x.nome}`);
-        } else if (instrumentoMapeado) {
-          console.log(`⚠️ Instrumento não mapeado: ${x.instrumento} (mapeado: ${instrumentoMapeado})`);
-        }
-      }
-      
-      // Conta cargos ministeriais específicos
-      if (x.cargo) {
-        const cargoOriginal = x.cargo;
-        const cargoFormatado = formatarTexto(cargoOriginal);
-        
-        const mapeamentoCargos = {
-          'ancião': 'Ancião',
-          'diácono': 'Diácono',
-          'cooperador do ofício': 'Cooperador do Ofício',
-          'cooperador do oficio': 'Cooperador do Ofício',
-          'cooperador de jovens': 'Cooperador de Jovens',
-          'encarregado regional': 'Encarregado Regional',
-          'encarregado local': 'Encarregado Local',
-          'examinadora': 'Examinadora',
-          'examinadoras': 'Examinadora',
-          'examinador': 'Examinadora',
-          'examinadores': 'Examinadora',
-          'examinadora de organistas': 'Examinadora',
-          'examinadoras de organistas': 'Examinadora',
-          'examinador de organistas': 'Examinadora',
-          'examinadores de organistas': 'Examinadora',
-          'secretária da música': 'Secretária da Música',
-          'secretarias da música': 'Secretária da Música',
-          'secretaria da musica': 'Secretária da Música',
-          'secretarias da musica': 'Secretária da Música',
-          'secretário da música': 'Secretário da Música',
-          'secretarios da música': 'Secretário da Música',
-          'secretario da musica': 'Secretário da Música',
-          'secretarios da musica': 'Secretário da Música',
-          'secretário do gem': 'Secretário da Música',
-          'secretarios do gem': 'Secretário da Música',
-          'secretario do gem': 'Secretário da Música',
-          'instrutor': 'Instrutor',
-          'instrutora': 'Instrutora',
-          'instrutores': 'Instrutor',
-          'instrutoras': 'Instrutora',
-          'porteiro (a)': 'Porteiro (a)',
-          'porteiro': 'Porteiro (a)',
-          'porteira': 'Porteiro (a)',
-          'bombeiro (a)': 'Bombeiro (a)',
-          'bombeiro': 'Bombeiro (a)',
-          'bombeira': 'Bombeiro (a)',
-          'médico (a)': 'Médico (a)',
-          'medico': 'Médico (a)',
-          'medica': 'Médico (a)',
-          'enfermeiro (a)': 'Enfermeiro (a)',
-          'enfermeiro': 'Enfermeiro (a)',
-          'enfermeira': 'Enfermeiro (a)',
-          'irmandade': 'Irmandade',
-          'irma': 'Irmandade',
-          'irmao': 'Irmandade',
-          'irmão': 'Irmandade',
-          'irmã': 'Irmandade',
-          'irmãos': 'Irmandade',
-          'irmãs': 'Irmandade'
-        };
-        
-        const cargoMapeado = mapeamentoCargos[cargoFormatado.toLowerCase()];
-        
-        if (contadores.cargosMinisteriais.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosMinisteriais[cargoMapeado]++;
-        }
-        
-        if (contadores.cargosApoio.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosApoio[cargoMapeado]++;
-        }
-      }
-    });
-
-    // Acessa a planilha externa de Pirapora
-    const ssPirapora = openPiraporaSheet();
-    
-    // Acessa a aba Resumo da planilha externa de Pirapora
-    const shResumo = ssPirapora.getSheetByName('Resumo');
-    if (!shResumo) {
-      throw new Error('Aba "Resumo" não encontrada na planilha externa de Pirapora.');
-    }
-    
-    // LIMPA todos os contadores antes de atualizar (correção do problema)
-    limparContadoresResumo(shResumo, [28, 41, 48, 50]);
-    
-    console.log(`📊 Atualizando aba Resumo da planilha externa de Pirapora com dados do ensaio de ${localEnsaio}...`);
-    
-    // Atualiza apenas os valores usando a função escreveAoLado
-    console.log('📊 Atualizando valores na aba Resumo...');
-    
-    // Sinônimos de rótulo para INSTRUMENTOS
-    const INSTR_LABEL_SYNONYMS = {
-      'Organista': ['Organista','Organistas']
-    };
-
-    const CARGO_MIN_ORD = [
-      'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
-      'Encarregado Regional','Encarregado Local','Examinadora',
-      'Secretária da Música','Secretário da Música',
-      'Instrutor','Instrutora'
-    ];
-
-    const APOIO_LABEL_SYNONYMS = {
-      'Porteiro (a)': ['Porteiros (as)', 'Porteiro (a)'],
-      'Bombeiro (a)': ['Bombeiros (as)', 'Bombeiro (a)'],
-      'Médico (a)': ['Médicos (as) / Ambulatório', 'Medicos (as) / Ambulatorio', 'Médico (a)', 'Medico (a)'],
-      'Enfermeiro (a)': ['Enfermeiros (as)', 'Enfermeiro (a)'],
-      'Irmandade': ['Irmandade']
-    };
-    const APOIO_IRM_ORD = Object.keys(APOIO_LABEL_SYNONYMS);
-
-    const MIN_LABEL_SYNONYMS = {
-      'Ancião': ['Ancião','Anciao'],
-      'Diácono': ['Diácono','Diacono'],
-      'Cooperador do Ofício': ['Cooperador do Ofício','Cooperador do Oficio','Cooperador do Ofício Ministerial'],
-      'Cooperador de Jovens': ['Cooperador de Jovens','Cooperador de Jovens e Menores'],
-      'Encarregado Regional': ['Encarregado Regional'],
-      'Encarregado Local': ['Encarregado Local'],
-      'Examinadora': ['Examinadora'],
-      'Secretária da Música': ['Secretária da Música','Secretarias da Música','Secretaria da Música'],
-      'Secretário da Música': ['Secretário da Música','Secretarios da Música','Secretario da Música'],
-      'Instrutores': ['Instrutores','Instrutor'],
-      'Instrutoras': ['Instrutoras','Instrutora']
-    };
-
-    // Atualiza instrumentos com sinônimos
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.instrumentos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza músicos por instrumento
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.musicos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos ministeriais com sinônimos
-    CARGO_MIN_ORD.forEach(canonical => {
-      const val = contadores.cargosMinisteriais[canonical] || 0;
-      const rLabels = MIN_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos de apoio com sinônimos
-    APOIO_IRM_ORD.forEach(canonical => {
-      const val = contadores.cargosApoio[canonical] || 0;
-      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    console.log(`✅ Aba Resumo da planilha externa de Pirapora atualizada com sucesso com dados do ensaio de ${localEnsaio}`);
-    console.log(`📈 Total de membros: ${contadores.total}`);
-    
-    return {
-      ok: true,
-      localEnsaio: localEnsaio,
-      abaAtualizada: 'Resumo',
-      planilhaId: PIRAPORA_SHEET_ID,
-      totalMembros: contadores.total,
-      instrumentos: contadores.instrumentos,
-      cargosMinisteriais: contadores.cargosMinisteriais,
-      cargosApoio: contadores.cargosApoio
-    };
-
-  } catch (error) {
-    console.error(`❌ Erro ao atualizar aba Resumo da planilha externa de Pirapora com dados do ensaio de ${localEnsaio}:`, error);
-    throw error;
-  }
+  return exportarParaPlanilhaDestinoCompleta(localEnsaio, openVargemGrandeSheet(), 'VargemGrande');
 }
 
 // Função para exportar dados completos para planilha externa de Fazendinha (com instrumentos e cargos)
 
 function exportarParaPlanilhaFazendinhaCompleta(localEnsaio) {
-  try {
-    console.log(`🏛️ Iniciando exportação completa para planilha externa de Fazendinha: ${localEnsaio}`);
-    
-    const shDados = openOrCreateSheet(SHEET_NAME);
-    const lastRow = shDados.getLastRow();
-    const lastCol = shDados.getLastColumn();
-    
-    if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
-    }
-
-    const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-    const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
-
-    // Mapeia os índices das colunas
-    const headerMap = {};
-    headerRow.forEach((h, i) => { 
-      if (h) headerMap[h.toString().trim()] = i; 
-    });
-
-    // Filtra dados apenas do local especificado
-    const linhasLocal = [];
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const nome = norm(row[headerMap['NOME COMPLETO']] || '');
-      if (!nome) continue;
-
-      const comum = norm(row[headerMap['COMUM']] || '') || '(Sem comum)';
-      const cidade = norm(row[headerMap['CIDADE']] || '') || '(Sem cidade)';
-      const localEnsaioRow = norm(row[headerMap['LOCAL_ENSAIO']] || '') || '(Sem local definido)';
-      
-      // Só processa se for do local especificado (comparação flexível)
-      if (!compararLocaisEnsaio(localEnsaioRow, localEnsaio)) continue;
-      
-      const cargoRaw = norm(row[headerMap['CARGO']] || '');
-      const cargoK = key(cargoRaw);
-      const cargo = aliasCargo[cargoK] || (cargoK ? cap(cargoRaw) : '');
-      
-      const instrumento = norm(row[headerMap['INSTRUMENTO']] || '');
-      const vaiTocar = norm(row[headerMap['VAI_TOCAR']] || '');
-      const nivel = norm(row[headerMap['CLASSE_ORGANISTA']] || '');
-
-      linhasLocal.push({
-        nome, comum, cidade, cargo, instrumento, vai_tocar: vaiTocar, nivel, local_ensaio: localEnsaioRow, _ord: i
-      });
-    }
-
-    console.log(`📊 Encontrados ${linhasLocal.length} membros para o local: ${localEnsaio}`);
-
-    // Lista completa de instrumentos
-    const listaCompletaInstrumentos = [
-      'Organista', 'Acordeon', 'Violino', 'Viola', 'Violoncelo', 'Flauta transversal',
-      'Oboé', "Oboé d'amore", 'Corne inglês', 'Clarinete', 'Clarinete alto', 
-      'Clarinete baixo (clarone)', 'Fagote', 'Saxofone soprano (reto)', 'Saxofone alto',
-      'Saxofone tenor', 'Saxofone barítono', 'Trompete', 'Cornet', 'Flugelhorn', 'Trompa',
-      'Trombone', 'Trombonito', 'Barítono (pisto)', 'Eufônio', 'Tuba'
-    ];
-
-    // Lista completa de cargos ministeriais e de apoio
-    const listaCompletaCargosMinisteriais = [
-      'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
-      'Encarregado Regional', 'Encarregado Local', 'Examinadora',
-      'Secretária da Música', 'Secretário da Música', 'Instrutor', 'Instrutora'
-    ];
-
-    const listaCompletaCargosApoio = [
-      'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
-    ];
-
-    // Conta instrumentos e cargos
-    const contadores = {
-      instrumentos: {},
-      musicos: {},
-      cargosMinisteriais: {},
-      cargosApoio: {},
-      total: 0
-    };
-
-    // Inicializa todos os instrumentos com 0
-    listaCompletaInstrumentos.forEach(inst => {
-      contadores.instrumentos[inst] = 0;
-      contadores.musicos[inst] = 0;
-    });
-
-    // Inicializa todos os cargos ministeriais com 0
-    listaCompletaCargosMinisteriais.forEach(cargo => {
-      contadores.cargosMinisteriais[cargo] = 0;
-    });
-
-    // Inicializa todos os cargos de apoio com 0
-    listaCompletaCargosApoio.forEach(cargo => {
-      contadores.cargosApoio[cargo] = 0;
-    });
-
-    // Processa cada linha do local
-    linhasLocal.forEach(x => {
-      if (!estevePresente(x)) return;
-      
-      contadores.total++;
-      
-      // LÓGICA CORRETA: Organistas são contados por CARGO
-      const cargoLower = x.cargo ? x.cargo.toLowerCase() : '';
-      if (cargoLower.includes('organista') || cargoLower.includes('examinadora') || 
-          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras')) {
-        contadores.instrumentos['Organista']++;
-        contadores.musicos['Organista']++;
-        console.log(`🎹 Organista contado por cargo: ${x.nome} (cargo: ${x.cargo})`);
-      } else if (x.instrumento && !cargoLower.includes('secretário da música') && !cargoLower.includes('secretaria da musica') && !cargoLower.includes('secretarios da musica') && !cargoLower.includes('secretarias da musica')) {
-        // Mapeia o instrumento para a lista padrão (excluindo secretários da música)
-        const instrumentoMapeado = mapearInstrumento(x.instrumento);
-        
-        if (instrumentoMapeado && contadores.instrumentos.hasOwnProperty(instrumentoMapeado) && instrumentoMapeado !== 'Organista') {
-          contadores.instrumentos[instrumentoMapeado]++;
-          contadores.musicos[instrumentoMapeado]++;
-          console.log(`🎵 Instrumento contado: ${x.instrumento} -> ${instrumentoMapeado} - ${x.nome}`);
-        } else if (instrumentoMapeado) {
-          console.log(`⚠️ Instrumento não mapeado: ${x.instrumento} (mapeado: ${instrumentoMapeado})`);
-        }
-      }
-      
-      // Conta cargos ministeriais específicos
-      if (x.cargo) {
-        const cargoOriginal = x.cargo;
-        const cargoFormatado = formatarTexto(cargoOriginal);
-        
-        const mapeamentoCargos = {
-          'ancião': 'Ancião',
-          'diácono': 'Diácono',
-          'cooperador do ofício': 'Cooperador do Ofício',
-          'cooperador do oficio': 'Cooperador do Ofício',
-          'cooperador de jovens': 'Cooperador de Jovens',
-          'encarregado regional': 'Encarregado Regional',
-          'encarregado local': 'Encarregado Local',
-          'examinadora': 'Examinadora',
-          'examinadoras': 'Examinadora',
-          'examinador': 'Examinadora',
-          'examinadores': 'Examinadora',
-          'examinadora de organistas': 'Examinadora',
-          'examinadoras de organistas': 'Examinadora',
-          'examinador de organistas': 'Examinadora',
-          'examinadores de organistas': 'Examinadora',
-          'secretária da música': 'Secretária da Música',
-          'secretarias da música': 'Secretária da Música',
-          'secretaria da musica': 'Secretária da Música',
-          'secretarias da musica': 'Secretária da Música',
-          'secretário da música': 'Secretário da Música',
-          'secretarios da música': 'Secretário da Música',
-          'secretario da musica': 'Secretário da Música',
-          'secretarios da musica': 'Secretário da Música',
-          'secretário do gem': 'Secretário da Música',
-          'secretarios do gem': 'Secretário da Música',
-          'secretario do gem': 'Secretário da Música',
-          'instrutor': 'Instrutor',
-          'instrutora': 'Instrutora',
-          'instrutores': 'Instrutor',
-          'instrutoras': 'Instrutora',
-          'porteiro (a)': 'Porteiro (a)',
-          'porteiro': 'Porteiro (a)',
-          'porteira': 'Porteiro (a)',
-          'bombeiro (a)': 'Bombeiro (a)',
-          'bombeiro': 'Bombeiro (a)',
-          'bombeira': 'Bombeiro (a)',
-          'médico (a)': 'Médico (a)',
-          'medico': 'Médico (a)',
-          'medica': 'Médico (a)',
-          'enfermeiro (a)': 'Enfermeiro (a)',
-          'enfermeiro': 'Enfermeiro (a)',
-          'enfermeira': 'Enfermeiro (a)',
-          'irmandade': 'Irmandade',
-          'irma': 'Irmandade',
-          'irmao': 'Irmandade',
-          'irmão': 'Irmandade',
-          'irmã': 'Irmandade',
-          'irmãos': 'Irmandade',
-          'irmãs': 'Irmandade'
-        };
-        
-        const cargoMapeado = mapeamentoCargos[cargoFormatado.toLowerCase()];
-        
-        if (contadores.cargosMinisteriais.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosMinisteriais[cargoMapeado]++;
-        }
-        
-        if (contadores.cargosApoio.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosApoio[cargoMapeado]++;
-        }
-      }
-    });
-
-    // Acessa a planilha externa de Fazendinha
-    const ssFazendinha = openFazendinhaSheet();
-    
-    // Acessa a aba Resumo da planilha externa de Fazendinha
-    const shResumo = ssFazendinha.getSheetByName('Resumo');
-    if (!shResumo) {
-      throw new Error('Aba "Resumo" não encontrada na planilha externa de Fazendinha.');
-    }
-    
-    // LIMPA todos os contadores antes de atualizar (correção do problema)
-    limparContadoresResumo(shResumo, [28, 41, 48, 50]);
-    
-    console.log(`📊 Atualizando aba Resumo da planilha externa de Fazendinha com dados do ensaio de ${localEnsaio}...`);
-    
-    // Atualiza apenas os valores usando a função escreveAoLado
-    console.log('📊 Atualizando valores na aba Resumo...');
-    
-    // Sinônimos de rótulo para INSTRUMENTOS
-    const INSTR_LABEL_SYNONYMS = {
-      'Organista': ['Organista','Organistas']
-    };
-
-    const CARGO_MIN_ORD = [
-      'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
-      'Encarregado Regional','Encarregado Local','Examinadora',
-      'Secretária da Música','Secretário da Música',
-      'Instrutor','Instrutora'
-    ];
-
-    const APOIO_LABEL_SYNONYMS = {
-      'Porteiro (a)': ['Porteiros (as)', 'Porteiro (a)'],
-      'Bombeiro (a)': ['Bombeiros (as)', 'Bombeiro (a)'],
-      'Médico (a)': ['Médicos (as) / Ambulatório', 'Medicos (as) / Ambulatorio', 'Médico (a)', 'Medico (a)'],
-      'Enfermeiro (a)': ['Enfermeiros (as)', 'Enfermeiro (a)'],
-      'Irmandade': ['Irmandade']
-    };
-    const APOIO_IRM_ORD = Object.keys(APOIO_LABEL_SYNONYMS);
-
-    const MIN_LABEL_SYNONYMS = {
-      'Ancião': ['Ancião','Anciao'],
-      'Diácono': ['Diácono','Diacono'],
-      'Cooperador do Ofício': ['Cooperador do Ofício','Cooperador do Oficio','Cooperador do Ofício Ministerial'],
-      'Cooperador de Jovens': ['Cooperador de Jovens','Cooperador de Jovens e Menores'],
-      'Encarregado Regional': ['Encarregado Regional'],
-      'Encarregado Local': ['Encarregado Local'],
-      'Examinadora': ['Examinadora'],
-      'Secretária da Música': ['Secretária da Música','Secretarias da Música','Secretaria da Música'],
-      'Secretário da Música': ['Secretário da Música','Secretarios da Música','Secretario da Música'],
-      'Instrutores': ['Instrutores','Instrutor'],
-      'Instrutoras': ['Instrutoras','Instrutora']
-    };
-
-    // Atualiza instrumentos com sinônimos
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.instrumentos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza músicos por instrumento
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.musicos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos ministeriais com sinônimos
-    CARGO_MIN_ORD.forEach(canonical => {
-      const val = contadores.cargosMinisteriais[canonical] || 0;
-      const rLabels = MIN_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos de apoio com sinônimos
-    APOIO_IRM_ORD.forEach(canonical => {
-      const val = contadores.cargosApoio[canonical] || 0;
-      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    console.log(`✅ Aba Resumo da planilha externa de Fazendinha atualizada com sucesso com dados do ensaio de ${localEnsaio}`);
-    console.log(`📈 Total de membros: ${contadores.total}`);
-    
-    return {
-      ok: true,
-      localEnsaio: localEnsaio,
-      abaAtualizada: 'Resumo',
-      planilhaId: FAZENDINHA_SHEET_ID,
-      totalMembros: contadores.total,
-      instrumentos: contadores.instrumentos,
-      cargosMinisteriais: contadores.cargosMinisteriais,
-      cargosApoio: contadores.cargosApoio
-    };
-
-  } catch (error) {
-    console.error(`❌ Erro ao atualizar aba Resumo da planilha externa de Fazendinha com dados do ensaio de ${localEnsaio}:`, error);
-    throw error;
-  }
+  return exportarParaPlanilhaDestinoCompleta(localEnsaio, openFazendinhaSheet(), 'Fazendinha');
 }
 
 // Função para exportar dados completos para planilha externa de Jandira (com instrumentos e cargos)
 
 function exportarParaPlanilhaJandiraCompleta(localEnsaio) {
-  try {
-    console.log(`🏛️ Iniciando exportação completa para planilha externa de Jandira: ${localEnsaio}`);
-    
-    const shDados = openOrCreateSheet(SHEET_NAME);
-    const lastRow = shDados.getLastRow();
-    const lastCol = shDados.getLastColumn();
-    
-    if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
-    }
-
-    const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-    const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
-
-    // Mapeia os índices das colunas
-    const headerMap = {};
-    headerRow.forEach((h, i) => { 
-      if (h) headerMap[h.toString().trim()] = i; 
-    });
-
-    // Filtra dados apenas do local especificado
-    const linhasLocal = [];
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const nome = norm(row[headerMap['NOME COMPLETO']] || '');
-      if (!nome) continue;
-
-      const comum = norm(row[headerMap['COMUM']] || '') || '(Sem comum)';
-      const cidade = norm(row[headerMap['CIDADE']] || '') || '(Sem cidade)';
-      const localEnsaioRow = norm(row[headerMap['LOCAL_ENSAIO']] || '') || '(Sem local definido)';
-      
-      // Só processa se for do local especificado (comparação flexível)
-      if (!compararLocaisEnsaio(localEnsaioRow, localEnsaio)) continue;
-      
-      const cargoRaw = norm(row[headerMap['CARGO']] || '');
-      const cargoK = key(cargoRaw);
-      const cargo = aliasCargo[cargoK] || (cargoK ? cap(cargoRaw) : '');
-      
-      const instrumento = norm(row[headerMap['INSTRUMENTO']] || '');
-      const vaiTocar = norm(row[headerMap['VAI_TOCAR']] || '');
-      const nivel = norm(row[headerMap['CLASSE_ORGANISTA']] || '');
-
-      linhasLocal.push({
-        nome, comum, cidade, cargo, instrumento, vai_tocar: vaiTocar, nivel, local_ensaio: localEnsaioRow, _ord: i
-      });
-    }
-
-    console.log(`📊 Encontrados ${linhasLocal.length} membros para o local: ${localEnsaio}`);
-
-    // Lista completa de instrumentos
-    const listaCompletaInstrumentos = [
-      'Organista', 'Acordeon', 'Violino', 'Viola', 'Violoncelo', 'Flauta transversal',
-      'Oboé', "Oboé d'amore", 'Corne inglês', 'Clarinete', 'Clarinete alto', 
-      'Clarinete baixo (clarone)', 'Fagote', 'Saxofone soprano (reto)', 'Saxofone alto',
-      'Saxofone tenor', 'Saxofone barítono', 'Trompete', 'Cornet', 'Flugelhorn', 'Trompa',
-      'Trombone', 'Trombonito', 'Barítono (pisto)', 'Eufônio', 'Tuba'
-    ];
-
-    // Lista completa de cargos ministeriais e de apoio
-    const listaCompletaCargosMinisteriais = [
-      'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
-      'Encarregado Regional', 'Encarregado Local', 'Examinadora',
-      'Secretária da Música', 'Secretário da Música', 'Instrutor', 'Instrutora'
-    ];
-
-    const listaCompletaCargosApoio = [
-      'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
-    ];
-
-    // Conta instrumentos e cargos
-    const contadores = {
-      instrumentos: {},
-      musicos: {},
-      cargosMinisteriais: {},
-      cargosApoio: {},
-      total: 0
-    };
-
-    // Inicializa todos os instrumentos com 0
-    listaCompletaInstrumentos.forEach(inst => {
-      contadores.instrumentos[inst] = 0;
-      contadores.musicos[inst] = 0;
-    });
-
-    // Inicializa todos os cargos ministeriais com 0
-    listaCompletaCargosMinisteriais.forEach(cargo => {
-      contadores.cargosMinisteriais[cargo] = 0;
-    });
-
-    // Inicializa todos os cargos de apoio com 0
-    listaCompletaCargosApoio.forEach(cargo => {
-      contadores.cargosApoio[cargo] = 0;
-    });
-
-    // Processa cada linha do local
-    linhasLocal.forEach(x => {
-      if (!estevePresente(x)) return;
-      
-      contadores.total++;
-      
-      // LÓGICA CORRETA: Organistas são contados por CARGO
-      const cargoLower = x.cargo ? x.cargo.toLowerCase() : '';
-      if (cargoLower.includes('organista') || cargoLower.includes('examinadora') || 
-          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras')) {
-        contadores.instrumentos['Organista']++;
-        contadores.musicos['Organista']++;
-        console.log(`🎹 Organista contado por cargo: ${x.nome} (cargo: ${x.cargo})`);
-      } else if (x.instrumento && !cargoLower.includes('secretário da música') && !cargoLower.includes('secretaria da musica') && !cargoLower.includes('secretarios da musica') && !cargoLower.includes('secretarias da musica')) {
-        // Mapeia o instrumento para a lista padrão (excluindo secretários da música)
-        const instrumentoMapeado = mapearInstrumento(x.instrumento);
-        
-        if (instrumentoMapeado && contadores.instrumentos.hasOwnProperty(instrumentoMapeado) && instrumentoMapeado !== 'Organista') {
-          contadores.instrumentos[instrumentoMapeado]++;
-          contadores.musicos[instrumentoMapeado]++;
-          console.log(`🎵 Instrumento contado: ${x.instrumento} -> ${instrumentoMapeado} - ${x.nome}`);
-        } else if (instrumentoMapeado) {
-          console.log(`⚠️ Instrumento não mapeado: ${x.instrumento} (mapeado: ${instrumentoMapeado})`);
-        }
-      }
-      
-      // Conta cargos ministeriais específicos
-      if (x.cargo) {
-        const cargoOriginal = x.cargo;
-        const cargoFormatado = formatarTexto(cargoOriginal);
-        
-        const mapeamentoCargos = {
-          'ancião': 'Ancião',
-          'diácono': 'Diácono',
-          'cooperador do ofício': 'Cooperador do Ofício',
-          'cooperador do oficio': 'Cooperador do Ofício',
-          'cooperador de jovens': 'Cooperador de Jovens',
-          'encarregado regional': 'Encarregado Regional',
-          'encarregado local': 'Encarregado Local',
-          'examinadora': 'Examinadora',
-          'examinadoras': 'Examinadora',
-          'examinador': 'Examinadora',
-          'examinadores': 'Examinadora',
-          'examinadora de organistas': 'Examinadora',
-          'examinadoras de organistas': 'Examinadora',
-          'examinador de organistas': 'Examinadora',
-          'examinadores de organistas': 'Examinadora',
-          'secretária da música': 'Secretária da Música',
-          'secretarias da música': 'Secretária da Música',
-          'secretaria da musica': 'Secretária da Música',
-          'secretarias da musica': 'Secretária da Música',
-          'secretário da música': 'Secretário da Música',
-          'secretarios da música': 'Secretário da Música',
-          'secretario da musica': 'Secretário da Música',
-          'secretarios da musica': 'Secretário da Música',
-          'secretário do gem': 'Secretário da Música',
-          'secretarios do gem': 'Secretário da Música',
-          'secretario do gem': 'Secretário da Música',
-          'instrutor': 'Instrutor',
-          'instrutora': 'Instrutora',
-          'instrutores': 'Instrutor',
-          'instrutoras': 'Instrutora',
-          'porteiro (a)': 'Porteiro (a)',
-          'porteiro': 'Porteiro (a)',
-          'porteira': 'Porteiro (a)',
-          'bombeiro (a)': 'Bombeiro (a)',
-          'bombeiro': 'Bombeiro (a)',
-          'bombeira': 'Bombeiro (a)',
-          'médico (a)': 'Médico (a)',
-          'medico': 'Médico (a)',
-          'medica': 'Médico (a)',
-          'enfermeiro (a)': 'Enfermeiro (a)',
-          'enfermeiro': 'Enfermeiro (a)',
-          'enfermeira': 'Enfermeiro (a)',
-          'irmandade': 'Irmandade',
-          'irma': 'Irmandade',
-          'irmao': 'Irmandade',
-          'irmão': 'Irmandade',
-          'irmã': 'Irmandade',
-          'irmãos': 'Irmandade',
-          'irmãs': 'Irmandade'
-        };
-        
-        const cargoMapeado = mapeamentoCargos[cargoFormatado.toLowerCase()];
-        
-        if (contadores.cargosMinisteriais.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosMinisteriais[cargoMapeado]++;
-        }
-        
-        if (contadores.cargosApoio.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosApoio[cargoMapeado]++;
-        }
-      }
-    });
-
-    // Acessa a planilha externa de Jandira
-    const ssJandira = openJandiraSheet();
-    
-    // Acessa a aba Resumo da planilha externa de Jandira
-    const shResumo = ssJandira.getSheetByName('Resumo');
-    if (!shResumo) {
-      throw new Error('Aba "Resumo" não encontrada na planilha externa de Jandira.');
-    }
-    
-    // LIMPA todos os contadores antes de atualizar (correção do problema)
-    limparContadoresResumo(shResumo, [28, 41, 48, 50]);
-    
-    console.log(`📊 Atualizando aba Resumo da planilha externa de Jandira com dados do ensaio de ${localEnsaio}...`);
-    
-    // Atualiza apenas os valores usando a função escreveAoLado
-    console.log('📊 Atualizando valores na aba Resumo...');
-    
-    // Sinônimos de rótulo para INSTRUMENTOS
-    const INSTR_LABEL_SYNONYMS = {
-      'Organista': ['Organista','Organistas']
-    };
-
-    const CARGO_MIN_ORD = [
-      'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
-      'Encarregado Regional','Encarregado Local','Examinadora',
-      'Secretária da Música','Secretário da Música',
-      'Instrutor','Instrutora'
-    ];
-
-    const APOIO_LABEL_SYNONYMS = {
-      'Porteiro (a)': ['Porteiros (as)', 'Porteiro (a)'],
-      'Bombeiro (a)': ['Bombeiros (as)', 'Bombeiro (a)'],
-      'Médico (a)': ['Médicos (as) / Ambulatório', 'Medicos (as) / Ambulatorio', 'Médico (a)', 'Medico (a)'],
-      'Enfermeiro (a)': ['Enfermeiros (as)', 'Enfermeiro (a)'],
-      'Irmandade': ['Irmandade']
-    };
-    const APOIO_IRM_ORD = Object.keys(APOIO_LABEL_SYNONYMS);
-
-    const MIN_LABEL_SYNONYMS = {
-      'Ancião': ['Ancião','Anciao'],
-      'Diácono': ['Diácono','Diacono'],
-      'Cooperador do Ofício': ['Cooperador do Ofício','Cooperador do Oficio','Cooperador do Ofício Ministerial'],
-      'Cooperador de Jovens': ['Cooperador de Jovens','Cooperador de Jovens e Menores'],
-      'Encarregado Regional': ['Encarregado Regional'],
-      'Encarregado Local': ['Encarregado Local'],
-      'Examinadora': ['Examinadora'],
-      'Secretária da Música': ['Secretária da Música','Secretarias da Música','Secretaria da Música'],
-      'Secretário da Música': ['Secretário da Música','Secretarios da Música','Secretario da Música'],
-      'Instrutores': ['Instrutores','Instrutor'],
-      'Instrutoras': ['Instrutoras','Instrutora']
-    };
-
-    // Atualiza instrumentos com sinônimos
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.instrumentos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza músicos por instrumento
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.musicos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos ministeriais com sinônimos
-    CARGO_MIN_ORD.forEach(canonical => {
-      const val = contadores.cargosMinisteriais[canonical] || 0;
-      const rLabels = MIN_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos de apoio com sinônimos
-    APOIO_IRM_ORD.forEach(canonical => {
-      const val = contadores.cargosApoio[canonical] || 0;
-      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    console.log(`✅ Aba Resumo da planilha externa de Jandira atualizada com sucesso com dados do ensaio de ${localEnsaio}`);
-    console.log(`📈 Total de membros: ${contadores.total}`);
-    
-    return {
-      ok: true,
-      localEnsaio: localEnsaio,
-      abaAtualizada: 'Resumo',
-      planilhaId: JANDIRA_SHEET_ID,
-      totalMembros: contadores.total,
-      instrumentos: contadores.instrumentos,
-      cargosMinisteriais: contadores.cargosMinisteriais,
-      cargosApoio: contadores.cargosApoio
-    };
-
-  } catch (error) {
-    console.error(`❌ Erro ao atualizar aba Resumo da planilha externa de Jandira com dados do ensaio de ${localEnsaio}:`, error);
-    throw error;
-  }
+  return exportarParaPlanilhaDestinoCompleta(localEnsaio, openJandiraSheet(), 'Jandira');
 }
 
 // Função para exportar dados completos para planilha externa de Cotia (com instrumentos e cargos)
 
 function exportarParaPlanilhaCotiaCompleta(localEnsaio) {
-  try {
-    console.log(`🏛️ Iniciando exportação completa para planilha externa de Cotia: ${localEnsaio}`);
-    
-    const shDados = openOrCreateSheet(SHEET_NAME);
-    const lastRow = shDados.getLastRow();
-    const lastCol = shDados.getLastColumn();
-    
-    if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
-    }
-
-    const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-    const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
-
-    // Mapeia os índices das colunas
-    const headerMap = {};
-    headerRow.forEach((h, i) => { 
-      if (h) headerMap[h.toString().trim()] = i; 
-    });
-
-    // Filtra dados apenas do local especificado
-    const linhasLocal = [];
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const nome = norm(row[headerMap['NOME COMPLETO']] || '');
-      if (!nome) continue;
-
-      const comum = norm(row[headerMap['COMUM']] || '') || '(Sem comum)';
-      const cidade = norm(row[headerMap['CIDADE']] || '') || '(Sem cidade)';
-      const localEnsaioRow = norm(row[headerMap['LOCAL_ENSAIO']] || '') || '(Sem local definido)';
-      
-      // Só processa se for do local especificado (comparação flexível)
-      if (!compararLocaisEnsaio(localEnsaioRow, localEnsaio)) continue;
-      
-      const cargoRaw = norm(row[headerMap['CARGO']] || '');
-      const cargoK = key(cargoRaw);
-      const cargo = aliasCargo[cargoK] || (cargoK ? cap(cargoRaw) : '');
-      
-      const instrumento = norm(row[headerMap['INSTRUMENTO']] || '');
-      const vaiTocar = norm(row[headerMap['VAI_TOCAR']] || '');
-      const nivel = norm(row[headerMap['CLASSE_ORGANISTA']] || '');
-
-      linhasLocal.push({
-        nome, comum, cidade, cargo, instrumento, vai_tocar: vaiTocar, nivel, local_ensaio: localEnsaioRow, _ord: i
-      });
-    }
-
-    console.log(`📊 Encontrados ${linhasLocal.length} membros para o local: ${localEnsaio}`);
-
-    // Lista completa de instrumentos
-    const listaCompletaInstrumentos = [
-      'Organista', 'Acordeon', 'Violino', 'Viola', 'Violoncelo', 'Flauta transversal',
-      'Oboé', "Oboé d'amore", 'Corne inglês', 'Clarinete', 'Clarinete alto', 
-      'Clarinete baixo (clarone)', 'Fagote', 'Saxofone soprano (reto)', 'Saxofone alto',
-      'Saxofone tenor', 'Saxofone barítono', 'Trompete', 'Cornet', 'Flugelhorn', 'Trompa',
-      'Trombone', 'Trombonito', 'Barítono (pisto)', 'Eufônio', 'Tuba'
-    ];
-
-    // Lista completa de cargos ministeriais e de apoio
-    const listaCompletaCargosMinisteriais = [
-      'Ancião', 'Diácono', 'Cooperador do Ofício', 'Cooperador de Jovens',
-      'Encarregado Regional', 'Encarregado Local', 'Examinadora',
-      'Secretária da Música', 'Secretário da Música', 'Instrutor', 'Instrutora'
-    ];
-
-    const listaCompletaCargosApoio = [
-      'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
-    ];
-
-    // Conta instrumentos e cargos
-    const contadores = {
-      instrumentos: {},
-      musicos: {},
-      cargosMinisteriais: {},
-      cargosApoio: {},
-      total: 0
-    };
-
-    // Inicializa todos os instrumentos com 0
-    listaCompletaInstrumentos.forEach(inst => {
-      contadores.instrumentos[inst] = 0;
-      contadores.musicos[inst] = 0;
-    });
-
-    // Inicializa todos os cargos ministeriais com 0
-    listaCompletaCargosMinisteriais.forEach(cargo => {
-      contadores.cargosMinisteriais[cargo] = 0;
-    });
-
-    // Inicializa todos os cargos de apoio com 0
-    listaCompletaCargosApoio.forEach(cargo => {
-      contadores.cargosApoio[cargo] = 0;
-    });
-
-    // Processa cada linha do local
-    linhasLocal.forEach(x => {
-      if (!estevePresente(x)) return;
-      
-      contadores.total++;
-      
-      // LÓGICA CORRETA: Organistas são contados por CARGO
-      const cargoLower = x.cargo ? x.cargo.toLowerCase() : '';
-      if (cargoLower.includes('organista') || cargoLower.includes('examinadora') || 
-          cargoLower.includes('instrutora') || cargoLower.includes('instrutoras')) {
-        contadores.instrumentos['Organista']++;
-        contadores.musicos['Organista']++;
-        console.log(`🎹 Organista contado por cargo: ${x.nome} (cargo: ${x.cargo})`);
-      } else if (x.instrumento && !cargoLower.includes('secretário da música') && !cargoLower.includes('secretaria da musica') && !cargoLower.includes('secretarios da musica') && !cargoLower.includes('secretarias da musica')) {
-        // Mapeia o instrumento para a lista padrão (excluindo secretários da música)
-        const instrumentoMapeado = mapearInstrumento(x.instrumento);
-        
-        if (instrumentoMapeado && contadores.instrumentos.hasOwnProperty(instrumentoMapeado) && instrumentoMapeado !== 'Organista') {
-          contadores.instrumentos[instrumentoMapeado]++;
-          contadores.musicos[instrumentoMapeado]++;
-          console.log(`🎵 Instrumento contado: ${x.instrumento} -> ${instrumentoMapeado} - ${x.nome}`);
-        } else if (instrumentoMapeado) {
-          console.log(`⚠️ Instrumento não mapeado: ${x.instrumento} (mapeado: ${instrumentoMapeado})`);
-        }
-      }
-      
-      // Conta cargos ministeriais específicos
-      if (x.cargo) {
-        const cargoOriginal = x.cargo;
-        const cargoFormatado = formatarTexto(cargoOriginal);
-        
-        const mapeamentoCargos = {
-          'ancião': 'Ancião',
-          'diácono': 'Diácono',
-          'cooperador do ofício': 'Cooperador do Ofício',
-          'cooperador do oficio': 'Cooperador do Ofício',
-          'cooperador de jovens': 'Cooperador de Jovens',
-          'encarregado regional': 'Encarregado Regional',
-          'encarregado local': 'Encarregado Local',
-          'examinadora': 'Examinadora',
-          'examinadoras': 'Examinadora',
-          'examinador': 'Examinadora',
-          'examinadores': 'Examinadora',
-          'examinadora de organistas': 'Examinadora',
-          'examinadoras de organistas': 'Examinadora',
-          'examinador de organistas': 'Examinadora',
-          'examinadores de organistas': 'Examinadora',
-          'secretária da música': 'Secretária da Música',
-          'secretarias da música': 'Secretária da Música',
-          'secretaria da musica': 'Secretária da Música',
-          'secretarias da musica': 'Secretária da Música',
-          'secretário da música': 'Secretário da Música',
-          'secretarios da música': 'Secretário da Música',
-          'secretario da musica': 'Secretário da Música',
-          'secretarios da musica': 'Secretário da Música',
-          'secretário do gem': 'Secretário da Música',
-          'secretarios do gem': 'Secretário da Música',
-          'secretario do gem': 'Secretário da Música',
-          'instrutor': 'Instrutor',
-          'instrutora': 'Instrutora',
-          'instrutores': 'Instrutor',
-          'instrutoras': 'Instrutora',
-          'porteiro (a)': 'Porteiro (a)',
-          'porteiro': 'Porteiro (a)',
-          'porteira': 'Porteiro (a)',
-          'bombeiro (a)': 'Bombeiro (a)',
-          'bombeiro': 'Bombeiro (a)',
-          'bombeira': 'Bombeiro (a)',
-          'médico (a)': 'Médico (a)',
-          'medico': 'Médico (a)',
-          'medica': 'Médico (a)',
-          'enfermeiro (a)': 'Enfermeiro (a)',
-          'enfermeiro': 'Enfermeiro (a)',
-          'enfermeira': 'Enfermeiro (a)',
-          'irmandade': 'Irmandade',
-          'irma': 'Irmandade',
-          'irmao': 'Irmandade',
-          'irmão': 'Irmandade',
-          'irmã': 'Irmandade',
-          'irmãos': 'Irmandade',
-          'irmãs': 'Irmandade'
-        };
-        
-        const cargoMapeado = mapeamentoCargos[cargoFormatado.toLowerCase()];
-        
-        if (contadores.cargosMinisteriais.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosMinisteriais[cargoMapeado]++;
-        }
-        
-        if (contadores.cargosApoio.hasOwnProperty(cargoMapeado)) {
-          contadores.cargosApoio[cargoMapeado]++;
-        }
-      }
-    });
-
-    // Acessa a planilha externa de Cotia
-    const ssCotia = openCotiaSheet();
-    
-    // Acessa a aba Resumo da planilha externa de Cotia
-    const shResumo = ssCotia.getSheetByName('Resumo');
-    if (!shResumo) {
-      throw new Error('Aba "Resumo" não encontrada na planilha externa de Cotia.');
-    }
-    
-    // LIMPA todos os contadores antes de atualizar (correção do problema)
-    limparContadoresResumo(shResumo, [28, 41, 48, 50]);
-    
-    console.log(`📊 Atualizando aba Resumo da planilha externa de Cotia com dados do ensaio de ${localEnsaio}...`);
-    
-    // Atualiza apenas os valores usando a função escreveAoLado
-    console.log('📊 Atualizando valores na aba Resumo...');
-    
-    // Sinônimos de rótulo para INSTRUMENTOS
-    const INSTR_LABEL_SYNONYMS = {
-      'Organista': ['Organista','Organistas']
-    };
-
-    const CARGO_MIN_ORD = [
-      'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
-      'Encarregado Regional','Encarregado Local','Examinadora',
-      'Secretária da Música','Secretário da Música',
-      'Instrutor','Instrutora'
-    ];
-
-    const APOIO_LABEL_SYNONYMS = {
-      'Porteiro (a)': ['Porteiros (as)', 'Porteiro (a)'],
-      'Bombeiro (a)': ['Bombeiros (as)', 'Bombeiro (a)'],
-      'Médico (a)': ['Médicos (as) / Ambulatório', 'Medicos (as) / Ambulatorio', 'Médico (a)', 'Medico (a)'],
-      'Enfermeiro (a)': ['Enfermeiros (as)', 'Enfermeiro (a)'],
-      'Irmandade': ['Irmandade']
-    };
-    const APOIO_IRM_ORD = Object.keys(APOIO_LABEL_SYNONYMS);
-
-    const MIN_LABEL_SYNONYMS = {
-      'Ancião': ['Ancião','Anciao'],
-      'Diácono': ['Diácono','Diacono'],
-      'Cooperador do Ofício': ['Cooperador do Ofício','Cooperador do Oficio','Cooperador do Ofício Ministerial'],
-      'Cooperador de Jovens': ['Cooperador de Jovens','Cooperador de Jovens e Menores'],
-      'Encarregado Regional': ['Encarregado Regional'],
-      'Encarregado Local': ['Encarregado Local'],
-      'Examinadora': ['Examinadora'],
-      'Secretária da Música': ['Secretária da Música','Secretarias da Música','Secretaria da Música'],
-      'Secretário da Música': ['Secretário da Música','Secretarios da Música','Secretario da Música'],
-      'Instrutores': ['Instrutores','Instrutor'],
-      'Instrutoras': ['Instrutoras','Instrutora']
-    };
-
-    // Atualiza instrumentos com sinônimos
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.instrumentos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza músicos por instrumento
-    listaCompletaInstrumentos.forEach(canonical => {
-      const val = contadores.musicos[canonical] || 0;
-      const rLabels = INSTR_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos ministeriais com sinônimos
-    CARGO_MIN_ORD.forEach(canonical => {
-      const val = contadores.cargosMinisteriais[canonical] || 0;
-      const rLabels = MIN_LABEL_SYNONYMS[canonical] || [canonical];
-      rLabels.forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    // Atualiza cargos de apoio com sinônimos
-    APOIO_IRM_ORD.forEach(canonical => {
-      const val = contadores.cargosApoio[canonical] || 0;
-      APOIO_LABEL_SYNONYMS[canonical].forEach(rot => atualizarColunaBPreservandoFormulas(shResumo, rot, val));
-    });
-
-    console.log(`✅ Aba Resumo da planilha externa de Cotia atualizada com sucesso com dados do ensaio de ${localEnsaio}`);
-    console.log(`📈 Total de membros: ${contadores.total}`);
-    
-    return {
-      ok: true,
-      localEnsaio: localEnsaio,
-      abaAtualizada: 'Resumo',
-      planilhaId: COTIA_SHEET_ID,
-      totalMembros: contadores.total,
-      instrumentos: contadores.instrumentos,
-      cargosMinisteriais: contadores.cargosMinisteriais,
-      cargosApoio: contadores.cargosApoio
-    };
-
-  } catch (error) {
-    console.error(`❌ Erro ao atualizar aba Resumo da planilha externa de Cotia com dados do ensaio de ${localEnsaio}:`, error);
-    throw error;
-  }
+  return exportarParaPlanilhaDestinoCompleta(localEnsaio, openCotiaSheet(), 'Cotia');
 }
 
 // Função para mapear instrumentos da planilha para a lista padrão
+
+// Função para exportar dados completos para planilha externa de Pirapora (com instrumentos e cargos)
+
+function exportarParaPlanilhaPiraporaCompleta(localEnsaio) {
+  return exportarParaPlanilhaDestinoCompleta(localEnsaio, openPiraporaSheet(), 'Pirapora');
+}
+
+function mapearInstrumento(instrumento) {
+  if (!instrumento) return null;
+  const instNorm = instrumento.trim().toLowerCase();
+  
+  // Lógica de mapeamento para instrumentos padrão
+  if (instNorm === 'organista' || instNorm === 'órgão') return 'Organista';
+  if (instNorm === 'violino') return 'Violino';
+  if (instNorm === 'viola') return 'Viola';
+  if (instNorm === 'violoncelo' || instNorm === 'cello') return 'Violoncelo';
+  if (instNorm === 'flauta transversal' || instNorm === 'flauta') return 'Flauta transversal';
+  if (instNorm === 'oboe' || instNorm === 'oboé') return 'Oboé';
+  if (instNorm.includes('clarinete')) {
+    if (instNorm.includes('alto')) return 'Clarinete alto';
+    if (instNorm.includes('baixo') || instNorm.includes('clarone')) return 'Clarinete baixo (clarone)';
+    return 'Clarinete';
+  }
+  if (instNorm.includes('saxofone')) {
+    if (instNorm.includes('soprano')) return 'Saxofone soprano (reto)';
+    if (instNorm.includes('alto')) return 'Saxofone alto';
+    if (instNorm.includes('tenor')) return 'Saxofone tenor';
+    if (instNorm.includes('barítono') || instNorm.includes('baritono')) return 'Saxofone barítono';
+    return 'Saxofone alto';
+  }
+  if (instNorm === 'trompete' || instNorm === 'pistão') return 'Trompete';
+  if (instNorm === 'trombone') return 'Trombone';
+  if (instNorm === 'tuba' || instNorm === 'bombardão') return 'Tuba';
+  if (instNorm === 'eufônio' || instNorm === 'bombardino') return 'Eufônio';
+  
+  return instrumento; // Retorna o original se não houver mapeamento específico
+}

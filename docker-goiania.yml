@@ -1,0 +1,25 @@
+services:
+  app-goiania:
+    build: .
+    image: regionalitapevi/appcontagem:latest
+    container_name: regional-goiania
+    ports:
+      - "8083:80"
+    environment:
+      - REGIONAL_NAME=Regional Goiânia
+      - LOCAIS_ENSAIO_JSON=[{"id":"1","nome":"Central Goiânia"}]
+      # Configurações de Infraestrutura da Regional (Substituir pelos seus valores reais)
+      - SUPABASE_URL=https://rrakxzreaztqwntqevqx.supabase.co
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyYWt4enJlYXp0cXdudHFldnF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODI3MDEsImV4cCI6MjA4OTM1ODcwMX0.Tq-G1pJetDZOJ8mv_y8VC3dcUzWLmRUnkoDBaMEU4ig
+      - SHEET_NAME=Registros
+      - SHEETS_ENDPOINT_URL=https://script.google.com/macros/s/AKfycbwf9OLoIMZdbd-pvYb332ldT4fGZqSyuhA5Nj1hC8PZWy5S4gOVq0X7sHxZiJNIwJW3/exec
+    restart: always
+  # Exemplo de como adicionar outra regional futuramente:
+  # app-itapevi:
+  #   image: regionalitapevi/appcontagem:latest
+  #   container_name: regional-itapevi
+  #   ports:
+  #     - "8080:80"
+  #   environment:  
+  #     - REGIONAL_NAME=Regional Itapevi
+  #   restart: always

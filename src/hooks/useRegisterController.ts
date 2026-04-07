@@ -983,7 +983,10 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         
         // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
-        showToast.success('Registro Salvo!', 'O registro foi realizado com sucesso!', 2000);
+        const feedbackMsg = isOnlineNow 
+          ? 'O registro foi realizado com sucesso!' 
+          : 'Salvo localmente! Será enviado em breve.';
+        showToast.success('Registro Salvo!', feedbackMsg, 1500);
         
         // Limpar campos imediatamente
         clearAllFields();
@@ -1159,7 +1162,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       let localEnsaioNome: string = 'Não definido';
       if (localEnsaio) {
         if (/^\d+$/.test(localEnsaio.trim())) {
-          const locais: { id: string; nome: string }[] = [
+          const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
             { id: '1', nome: 'Cotia' },
             { id: '2', nome: 'Caucaia do Alto' },
             { id: '3', nome: 'Fazendinha' },
@@ -1288,7 +1291,10 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       await supabaseDataService.saveRegistroToLocal(registro);
 
       // 3. Feedback imediato ao usuário
-      showToast.success('Registro Salvo!', 'O registro foi realizado com sucesso!', 2000);
+      const feedbackMsg = isOnlineNow 
+        ? 'O registro foi realizado com sucesso!' 
+        : 'Salvo localmente! Será enviado em breve.';
+      showToast.success('Registro Salvo!', feedbackMsg, 1500);
 
       // 4. Limpar e fechar
       setNewRegistrationModalVisible(false); // Fechar o modal imediatamente
@@ -1311,57 +1317,6 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     }
   };
 
-  const handleConfirmDuplicate = async () => {
-    if (!pendingRegistro) {
-      setDuplicateModalVisible(false);
-      setDuplicateInfo(null);
-      return;
-    }
-
-    try {
-      console.log('💾 [DUP_CONFIRM] Iniciando registro ultra-rápido de duplicata...');
-      
-      // 1. Fechar modal IMEDIATAMENTE e travar submissão
-      setDuplicateModalVisible(false);
-      setDuplicateInfo(null);
-      setLoading(true);
-      isSubmittingRef.current = true;
-
-      // 2. Salvar localmente (quase instantâneo)
-      const registro = { ...pendingRegistro };
-      await supabaseDataService.saveRegistroToLocal(registro);
-
-      // 3. Feedback imediato ao usuário (Mesma mensagem do handleSubmit)
-      showToast.success('Registro Salvo!', 'O registro foi realizado com sucesso!', 2000);
-
-      // 4. Limpar campos e liberar UI
-      clearAllFields();
-      setPendingRegistro(null);
-      await refreshCount();
-
-      // 4. Se for visitinte de outra localidade, voltar após o toast (conforme comportamento da tela)
-      if (isForaRegional) {
-        setTimeout(() => {
-          navigation.goBack();
-        }, 500);
-      }
-
-      setLoading(false);
-      isSubmittingRef.current = false;
-
-      // 6. Disparar sincronização silenciosa em background
-      console.log('🔄 [DUP_CONFIRM] Disparando sincronização silenciosa...');
-      offlineSyncService.processarFilaLocal(true).catch(err => {
-        console.error('❌ [DUP_CONFIRM] Erro na sincronização em background:', err);
-      });
-
-    } catch (error) {
-      console.error('❌ [DUP_CONFIRM] Erro no processamento otimista:', error);
-      showToast.error('Erro', 'Ocorreu um erro ao salvar o registro localmente.');
-      setLoading(false);
-      isSubmittingRef.current = false;
-    }
-  };
 
 
   // 🚨 REMOVIDO: Log desnecessário que estava causando loop - função já está definida e funcionando
@@ -1423,7 +1378,6 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
-    handleConfirmDuplicate,
     handleHardReset: onHardReset,
     selectedClasseOrganista,
     setSelectedClasseOrganista,

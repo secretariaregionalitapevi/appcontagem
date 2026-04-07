@@ -33,12 +33,26 @@ export const SignUpScreen: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Configurações carregadas do config.js (ou fallback padrão)
+  const appConfig = (typeof window !== 'undefined' && window.APP_CONFIG) || {
+    REGIONAL_NAME: 'Regional Itapevi',
+    LOCAIS_ENSAIO: (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
+      { id: '1', nome: 'Cotia' },
+      { id: '2', nome: 'Caucaia do Alto' },
+      { id: '3', nome: 'Fazendinha' },
+      { id: '4', nome: 'Itapevi' },
+      { id: '5', nome: 'Jandira' },
+      { id: '6', nome: 'Pirapora' },
+      { id: '7', nome: 'Vargem Grande' },
+    ]
+  };
+
   // Definir título da página na web
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'CCB | Cadastro';
+      document.title = `CCB | Cadastro - ${appConfig.REGIONAL_NAME}`;
     }
-  }, []);
+  }, [appConfig.REGIONAL_NAME]);
 
   useEffect(() => {
     // Verificar conexão com Supabase ao montar o componente
@@ -182,7 +196,7 @@ export const SignUpScreen: React.FC = () => {
             Sistema Administrativo de Contagem, criado para facilitar a administração Musical da
             Congregação Cristã no Brasil
             {'\n'}
-            <Text style={styles.boldText}>Regional Itapevi</Text>.
+            <Text style={styles.boldText}>{appConfig.REGIONAL_NAME}</Text>.
           </Text>
 
           <Text style={styles.subText}>Preencha os dados para criar sua conta</Text>
@@ -300,7 +314,7 @@ export const SignUpScreen: React.FC = () => {
                 <Text style={styles.footerLink}>Congregação Cristã no Brasil</Text>
               </TouchableOpacity>
               {'\n'}
-              <Text style={styles.footerBold}>Regional Itapevi</Text>
+              <Text style={styles.footerBold}>{appConfig.REGIONAL_NAME}</Text>
             </Text>
           </View>
         </View>

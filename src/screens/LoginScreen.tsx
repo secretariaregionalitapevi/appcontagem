@@ -45,14 +45,28 @@ export const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
+  // Configurações carregadas do config.js (ou fallback padrão)
+  const appConfig = (typeof window !== 'undefined' && window.APP_CONFIG) || {
+    REGIONAL_NAME: 'Regional Itapevi',
+    LOCAIS_ENSAIO: (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
+      { id: '1', nome: 'Cotia' },
+      { id: '2', nome: 'Caucaia do Alto' },
+      { id: '3', nome: 'Fazendinha' },
+      { id: '4', nome: 'Itapevi' },
+      { id: '5', nome: 'Jandira' },
+      { id: '6', nome: 'Pirapora' },
+      { id: '7', nome: 'Vargem Grande' },
+    ]
+  };
+
   const { signIn, signUp } = useAuthContext();
 
   // Definir título da página na web
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'CCB | Login';
+      document.title = `CCB | Login - ${appConfig.REGIONAL_NAME}`;
     }
-  }, []);
+  }, [appConfig.REGIONAL_NAME]);
 
   React.useEffect(() => {
     loadLocaisEnsaio();
@@ -60,16 +74,8 @@ export const LoginScreen: React.FC = () => {
 
   const loadLocaisEnsaio = async () => {
     try {
-      // Locais de ensaio da Regional Itapevi conforme o HTML original
-      const mockLocais: LocalEnsaio[] = [
-        { id: '1', nome: 'Cotia' },
-        { id: '2', nome: 'Caucaia do Alto' },
-        { id: '3', nome: 'Fazendinha' },
-        { id: '4', nome: 'Itapevi' },
-        { id: '5', nome: 'Jandira' },
-        { id: '6', nome: 'Pirapora' },
-        { id: '7', nome: 'Vargem Grande' },
-      ];
+      // Locais de ensaio carregados do arquivo de configuração
+      const mockLocais: LocalEnsaio[] = appConfig.LOCAIS_ENSAIO;
       console.log('📍 Locais de ensaio carregados:', mockLocais);
       setLocaisEnsaio(mockLocais);
     } catch (error) {
@@ -82,6 +88,28 @@ export const LoginScreen: React.FC = () => {
       showToast.error('Campos obrigatórios', 'Preencha e-mail, senha e Local do Ensaio.');
       return;
     }
+
+    // Confirmar local de ensaio antes de prosseguir
+    const selectedLocal = locaisEnsaio.find(l => l.id === localEnsaio);
+    const localNome = selectedLocal ? selectedLocal.nome : '';
+
+    const confirmed = await showToast.confirm(
+      'Confirmação de Local',
+      Platform.OS === 'web'
+        ? `Você confirma que está no ensaio em <strong style="color: #255ec8;">${localNome}</strong>?`
+        : `Você confirma que está no ensaio em ${localNome}?`,
+      'generic',
+      {
+        confirmText: Platform.OS === 'web'
+          ? '<i class="fas fa-check" style="margin-right: 8px;"></i> Confirmar'
+          : 'Confirmar',
+        cancelText: Platform.OS === 'web'
+          ? '<i class="fas fa-times" style="margin-right: 8px;"></i> Corrigir'
+          : 'Corrigir',
+      }
+    );
+
+    if (!confirmed) return;
 
     setLoading(true);
     try {
@@ -143,7 +171,7 @@ export const LoginScreen: React.FC = () => {
             Sistema Administrativo de Contagem, criado para facilitar a administração Musical da
             Congregação Cristã no Brasil
             {'\n'}
-            <Text style={styles.boldText}>Regional Itapevi</Text>.
+            <Text style={styles.boldText}>{appConfig.REGIONAL_NAME}</Text>.
           </Text>
 
           <Text style={styles.subText}>Faça o login para acessar o Sistema</Text>
@@ -275,7 +303,7 @@ export const LoginScreen: React.FC = () => {
                 <Text style={styles.footerLink}>Congregação Cristã no Brasil</Text>
               </TouchableOpacity>
               {'\n'}
-              <Text style={styles.footerBold}>Regional Itapevi</Text>
+              <Text style={styles.footerBold}>{appConfig.REGIONAL_NAME}</Text>
             </Text>
           </View>
         </View>

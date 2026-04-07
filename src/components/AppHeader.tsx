@@ -56,9 +56,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const loadLocalEnsaio = async () => {
     try {
       const localId = await localStorageService.getLocalEnsaio();
+      console.log('📍 [AppHeader] LocalId carregado do storage:', localId);
+      
       if (localId) {
-        // Buscar nome do local a partir do ID
-        const locais: LocalEnsaio[] = [
+        // Buscar nome do local a partir da configuração global
+        const appConfig = (typeof window !== 'undefined' && (window as any).APP_CONFIG);
+        console.log('📍 [AppHeader] APP_CONFIG disponível:', !!appConfig);
+        
+        const locais: LocalEnsaio[] = appConfig?.LOCAIS_ENSAIO || [
           { id: '1', nome: 'Cotia' },
           { id: '2', nome: 'Caucaia do Alto' },
           { id: '3', nome: 'Fazendinha' },
@@ -67,14 +72,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           { id: '6', nome: 'Pirapora' },
           { id: '7', nome: 'Vargem Grande' },
         ];
-        const localEncontrado = locais.find(l => l.id === localId);
-        setLocalEnsaio(localEncontrado?.nome || localId);
+        
+        console.log('📍 [AppHeader] Lista de locais para busca:', locais);
+        const localEncontrado = locais.find(l => String(l.id) === String(localId));
+        console.log('📍 [AppHeader] Local encontrado:', localEncontrado);
+        
+        if (!localEncontrado && locais.length > 0) {
+          console.warn('⚠️ [AppHeader] LocalId atual não existe nesta regional. Resetando para o primeiro disponível.');
+          const primeiroLocal = locais[0];
+          await localStorageService.setLocalEnsaio(primeiroLocal.id);
+          setLocalEnsaio(primeiroLocal.nome);
+        } else {
+          setLocalEnsaio(localEncontrado?.nome || `ID: ${localId}`);
+        }
       } else {
         setLocalEnsaio('⚠️ Local não definido!');
       }
     } catch (error) {
-      console.error('Erro ao carregar local de ensaio:', error);
-      setLocalEnsaio('⚠️ Local não definido!');
+      console.error('❌ Erro ao carregar local de ensaio:', error);
+      setLocalEnsaio('⚠️ Erro ao carregar!');
     }
   };
 

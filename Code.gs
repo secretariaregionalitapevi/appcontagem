@@ -17,7 +17,7 @@
 
 /**
  * Sistema Contagem Ensaios Regionais - CCB Regional Itapevi
- * Versão 1.0
+ * Versão 1.4.7
  */
 
 const DEFAULT_SHEET_ID = '1LGoW7lbYS4crpEdTfGR2evuH9kArZgqrvVbmi6buBoQ';

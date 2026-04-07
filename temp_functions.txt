@@ -1,0 +1,8 @@
+﻿212: function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
+434: function exportarParaPlanilhaItapeviCompleta(localEnsaio) {
+722: function exportarParaPlanilhaCaucaiaCompleta(localEnsaio) {
+1002: function exportarParaPlanilhaVargemGrandeCompleta(localEnsaio) {
+1296: function exportarParaPlanilhaPiraporaCompleta(localEnsaio) {
+1587: function exportarParaPlanilhaFazendinhaCompleta(localEnsaio) {
+1878: function exportarParaPlanilhaJandiraCompleta(localEnsaio) {
+2169: function exportarParaPlanilhaCotiaCompleta(localEnsaio) {

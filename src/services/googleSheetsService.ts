@@ -19,7 +19,7 @@ const GOOGLE_SHEETS_API_URL = (
   env.SHEETS_ENDPOINT_URL ||
   'https://script.google.com/macros/s/AKfycbxPtvi86jPy7y41neTpIPvn3hpycd3cMjbgjgifzLD6qRwrJVPlF9EDulaQp42nma-i/exec'
 ).trim();
-const SHEET_NAME = 'Dados';
+const SHEET_NAME = (typeof window !== 'undefined' && (window as any).APP_CONFIG?.SHEET_NAME) || 'Dados';
 
 export interface SheetsResponse {
   success: boolean;
@@ -38,7 +38,7 @@ function converterLocalEnsaioIdParaNome(localEnsaio: string | null | undefined):
   }
 
   // Se é um número (ID), converter para nome
-  const locais: { id: string; nome: string }[] = [
+  const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
     { id: '1', nome: 'Cotia' },
     { id: '2', nome: 'Caucaia do Alto' },
     { id: '3', nome: 'Fazendinha' },
@@ -292,13 +292,18 @@ export const googleSheetsService = {
       try {
         // 🚨 CRÍTICO: Usar mesmo formato do backupcont (text/plain, sem mode explícito, sem signal)
         // Promise.race para timeout sem usar AbortController (compatível com no-cors)
-        console.log('🌐 [EXTERNAL] Iniciando fetch...');
+        console.log(`🌐 [GoogleSheets] Enviando EXTERNO via fetch (POST) para URL: ${GOOGLE_SHEETS_API_URL}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
         const fetchPromise = fetch(GOOGLE_SHEETS_API_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'text/plain;charset=utf-8',
           },
           body: requestBody,
+          signal: controller.signal,
         });
 
         // 🚨 CORREÇÃO: Aumentado o timeout de 8s para 30s pois o Google Apps Script
@@ -307,8 +312,21 @@ export const googleSheetsService = {
           setTimeout(() => reject(new Error('Timeout')), 30000);
         });
 
-        console.log('⏱️ [EXTERNAL] Aguardando resposta (timeout: 16s)...');
+        console.log('⏱️ [EXTERNAL] Aguardando resposta (timeout: 30s)...');
         const response = (await Promise.race([fetchPromise, timeoutPromise])) as Response;
+        clearTimeout(timeoutId);
+
+        console.log('✅ [GoogleSheets] EXTERNO: Requisição concluída', {
+          status: response.status,
+          type: response.type
+        });
+
+        // 🚨 CRÍTICO: No modo 'no-cors', a resposta é do tipo 'opaque' (tipo 0 ou opaque)
+        // Não conseguimos ler o corpo ou o status real, mas sabemos que foi enviado.
+        if (response.type === 'opaque' || (response as any).type === 0) {
+          console.log('✅ [GoogleSheets] Resposta opaca recebida (Envio Provável)');
+          return { success: true };
+        }
 
         console.log('📥 [EXTERNAL] Resposta recebida!');
         console.log('📥 [EXTERNAL] Status da resposta:', response.status);
@@ -361,7 +379,7 @@ export const googleSheetsService = {
           }
         }
 
-        // 🚨 CORREÇÃO CRÍTICA: Verificar response.ok PRIMEIRO (igual backupcont)
+        // 🚨 CRÍTICO: Verificar response.ok PRIMEIRO (igual backupcont)
         // O backupcont só verifica response.ok, não verifica response.type
         if (response.ok) {
           // 🚨 VERIFICAÇÃO ADICIONAL: Verificar se a resposta contém erro (se não foi JSON)
@@ -468,30 +486,6 @@ export const googleSheetsService = {
           console.error('❌ [EXTERNAL] Cargo que causou erro:', sheetRow.CARGO);
           console.error('❌ [EXTERNAL] Nome que causou erro:', sheetRow['NOME COMPLETO']);
           throw new Error(errorMsg);
-        }
-
-        // Se a resposta é opaca (no-cors), também considera sucesso (fallback)
-        // Isso é importante porque no-cors sempre retorna response.ok = false
-        // MAS só assumir sucesso se não detectamos erro acima
-        if (response.type === 'opaque') {
-          console.log('✅ [EXTERNAL] Google Sheets: Dados enviados (no-cors - assumindo sucesso)');
-          console.log(
-            '⚠️ [EXTERNAL] ATENÇÃO: no-cors não permite verificar resposta, assumindo sucesso'
-          );
-          console.log('⚠️ [EXTERNAL] Cargo enviado:', sheetRow.CARGO);
-          console.log('⚠️ [EXTERNAL] Se não aparecer na planilha, pode ser erro silencioso');
-          return { success: true };
-        }
-
-        // Se status é 0, pode ser no-cors também
-        if (response.status === 0) {
-          console.log(
-            '✅ [EXTERNAL] Google Sheets: Assumindo sucesso (status 0 - provável no-cors)'
-          );
-          console.log('⚠️ [EXTERNAL] ATENÇÃO: status 0 pode indicar no-cors, assumindo sucesso');
-          console.log('⚠️ [EXTERNAL] Cargo enviado:', sheetRow.CARGO);
-          console.log('⚠️ [EXTERNAL] Se não aparecer na planilha, pode ser erro silencioso');
-          return { success: true };
         }
 
         // Se não está OK e não é opaque, tentar ler erro
@@ -795,7 +789,9 @@ export const googleSheetsService = {
         } catch (error) {
           console.warn('⚠️ [GoogleSheets] Erro ao buscar cidade da comum:', error);
           const comumNomeUpper = comum.nome.toUpperCase();
-          if (comumNomeUpper.includes('ITAPEVI')) {
+          if (comumNomeUpper.includes('GOIÂNIA') || comumNomeUpper.includes('GOIANIA')) {
+            cidade = 'GOIÂNIA';
+          } else if (comumNomeUpper.includes('ITAPEVI')) {
             cidade = 'ITAPEVI';
           } else if (comumNomeUpper.includes('COTIA')) {
             cidade = 'COTIA';
@@ -809,7 +805,9 @@ export const googleSheetsService = {
         cidade = pessoa?.cidade || '';
         if (!cidade) {
           const comumNomeUpper = comum.nome.toUpperCase();
-          if (comumNomeUpper.includes('ITAPEVI')) {
+          if (comumNomeUpper.includes('GOIÂNIA') || comumNomeUpper.includes('GOIANIA')) {
+            cidade = 'GOIÂNIA';
+          } else if (comumNomeUpper.includes('ITAPEVI')) {
             cidade = 'ITAPEVI';
           } else if (comumNomeUpper.includes('COTIA')) {
             cidade = 'COTIA';
@@ -828,7 +826,9 @@ export const googleSheetsService = {
       if (!cidade || cidade.trim() === '') {
         console.warn('⚠️ [GoogleSheets] Cidade vazia detectada, tentado inferir da comum');
         const comumNomeUpper = comum.nome.toUpperCase();
-        if (comumNomeUpper.includes('ITAPEVI')) {
+        if (comumNomeUpper.includes('GOIÂNIA') || comumNomeUpper.includes('GOIANIA')) {
+          cidade = 'GOIÂNIA';
+        } else if (comumNomeUpper.includes('ITAPEVI')) {
           cidade = 'ITAPEVI';
         } else if (comumNomeUpper.includes('COTIA')) {
           cidade = 'COTIA';
@@ -836,6 +836,12 @@ export const googleSheetsService = {
           cidade = 'JANDIRA';
         } else if (comumNomeUpper.includes('CAUCAIA')) {
           cidade = 'CAUCAIA DO ALTO';
+        } else {
+          // Último recurso: usar o nome da regional ou se estiver em Goiânia
+          const regionalNome = (typeof window !== 'undefined' && (window as any).APP_CONFIG?.REGIONAL_NAME);
+          if (regionalNome && (regionalNome.includes('Goiânia') || regionalNome.includes('Goiania'))) {
+            cidade = 'GOIÂNIA';
+          }
         }
         // Removido o fallback genérico (split(' ')[0]) para evitar que códigos como BR-22-0674
         // sejam salvos como cidade caso não haja match com as regionais.
@@ -851,7 +857,7 @@ export const googleSheetsService = {
 
       if (localEnsaioNome && /^\d+$/.test(localEnsaioNome)) {
         // Se for um número (ID), buscar o nome correspondente
-        const locais: { id: string; nome: string }[] = [
+        const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
           { id: '1', nome: 'Cotia' },
           { id: '2', nome: 'Caucaia do Alto' },
           { id: '3', nome: 'Fazendinha' },
@@ -1026,13 +1032,12 @@ export const googleSheetsService = {
 
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
-        mode: 'no-cors', // 🚨 CRÍTICO: Usar no-cors para evitar bloqueio em PWAs mobile
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify({
           op: 'append',
-          Sheet: SHEET_NAME,
+          Sheet: SHEET_NAME, // 🚨 REVERT: Voltando para 'Sheet' conforme lógica original provável
           data: sheetRow,
         }),
         signal: controller.signal,
@@ -1040,19 +1045,27 @@ export const googleSheetsService = {
 
       clearTimeout(timeoutId);
 
-      // Se a resposta é opaca (no-cors), considera sucesso
-      if ((response as any).type === 'opaque') {
-        console.log('✅ Google Sheets: Dados enviados (no-cors)');
-        return { success: true };
-      }
+      // Log resumido da resposta
+      console.log('📡 [GoogleSheets] Resposta Status:', response.status);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro HTTP ao enviar para Google Sheets:', response.status, errorText);
-        return {
-          success: false,
-          error: `Erro HTTP ${response.status}: ${errorText}`,
-        };
+      // 🚨 CRÍTICO: Tentar ler e validar o JSON da resposta (vinda do redirect do Google)
+      let responseBody = '';
+      try {
+        responseBody = await response.text();
+        console.log('📡 [GoogleSheets] Corpo da Resposta:', responseBody);
+        
+        const json = JSON.parse(responseBody);
+        if (json && json.ok === false) {
+          console.error('❌ [GoogleSheets] Google Script retornou erro:', json.error);
+          return { success: false, error: json.error || 'Erro no Script do Google' };
+        }
+        
+        if (json && json.ok === true) {
+          console.log('✅ [GoogleSheets] Sucesso confirmado pelo JSON do Google!');
+          return { success: true };
+        }
+      } catch (e) {
+        console.warn('📡 [GoogleSheets] Não foi possível parsear resposta como JSON (Provável sucesso se status foi 200/302)');
       }
 
       return { success: true };
@@ -1151,7 +1164,7 @@ export const googleSheetsService = {
 
       const requestBody = {
         op: 'update',
-        Sheet: SHEET_NAME,
+        sheet: SHEET_NAME, // Standardized to 'sheet'
         match: {
           UUID: uuid,
         },
@@ -1159,25 +1172,37 @@ export const googleSheetsService = {
       };
 
       console.log('📤 Request body para Google Sheets:', requestBody);
+      console.log(`🌐 [GoogleSheets] Enviando UPDATE via fetch (POST) para URL: ${GOOGLE_SHEETS_API_URL}`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 16000); // 🚀 OTIMIZAÇÃO: 16 segundos
 
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          op: 'update',
+          Sheet: SHEET_NAME, // 🚨 REVERT: Voltando para 'Sheet'
+          match: {
+            UUID: uuid,
+          },
+          data: sheetData,
+        }),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
+      console.log('✅ [GoogleSheets] UPDATE: Requisição concluída', {
+        status: response.status,
+        type: response.type
+      });
+
       // Com no-cors, a resposta é sempre opaca, então consideramos sucesso
-      if (response.type === 'opaque' || response.ok) {
-        console.log('✅ Google Sheets: Requisição de atualização enviada com sucesso');
+      if (response.type === 'opaque' || (response as any).type === 0) {
+        console.log('✅ [GoogleSheets] Resposta opaca recebida (Atualização Provável)');
         return { success: true };
       } else {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1228,7 +1253,6 @@ export const googleSheetsService = {
       // Usar fetch com no-cors para evitar problemas de CORS com Apps Script
       const response = await fetch(GOOGLE_SHEETS_API_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: {
           'Content-Type': 'text/plain',
         },

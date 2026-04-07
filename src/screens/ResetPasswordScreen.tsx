@@ -29,12 +29,26 @@ export const ResetPasswordScreen: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Configurações carregadas do config.js (ou fallback padrão)
+  const appConfig = (typeof window !== 'undefined' && window.APP_CONFIG) || {
+    REGIONAL_NAME: 'Regional Itapevi',
+    LOCAIS_ENSAIO: (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
+      { id: '1', nome: 'Cotia' },
+      { id: '2', nome: 'Caucaia do Alto' },
+      { id: '3', nome: 'Fazendinha' },
+      { id: '4', nome: 'Itapevi' },
+      { id: '5', nome: 'Jandira' },
+      { id: '6', nome: 'Pirapora' },
+      { id: '7', nome: 'Vargem Grande' },
+    ]
+  };
+
   // Definir título da página na web
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'CCB | Redefinir Senha';
+      document.title = `CCB | Redefinir Senha - ${appConfig.REGIONAL_NAME}`;
     }
-  }, []);
+  }, [appConfig.REGIONAL_NAME]);
 
   const handleUpdatePassword = async () => {
     if (!password || !confirmPassword) {
@@ -156,7 +170,7 @@ export const ResetPasswordScreen: React.FC = () => {
             <Text style={styles.footerText}>
               <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v{pkg.version || '1.0'}
               {'\n'}
-              <Text style={styles.footerBold}>Regional Itapevi</Text>
+              <Text style={styles.footerBold}>{appConfig.REGIONAL_NAME}</Text>
             </Text>
           </View>
         </View>

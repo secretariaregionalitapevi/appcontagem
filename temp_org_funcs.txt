@@ -1,0 +1,7 @@
+﻿789: function alimentarAbaOrganistasItapevi(localEnsaio = 'Itapevi') {
+1098: function alimentarAbaOrganistasVargemGrande(localEnsaio = 'VargemGrande') {
+1375: function alimentarAbaOrganistasPirapora(localEnsaio = 'Pirapora') {
+1652: function alimentarAbaOrganistasFazendinha(localEnsaio = 'Fazendinha') {
+1929: function alimentarAbaOrganistasJandira(localEnsaio = 'Jandira') {
+2206: function alimentarAbaOrganistasCaucaia(localEnsaio = 'Caucaia') {
+2483: function alimentarAbaOrganistasCotia(localEnsaio = 'Cotia') {

@@ -82,3 +82,13 @@ export interface OrganistaEnsaio {
   created_at?: string;
   updated_at?: string;
 }
+export interface AppConfig {
+  REGIONAL_NAME: string;
+  LOCAIS_ENSAIO: LocalEnsaio[];
+}
+
+declare global {
+  interface Window {
+    APP_CONFIG?: AppConfig;
+  }
+}

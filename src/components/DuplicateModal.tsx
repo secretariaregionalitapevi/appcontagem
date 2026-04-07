@@ -19,7 +19,6 @@ interface DuplicateModalProps {
   data: string;
   horario: string;
   onCancel: () => void;
-  onConfirm: () => void;
 }
 
 export const DuplicateModal: React.FC<DuplicateModalProps> = ({
@@ -29,7 +28,6 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
   data,
   horario,
   onCancel,
-  onConfirm,
 }) => {
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
@@ -133,17 +131,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <FontAwesome5 name="times" size={14} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={onConfirm}
-              activeOpacity={0.6}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <FontAwesome5 name="check-double" size={14} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.confirmButtonText} numberOfLines={1}>Cadastrar Mesmo Assim</Text>
+              <Text style={styles.cancelButtonText}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -272,7 +260,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -295,37 +282,8 @@ const styles = StyleSheet.create({
     marginRight: 8, // Espaço entre ícone e texto conforme modelo
   },
   cancelButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
-    textAlign: 'center',
-  },
-  confirmButton: {
-    flex: 2, // Aumentar flex para garantir linha única
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    backgroundColor: '#255ec8', // Azul original
-    minHeight: 46,
-    ...(Platform.OS === 'web'
-      ? {
-          transition: 'all 0.2s ease',
-          cursor: 'pointer',
-          ':hover': {
-            backgroundColor: '#1d4ed8',
-          },
-          ':active': {
-            transform: 'scale(0.98)',
-          },
-        }
-      : {}),
-  },
-  confirmButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#ffffff',
     textAlign: 'center',
   },

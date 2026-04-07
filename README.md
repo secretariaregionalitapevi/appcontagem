@@ -21,6 +21,9 @@ Aplicativo mobile para registro de participantes em eventos (ensaios) da Congreg
 
 ## Configuração
 
+> [!TIP]
+> **Outras Regionais**: Se você estiver configurando este sistema para uma regional diferente de Itapevi utilizando Docker, consulte o [Guia de Configuração Regional (Docker)](file:///c:/Users/Usuário/OneDrive/APLICATIVOS%20REGIONAL/APPEnR/DOCKER_REGIONAL_GUIDE.md) para instruções específicas sobre como conectar sua própria planilha.
+
 ### 1. Instalar dependências
 
 ```bash

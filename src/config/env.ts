@@ -2,7 +2,11 @@ import Constants from 'expo-constants';
 
 const getEnvVar = (key: string, defaultValue?: string): string => {
   // Tentar várias fontes de variáveis de ambiente
+  // No build do Docker, window.APP_CONFIG é injetado pelo entrypoint.sh no index.html
+  const appConfig = (window as any).APP_CONFIG || {};
+
   const value =
+    appConfig[key] || // Injeção via config.js (Prioridade máxima para Docker)
     Constants.expoConfig?.extra?.[key] ||
     process.env[`EXPO_PUBLIC_${key}`] ||
     process.env[key] ||

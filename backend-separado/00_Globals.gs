@@ -16,9 +16,24 @@
  */
 
 /**
- * Sistema Contagem Ensaios Regionais - CCB Regional Itapevi
- * Versão 1.0
+ * Sistema Contagem Ensaios Regionais
  */
+
+const props = PropertiesService.getScriptProperties();
+
+// Nome da Regional configurável via Propriedades do Script
+const REGIONAL_NAME = props.getProperty('REGIONAL_NAME') || 'CCB Regional Itapevi';
+
+/**
+ * Script de SETUP inicial para configurar a Regional
+ * Execute esta função uma vez após o deploy para definir as configurações.
+ */
+function setupRegionalConfig() {
+  const p = PropertiesService.getScriptProperties();
+  p.setProperty('REGIONAL_NAME', 'CCB Regional Itapevi');
+  // Adicione outras configurações aqui se desejar
+  console.log('✅ Configurações iniciais definidas para ' + p.getProperty('REGIONAL_NAME'));
+}
 
 const DEFAULT_SHEET_ID = '1LGoW7lbYS4crpEdTfGR2evuH9kArZgqrvVbmi6buBoQ';
 const SHEET_NAME = 'Dados';
@@ -74,7 +89,9 @@ let EXPORT_PROGRESS = {
 // Mapeamento de cargos
 const aliasCargo = {
   'ancião': 'Ancião',
+  'anciao': 'Ancião',
   'diácono': 'Diácono',
+  'diacono': 'Diácono',
   'cooperador do ofício': 'Cooperador do Ofício',
   'cooperador do oficio': 'Cooperador do Ofício',
   'cooperador do ofício ministerial': 'Cooperador do Ofício',
@@ -84,10 +101,35 @@ const aliasCargo = {
   'encarregado regional': 'Encarregado Regional',
   'encarregado local': 'Encarregado Local',
   'examinadora': 'Examinadora',
+  'examinadoras': 'Examinadora',
+  'examinador': 'Examinadora',
+  'examinadores': 'Examinadora',
   'secretária da música': 'Secretária da Música',
+  'secretárias da música': 'Secretária da Música',
   'secretaria da musica': 'Secretária da Música',
+  'secretarias da musica': 'Secretária da Música',
+  'secretarias da música': 'Secretária da Música',
+  'secretária de música': 'Secretária da Música',
+  'secretárias de música': 'Secretária da Música',
+  'secretaria de musica': 'Secretária da Música',
+  'secretarias de musica': 'Secretária da Música',
   'secretário da música': 'Secretário da Música',
+  'secretários da música': 'Secretário da Música',
   'secretario da musica': 'Secretário da Música',
+  'secretarios da musica': 'Secretário da Música',
+  'secretarios da música': 'Secretário da Música',
+  'secretário de música': 'Secretário da Música',
+  'secretários de música': 'Secretário da Música',
+  'secretario de musica': 'Secretário da Música',
+  'secretarios de musica': 'Secretário da Música',
+  'secretário do gem': 'Instrutor',
+  'secretários do gem': 'Instrutor',
+  'secretario do gem': 'Instrutor',
+  'secretarios do gem': 'Instrutor',
+  'secretária do gem': 'Instrutora',
+  'secretárias do gem': 'Instrutora',
+  'secretaria do gem': 'Instrutora',
+  'secretarias do gem': 'Instrutora',
   'instrutor': 'Instrutor',
   'instrutora': 'Instrutora',
   'instrutores': 'Instrutor',

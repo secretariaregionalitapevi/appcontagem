@@ -46,6 +46,7 @@ self.addEventListener('fetch', (event) => {
         event.request.method !== 'GET' ||
         event.request.url.includes('supabase.co') ||
         event.request.url.includes('script.google.com') ||
+        event.request.url.includes('config.js') ||
         !event.request.url.startsWith('http')
     ) {
         return;
