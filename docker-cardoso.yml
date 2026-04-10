@@ -1,0 +1,17 @@
+services:
+  app-cardoso:
+    build: .
+    image: regionalitapevi/appcontagem:cardoso
+    container_name: regional-cardoso
+    ports:
+      - "8085:80"
+    environment:
+      - REGIONAL_NAME=Regional Itapevi
+      - LOCAIS_ENSAIO_JSON=[{"id":"8","nome":"Vila Doutor Cardoso"}]
+      # Configurações de Infraestrutura da Regional
+      - SUPABASE_URL=https://wfqehmdawhfjqbqpjapp.supabase.co
+      - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndmcWVobWRhd2hmanFicXBqYXBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NDI0ODIsImV4cCI6MjA3MzAxODQ4Mn0.lFfEZKIVS7dqk48QFW4IvpRcJsgQnMjYE3iUqsrXsFg
+      - SHEET_NAME=Registros
+      # TODO: Substitua pela URL gerada ao implantar seu Google Apps Script
+      - SHEETS_ENDPOINT_URL=https://script.google.com/macros/s/AKfycbyeNiV1ojAyvEeBSEhF-V7q2gtNhdXwlDF6muMBNy9nMBdEsLBPsiczpvfW0eOzO1-stg/exec
+    restart: always

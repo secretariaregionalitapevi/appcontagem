@@ -1,24 +1,36 @@
 /**
  * ============================================================================
- * PROPRIEDADE INTELECTUAL E DIREITOS AUTORAIS
- * ============================================================================
- * Este sistema foi desenvolvido e arquitetado exclusivamente pela:
- * SECRETARIA DA ADMINISTRAÇÃO MUSICAL - REGIONAL ITAPEVI
- * 
- * Sede da Administração Musical Itapevi:
- * Av. Ana Araújo de Castro, 815 - Jardim Itapevi, Itapevi - SP
- * CEP: 06653-140
- * 
- * É ESTRITAMENTE PROIBIDA a cópia, distribuição, engenharia reversa 
- * ou uso deste código-fonte por outras regionais ou terceiros sem 
- * autorização prévia e expressa da Secretaria de Itapevi.
+ * CONFIGURACAO DINAMICA DAS PLANILHAS
  * ============================================================================
  */
+function getTargetSpreadsheetId() {
+  // 1. Tenta pegar das propriedades do script
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (id) return id;
+
+  // 2. Fallback: ID da planilha onde o script está rodando
+  return SpreadsheetApp.getActiveSpreadsheet().getId();
+}
+
+// O ID principal agora é dinâmico
+const DEFAULT_SHEET_ID = getTargetSpreadsheetId();
 
 /**
- * Sistema Contagem Ensaios Regionais - CCB Regional Itapevi
- * Versão 1.4.7 (Regional Sync Edition)
+ * Mapeamento opcional para espelhamento em outras planilhas.
+ * Configure em "Propriedades do Script" com a chave "MIRROR_CONFIG"
+ * Exemplo de valor: [{"nome":"Reserva", "id":"1abc..."}, {"nome":"Backup", "id":"1xyz..."}]
  */
+function getMirrorTargets() {
+  var config = PropertiesService.getScriptProperties().getProperty('MIRROR_CONFIG');
+  if (config) {
+    try {
+      return JSON.parse(config);
+    } catch (e) {
+      console.error('Erro ao processar MIRROR_CONFIG: ' + e.message);
+    }
+  }
+  return [];
+}
 
 /**
  * Cria o menu personalizado ao abrir a planilha
@@ -30,62 +42,12 @@ function onOpen() {
     .addItem('🎹 Atualizar Organistas', 'menuAtualizarOrganistas')
     .addItem('👔 Atualizar Ministério', 'menuAtualizarMinisterio')
     .addSeparator()
+    .addItem('📤 Alimentar Planilha Espelho', 'menuAlimentarEspelho')
+    .addItem('📤 Alimentar Todas as Planilhas', 'menuAlimentarTodasAsPlanilhas')
     .addItem('🔄 Sincronização Completa', 'menuSincronizacaoCompleta')
     .addToUi();
 }
 
-function doPost(e) {
-  try {
-    var contents = e.postData.contents;
-    var requestData = JSON.parse(contents);
-    var operation = requestData.op;
-    // Para o template regional, forçamos o nome da aba como 'Registros'
-    // ignorando o 'Dados' que vem fixo no código do App atual
-    var sheetName = 'Registros'; 
-    var rowData = requestData.data;
-
-    // Log para depuração (opcional)
-    console.log('Operação: ' + operation + ' na aba: ' + sheetName);
-
-    if (operation === 'append') {
-      var sheet = openOrCreateSheet(sheetName);
-      
-      // --- VERIFICAÇÃO ANTI-DUPLICATA ---
-      if (isDuplicate(sheet, rowData)) {
-        console.warn('⚠️ Registro duplicado ignorado: ' + (rowData['NOME COMPLETO'] || 'Sem Nome'));
-        return ContentService.createTextOutput(JSON.stringify({ 
-          ok: true, 
-          inserted: 0,
-          message: 'Registro duplicado ignorado'
-        })).setMimeType(ContentService.MimeType.JSON);
-      }
-
-      var result = appendRowToSheet(sheet, rowData);
-      
-      return ContentService.createTextOutput(JSON.stringify({ 
-        ok: true, 
-        inserted: 1,
-        message: 'Registro inserido com sucesso'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    return ContentService.createTextOutput(JSON.stringify({ 
-      ok: false, 
-      error: 'Operação "' + operation + '" não reconhecida.' 
-    })).setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    console.error('Erro no doPost: ' + err.message);
-    return ContentService.createTextOutput(JSON.stringify({ 
-      ok: false, 
-      error: err.message 
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-/**
- * Função para retornar status simples via GET (para teste no navegador)
- */
 function doGet() {
   return ContentService.createTextOutput("Backend Regional Ativo! Use POST para enviar dados.")
     .setMimeType(ContentService.MimeType.TEXT);
@@ -94,63 +56,57 @@ function doGet() {
 /**
  * Abre a planilha configurada ou cria a aba se não existir
  */
-function openOrCreateSheet(name) {
-  var ss;
-  try {
-    // 1. Tentar pegar a planilha onde o script está rodando (mais seguro)
-    ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (ss) {
-      console.log('Usando planilha ativa: ' + ss.getName());
-    } else {
-      throw new Error('Nenhuma planilha ativa');
-    }
-  } catch (e) {
-    // 2. Se falhar, tenta usar o ID das propriedades
-    var ssId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-    if (!ssId) {
-      throw new Error('CONFIGURAÇÃO REQUERIDA: Defina a propriedade "SPREADSHEET_ID" nas configurações do script ou use uma planilha vinculada.');
-    }
-    ss = SpreadsheetApp.openById(ssId.trim());
-    console.log('Usando planilha por ID: ' + ss.getName());
-  }
-  
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-    console.log('Nova aba criada: ' + name);
-  }
-  
-  return sheet;
-}
-
-/**
- * Insere os dados na planilha respeitando os cabeçalhos
- */
 function appendRowToSheet(sheet, data) {
   var lastCol = sheet.getLastColumn();
   var headers;
 
-  // Se a planilha estiver vazia, cria os cabeçalhos baseados nas chaves do objeto
   if (lastCol === 0) {
     headers = Object.keys(data);
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
   } else {
-    // Lê os cabeçalhos existentes
     headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   }
 
-  // Mapeia o objeto de dados para o array da linha seguindo a ordem dos cabeçalhos
   var newRow = headers.map(function(header) {
     var val = data[header];
-    // Formata datas se necessário
-    if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone(), "dd/MM/yyyy HH:mm:ss");
-    return val !== undefined ? val : "";
+    if (val instanceof Date) {
+      return Utilities.formatDate(val, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+    }
+    return val !== undefined ? val : '';
   });
 
-  sheet.appendRow(newRow);
+  var targetRow = getNextAvailableDataRow(sheet, newRow.length);
+  sheet.getRange(targetRow, 1, 1, newRow.length).setValues([newRow]);
   return true;
 }
+
+function getNextAvailableDataRow(sheet, totalCols) {
+  var numCols = Math.max(totalCols || 1, 1);
+  var maxRows = sheet.getMaxRows();
+
+  if (maxRows < 2) {
+    sheet.insertRowsAfter(1, 1);
+    return 2;
+  }
+
+  var values = sheet.getRange(2, 1, maxRows - 1, numCols).getDisplayValues();
+
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var hasContent = row.some(function(cell) {
+      return String(cell || '').trim() !== '';
+    });
+
+    if (!hasContent) {
+      return i + 2;
+    }
+  }
+
+  sheet.insertRowAfter(maxRows);
+  return maxRows + 1;
+}
+
 
 /**
  * ============================================================================
@@ -208,6 +164,42 @@ function menuSincronizacaoCompleta() {
     ui.alert(msg);
   } catch (e) {
     SpreadsheetApp.getUi().alert('❌ Erro Crítico: ' + e.message);
+  }
+}
+
+function menuAlimentarEspelho() {
+  try {
+    var ui = SpreadsheetApp.getUi();
+    var targets = getMirrorTargets();
+    if (targets.length === 0) {
+      ui.alert('⚠️ Nenhuma planilha espelho configurada. Defina MIRROR_CONFIG nas propriedades do script.');
+      return;
+    }
+    
+    ui.alert('⏳ Alimentando planilhas espelho... Por favor aguarde.');
+    var result = alimentarTodasAsPlanilhas();
+    ui.alert(
+      '✅ Sincronização concluída!\n\n' +
+      'Inseridos: ' + result.inserted + '\n' +
+      'Ignorados: ' + result.skipped
+    );
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('❌ Erro ao alimentar espelhos: ' + e.message);
+  }
+}
+
+function menuAlimentarTodasAsPlanilhas() {
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.alert('⏳ Alimentando todas as planilhas... Por favor aguarde.');
+    var result = alimentarTodasAsPlanilhas();
+    ui.alert(
+      '✅ Todas as planilhas foram alimentadas!\n\n' +
+      'Inseridos: ' + result.inserted + '\n' +
+      'Ignorados: ' + result.skipped
+    );
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('❌ Erro ao alimentar todas as planilhas: ' + e.message);
   }
 }
 
@@ -732,3 +724,407 @@ const LISTA_MINISTERIO = [
 const LISTA_APOIO = [
   'Porteiro (a)', 'Bombeiro (a)', 'Médico (a)', 'Enfermeiro (a)', 'Irmandade'
 ];
+/**
+ * ============================================================================
+ * COMPATIBILIDADE PARA MULTIPLOS DESTINOS
+ * ============================================================================
+ */
+
+function doPost(e) {
+  try {
+    var contents = e.postData.contents;
+    var requestData = JSON.parse(contents);
+    var operation = requestData.op;
+    var sheetName = 'Registros';
+    var rowData = requestData.data;
+
+    if (operation !== 'append') {
+      if (operation === 'alimentar_matriz') {
+        return ContentService.createTextOutput(JSON.stringify(alimentarMatriz()))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (operation === 'alimentar_espelho') {
+        return ContentService.createTextOutput(JSON.stringify(alimentarTodasAsPlanilhas()))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (operation === 'alimentar_todas_planilhas') {
+        return ContentService.createTextOutput(JSON.stringify(alimentarTodasAsPlanilhas()))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: false,
+        error: 'Operacao "' + operation + '" nao reconhecida.'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var shPrincipal = openOrCreateSheet(sheetName, DEFAULT_SHEET_ID);
+    var insertedMain = 0;
+    var duplicatedMain = false;
+
+    if (!isDuplicate(shPrincipal, rowData)) {
+      appendRowToSheet(shPrincipal, rowData);
+      insertedMain = 1;
+    } else {
+      duplicatedMain = true;
+    }
+
+    var destinos = resolveMirrorTargetsFromRow(rowData);
+    var mirrorResult = processarEnvioParaDestinos(rowData, destinos, sheetName);
+
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      insertedMain: insertedMain,
+      duplicatedMain: duplicatedMain,
+      mirrored: mirrorResult,
+      message: 'Registro processado com sucesso'
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: false,
+      error: err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+
+function openOrCreateSheet(name, spreadsheetId) {
+  var ss = getSpreadsheetTarget(spreadsheetId);
+  var sheet = ss.getSheetByName(name);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    console.log('Nova aba criada: ' + name + ' na planilha ' + ss.getId());
+  }
+
+  return sheet;
+}
+
+function getSpreadsheetTarget(spreadsheetId) {
+  if (spreadsheetId) {
+    var target = SpreadsheetApp.openById(String(spreadsheetId).trim());
+    console.log('Usando planilha por ID informado na requisicao: ' + target.getName());
+    return target;
+  }
+
+  try {
+    var activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    if (activeSpreadsheet) {
+      console.log('Usando planilha ativa: ' + activeSpreadsheet.getName());
+      return activeSpreadsheet;
+    }
+  } catch (e) {
+    console.log('Planilha ativa indisponivel, tentando propriedades do script.');
+  }
+
+  var configuredId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (!configuredId) {
+    throw new Error('CONFIGURACAO REQUERIDA: informe spreadsheetId/spreadsheetIds na requisicao ou defina SPREADSHEET_ID nas propriedades do script.');
+  }
+
+  var ss = SpreadsheetApp.openById(configuredId.trim());
+  console.log('Usando planilha por ID configurado: ' + ss.getName());
+  return ss;
+}
+
+function normalizeSpreadsheetIds(value) {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value
+      .map(function(item) { return item != null ? String(item).trim() : ''; })
+      .filter(function(item) { return item; });
+  }
+
+  return String(value)
+    .split(/[ ,\n;\r]+/)
+    .map(function(item) { return item.trim(); })
+    .filter(function(item) { return item; });
+}
+
+function uniqueNonEmptyValues(values) {
+  var found = {};
+  var result = [];
+
+  values.forEach(function(value) {
+    if (!value || found[value]) return;
+    found[value] = true;
+    result.push(value);
+  });
+
+  return result;
+}
+
+function getAllRegionalSpreadsheetIds() {
+  return REGIONAL_SHEETS
+    .map(function(regional) { return regional.id; })
+    .filter(function(id) { return id && id !== DEFAULT_SHEET_ID; });
+}
+
+function getRegionalById(spreadsheetId) {
+  for (var i = 0; i < REGIONAL_SHEETS.length; i++) {
+    if (REGIONAL_SHEETS[i].id === spreadsheetId) return REGIONAL_SHEETS[i];
+  }
+  return null;
+}
+
+function getRegionalByName(nomeCidade) {
+  var alvo = normalizarNome(nomeCidade || '');
+  for (var i = 0; i < REGIONAL_SHEETS.length; i++) {
+    if (normalizarNome(REGIONAL_SHEETS[i].nome) === alvo) return REGIONAL_SHEETS[i];
+  }
+  return null;
+}
+
+function getRegionalId(local) {
+  if (!local) return null;
+  var l = String(local).toLowerCase().trim();
+
+  if (l.indexOf('goiania') !== -1 || l.indexOf('goiania') !== -1 || l.indexOf('goiânia') !== -1) return GOIANIA_SHEET_ID;
+  if (l.indexOf('saocarlos') !== -1 || l.indexOf('sao carlos') !== -1 || l.indexOf('são carlos') !== -1) return SAOCARLOS_SHEET_ID;
+
+  return null;
+}
+
+function resolveMirrorTargetsFromRow(rowData) {
+  var local = normalizarNome(rowData['LOCAL ENSAIO'] || rowData['LOCAL_ENSAIO'] || '');
+  var cidade = normalizarNome(rowData['CIDADE'] || '');
+  var comum = normalizarNome(rowData['COMUM'] || '');
+
+  var regionalId = getRegionalId(local) || getRegionalId(cidade) || getRegionalId(comum);
+
+  if (!regionalId) return [];
+
+  if (regionalId === DEFAULT_SHEET_ID) return [];
+
+  return [regionalId];
+}
+
+
+function registroPertenceAoDestino(registro, regional) {
+  if (!regional || !regional.nome) return false;
+
+  var destino = normalizarNome(regional.nome);
+  if (destino === 'SAOCARLOS') destino = 'SAO CARLOS';
+
+  var localEnsaio = normalizarNome(registro['LOCAL ENSAIO'] || registro['LOCAL_ENSAIO'] || '');
+  var cidade = normalizarNome(registro['CIDADE'] || '');
+  var comum = normalizarNome(registro['COMUM'] || '');
+
+  return localEnsaio.indexOf(destino) !== -1 ||
+    cidade.indexOf(destino) !== -1 ||
+    comum.indexOf(destino) !== -1;
+}
+
+function resolveTargetSpreadsheetIds(requestData) {
+  var ids = [];
+  var shouldUseRegisteredRegionals = requestData && (
+    requestData.enviarParaTodasAsRegionais === true ||
+    requestData.sendToAllRegionals === true ||
+    requestData.useRegisteredRegionals === true
+  );
+
+  if (requestData && requestData.spreadsheetIds) {
+    ids = ids.concat(normalizeSpreadsheetIds(requestData.spreadsheetIds));
+  }
+
+  if (requestData && requestData.spreadsheetId) {
+    ids = ids.concat(normalizeSpreadsheetIds(requestData.spreadsheetId));
+  }
+
+  if (requestData && requestData.regional) {
+    var regionalId = getRegionalId(requestData.regional);
+    if (regionalId) ids.push(regionalId);
+  }
+
+  if (requestData && requestData.regionais && Array.isArray(requestData.regionais)) {
+    requestData.regionais.forEach(function(regional) {
+      var regionalId = getRegionalId(regional);
+      if (regionalId) ids.push(regionalId);
+    });
+  }
+
+  if (ids.length === 0 && shouldUseRegisteredRegionals) {
+    ids = ids.concat(getAllRegionalSpreadsheetIds());
+  }
+
+  if (ids.length === 0) {
+    var configuredIds = PropertiesService.getScriptProperties().getProperty('TARGET_SPREADSHEET_IDS');
+    if (configuredIds) {
+      ids = ids.concat(normalizeSpreadsheetIds(configuredIds));
+    }
+  }
+
+  if (ids.length === 0) {
+    var configuredId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+    if (configuredId) {
+      ids = ids.concat(normalizeSpreadsheetIds(configuredId));
+    }
+  }
+
+  if (ids.length === 0) {
+    ids = ids.concat(getAllRegionalSpreadsheetIds());
+  }
+
+  if (ids.length === 0) {
+    try {
+      var activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      if (activeSpreadsheet) ids.push(activeSpreadsheet.getId());
+    } catch (e) {
+      console.log('Nao foi possivel usar a planilha ativa como destino padrao.');
+    }
+  }
+
+  ids = uniqueNonEmptyValues(ids);
+
+  if (ids.length === 0) {
+    throw new Error('Nenhuma planilha de destino foi encontrada. Informe spreadsheetId, spreadsheetIds, regional, regionais ou configure os IDs no inicio do codigo.');
+  }
+
+  return ids;
+}
+
+function processarEnvioParaDestinos(rowData, targetSpreadsheetIds, sheetName) {
+  var insertedCount = 0;
+  var duplicateCount = 0;
+  var targetResults = [];
+  var ids = uniqueNonEmptyValues(targetSpreadsheetIds || []);
+
+  ids.forEach(function(spreadsheetId) {
+    var sheet = openOrCreateSheet(sheetName || 'Registros', spreadsheetId);
+
+    if (isDuplicate(sheet, rowData)) {
+      duplicateCount++;
+      targetResults.push({
+        spreadsheetId: spreadsheetId,
+        inserted: 0,
+        duplicate: true
+      });
+      return;
+    }
+
+    appendRowToSheet(sheet, rowData);
+    insertedCount++;
+
+    targetResults.push({
+      spreadsheetId: spreadsheetId,
+      inserted: 1,
+      duplicate: false
+    });
+  });
+
+  return {
+    inserted: insertedCount,
+    duplicates: duplicateCount,
+    targets: targetResults
+  };
+}
+
+
+function alimentarMatriz() {
+  var origem = SpreadsheetApp.getActiveSpreadsheet();
+  var origemId = origem.getId();
+  if (origemId === DEFAULT_SHEET_ID) {
+    return { ok: true, inserted: 0, skipped: 0, message: 'A planilha atual ja e a matriz.' };
+  }
+
+  return sincronizarRegistrosDaPlanilhaAtual([DEFAULT_SHEET_ID]);
+}
+
+function alimentarSaoCarlos() {
+  return sincronizarRegistrosDaPlanilhaAtual([SAOCARLOS_SHEET_ID]);
+}
+
+function alimentarCidade(nomeCidade) {
+  var regional = getRegionalByName(nomeCidade);
+  if (!regional || !regional.id) {
+    throw new Error('Cidade nao configurada para alimentacao: ' + nomeCidade);
+  }
+  return sincronizarRegistrosDaPlanilhaAtual([regional.id]);
+}
+
+function alimentarTodasAsPlanilhas() {
+  var origem = SpreadsheetApp.getActiveSpreadsheet();
+  var origemId = origem.getId();
+  var destinos = getAllRegionalSpreadsheetIds().filter(function(id) {
+    return id !== origemId;
+  });
+
+  return sincronizarRegistrosDaPlanilhaAtual(destinos);
+}
+
+function sincronizarRegistrosDaPlanilhaAtual(destinoIds) {
+  var origem = SpreadsheetApp.getActiveSpreadsheet();
+  var shOrigem = origem.getSheetByName('Registros');
+  if (!shOrigem) {
+    throw new Error('Aba Registros nao encontrada na planilha atual.');
+  }
+
+  var lastRow = shOrigem.getLastRow();
+  var lastCol = shOrigem.getLastColumn();
+  if (lastRow < 2 || lastCol === 0) {
+    return { ok: true, inserted: 0, skipped: 0, destinos: destinoIds, message: 'Nao ha registros para sincronizar.' };
+  }
+
+  var headers = shOrigem.getRange(1, 1, 1, lastCol).getValues()[0];
+  var rows = shOrigem.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  var registros = rows.map(function(row) {
+    var item = {};
+    headers.forEach(function(header, idx) {
+      item[header] = row[idx];
+    });
+    return item;
+  });
+
+  return sincronizarRegistrosParaDestinos(registros, destinoIds, 'Registros');
+}
+
+function sincronizarRegistrosParaDestinos(registros, destinoIds, sheetName) {
+  var inserted = 0;
+  var skipped = 0;
+  var resultados = [];
+  var ids = uniqueNonEmptyValues(destinoIds || []);
+
+  ids.forEach(function(destinoId) {
+    var regional = getRegionalById(destinoId);
+    var shDestino = openOrCreateSheet(sheetName || 'Registros', destinoId);
+    var inseridosDestino = 0;
+    var ignoradosDestino = 0;
+    var registrosDestino = registros.filter(function(registro) {
+      return registroPertenceAoDestino(registro, regional);
+    });
+
+    registrosDestino.forEach(function(registro) {
+      if (isDuplicate(shDestino, registro)) {
+        skipped++;
+        ignoradosDestino++;
+        return;
+      }
+
+      appendRowToSheet(shDestino, registro);
+      inserted++;
+      inseridosDestino++;
+    });
+
+    resultados.push({
+      spreadsheetId: destinoId,
+      nome: regional ? regional.nome : '',
+      encontrados: registrosDestino.length,
+      inserted: inseridosDestino,
+      skipped: ignoradosDestino
+    });
+  });
+
+  return {
+    ok: true,
+    inserted: inserted,
+    skipped: skipped,
+    destinos: resultados
+  };
+}
+
+
+
