@@ -1,0 +1,137 @@
+<div class="row border-bottom">
+    <nav class="navbar navbar-static-top" role="navigation" style="margin-bottom: 0">
+        <div class="navbar-header">
+            <span minimaliza-sidebar></span>
+            <form role="search" class="navbar-form-custom" method="post" action="views/search_results.html">
+                <div class="form-group">
+                    <input type="text" placeholder="{{ 'SEARCH' | translate }}" class="form-control" name="top-search"
+                        id="top-search">
+                </div>
+            </form>
+        </div>
+        <ul class="nav navbar-top-links navbar-right">
+            <li>
+                <span class="m-r-sm text-muted welcome-message">Bem-vindo <strong>{{main.userFirstName || main.getUserFirstName()}}</strong>.</span>
+            </li>
+            <li uib-dropdown>
+                <a class="count-info" href uib-dropdown-toggle>
+                    <i class="fa fa-envelope"></i> <span class="label label-warning">16</span>
+                </a>
+                <ul class="dropdown-messages" uib-dropdown-menu>
+                    <li>
+                        <div class="dropdown-messages-box">
+                            <a ui-sref="profile" class="pull-left">
+                                <img alt="image" class="img-circle" src="img/a7.jpg">
+                            </a>
+
+                            <div>
+                                <small class="pull-right">46h atrás</small>
+                                <strong>Mike Loreipsum</strong> começou a seguir <strong>Monica Smith</strong>. <br>
+                                <small class="text-muted">3 dias atrás às 19:58 - 10.06.2014</small>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <div class="dropdown-messages-box">
+                            <a ui-sref="profile" class="pull-left">
+                                <img alt="image" class="img-circle" src="img/a4.jpg">
+                            </a>
+
+                            <div>
+                                <small class="pull-right text-navy">5h atrás</small>
+                                <strong>Chris Johnatan Overtunk</strong> começou a seguir <strong>Monica
+                                    Smith</strong>. <br>
+                                <small class="text-muted">Ontem às 13:21 - 11.06.2014</small>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <div class="dropdown-messages-box">
+                            <a ui-sref="profile" class="pull-left">
+                                <img alt="image" class="img-circle" src="img/profile.jpg">
+                            </a>
+
+                            <div>
+                                <small class="pull-right">23h atrás</small>
+                                <strong>Monica Smith</strong> curtiu <strong>Kim Smith</strong>. <br>
+                                <small class="text-muted">2 dias atrás às 02:30 - 11.06.2014</small>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <div class="text-center link-block">
+                            <a ui-sref="mailbox.inbox">
+                                <i class="fa fa-envelope"></i> <strong>Ler Todas as Mensagens</strong>
+                            </a>
+                        </div>
+                    </li>
+                </ul>
+            </li>
+            <li uib-dropdown>
+                <a class="count-info" href uib-dropdown-toggle>
+                    <i class="fa fa-bell"></i> <span class="label label-primary" ng-show="main.pendingCount > 0">{{main.pendingCount}}</span>
+                </a>
+                <ul class="dropdown-alerts" uib-dropdown-menu>
+                    <li ng-if="main.pendingCount > 0">
+                        <a ui-sref="admin.user_approvals">
+                            <div>
+                                <i class="fa fa-user-plus fa-fw"></i> Você tem {{main.pendingCount}} novos usuários aguardando liberação
+                                <span class="pull-right text-muted small">Pendentes</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li ng-if="main.pendingCount > 0" class="divider"></li>
+                    <li>
+                        <a ui-sref="inbox">
+                            <div>
+                                <i class="fa fa-envelope fa-fw"></i> Você tem 16 mensagens
+                                <span class="pull-right text-muted small">4 minutos atrás</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <a ui-sref="profile">
+                            <div>
+                                <i class="fa fa-twitter fa-fw"></i> 3 novos seguidores
+                                <span class="pull-right text-muted small">12 minutos atrás</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <a ui-sref="grid_options">
+                            <div>
+                                <i class="fa fa-upload fa-fw"></i> Reinício do Servidor
+                                <span class="pull-right text-muted small">4 minutos atrás</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="divider"></li>
+                    <li>
+                        <div class="text-center link-block">
+                            <a ui-sref="admin.user_approvals">
+                                <strong>Ver liberações pendentes</strong>
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        </div>
+                    </li>
+                </ul>
+            </li>
+            <li>
+                <a ng-click="main.logout()" href="javascript:void(0)">
+                    <i class="fa fa-sign-out"></i> Sair
+                </a>
+            </li>
+            <li>
+                <a ng-click="$root.rightSidebar = !$root.rightSidebar">
+                    <i class="fa fa-tasks"></i>
+                </a>
+            </li>
+        </ul>
+
+    </nav>
+</div>

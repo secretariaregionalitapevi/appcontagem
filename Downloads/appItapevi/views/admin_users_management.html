@@ -1,0 +1,381 @@
+﻿<style>
+    .usuarios-table > thead > tr > th,
+    .usuarios-table > tbody > tr > td {
+        vertical-align: middle !important;
+    }
+
+    .usuarios-table > thead > tr > th {
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .usuarios-table .usuarios-celula {
+        text-align: left;
+    }
+
+    .usuarios-table .usuarios-celula-acoes,
+    .usuarios-table .usuarios-coluna-acoes {
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .usuarios-table .usuarios-linha-principal {
+        display: block;
+        margin-bottom: 6px;
+        line-height: 1.35;
+    }
+
+    .usuarios-table .usuarios-linha-secundaria {
+        display: block;
+        line-height: 1.35;
+    }
+
+    .usuarios-table .project-title a {
+        display: inline-block;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+    }
+
+    .usuarios-table .progress {
+        margin-bottom: 0;
+    }
+
+    .usuarios-table .usuarios-celula-acoes .btn {
+        margin-left: 4px;
+    }
+
+    .usuarios-table .usuarios-celula-acoes .btn:first-child {
+        margin-left: 0;
+    }
+
+    .usuarios-table .usuarios-celula-acoes > div {
+        display: inline-block;
+        text-align: center;
+    }
+
+    @media (max-width: 991px) {
+        #modalUserManagement .modal-dialog {
+            width: calc(100vw - 20px) !important;
+            margin: 10px auto !important;
+        }
+
+        #modalUserManagement .modal-content {
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
+        }
+
+        #modalUserManagement .modal-header,
+        #modalUserManagement .modal-body,
+        #modalUserManagement .modal-footer {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+        }
+
+        #modalUserManagement .row > [class*='col-'] {
+            width: 100% !important;
+            float: none !important;
+            clear: both;
+        }
+
+        #modalUserManagement .form-group {
+            margin-bottom: 14px;
+        }
+
+        #modalUserManagement label {
+            white-space: normal;
+            line-height: 1.4;
+        }
+
+        #modalUserManagement .form-control {
+            width: 100% !important;
+        }
+
+        #modalUserManagement .modal-footer .btn {
+            width: 100%;
+            margin: 4px 0;
+        }
+    }
+
+    @media (max-width: 480px) {
+        #modalUserManagement .modal-title {
+            font-size: 24px;
+            line-height: 1.2;
+        }
+    }
+</style>
+
+<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Usuários</h2>
+        <ol class="breadcrumb">
+            <li><a ui-sref="dashboards.dashboard_2">Home</a></li>
+            <li><a ui-sref="admin.user_approvals">Administração</a></li>
+            <li class="active"><strong>Usuários</strong></li>
+        </ol>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="userManagementAdminCtrl">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Usuários cadastrados no sistema</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-primary btn-xs" type="button" ng-click="loadUsers()" ng-disabled="loading">
+                            <i class="fa fa-refresh"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row m-b-sm m-t-sm">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-addon"><i class="fa fa-search"></i></span>
+                                <input type="text"
+                                       placeholder="Pesquisar usuários..."
+                                       class="input-sm form-control"
+                                       ng-model="searchText">
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-right" style="padding-top: 7px; color: #6b7c93;">
+                            <strong>Filtrar por:</strong>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="input-sm form-control" ng-model="roleFilter">
+                                <option value="">Permissão</option>
+                                <option value="Master">Master</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Coordenador">Coordenador</option>
+                                <option value="Instrutor">Instrutor</option>
+                                <option value="Músico">Músico</option>
+                                <option value="Candidato">Candidato</option>
+                                <option value="Membro">Membro</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="input-sm form-control" ng-model="statusFilter">
+                                <option value="">Status</option>
+                                <option value="active">Ativo</option>
+                                <option value="inactive">Inativo</option>
+                                <option value="suspended">Suspenso</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <a ui-sref="register" class="btn btn-primary btn-sm" ng-if="isMaster">
+                                <i class="fa fa-user-plus"></i> Adicionar usuário
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info" ng-if="loading">
+                        Carregando usuários cadastrados...
+                    </div>
+
+                    <div class="alert alert-danger" ng-if="error">
+                        {{error}}
+                    </div>
+
+                    <div class="row" ng-if="!loading">
+                        <div class="col-sm-3">
+                            <div class="widget style1 navy-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-users fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Total</span>
+                                        <h2 class="font-bold">{{filteredUsers.length}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 lazur-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-check-circle fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Ativos</span>
+                                        <h2 class="font-bold">{{activeCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 yellow-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-clock-o fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Inativos</span>
+                                        <h2 class="font-bold">{{inactiveCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 red-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-ban fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Suspensos</span>
+                                        <h2 class="font-bold">{{suspendedCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="project-list" ng-if="!loading && filteredUsers.length > 0">
+                        <table class="table table-hover usuarios-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 140px;">Status</th>
+                                    <th>Usuário</th>
+                                    <th style="min-width: 220px;">Permissão</th>
+                                    <th style="min-width: 220px;">Comum / Setor</th>
+                                    <th style="min-width: 220px;">Cargo / Cadastro</th>
+                                    <th class="usuarios-coluna-acoes" style="width: 250px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="user in filteredUsers track by user.user_id">
+                                    <td class="project-status usuarios-celula">
+                                        <span class="label"
+                                              ng-class="{
+                                                  'label-primary': user.uiStatus === 'active',
+                                                  'label-warning': user.uiStatus === 'inactive',
+                                                  'label-danger': user.uiStatus === 'suspended'
+                                              }"
+                                              ng-bind="formatStatus(user.uiStatus)">
+                                        </span>
+                                    </td>
+                                    <td class="project-title usuarios-celula">
+                                        <a href="" ng-click="openView(user)" ng-bind="user.full_name || 'Sem nome'"></a>
+                                        <small class="text-muted usuarios-linha-secundaria" ng-bind="'ID: ' + (user.user_id | limitTo:8)"></small>
+                                    </td>
+                                    <td class="project-completion usuarios-celula">
+                                        <small ng-bind="user.role || '-'"></small>
+                                        <div class="progress progress-mini">
+                                            <div class="progress-bar"
+                                                 ng-class="{
+                                                    'progress-bar-primary': user.role_id === 1,
+                                                    'progress-bar-info': user.role_id === 2,
+                                                    'progress-bar-success': user.role_id >= 3
+                                                 }"
+                                                 ng-style="{ width: getRoleProgress(user.role_id) + '%' }"></div>
+                                        </div>
+                                    </td>
+                                    <td class="project-people usuarios-celula">
+                                        <span class="usuarios-linha-principal" ng-bind="user.comum || 'Sem comum'"></span>
+                                        <small class="text-muted usuarios-linha-secundaria" ng-bind="formatSectorLabel(user.sector)"></small>
+                                    </td>
+                                    <td class="project-people usuarios-celula">
+                                        <span class="usuarios-linha-principal" ng-bind="user.cargo || 'Sem cargo'"></span>
+                                        <small class="text-muted usuarios-linha-secundaria" ng-bind="'Criado em ' + formatDate(user.created_at)"></small>
+                                    </td>
+                                    <td class="project-actions usuarios-celula-acoes">
+                                        <div>
+                                            <button class="btn btn-primary btn-xs" ng-click="openView(user)" title="Ver">
+                                                <i class="fa fa-eye"></i> Ver
+                                            </button>
+                                            <button class="btn btn-warning btn-xs" ng-click="openEdit(user)" title="Editar">
+                                                <i class="fa fa-pencil-square-o"></i> Editar
+                                            </button>
+                                            <button class="btn btn-danger btn-xs" ng-click="confirmDelete(user)" title="Excluir">
+                                                <i class="fa fa-trash-o"></i> Excluir
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-warning" ng-if="!loading && filteredUsers.length === 0 && !error">
+                        Nenhum usuário encontrado para os filtros atuais.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalUserManagement" class="modal inmodal fade" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;">
+                        <span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span>
+                    </button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa" ng-class="viewOnlyUser ? 'fa-folder-open' : 'fa-pencil-square-o'" style="margin-right:8px;"></i>
+                        {{viewOnlyUser ? 'Detalhes do Usuário' : 'Editar Usuário'}}
+                    </h4>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <form novalidate ng-disabled="viewOnlyUser || savingUser">
+                        <div class="row">
+                            <div class="col-lg-12"><h4>Dados Principais</h4></div>
+                            <div class="col-sm-6 form-group">
+                                <label>Nome Completo</label>
+                                <input type="text" ng-model="selectedUserForm.full_name" class="form-control">
+                            </div>
+                            <div class="col-sm-6 form-group">
+                                <label>Login / Referência</label>
+                                <input type="text" ng-model="selectedUserForm.username" class="form-control" ng-readonly="true">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Permissão</label>
+                                <select class="form-control"
+                                        ng-model="selectedUserForm.role_id"
+                                        ng-options="level.id as level.name for level in accessLevels"
+                                        ng-change="syncManagedUserRole()">
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Setor</label>
+                                <select class="form-control"
+                                        ng-model="selectedUserForm.sector"
+                                        ng-options="sector.name as sector.name for sector in sectors"
+                                        ng-disabled="selectedUserForm.role_id === 1 || selectedUserForm.role_id === 2">
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Status</label>
+                                <select class="form-control" ng-model="selectedUserForm.uiStatus" ng-change="syncManagedUserStatus()">
+                                    <option value="active">Ativo</option>
+                                    <option value="inactive">Inativo</option>
+                                    <option value="suspended">Suspenso</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6 form-group">
+                                <label>Comum</label>
+                                <input type="text" ng-model="selectedUserForm.comum" class="form-control">
+                            </div>
+                            <div class="col-sm-6 form-group">
+                                <label>Cargo Exibido</label>
+                                <input type="text" ng-model="selectedUserForm.cargo" class="form-control">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white" data-dismiss="modal">{{viewOnlyUser ? 'Voltar' : 'Fechar'}}</button>
+                    <button type="button"
+                            class="btn btn-primary"
+                            style="background:#1ab394; border-color:#1ab394;"
+                            ng-if="!viewOnlyUser"
+                            ng-click="saveManagedUser()"
+                            ng-disabled="savingUser || !isMaster">
+                        <i class="fa fa-save"></i> Salvar alterações
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

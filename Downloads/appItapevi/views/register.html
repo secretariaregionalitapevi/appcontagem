@@ -1,0 +1,161 @@
+﻿<link href="css/auth.css" rel="stylesheet">
+
+<div class="auth-page-body animated fadeIn" ng-controller="registerCtrl">
+    <div class="sac-card">
+        <div class="sac-header">
+            <img src="img/logo-ccb-light.png" alt="CCB" class="sac-logo" />
+            <h1 class="sac-title">Nova Conta</h1>
+            <p class="sac-subtitle">Crie sua conta para acessar o sistema administrativo da<br><strong>Regional Itapevi</strong>.</p>
+        </div>
+
+        <div class="sac-body">
+            <!-- Erro Geral -->
+            <div ng-if="errors.general" class="alert alert-danger">
+                <i class="fa fa-exclamation-triangle"></i> {{ errors.general }}
+            </div>
+
+            <form role="form" name="registerForm" ng-submit="submitRegister()" class="sac-form" novalidate>
+                <!-- Nome Completo -->
+                <div class="form-group" ng-class="{'has-error': errors.name}">
+                    <div class="input-icon-box" style="color: var(--brand);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <input type="text" placeholder="Nome Completo" ng-model="user.name" required>
+                </div>
+                <div class="help-block-fixed text-danger" ng-if="errors.name">
+                    <small>{{ errors.name }}</small>
+                </div>
+
+                <!-- E-mail -->
+                <div class="form-group" ng-class="{'has-error': errors.email}">
+                    <div class="input-icon-box" style="color: var(--brand);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </div>
+                    <input type="email" placeholder="Seu melhor e-mail" ng-model="user.email" required>
+                </div>
+                <div class="help-block-fixed text-danger" ng-if="errors.email">
+                    <small>{{ errors.email }}</small>
+                </div>
+
+                <!-- Senha -->
+                <div class="form-group" ng-class="{'has-error': errors.password}">
+                    <div class="input-icon-box" style="color: var(--brand);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
+                    <input type="{{ showPassword ? 'text' : 'password' }}" placeholder="Crie uma senha forte"
+                        ng-model="user.password" required>
+                    <button type="button" class="password-toggle" ng-click="showPassword = !showPassword">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <div class="help-block-fixed text-danger" ng-if="errors.password">
+                    <small>{{ errors.password }}</small>
+                </div>
+                <div class="help-block-fixed text-warning" ng-if="errors.passwordWarning && !errors.password">
+                    <small>{{ errors.passwordWarning }}</small>
+                </div>
+
+                <!-- Confirmar Senha -->
+                <div class="form-group" ng-class="{'has-error': errors.confirmPassword}">
+                    <div class="input-icon-box" style="color: var(--brand);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <input type="{{ showConfirmPassword ? 'text' : 'password' }}" placeholder="Confirme sua senha"
+                        ng-model="user.confirmPassword" required>
+                    <button type="button" class="password-toggle" ng-click="showConfirmPassword = !showConfirmPassword">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <div class="help-block-fixed text-danger" ng-if="errors.confirmPassword">
+                    <small>{{ errors.confirmPassword }}</small>
+                </div>
+
+                <!-- Comum -->
+                <div class="form-group" ng-class="{'has-error': errors.comum}">
+                    <div class="input-icon-box" style="color: var(--brand);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                    </div>
+                    <div class="sac-search-container">
+                        <input type="text" placeholder="Pesquise sua Comum..." ng-model="user.comum"
+                            class="comum-field" autocomplete="off" ng-focus="openComumPicker()" ng-change="filterComuns()" ng-keydown="handleComumFieldKeydown($event)" required>
+                        <div class="sac-search-results active" ng-if="isComumPickerOpen()">
+                            <div class="sac-search-meta">{{comumPickerState.results.length}} de {{totalComuns}} comuns</div>
+                            <div class="sac-search-item" ng-repeat="item in comumPickerState.results track by item" ng-mousedown="selectComum(item)">
+                                <strong>{{item}}</strong>
+                            </div>
+                            <div class="sac-search-empty" ng-if="!comumPickerState.results.length">Nenhuma comum encontrada.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="help-block-fixed text-danger" ng-if="errors.comum">
+                    <small>{{ errors.comum }}</small>
+                </div>
+
+                <!-- Termos -->
+                <div class="terms-fixed">
+                    <label>
+                        <input type="checkbox" ng-model="user.agreeTerms">
+                        Aceito os <a href="#">termos e política</a>.
+                    </label>
+                </div>
+                <div class="help-block-fixed text-danger" ng-if="errors.agreeTerms">
+                    <small>{{ errors.agreeTerms }}</small>
+                </div>
+
+                <button type="submit" class="sac-btn" ng-disabled="loading || registerForm.$invalid">
+                    <span ng-if="!loading">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="8.5" cy="7" r="4"></circle>
+                            <line x1="20" y1="8" x2="20" y2="14"></line>
+                            <line x1="23" y1="11" x2="17" y2="11"></line>
+                        </svg>
+                        CRIAR CONTA
+                    </span>
+                    <span ng-if="loading">
+                        <i class="fa fa-spinner fa-spin"></i> CADASTRANDO...
+                    </span>
+                </button>
+
+                <div class="sac-footer-links">
+                    Já possui uma conta?<br>
+                    <a ui-sref="login" class="sac-btn-outline">Voltar para o Login</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="sac-page-footer">
+        © SAC v1.1.2<br>
+        Congregação Cristã no Brasil<br>
+        <strong>Regional Itapevi</strong>
+    </div>
+</div>

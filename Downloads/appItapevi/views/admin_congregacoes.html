@@ -1,0 +1,448 @@
+<style>
+    .congregacoes-table > thead > tr > th,
+    .congregacoes-table > tbody > tr > td {
+        vertical-align: middle !important;
+    }
+
+    .congregacoes-table > thead > tr > th {
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .congregacoes-table .congregacoes-celula,
+    .congregacoes-table .congregacoes-celula-acoes,
+    .congregacoes-table .congregacoes-coluna-acoes {
+        text-align: left;
+    }
+
+    .congregacoes-table .congregacoes-celula-acoes,
+    .congregacoes-table .congregacoes-coluna-acoes {
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .congregacoes-table .congregacoes-linha-principal {
+        display: block;
+        margin-bottom: 6px;
+        line-height: 1.35;
+    }
+
+    .congregacoes-table .congregacoes-linha-secundaria {
+        display: block;
+        line-height: 1.35;
+    }
+
+    .congregacoes-table .project-title a {
+        display: inline-block;
+        margin-bottom: 4px;
+    }
+
+    .congregacoes-table .progress {
+        margin-bottom: 0;
+    }
+
+    .congregacoes-table .congregacoes-celula-acoes .btn {
+        margin-left: 4px;
+    }
+
+    .congregacoes-table .congregacoes-celula-acoes .btn:first-child {
+        margin-left: 0;
+    }
+
+    #modalCongregacao .modal-dialog {
+        width: 760px;
+        max-width: calc(100% - 30px);
+    }
+
+    .congregacao-servos-resumo {
+        display: flex;
+        align-items: center;
+        padding: 14px 16px;
+        border: 1px solid #dce7ef;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #f6fbfa 0%, #eef5fb 100%);
+        margin-bottom: 15px;
+    }
+
+    .congregacao-servos-resumo-icone {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: #1ab394;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-right: 14px;
+        flex: 0 0 46px;
+    }
+
+    .congregacao-servos-resumo-conteudo strong {
+        display: block;
+        font-size: 16px;
+        color: #2f4050;
+        margin-bottom: 4px;
+    }
+
+    .congregacao-servos-resumo-conteudo p {
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .congregacao-servos-lista {
+        max-height: 320px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .congregacao-servo-card {
+        border: 1px solid #e5edf4;
+        border-left: 4px solid #1ab394;
+        border-radius: 10px;
+        background: #fff;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        box-shadow: 0 4px 12px rgba(47, 64, 80, 0.06);
+    }
+
+    .congregacao-servo-topo {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+
+    .congregacao-servo-identidade {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        padding-right: 10px;
+    }
+
+    .congregacao-servo-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: #23c6c8;
+        color: #fff;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        flex: 0 0 42px;
+    }
+
+    .congregacao-servo-textos {
+        min-width: 0;
+    }
+
+    .congregacao-servo-textos strong,
+    .congregacao-servo-textos small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .congregacao-servo-textos strong {
+        color: #2f4050;
+        margin-bottom: 2px;
+    }
+
+    .congregacao-servo-meta {
+        margin-top: 10px;
+        color: #6b7c93;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .congregacao-servo-meta span {
+        display: inline-block;
+        margin-right: 14px;
+    }
+
+    .congregacao-servo-meta i {
+        margin-right: 4px;
+    }
+
+    .congregacao-servos-vazio {
+        margin-bottom: 0;
+    }
+
+    @media (max-width: 767px) {
+        #modalCongregacao .modal-dialog {
+            width: auto;
+        }
+
+        .congregacao-servo-topo {
+            display: block;
+        }
+
+        .congregacao-servo-topo .label {
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .congregacao-servo-textos strong,
+        .congregacao-servo-textos small {
+            white-space: normal;
+        }
+    }
+</style>
+
+<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Congregações</h2>
+        <ol class="breadcrumb">
+            <li><a ui-sref="dashboards.dashboard_2">Home</a></li>
+            <li><a ui-sref="admin.user_approvals">Administração</a></li>
+            <li class="active"><strong>Congregações</strong></li>
+        </ol>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="congregacoesAdminCtrl">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Congregações cadastradas</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-primary btn-xs" type="button" ng-click="loadCongregacoes()" ng-disabled="loading">
+                            <i class="fa fa-refresh"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row m-b-sm m-t-sm">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-addon"><i class="fa fa-search"></i></span>
+                                <input type="text"
+                                       placeholder="Pesquisar congregação, código ou município..."
+                                       class="input-sm form-control"
+                                       ng-model="searchText">
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-right" style="padding-top: 7px; color: #6b7c93;">
+                            <strong>Filtrar por:</strong>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="input-sm form-control" ng-model="municipioFilter">
+                                <option value="">Município</option>
+                                <option ng-repeat="municipio in municipios track by municipio" value="{{municipio}}">{{formatCongregacaoLabel(municipio, municipio)}}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info" ng-if="loading">
+                        Carregando congregações...
+                    </div>
+
+                    <div class="alert alert-danger" ng-if="error">
+                        {{error}}
+                    </div>
+
+                    <div class="row" ng-if="!loading">
+                        <div class="col-sm-3">
+                            <div class="widget style1 navy-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-building fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Total</span>
+                                        <h2 class="font-bold">{{filteredRegistros.length}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 lazur-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-map-marker fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Municípios</span>
+                                        <h2 class="font-bold">{{totalMunicipios}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 yellow-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-tag fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Com código</span>
+                                        <h2 class="font-bold">{{comCodigoCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 red-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-users fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Sem código</span>
+                                        <h2 class="font-bold">{{semCodigoCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="project-list" ng-if="!loading && filteredRegistros.length > 0">
+                        <table class="table table-hover congregacoes-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 170px;">Município</th>
+                                    <th>Congregação</th>
+                                    <th style="min-width: 300px;">Código / Estrutura</th>
+                                    <th class="congregacoes-coluna-acoes" style="width: 240px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="record in filteredRegistros track by (record.id || (record.nome + record.cidade))">
+                                    <td class="project-status congregacoes-celula">
+                                        <span class="label label-primary" ng-bind="formatCongregacaoLabel(record.cidade, 'SEM MUNICÍPIO')"></span>
+                                    </td>
+                                    <td class="project-title congregacoes-celula">
+                                        <a href="" ng-click="openView(record)" ng-bind="formatCongregacaoLabel(record.nome, 'SEM NOME')"></a>
+                                        <small class="text-muted congregacoes-linha-secundaria" ng-bind="'ID: ' + ((record.id || '-') | limitTo:8)"></small>
+                                    </td>
+                                    <td class="project-completion congregacoes-celula">
+                                        <small ng-bind="formatCongregacaoLabel(record.codigo, 'SEM CÓDIGO')"></small>
+                                        <div class="progress progress-mini">
+                                            <div class="progress-bar progress-bar-info"
+                                                 ng-style="{ width: getCongregacaoProgress(record) + '%' }"></div>
+                                        </div>
+                                        <small class="text-muted congregacoes-linha-secundaria" ng-bind="'Servos vinculados: ' + (record.quantidade_servos || 0)"></small>
+                                    </td>
+                                    <td class="project-actions congregacoes-celula-acoes">
+                                        <div>
+                                            <button class="btn btn-primary btn-xs" ng-click="openView(record)" title="Ver">
+                                                <i class="fa fa-eye"></i> Ver
+                                            </button>
+                                            <button class="btn btn-warning btn-xs" ng-click="openEdit(record)" title="Editar" ng-if="canManageCongregacoes">
+                                                <i class="fa fa-pencil-square-o"></i> Editar
+                                            </button>
+                                            <button class="btn btn-danger btn-xs" ng-click="confirmDelete(record)" title="Excluir" ng-if="canManageCongregacoes">
+                                                <i class="fa fa-trash-o"></i> Excluir
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-warning" ng-if="!loading && filteredRegistros.length === 0 && !error">
+                        Nenhuma congregação encontrada para os filtros atuais.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalCongregacao" class="modal inmodal fade" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;">
+                        <span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span>
+                    </button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa" ng-class="viewOnlyCongregacao ? 'fa-building' : 'fa-pencil-square-o'" style="margin-right:8px;"></i>
+                        {{viewOnlyCongregacao ? 'Detalhes da Congregação' : 'Editar Congregação'}}
+                    </h4>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <div class="form-group">
+                        <label>Congregação</label>
+                        <input type="text" class="form-control" ng-model="selectedCongregacao.nome" ng-readonly="viewOnlyCongregacao">
+                    </div>
+                    <div class="form-group">
+                        <label>Município</label>
+                        <input type="text" class="form-control" ng-model="selectedCongregacao.cidade" ng-readonly="viewOnlyCongregacao">
+                    </div>
+                    <div class="form-group">
+                        <label>Código</label>
+                        <input type="text" class="form-control" ng-value="formatCongregacaoLabel(selectedCongregacao.codigo, 'SEM CÓDIGO')" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Administração</label>
+                        <input type="text" class="form-control" ng-model="selectedCongregacao.administracao" ng-readonly="viewOnlyCongregacao">
+                    </div>
+                    <div class="form-group">
+                        <label>Servos vinculados</label>
+                        <div class="congregacao-servos-resumo">
+                            <div class="congregacao-servos-resumo-icone">
+                                <i class="fa fa-users"></i>
+                            </div>
+                            <div class="congregacao-servos-resumo-conteudo">
+                                <strong ng-bind="formatCongregacaoServosLabel((selectedCongregacao && selectedCongregacao.servos) || [])"></strong>
+                                <p class="text-muted" ng-if="selectedCongregacao && selectedCongregacao.servos && selectedCongregacao.servos.length">
+                                    Visualize abaixo quem faz parte desta comum.
+                                </p>
+                                <p class="text-muted" ng-if="!selectedCongregacao || !selectedCongregacao.servos || !selectedCongregacao.servos.length">
+                                    Ainda não há servos vinculados a esta comum.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="congregacao-servos-lista" ng-if="selectedCongregacao && selectedCongregacao.servos && selectedCongregacao.servos.length">
+                            <div class="congregacao-servo-card"
+                                 ng-repeat="servo in selectedCongregacao.servos track by (servo.id || (servo.nome + servo.ministerio + $index))">
+                                <div class="congregacao-servo-topo">
+                                    <div class="congregacao-servo-identidade">
+                                        <div class="congregacao-servo-avatar" ng-bind="getServoInitials(servo.nome)"></div>
+                                        <div class="congregacao-servo-textos">
+                                            <strong ng-bind="servo.nome || 'Servo sem nome'"></strong>
+                                            <small class="text-muted" ng-bind="servo.ministerio || 'Ministerio nao informado'"></small>
+                                        </div>
+                                    </div>
+                                    <span class="label" ng-class="getServoStatusClass(servo.status)" ng-bind="formatServoStatus(servo.status)"></span>
+                                </div>
+
+                                <div class="congregacao-servo-meta">
+                                    <span>
+                                        <i class="fa fa-link"></i> Vinculado a esta comum
+                                    </span>
+                                    <span ng-if="servo.cadastro_completo">
+                                        <i class="fa fa-check-circle text-navy"></i> Cadastro completo
+                                    </span>
+                                    <span ng-if="!servo.cadastro_completo">
+                                        <i class="fa fa-circle-o text-muted"></i> Cadastro pendente
+                                    </span>
+                                    <span ng-if="servo.possui_foto">
+                                        <i class="fa fa-camera text-info"></i> Foto cadastrada
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning congregacao-servos-vazio"
+                             ng-if="!selectedCongregacao || !selectedCongregacao.servos || !selectedCongregacao.servos.length">
+                            Nenhum servo encontrado para esta comum.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white" data-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" style="background:#1ab394; border-color:#1ab394;"
+                            ng-if="!viewOnlyCongregacao" ng-click="saveCongregacao()" ng-disabled="savingCongregacao || !canManageCongregacoes">
+                        <i class="fa fa-save"></i> Salvar alterações
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

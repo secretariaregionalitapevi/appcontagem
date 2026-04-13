@@ -1,0 +1,81 @@
+﻿<link href="css/auth.css" rel="stylesheet">
+
+<div class="auth-page-body animated fadeIn" ng-controller="loginCtrl">
+    <div class="sac-card">
+        <div class="sac-header">
+            <img src="img/logo-ccb-light.png" alt="CCB" class="sac-logo" />
+            <h1 class="sac-title">Bem-vindos</h1>
+            <p class="sac-subtitle">Sistema Administrativo, criado para facilitar a administração da Congregação Cristã no Brasil<br><strong>Regional Itapevi</strong>.</p>
+        </div>
+
+        <div class="sac-body">
+            <!-- Erro Geral -->
+            <div ng-if="errors.general" class="alert alert-danger">
+                <i class="fa fa-exclamation-triangle"></i> {{ errors.general }}
+            </div>
+
+            <form role="form" name="loginForm" ng-submit="submitLogin()" class="sac-form" novalidate>
+                <!-- E-mail -->
+                <div class="form-group">
+                    <div class="input-icon-box" style="color: var(--brand);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </div>
+                    <input type="text" placeholder="E-mail" ng-model="credentials.email" required>
+                </div>
+
+                <!-- Senha -->
+                <div class="form-group">
+                    <div class="input-icon-box">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
+                    <input type="{{ showPassword ? 'text' : 'password' }}" placeholder="Sua senha"
+                        ng-model="credentials.password" required>
+                    <button type="button" class="password-toggle" ng-click="showPassword = !showPassword">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+
+                <button type="submit" class="sac-btn" ng-disabled="loading || loginForm.$invalid">
+                    <span ng-if="!loading">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        LOGIN
+                    </span>
+                    <span ng-if="loading">
+                        <i class="fa fa-spinner fa-spin"></i> ENTRANDO...
+                    </span>
+                </button>
+
+                <div style="margin-top: 20px;">
+                    <a ui-sref="forgot_password" style="color: #64748b; text-decoration: none; font-size: 14px;">Esqueceu a senha?</a>
+                </div>
+
+                <div class="sac-footer-links">
+                    Não tem uma conta?<br>
+                    <a ui-sref="register" class="sac-btn-outline">Criar conta</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="sac-page-footer">
+        © SAC v1.1.2<br>
+        Congregação Cristã no Brasil<br>
+        <strong>Regional Itapevi</strong>
+    </div>
+</div>

@@ -1,0 +1,185 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-sm-4">
+        <h2>Dashboard Reunião de Jovens</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a ui-sref="dashboards.dashboard_2">Home</a>
+            </li>
+            <li class="active">
+                <strong>Dashboard RJM</strong>
+            </li>
+        </ol>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="rjmRecitativosCtrl">
+    <!-- Top Summary Widgets -->
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="widget style1 lazur-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-child fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Meninas </span>
+                        <h2 class="font-bold">{{ dashboardData.totais.meninas }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 navy-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-child fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Meninos </span>
+                        <h2 class="font-bold">{{ dashboardData.totais.meninos }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 yellow-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-person-dress fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Moças </span>
+                        <h2 class="font-bold">{{ dashboardData.totais.mocas }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 bg-primary">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-person fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Moços </span>
+                        <h2 class="font-bold">{{ dashboardData.totais.mocos }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reports & Filters -->
+    <div class="row m-t-md">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Relatórios e Filtros Rápidos</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label">Mês</label>
+                                <select class="form-control input-sm" ng-model="filters.mes">
+                                    <option value="">Todos</option>
+                                    <option value="Janeiro">Janeiro</option>
+                                    <option value="Fevereiro">Fevereiro</option>
+                                    <option value="Março">Março</option>
+                                    <option value="Abril">Abril</option>
+                                    <option value="Maio">Maio</option>
+                                    <option value="Junho">Junho</option>
+                                    <option value="Julho">Julho</option>
+                                    <option value="Agosto">Agosto</option>
+                                    <option value="Setembro">Setembro</option>
+                                    <option value="Outubro">Outubro</option>
+                                    <option value="Novembro">Novembro</option>
+                                    <option value="Dezembro">Dezembro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label">Período</label>
+                                <div class="input-group">
+                                    <input type="date" class="form-control input-sm" ng-model="filters.dataInicio">
+                                    <span class="input-group-addon">até</span>
+                                    <input type="date" class="form-control input-sm" ng-model="filters.dataFim">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label">Cidade</label>
+                                <select class="form-control input-sm" ng-model="filters.cidade" ng-options="c for c in cidades">
+                                    <option value="">Todas as Cidades</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 text-right m-t-md">
+                            <button class="btn btn-primary btn-sm" ng-click="exportToExcel()">
+                                <i class="fa fa-file-excel"></i> Exportar Excel
+                            </button>
+                            <button class="btn btn-danger btn-sm" ng-click="exportToPDF()">
+                                <i class="fa fa-file-pdf"></i> Exportar PDF
+                            </button>
+                            <button class="btn btn-white btn-sm" ng-click="filters = {searchText: '', cidade: '', dataInicio: null, dataFim: null, mes: 'Fevereiro'}">
+                                <i class="fa fa-eraser"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Municipality Summary Table -->
+    <div class="row m-t-md">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Resumo de Recitativos por Município - {{ filters.mes || 'Todos os Meses' }}</h5>
+                    <div class="ibox-tools">
+                        <span class="label label-primary">Regional Itapevi</span>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered text-center">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">MUNICÍPIO</th>
+                                    <th class="text-center">MENINAS</th>
+                                    <th class="text-center">MENINOS</th>
+                                    <th class="text-center">MOÇAS</th>
+                                    <th class="text-center">MOÇOS</th>
+                                    <th class="text-center">TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in dashboardData.municipios">
+                                    <td class="text-left"><strong>{{ item.nome }}</strong></td>
+                                    <td>{{ item.meninas }}</td>
+                                    <td>{{ item.meninos }}</td>
+                                    <td>{{ item.mocas }}</td>
+                                    <td>{{ item.mocos }}</td>
+                                    <td><span class="label label-info">{{ item.total }}</span></td>
+                                </tr>
+                            </tbody>
+                            <tfoot style="background: #f3f3f4; font-weight: bold;">
+                                <tr>
+                                    <td class="text-left">TOTAL GERAL</td>
+                                    <td>{{ dashboardData.totais.meninas }}</td>
+                                    <td>{{ dashboardData.totais.meninos }}</td>
+                                    <td>{{ dashboardData.totais.mocas }}</td>
+                                    <td>{{ dashboardData.totais.mocos }}</td>
+                                    <td><span class="badge badge-primary">{{ dashboardData.totais.geral }}</span></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

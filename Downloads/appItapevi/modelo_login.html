@@ -1,0 +1,72 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, shrink-to-fit=no, maximum-scale=1, user-scalable=0" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CCB Contagem&#10;Regional Itapevi" />
+    <title>CCB Contagem - Regional Itapevi</title>
+
+    <!-- PWA Manifest and Icons (matching CCB Agenda exactly) -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="icon" href="/icons/icon-192.png" />
+
+    <!-- The `react-native-web` recommended style reset -->
+    <style id="expo-reset">
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f3f4;
+        }
+
+        body {
+            overflow: hidden;
+            /* Disable pull-to-refresh behavior on body to allow in-app scrollviews to handle it */
+            overscroll-behavior-y: none;
+        }
+
+        #root {
+            display: flex;
+            height: 100%;
+            flex: 1;
+        }
+    </style>
+    <link rel="shortcut icon" href="/favicon.ico" />
+</head>
+
+<body>
+    <noscript>
+        Para este aplicativo funcionar, Ã© necessÃ¡rio habilitar o JavaScript.
+    </noscript>
+
+    <div id="root"></div>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('âœ… ServiceWorker registrado com sucesso com escopo: ', registration.scope);
+                    })
+                    .catch((err) => {
+                        console.error('âŒ Registro do ServiceWorker falhou: ', err);
+                    });
+            });
+        }
+    </script>
+    <script src="/_expo/static/js/web/AppEntry-3c90e565e6ba0f8c7f01e31dec19b1d7.js" defer></script>
+</body>
+
+</html>
+<script async data-explicit-opt-in="true" data-cookie-opt-in="true"
+    data-deployment-id="dpl_C9DZQ61uor9zadMx3aMe32VPhAbw"
+    src="https://vercel.live/_next-live/feedback/feedback.js"></script>

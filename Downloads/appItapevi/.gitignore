@@ -1,0 +1,93 @@
+# ===============================
+# SISTEMA OPERACIONAL
+# ===============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===============================
+# LOGS
+# ===============================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===============================
+# AMBIENTE / SEGURANÇA
+# ===============================
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# ===============================
+# CACHE / TEMP
+# ===============================
+.cache/
+.tmp/
+temp/
+tmp/
+
+# ===============================
+# NODE / FRONT-END
+# ===============================
+node_modules/
+/dist/
+/build/
+.next/
+out/
+
+# ===============================
+# PYTHON
+# ===============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+
+venv/
+env/
+.venv/
+
+# ===============================
+# DJANGO / FLASK
+# ===============================
+instance/
+migrations/__pycache__/
+staticfiles/
+media/
+
+# ===============================
+# IDEs
+# ===============================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ===============================
+# ONE DRIVE / SYNC
+# ===============================
+*.tmp
+*.sync
+*.lnk
+
+# ===============================
+# RELATÓRIOS / EXPORTAÇÕES
+# ===============================
+*.pdf
+*.xlsx
+*.xls
+*.csv
+
+# ===============================
+# ARQUIVOS COM PROBLEMA NO WINDOWS
+# ===============================
+views/darpe_clinicas.html

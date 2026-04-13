@@ -1,0 +1,325 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Histórico de Aulas</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a href="#/musicalizacao/dashboard">Musicalização</a>
+            </li>
+            <li class="active">
+                <strong>Aulas</strong>
+            </li>
+        </ol>
+    </div>
+    <div class="col-lg-2">
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="musicalizacaoAulasCtrl">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Lista de Todas as Lições / Aulas</h5>
+                    <div class="ibox-tools">
+                        <a href="#/musicalizacao/nova_aula" class="btn btn-primary btn-xs"><i class="fa fa-plus"></i>
+                            Abrir Nova Lição</a>
+                        <button class="btn btn-white btn-xs" ng-click="getAulas()"><i class="fa fa-refresh"></i>
+                            Pesquisar</button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+
+                    <div class="row m-b-sm">
+                        <div class="col-md-12">
+                            <div style="display:flex; align-items:stretch;">
+                                <span style="display:flex; align-items:center; justify-content:center; width:42px; border:1px solid #e5e6e7; border-right:0; background:#fff; color:#676a6c;">
+                                    <i class="fa fa-search"></i>
+                                </span>
+                                <input type="text" id="searchAulas" placeholder="Pesquisar lição, polo ou município..."
+                                    class="form-control" ng-model="searchText" style="border-radius:0; flex:1 1 auto;">
+                                <button type="button" class="btn btn-primary" style="border-top-left-radius:0; border-bottom-left-radius:0;">Pesquisar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center" ng-if="loading">
+                        <div class="sk-spinner sk-spinner-double-bounce">
+                            <div class="sk-double-bounce1"></div>
+                            <div class="sk-double-bounce2"></div>
+                        </div>
+                        <p>Carregando histórico...</p>
+                    </div>
+
+                    <div class="table-responsive" ng-if="!loading">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="80">Status</th>
+                                    <th>Município</th>
+                                    <th>Ciclo</th>
+                                    <th width="80">Aula</th>
+                                    <th>Polo</th>
+                                    <th width="120">Data</th>
+                                    <th class="text-center" width="320">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="aula in aulas | filter: searchText">
+                                    <td>
+                                        <span class="label label-primary">Concluída</span>
+                                    </td>
+                                    <td>{{aula.cidade}}</td>
+                                    <td>{{aula.ciclo}}</td>
+                                    <td>Aula {{aula.numero_aula}}</td>
+                                    <td><strong>{{aula.polo || '-'}}</strong></td>
+                                    <td>{{aula.data_aula | date:'dd/MM/yyyy'}}</td>
+                                    <td class="text-center">
+                                        <div style="white-space: nowrap;">
+                                            <button type="button" class="btn btn-success btn-xs"
+                                                ng-click="abrirFrequencia(aula)" title="Frequência">
+                                                <i class="fa fa-check-square"></i> Frequência
+                                            </button>
+                                            <button type="button" class="btn btn-primary btn-xs"
+                                                ng-click="abrirDetalhes(aula)" title="Detalhes">
+                                                <i class="fa fa-folder"></i> Detalhes
+                                            </button>
+                                            <button type="button" class="btn btn-warning btn-xs" ng-if="canManageCadastros"
+                                                ng-click="prepareEdit(aula)" title="Reabrir">
+                                                <i class="fa fa-repeat"></i> Reabrir
+                                            </button>
+                                            <button type="button" class="btn btn-danger btn-xs" ng-if="canManageCadastros"
+                                                ng-click="confirmDelete(aula)" title="Excluir">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr ng-if="aulas.length === 0">
+                                    <td colspan="7" class="text-center">Nenhuma aula registrada ainda.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Frequência -->
+    <div class="modal inmodal" id="frequenciaModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal"><span
+                            aria-hidden="true" style="color:#fff; opacity:1; font-size:22px;">&times;</span><span class="sr-only">Fechar</span></button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa fa-check-square" style="margin-right:8px;"></i>
+                        Frequência da Lição
+                    </h4>
+                    <div style="color:#eafaf6; margin-top:6px;">Polo: {{selectedAula.polo}} | Data: {{selectedAula.data_aula | date:'dd/MM/yyyy'}}</div>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <div class="text-center" ng-if="loadingPresenca">
+                        <div class="sk-spinner sk-spinner-three-bounce">
+                            <div class="sk-bounce1"></div>
+                            <div class="sk-bounce2"></div>
+                            <div class="sk-bounce3"></div>
+                        </div>
+                        <p>Carregando lista de alunos...</p>
+                    </div>
+
+                    <div ng-if="!loadingPresenca">
+                        <div class="row">
+                            <div class="col-lg-12"><h4>Resumo da Frequência</h4></div>
+                            <div class="col-sm-4">
+                                <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#f8fffd;">
+                                    <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Presentes</div>
+                                    <div style="font-size:28px; font-weight:700; color:#1ab394; line-height:1.2; margin-top:6px;">{{countFrequenciaStatus('presente')}}</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#fffaf4;">
+                                    <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Faltas</div>
+                                    <div style="font-size:28px; font-weight:700; color:#f8ac59; line-height:1.2; margin-top:6px;">{{countFrequenciaStatus('faltou')}}</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#f8fbff;">
+                                    <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Justificados</div>
+                                    <div style="font-size:28px; font-weight:700; color:#23a6d5; line-height:1.2; margin-top:6px;">{{countFrequenciaStatus('justificado')}}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="row m-b-sm">
+                            <div class="col-sm-6">
+                                <div style="display:flex; align-items:stretch;">
+                                    <span style="display:flex; align-items:center; justify-content:center; width:42px; border:1px solid #e5e6e7; border-right:0; background:#fff; color:#676a6c;">
+                                        <i class="fa fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" ng-model="frequenciaFiltro" placeholder="Pesquisar aluno do polo..." style="border-radius:0; flex:1 1 auto;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" ng-if="!loadingPresenca">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th width="30">#</th>
+                                    <th>Nome do Aluno</th>
+                                    <th width="180">Status</th>
+                                    <th>Justificativa / Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="aluno in alunosPolo | filter:frequenciaFiltro">
+                                    <td>{{$index + 1}}</td>
+                                    <td>{{aluno.nome_crianca}}</td>
+                                    <td>
+                                        <span class="label"
+                                            ng-class="{
+                                                'label-primary': presenca[aluno.id] === 'presente',
+                                                'label-warning': presenca[aluno.id] === 'faltou',
+                                                'label-info': presenca[aluno.id] === 'justificado'
+                                            }"
+                                            style="display:inline-block; min-width:110px; text-align:center; font-size:12px; padding:6px 10px;">
+                                            {{getFrequenciaStatusLabel(presenca[aluno.id])}}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" ng-value="justificativa[aluno.id] || '-'" readonly>
+                                    </td>
+                                </tr>
+                                <tr ng-if="alunosPolo.length === 0">
+                                    <td colspan="4" class="text-center">Nenhum aluno cadastrado para este polo.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer" style="background:#f5f5f5; padding: 14px 20px;">
+                    <button type="button" class="btn btn-white" data-dismiss="modal"><i class="fa fa-times"></i> Voltar</button>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" style="background:#1ab394; border-color:#1ab394;">
+                        <i class="fa fa-check"></i> Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes -->
+    <div class="modal inmodal" id="detalhesModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal"><span
+                            aria-hidden="true" style="color:#fff; opacity:1; font-size:22px;">&times;</span><span class="sr-only">Fechar</span></button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa fa-file-text-o" style="margin-right:8px;"></i>
+                        Detalhes da Lição
+                    </h4>
+                    <div style="color:#eafaf6; margin-top:6px;">
+                        {{selectedAula.cidade || '-'}} | {{selectedAula.polo || '-'}} | {{selectedAula.data_aula | date:'dd/MM/yyyy'}}
+                    </div>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Informações da Aula</h4></div>
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Data da Aula</label>
+                                <input type="text" class="form-control" ng-value="selectedAula.data_aula | date:'dd/MM/yyyy'" readonly>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Município</label>
+                                <input type="text" class="form-control" ng-value="selectedAula.cidade" readonly>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Polo / Localidade</label>
+                                <input type="text" class="form-control" ng-value="selectedAula.polo || '-'" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Ciclo</label>
+                                <input type="text" class="form-control" ng-value="selectedAula.ciclo" readonly>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Número da Aula</label>
+                                <input type="text" class="form-control" ng-value="'Aula ' + selectedAula.numero_aula" readonly>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Instrutores Presentes</label>
+                                <input type="text" class="form-control" ng-value="selectedAula.instrutores_presentes || 0" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Estrutura da Lição</h4></div>
+                        <div class="col-sm-12">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Atividade / Conteúdo</label>
+                                <input type="text" class="form-control" ng-value="selectedAula.nome_atividade || '-'" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" style="margin-top: 8px;">
+                        <div class="col-lg-12"><h4>Resumo de Presença</h4></div>
+                        <div class="col-sm-4">
+                            <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#f8fffd;">
+                                <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Meninos</div>
+                                <div style="font-size:28px; font-weight:700; color:#1ab394; line-height:1.2; margin-top:6px;">{{selectedAula.meninos_presentes || 0}}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#f8fbff;">
+                                <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Meninas</div>
+                                <div style="font-size:28px; font-weight:700; color:#23a6d5; line-height:1.2; margin-top:6px;">{{selectedAula.meninas_presentes || 0}}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#fffaf4;">
+                                <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Total</div>
+                                <div style="font-size:28px; font-weight:700; color:#f8ac59; line-height:1.2; margin-top:6px;">{{(selectedAula.meninos_presentes || 0) + (selectedAula.meninas_presentes || 0)}}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hr-line-dashed"></div>
+
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Observações</h4></div>
+                        <div class="col-sm-12">
+                            <div class="form-group">
+                                <label style="font-weight:600; color:#555;">Registro da Aula</label>
+                                <textarea class="form-control" rows="3" readonly>{{selectedAula.observacoes || 'Sem observações registradas.'}}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="background:#f5f5f5; padding: 14px 20px;">
+                    <button type="button" class="btn btn-white" data-dismiss="modal"><i class="fa fa-times"></i> Voltar</button>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" style="background:#1ab394; border-color:#1ab394;"><i class="fa fa-check"></i> Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
