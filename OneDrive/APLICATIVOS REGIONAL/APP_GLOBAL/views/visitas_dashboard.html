@@ -1,0 +1,514 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-sm-4">
+        <h2>Dashboard de Visitas</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a ui-sref="dashboards.dashboard_2">Home</a>
+            </li>
+            <li class="active">
+                <strong>Dashboard de Visitas</strong>
+            </li>
+        </ol>
+    </div>
+</div>
+
+<style>
+    .visitas-pendencias-table-wrap {
+        max-height: 360px;
+        overflow-y: auto;
+        overflow-x: auto;
+    }
+    .visitas-pendencia-note {
+        color: #7f8c8d;
+        line-height: 1.5;
+    }
+    .visitas-pending-breakdown {
+        color: #7f8c8d;
+        line-height: 1.5;
+    }
+    .visitas-inline-status {
+        display: inline-block;
+        margin-right: 8px;
+        margin-bottom: 4px;
+    }
+</style>
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <!-- Top Summary Widgets -->
+    <div class="row">
+        <div class="col-lg-2" style="width: 20%;">
+            <div class="widget style1 navy-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-user-friends fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Irmandade (GVI) </span>
+                        <h2 class="font-bold">{{ totalGeral.gvi }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2" style="width: 20%;">
+            <div class="widget style1 lazur-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-users fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Mocidade (GVM) </span>
+                        <h2 class="font-bold">{{ totalGeral.gvm }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2" style="width: 20%;">
+            <div class="widget style1 yellow-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-music fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Músicos (GVMu) </span>
+                        <h2 class="font-bold">{{ totalGeral.musicos }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2" style="width: 20%;">
+            <div class="widget style1 bg-primary">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-home fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Família (RF) </span>
+                        <h2 class="font-bold">{{ totalGeral.rf }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2" style="width: 20%;">
+            <div class="widget style1 bg-danger">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa-solid fa-place-of-worship fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Evangelização (RE) </span>
+                        <h2 class="font-bold">{{ totalGeral.re }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros e Relatórios -->
+    <div class="row m-b-md m-t-md">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Relatórios e Filtros Rápidos</h5>
+                    <div class="ibox-tools">
+                        <a ui-sref="visitas.lancamentos" class="btn btn-primary btn-xs">
+                            <i class="fa fa-plus"></i> Lançamentos
+                        </a>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="alert alert-warning" ng-if="visitasError">
+                        {{ visitasError }}
+                    </div>
+                    <div class="text-muted text-center m-b-md" ng-if="loading">
+                        <i class="fa fa-spinner fa-spin"></i> Carregando módulo de visitas...
+                    </div>
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label">Mês</label>
+                                <select class="form-control input-sm" ng-model="filters.mes">
+                                    <option value="">Todos</option>
+                                    <option value="Janeiro">Janeiro</option>
+                                    <option value="Fevereiro">Fevereiro</option>
+                                    <option value="Março">Março</option>
+                                    <option value="Abril">Abril</option>
+                                    <option value="Maio">Maio</option>
+                                    <option value="Junho">Junho</option>
+                                    <option value="Julho">Julho</option>
+                                    <option value="Agosto">Agosto</option>
+                                    <option value="Setembro">Setembro</option>
+                                    <option value="Outubro">Outubro</option>
+                                    <option value="Novembro">Novembro</option>
+                                    <option value="Dezembro">Dezembro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="control-label">Periodo</label>
+                                <div class="input-group">
+                                    <input type="date" class="form-control input-sm" ng-model="filters.dataInicio">
+                                    <span class="input-group-addon">até</span>
+                                    <input type="date" class="form-control input-sm" ng-model="filters.dataFim">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label">Cidade</label>
+                                <select class="form-control input-sm" ng-model="filters.cidade">
+                                    <option value="">Todas as Cidades</option>
+                                    <option ng-repeat="cidade in cidades" value="{{cidade}}">{{cidade}}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label">Busca Rápida</label>
+                                <input type="text" placeholder="Igreja ou Comum..." class="input-sm form-control" ng-model="filters.searchText">
+                            </div>
+                        </div>
+                        <div class="col-md-3 text-right" style="padding-top: 23px;">
+                            <button class="btn btn-sm btn-primary" ng-click="exportToExcel()" uib-tooltip="Exportar para Excel">
+                                <i class="fa fa-file-excel-o"></i> Excel
+                            </button>
+                            <button class="btn btn-sm btn-danger" ng-click="exportToPDF()" uib-tooltip="Exportar para PDF">
+                                <i class="fa fa-file-pdf-o"></i> PDF
+                            </button>
+                            <button class="btn btn-sm btn-white" ng-click="clearFilters()" uib-tooltip="Limpar Filtros">
+                                <i class="fa fa-eraser"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Summary Table -->
+    <div class="row m-t-md">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Resumo de Visitas por Município - {{ filters.mes || 'Todos os Meses' }}</h5>
+                    <div class="ibox-tools">
+                        <span class="label label-primary">Regional Itapevi</span>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered text-center">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">MUNICÍPIO</th>
+                                    <th class="text-center">GVI</th>
+                                    <th class="text-center">GVM</th>
+                                    <th class="text-center">MÚSICOS</th>
+                                    <th class="text-center">RF</th>
+                                    <th class="text-center">RE</th>
+                                    <th class="text-center">TOTAL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in municipiosResumo">
+                                    <td class="text-left"><strong>{{ item.nome }}</strong></td>
+                                    <td>{{ item.gvi }}</td>
+                                    <td>{{ item.gvm }}</td>
+                                    <td>{{ item.musicos }}</td>
+                                    <td>{{ item.rf }}</td>
+                                    <td>{{ item.re }}</td>
+                                    <td><span class="label label-info">{{ item.total }}</span></td>
+                                </tr>
+                            </tbody>
+                            <tfoot style="background: #f3f3f4; font-weight: bold;">
+                                <tr>
+                                    <td class="text-left">TOTAL GERAL</td>
+                                    <td>{{ totalGeral.gvi }}</td>
+                                    <td>{{ totalGeral.gvm }}</td>
+                                    <td>{{ totalGeral.musicos }}</td>
+                                    <td>{{ totalGeral.rf }}</td>
+                                    <td>{{ totalGeral.re }}</td>
+                                    <td><span class="badge badge-primary">{{ totalGeral.total }}</span></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <div class="m-t-xs">
+                        <small class="pull-right" ng-if="lastDashboardUpdateLabel">
+                            <i class="fa fa-clock-o"></i> Atualizado em {{ lastDashboardUpdateLabel }}
+                        </small>
+                        <p class="text-muted small">
+                            GVI: Irmandade | GVM: Mocidade | GVMu: Músicos | RF: Reunião Familiar | RE: Evangelização
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Rates -->
+    <div class="row m-t-lg">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Taxa de Conclusão (%) por Município</h5>
+                </div>
+                <div class="ibox-content">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Município</th>
+                                <th class="text-center">Lançamentos</th>
+                                <th class="text-center">Igrejas</th>
+                                <th>Status de Lançamento</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="item in taxasConclusao">
+                                <td style="width: 250px;">
+                                    <strong>{{ item.municipio }}</strong>
+                                    <br />
+                                    <small class="text-muted">Regional Itapevi</small>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge badge-plain">{{ item.lancamentos }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge badge-plain">{{ item.igrejas }}</span>
+                                </td>
+                                <td style="vertical-align: middle;">
+                                    <div class="stat-percent">{{ item.taxa }}% <i class="fa"
+                                            ng-class="{'fa-level-up text-success': item.taxa >= 50, 'fa-level-down text-danger': item.taxa < 50}"></i>
+                                    </div>
+                                    <div class="progress progress-mini" style="margin-bottom: 8px;">
+                                        <div ng-style="{width: item.taxa + '%'}" class="progress-bar"
+                                            ng-class="{'progress-bar-danger': item.taxa < 50}"></div>
+                                    </div>
+                                    <span class="label" style="display: inline-block; margin-top: 2px;"
+                                        ng-class="{'label-primary': item.status === 'EXCELENTE', 'label-danger': item.status === 'CRÍTICO'}">{{
+                                        item.status }}</span>
+                                </td>
+                                <td class="text-center" style="vertical-align: middle;">
+                                    <button class="btn btn-white btn-sm" ng-click="filterVisitasByMunicipio(item.municipio)">
+                                        <i class="fa fa-filter"></i> Filtrar
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row m-t-lg">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Gestão de Pendências e Cobrança</h5>
+                    <div class="ibox-tools">
+                        <span class="label label-primary">{{ expectedLancamentosCount }} comuns previstos</span>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-lg-3 col-sm-6">
+                            <div class="widget style1 navy-bg">
+                                <div class="row">
+                                    <div class="col-xs-4 text-center">
+                                        <i class="fa fa-list-alt fa-5x"></i>
+                                    </div>
+                                    <div class="col-xs-8 text-right">
+                                        <span> Base ativa </span>
+                                        <h2 class="font-bold">{{ expectedLancamentosCount }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-sm-6">
+                            <div class="widget style1 lazur-bg">
+                                <div class="row">
+                                    <div class="col-xs-4 text-center">
+                                        <i class="fa fa-check-circle fa-5x"></i>
+                                    </div>
+                                    <div class="col-xs-8 text-right">
+                                        <span> Já lançaram </span>
+                                        <h2 class="font-bold">{{ realizadosCount }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-sm-6">
+                            <div class="widget style1 yellow-bg">
+                                <div class="row">
+                                    <div class="col-xs-4 text-center">
+                                        <i class="fa fa-exclamation-circle fa-5x"></i>
+                                    </div>
+                                    <div class="col-xs-8 text-right">
+                                        <span> Pendentes </span>
+                                        <h2 class="font-bold">{{ pendingCount }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-sm-6">
+                            <div class="widget style1 green-bg">
+                                <div class="row">
+                                    <div class="col-xs-4 text-center">
+                                        <i class="fa fa-pie-chart fa-5x"></i>
+                                    </div>
+                                    <div class="col-xs-8 text-right">
+                                        <span> Cobertura geral </span>
+                                        <h2 class="font-bold">{{ coverageRate }}%</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="m-t-md m-b-sm visitas-pendencia-note">
+                        A base prevista considera o cadastro oficial de comuns consolidado com os lançamentos reconhecidos no período filtrado.
+                    </div>
+
+                    <div class="row m-b-sm">
+                        <div class="col-sm-8 text-muted">
+                            {{ pendingCount || 0 }} pendências distribuídas em {{ pendingMunicipioGroups.length }} municípios.
+                        </div>
+                    </div>
+
+                    <div class="table-responsive m-t-md">
+                        <table class="table table-hover table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Município</th>
+                                    <th class="text-center">Pendentes</th>
+                                    <th class="text-center">Já lançaram</th>
+                                    <th class="text-center">Cobertura</th>
+                                    <th class="text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat-start="group in pendingMunicipioGroups">
+                                    <td>
+                                        <strong>{{ group.municipio }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ group.previstos }} comuns previstas</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="label label-warning">{{ group.pendentes }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="label label-primary">{{ group.realizados }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong>{{ group.cobertura }}%</strong>
+                                    </td>
+                                    <td class="text-right">
+                                        <button class="btn btn-xs btn-white" ng-click="togglePendingMunicipio(group.municipio)">
+                                            <i class="fa" ng-class="isPendingMunicipioExpanded(group.municipio) ? 'fa-angle-up' : 'fa-angle-down'"></i>
+                                            {{ isPendingMunicipioExpanded(group.municipio) ? 'Ocultar comuns' : 'Ver comuns' }}
+                                        </button>
+                                        <button class="btn btn-xs btn-success" ng-if="group.realizados > 0" ng-click="openMunicipioLancamentos(group)">
+                                            <i class="fa fa-eye"></i> Ver lançamentos
+                                        </button>
+                                        <button class="btn btn-xs btn-primary" ng-click="copyMunicipioPendingCharge(group)">
+                                            <i class="fa fa-copy"></i> Cobrar município
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr ng-repeat-end ng-if="isPendingMunicipioExpanded(group.municipio)">
+                                    <td colspan="5" style="padding: 0;">
+                                        <table class="table table-condensed" style="margin-bottom: 0;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Comum</th>
+                                                    <th class="text-center">Último lançamento</th>
+                                                    <th class="text-right">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr ng-repeat="item in group.itens">
+                                                    <td>
+                                                        <span class="label visitas-inline-status" ng-class="getVisitasPendingStatusClass(item)">{{ item.pendingStatusLabel }}</span>
+                                                        <strong>{{ item.nome }}</strong>
+                                                        <div><small class="text-muted">{{ item.pendingStatusDetail }}</small></div>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        {{ item.latestDateLabel || '-' }}
+                                                        <div><small class="text-muted">{{ item.daysWithoutLaunch === null ? '-' : item.daysWithoutLaunch }} dias sem lançar</small></div>
+                                                    </td>
+                                                    <td class="text-right">
+                                                        <button class="btn btn-xs btn-success" ng-click="openPendingLaunch(item)">
+                                                            <i class="fa fa-plus-circle"></i> Lançar
+                                                        </button>
+                                                        <button class="btn btn-xs btn-primary" ng-click="copyPendingCharge(item)">
+                                                            <i class="fa fa-copy"></i> Cobrar
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr ng-if="!pendingMunicipioGroups.length">
+                                    <td colspan="5" class="text-center text-muted">Nenhuma pendência encontrada para os filtros atuais.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row m-t-lg">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Lançamentos Consolidados</h5>
+                    <div class="ibox-tools">
+                        <span class="label label-primary">{{ lancamentosConsolidados.length }} comuns com lançamento</span>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Data / Município</th>
+                                    <th>Comum</th>
+                                    <th class="text-center">GVI</th>
+                                    <th class="text-center">GVM</th>
+                                    <th class="text-center">Músicos</th>
+                                    <th class="text-center">RF</th>
+                                    <th class="text-center">RE</th>
+                                    <th class="text-center">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in lancamentosConsolidados">
+                                    <td>
+                                        <strong>{{ item.cidade }}</strong>
+                                        <br />
+                                        <small class="text-muted">{{ item.data | date:'dd/MM/yyyy' }}</small>
+                                    </td>
+                                    <td>{{ item.nome }}</td>
+                                    <td class="text-center"><span class="label label-primary">{{ item.gvi }}</span></td>
+                                    <td class="text-center"><span class="label label-info">{{ item.gvm }}</span></td>
+                                    <td class="text-center"><span class="label label-warning">{{ item.musicos }}</span></td>
+                                    <td class="text-center"><span class="label label-success" style="background-color: #1c84c6; border-color: #1c84c6;">{{ item.rf }}</span></td>
+                                    <td class="text-center"><span class="label label-danger">{{ item.re }}</span></td>
+                                    <td class="text-center"><strong>{{ item.total }}</strong></td>
+                                </tr>
+                                <tr ng-if="!lancamentosConsolidados.length">
+                                    <td colspan="8" class="text-center text-muted">Nenhum lançamento encontrado para os filtros atuais.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

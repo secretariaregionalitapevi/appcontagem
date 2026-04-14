@@ -1,0 +1,193 @@
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="pendingAccessDashboardCtrl">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="ibox float-e-margins">
+                <div class="ibox-content" style="padding: 32px;">
+                    <div class="row">
+                        <div class="col-sm-9">
+                            <h2 style="margin-top: 0;">Bem-vindo ao Sistema REG-IT</h2>
+                            <p class="text-muted" style="font-size: 15px; line-height: 1.7;">
+                                Seu cadastro foi recebido e esta em analise pela administracao da Regional Itapevi.
+                                Assim que seu acesso for liberado, as pastas e modulos correspondentes ao seu nivel
+                                e setor aparecerao automaticamente no menu lateral.
+                            </p>
+                            <div class="alert alert-info" style="margin-bottom: 0;">
+                                <strong>Status atual:</strong> aguardando liberacao de acesso.
+                            </div>
+                        </div>
+                        <div class="col-sm-3 text-center">
+                            <div style="width: 120px; height: 120px; margin: 0 auto; border-radius: 50%; background: #1ab394; color: #fff; display: flex; align-items: center; justify-content: center;">
+                                <i class="fa fa-id-card-o" style="font-size: 48px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Proximos Passos</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="feed-activity-list">
+                        <div class="feed-element">
+                            <div class="media-body">
+                                <strong>1. Cadastro recebido</strong>
+                                <div class="text-muted">Seu nome e comum ja foram enviados para analise.</div>
+                            </div>
+                        </div>
+                        <div class="feed-element">
+                            <div class="media-body">
+                                <strong>2. Revisao administrativa</strong>
+                                <div class="text-muted">Um Master, Admin ou responsavel autorizado definira seu nivel de acesso.</div>
+                            </div>
+                        </div>
+                        <div class="feed-element">
+                            <div class="media-body">
+                                <strong>3. Liberacao automatica</strong>
+                                <div class="text-muted">Apos a aprovacao, o sistema liberara os modulos correspondentes ao seu perfil.</div>
+                            </div>
+                        </div>
+                        <div class="feed-element" style="margin-bottom: 0;">
+                            <div class="media-body">
+                                <strong>4. Novo acesso</strong>
+                                <div class="text-muted">Faca login novamente para visualizar todas as pastas e funcionalidades liberadas.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="widget style1">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-home fa-4x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span>Comuns na Regional</span>
+                        <h2 class="font-bold">{{summary.comunsCount.toLocaleString('pt-BR')}}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 navy-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-users fa-4x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span>Musicos</span>
+                        <h2 class="font-bold">{{summary.musicosCount.toLocaleString('pt-BR')}}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 lazur-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-music fa-4x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span>Organistas</span>
+                        <h2 class="font-bold">{{summary.organistasCount.toLocaleString('pt-BR')}}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 yellow-bg">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <span class="fa-stack fa-2x" style="width: 1.8em; height: 1.8em; line-height: 1.8em;">
+                            <i class="fa fa-map-marker fa-stack-2x"></i>
+                            <i class="fa fa-circle fa-stack-1x" style="font-size: 0.42em; color: #f8ac59;"></i>
+                        </span>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span>Municipios Atendidos</span>
+                        <h2 class="font-bold">{{summary.municipiosCount.toLocaleString('pt-BR')}}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Panorama da Regional</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <h4 style="margin-top: 0;">Indicadores institucionais</h4>
+                            <p class="text-muted">
+                                A Regional Itapevi reune congregacoes e equipes em diversos municipios, com atuacao
+                                administrativa, musical, visitas, EBI, RJM e demais frentes de apoio.
+                            </p>
+                            <p class="text-muted" style="margin-bottom: 0;">
+                                Este painel inicial apresenta apenas informacoes gerais e publicas do contexto regional,
+                                sem expor dados sensiveis de cadastros, aprovacoes ou movimentacoes internas.
+                            </p>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="row">
+                                <div class="col-xs-6">
+                                    <div class="text-center" style="padding: 18px 10px; border: 1px solid #e7eaec; margin-bottom: 15px;">
+                                        <h2 class="font-bold" style="margin: 0;">{{summary.totalTocamCount.toLocaleString('pt-BR')}}</h2>
+                                        <small class="text-muted">Todos que tocam</small>
+                                    </div>
+                                </div>
+                                <div class="col-xs-6">
+                                    <div class="text-center" style="padding: 18px 10px; border: 1px solid #e7eaec; margin-bottom: 15px;">
+                                        <h2 class="font-bold" style="margin: 0;">{{summary.candidatosCount.toLocaleString('pt-BR')}}</h2>
+                                        <small class="text-muted">Candidatos(as)</small>
+                                    </div>
+                                </div>
+                                <div class="col-xs-6">
+                                    <div class="text-center" style="padding: 18px 10px; border: 1px solid #e7eaec;">
+                                        <h2 class="font-bold" style="margin: 0;">{{summary.usuariosCount.toLocaleString('pt-BR')}}</h2>
+                                        <small class="text-muted">Usuarios cadastrados</small>
+                                    </div>
+                                </div>
+                                <div class="col-xs-6">
+                                    <div class="text-center" style="padding: 18px 10px; border: 1px solid #e7eaec;">
+                                        <h2 class="font-bold" style="margin: 0;">{{summary.igrejasCount.toLocaleString('pt-BR')}}</h2>
+                                        <small class="text-muted">Igrejas com cadastro</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Municipios da Regional</h5>
+                </div>
+                <div class="ibox-content">
+                    <ul class="todo-list m-t small-list" style="margin-bottom: 0;">
+                        <li ng-repeat="municipio in summary.municipios track by municipio">
+                            <span class="m-l-xs" style="text-transform: uppercase; font-weight: 600;">
+                                <span class="fa-stack" style="width: 12px; min-width: 12px; height: 14px; line-height: 14px; margin-right: 6px; vertical-align: -1px;">
+                                    <i class="fa fa-map-marker text-danger fa-stack-1x" style="font-size: 14px;"></i>
+                                    <i class="fa fa-circle fa-stack-1x" style="color: #ffffff; font-size: 5px; margin-top: -2px;"></i>
+                                </span>{{municipio}}
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

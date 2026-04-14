@@ -1,0 +1,530 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Histórico de Atividades - EBI</h2>
+        <ol class="breadcrumb">
+            <li><a href="#/ebi/dashboard">EBI</a></li>
+            <li class="active"><strong>Histórico de Atividades</strong></li>
+        </ol>
+    </div>
+</div>
+
+<style>
+    .ebi-history-table-wrap { max-height: 520px; overflow: auto; }
+    .ebi-history-nested { margin-bottom: 0; background: #fcfcfc; }
+    .ebi-history-tabs .nav-tabs > li > a { font-weight: 600; }
+    .ebi-history-chart-box { min-height: 420px; }
+    .ebi-history-chart-box .ibox-content { min-height: 360px; }
+    .ebi-section-header { padding-bottom: 14px; }
+    .ebi-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; flex-wrap: wrap; width: 100%; }
+    .ebi-section-title-block { flex: 1 1 520px; min-width: 280px; }
+    .ebi-section-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+    .ebi-section-title-row h5 { margin: 0; }
+    .ebi-section-subtitle { color: #7f8c8d; line-height: 1.5; max-width: 900px; }
+    .ebi-section-badge { flex: 0 0 auto; align-self: center; }
+    .ebi-kpi-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+    .ebi-kpi-mini { flex: 1 1 160px; border: 1px solid #e7eaec; border-radius: 10px; padding: 14px 16px; background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%); min-height: 96px; }
+    .ebi-kpi-mini .value { font-size: 28px; font-weight: 700; line-height: 1.1; color: #2f4050; }
+    .ebi-kpi-mini .label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: #8a97a8; margin-bottom: 8px; }
+    .ebi-kpi-mini .sub { font-size: 12px; color: #7f8c8d; }
+    .ebi-pending-scroll { max-height: 330px; overflow: auto; }
+    .ebi-risk-card { border: 1px solid #e7eaec; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; background: linear-gradient(180deg, #ffffff 0%, #fbfcfd 100%); min-height: 78px; }
+    .ebi-risk-card strong { color: #42556b; display: inline-block; }
+    .ebi-risk-card .ebi-risk-total { float: right; color: #ed5565; font-weight: 700; }
+    .ebi-risk-card .ebi-risk-detail { color: #7f8c8d; margin-top: 4px; display: block; }
+    .ebi-status-badge { display: inline-block; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .2px; margin-bottom: 6px; min-width: 110px; text-align: center; }
+    .ebi-status-ok { background: #dff5ef; color: #17997d; }
+    .ebi-status-today { background: #fff4dd; color: #d18a15; }
+    .ebi-status-warn { background: #ffe7cf; color: #dd7b1e; }
+    .ebi-status-danger { background: #ffd7dd; color: #d63d58; }
+    .ebi-status-muted { background: #eef2f5; color: #73808c; }
+    .ebi-metric-intro { color: #7f8c8d; line-height: 1.55; margin-bottom: 18px; }
+    .ebi-metric-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+    .ebi-metric-widget { flex: 1 1 calc(50% - 12px); min-width: 220px; margin: 0; border-radius: 10px; overflow: hidden; }
+    .ebi-metric-widget .row { margin: 0; }
+    .ebi-metric-widget .col-xs-4,
+    .ebi-metric-widget .col-xs-8 { padding-top: 8px; padding-bottom: 8px; }
+    .ebi-metric-widget .metric-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; opacity: .9; margin-bottom: 4px; }
+    .ebi-metric-widget .metric-value { display: block; font-size: 24px; font-weight: 700; line-height: 1.1; }
+    .ebi-metric-widget .metric-sub { display: block; margin-top: 6px; font-size: 11px; line-height: 1.35; opacity: .92; }
+    .ebi-chart-note { color: #7f8c8d; line-height: 1.5; margin-bottom: 14px; }
+    .ebi-rank-summary { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    .ebi-rank-pill { flex: 1 1 120px; border-radius: 10px; padding: 10px 12px; color: #fff; }
+    .ebi-rank-pill .label { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.26); color: rgba(255,255,255,.96); }
+    .ebi-rank-pill .value { display: block; font-size: 18px; font-weight: 700; color: #fff; }
+    .ebi-justificativa-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #ffe7cf; color: #d9791d; font-size: 11px; font-weight: 700; letter-spacing: .2px; margin-bottom: 6px; }
+    .ebi-justificativa-text { display: block; color: #7f8c8d; line-height: 1.45; margin-top: 2px; }
+    .ebi-justificativa-help { color: #7f8c8d; font-size: 12px; margin-top: 6px; }
+</style>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="ebiRecitativosCtrl">
+    <div class="row">
+        <div class="col-lg-2 col-md-4 col-sm-6"><div class="widget style1 navy-bg"><div class="row"><div class="col-xs-4 text-center"><i class="fa fa-book fa-4x"></i></div><div class="col-xs-8 text-right"><span>Lançamentos</span><h2 class="font-bold">{{ ebiExecutiveMetrics.lancamentos || 0 }}</h2></div></div></div></div>
+        <div class="col-lg-2 col-md-4 col-sm-6"><div class="widget style1 lazur-bg"><div class="row"><div class="col-xs-4 text-center"><i class="fa fa-child fa-4x"></i></div><div class="col-xs-8 text-right"><span>Crianças</span><h2 class="font-bold">{{ ebiExecutiveMetrics.criancas || 0 }}</h2></div></div></div></div>
+        <div class="col-lg-2 col-md-4 col-sm-6"><div class="widget style1 yellow-bg"><div class="row"><div class="col-xs-4 text-center"><i class="fa fa-line-chart fa-4x"></i></div><div class="col-xs-8 text-right"><span>Média por culto</span><h2 class="font-bold">{{ ebiExecutiveMetrics.mediaPorAula || 0 }}</h2></div></div></div></div>
+        <div class="col-lg-2 col-md-4 col-sm-6"><div class="widget style1 blue-bg"><div class="row"><div class="col-xs-4 text-center"><i class="fa fa-users fa-4x"></i></div><div class="col-xs-8 text-right"><span>Colaboradoras</span><h2 class="font-bold">{{ ebiExecutiveMetrics.colaboradoras || 0 }}</h2></div></div></div></div>
+        <div class="col-lg-2 col-md-4 col-sm-6"><div class="widget style1 navy-bg"><div class="row"><div class="col-xs-4 text-center"><i class="fa fa-map-marker fa-4x"></i></div><div class="col-xs-8 text-right"><span>Municípios ativos</span><h2 class="font-bold">{{ ebiExecutiveMetrics.municipiosAtivos || 0 }}</h2></div></div></div></div>
+        <div class="col-lg-2 col-md-4 col-sm-6"><div class="widget style1 bg-danger"><div class="row"><div class="col-xs-4 text-center"><i class="fa fa-pie-chart fa-4x"></i></div><div class="col-xs-8 text-right"><span>Cobertura</span><h2 class="font-bold">{{ ebiExecutiveMetrics.coberturaComuns || 0 }}%</h2></div></div></div></div>
+    </div>
+
+    <div class="row m-t-md">
+        <div class="col-lg-12">
+            <div class="ibox">
+                <div class="ibox-title">
+                    <h5>Filtros, relatórios e ação rápida</h5>
+                    <div class="ibox-tools"><button class="btn btn-primary btn-xs" ng-click="prepareAddAtividade()"><i class="fa fa-plus"></i> Novo lançamento</button></div>
+                </div>
+                <div class="ibox-content">
+                    <div class="alert alert-danger" ng-if="error">{{ error }}</div>
+                    <div class="text-center text-muted m-b-md" ng-if="loading"><i class="fa fa-spinner fa-spin"></i> Carregando histórico do EBI...</div>
+                    <div class="row">
+                        <div class="col-md-2"><label>Mes</label><select class="form-control input-sm" ng-model="filters.mes" ng-change="applyFilters()"><option value="">Todos os meses</option><option ng-repeat="mes in meses" value="{{mes}}">{{mes}}</option></select></div>
+                        <div class="col-md-3"><label>Periodo</label><div class="input-group"><input type="date" class="form-control input-sm" ng-model="filters.dataInicio" ng-change="applyFilters()"><span class="input-group-addon">ate</span><input type="date" class="form-control input-sm" ng-model="filters.dataFim" ng-change="applyFilters()"></div></div>
+                        <div class="col-md-2"><label>Município</label><select class="form-control input-sm" ng-model="filters.cidade" ng-change="applyFilters()" ng-options="c for c in cidades"><option value="">Todos os municípios</option></select></div>
+                        <div class="col-md-3"><label>Comum / localidade</label><select class="form-control input-sm" ng-model="filters.comum" ng-change="applyFilters()"><option value="">Todos os comuns</option><option ng-repeat="comum in filteredComumOptions track by comum" value="{{comum}}">{{comum}}</option></select></div>
+                        <div class="col-md-2"><label>Busca rápida</label><input type="text" class="form-control input-sm" placeholder="História, comum..." ng-model="filters.searchText" ng-change="applyFilters()"></div>
+                    </div>
+                    <div class="row m-t-sm">
+                        <div class="col-md-7">
+                            <div class="well well-sm" style="margin-bottom: 0;">
+                                <strong>Leitura executiva:</strong> {{ ebiExecutiveMetrics.criancas || 0 }} crianças em {{ ebiExecutiveMetrics.lancamentos || 0 }} lançamentos, média de {{ ebiExecutiveMetrics.mediaPorAula || 0 }} por culto e cobertura de {{ ebiExecutiveMetrics.coberturaComuns || 0 }}%.
+                                <br><small class="text-muted">Comparação: {{ ebiPeriodComparison.currentTotal || 0 }} no período atual contra {{ ebiPeriodComparison.previousTotal || 0 }} no período anterior equivalente.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-5 text-right">
+                            <button class="btn btn-white btn-sm" ng-click="loadData()"><i class="fa fa-refresh"></i> Atualizar</button>
+                            <button class="btn btn-primary btn-sm" ng-click="exportToExcel()" style="background:#19bb9b;border-color:#19bb9b;"><i class="fa fa-file-excel-o"></i> Excel</button>
+                            <button class="btn btn-danger btn-sm" ng-click="exportToPDF()" style="background:#ed5565;border-color:#ed5565;"><i class="fa fa-file-pdf-o"></i> PDF</button>
+                            <button class="btn btn-white btn-sm" ng-click="clearFilters()"><i class="fa fa-eraser"></i> Limpar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row m-t-md ebi-history-tabs">
+        <div class="col-lg-12">
+            <div class="tabs-container">
+                <ul class="nav nav-tabs">
+                    <li ng-class="{active: ebiHistoryTab === 'executivo'}"><a href="" ng-click="setEbiHistoryTab('executivo')">Painel executivo</a></li>
+                    <li ng-class="{active: ebiHistoryTab === 'calculo'}"><a href="" ng-click="setEbiHistoryTab('calculo')">Conferência do cálculo</a></li>
+                    <li ng-class="{active: ebiHistoryTab === 'detalhado'}"><a href="" ng-click="setEbiHistoryTab('detalhado')">Todos os lançamentos</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane" ng-class="{active: ebiHistoryTab === 'executivo'}">
+                        <div class="panel-body">
+                            <div class="alert alert-warning" ng-if="ebiPendingSummary.totalAlertas > 0" style="margin-bottom:18px;">
+                                <strong><i class="fa fa-bell-o"></i> Alerta operacional:</strong>
+                                {{ ebiPendingSummary.totalAlertas }} EBIs exigem atenção agora.
+                                <span ng-if="ebiPendingSummary.pendentes > 0">{{ ebiPendingSummary.pendentes }} em atraso, </span>
+                                <span ng-if="ebiPendingSummary.vencemHoje > 0">{{ ebiPendingSummary.vencemHoje }} previstos para hoje, </span>
+                                <span ng-if="ebiPendingSummary.semHistorico > 0">{{ ebiPendingSummary.semHistorico }} sem histórico.</span>
+                                <div class="pull-right" style="margin-top:-3px;">
+                                    <button class="btn btn-warning btn-xs" ng-click="focusFirstPending()" ng-if="ebiPendingItems.length"><i class="fa fa-search"></i> Ver primeira pendência</button>
+                                </div>
+                                <div class="clearfix"></div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-lg-4">
+                                    <div class="ibox ebi-history-chart-box">
+                                        <div class="ibox-title"><h5>Indicadores de performance</h5></div>
+                                        <div class="ibox-content">
+                                            <div class="m-b-lg">
+                                                <h2 class="no-margins">{{ ebiPeriodComparison.deltaPercent || 0 }}%</h2>
+                                                <div class="stat-percent font-bold" ng-class="{'text-success': ebiPeriodComparison.delta > 0, 'text-danger': ebiPeriodComparison.delta < 0, 'text-navy': ebiPeriodComparison.delta === 0}">{{ ebiPeriodComparison.delta > 0 ? '+' : '' }}{{ ebiPeriodComparison.delta || 0 }} <i class="fa" ng-class="{'fa-level-up': ebiPeriodComparison.delta > 0, 'fa-level-down': ebiPeriodComparison.delta < 0, 'fa-minus': ebiPeriodComparison.delta === 0}"></i></div>
+                                                <small>{{ ebiPeriodComparison.label }}</small>
+                                            </div>
+                                            <div class="ebi-metric-intro">
+                                                Visão rápida do ciclo atual, com cobertura ativa, equilíbrio do público e pressão operacional para o coordenador agir rápido.
+                                            </div>
+                                            <div class="m-b-md">
+                                                <span class="text-muted">Comuns ativas</span>
+                                                <h3 class="font-bold">{{ ebiExecutiveMetrics.comunsAtivos || 0 }}</h3>
+                                                <div class="progress progress-mini">
+                                                    <div class="progress-bar" style="width: {{ ebiExecutiveMetrics.coberturaComuns || 0 }}%;"></div>
+                                                </div>
+                                            </div>
+                                            <div class="ebi-metric-grid">
+                                                <div class="widget style1 yellow-bg ebi-metric-widget">
+                                                    <div class="row">
+                                                        <div class="col-xs-4 text-center"><i class="fa fa-bell-o fa-3x"></i></div>
+                                                        <div class="col-xs-8 text-right">
+                                                            <span class="metric-label">Alertas operacionais</span>
+                                                            <span class="metric-value">{{ ebiPendingSummary.totalAlertas || 0 }}</span>
+                                                            <span class="metric-sub">Soma de atrasos, hoje e comuns sem histórico.</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="widget style1 navy-bg ebi-metric-widget">
+                                                    <div class="row">
+                                                        <div class="col-xs-4 text-center"><i class="fa fa-check-circle fa-3x"></i></div>
+                                                        <div class="col-xs-8 text-right">
+                                                            <span class="metric-label">EBIs em dia</span>
+                                                            <span class="metric-value">{{ ebiPendingSummary.emDia || 0 }}</span>
+                                                            <span class="metric-sub">Comuns dentro da rotina semanal esperada.</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-5">
+                                    <div class="ibox ebi-history-chart-box">
+                                        <div class="ibox-title"><h5>Evolução mensal de lançamentos e crianças</h5></div>
+                                        <div class="ibox-content">
+                                            <div class="ebi-chart-note">
+                                                Tendência consolidada desde janeiro de 2026, mostrando volume de lançamentos e alcance total de crianças para facilitar leitura de crescimento.
+                                            </div>
+                                            <div flot class="flot-chart-content" dataset="ebiTrendFlotData" options="ebiTrendFlotOptions" style="height:300px;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-3">
+                                    <div class="ibox ebi-history-chart-box">
+                                        <div class="ibox-title"><h5>Ranking de alcance por município</h5></div>
+                                        <div class="ibox-content">
+                                            <div class="ebi-rank-summary">
+                                                <div class="ebi-rank-pill lazur-bg">
+                                                    <span class="label">Municípios ativos</span>
+                                                    <span class="value">{{ ebiTopMunicipios.length || 0 }}</span>
+                                                </div>
+                                                <div class="ebi-rank-pill yellow-bg" ng-if="ebiTopMunicipios.length">
+                                                    <span class="label">Maior alcance</span>
+                                                    <span class="value">{{ ebiTopMunicipios[0].municipio }}</span>
+                                                </div>
+                                            </div>
+                                            <div flot class="flot-chart-content" dataset="ebiRankFlotData" options="ebiRankFlotOptions" style="height:220px;"></div>
+                                            <div class="m-t-md text-left">
+                                                <div ng-repeat="item in ebiTopMunicipios">
+                                                    <strong>{{ item.municipio }}</strong><span class="pull-right">{{ item.totalCriancas }}</span>
+                                                    <div class="clearfix"></div>
+                                                    <small class="text-muted">{{ item.lancamentos }} lançamentos | {{ item.comunsAtivos }} comuns ativos</small>
+                                                    <hr style="margin:8px 0;" ng-if="!$last">
+                                                </div>
+                                                <div class="text-muted" ng-if="!ebiTopMunicipios.length">Nenhum município com dados para o filtro atual.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="ibox">
+                                        <div class="ibox-title ebi-section-header">
+                                            <div class="ebi-section-heading">
+                                                <div class="ebi-section-title-block">
+                                                    <div class="ebi-section-title-row">
+                                                        <h5>Comuns com alerta operacional</h5>
+                                                        <span class="label label-warning">{{ ebiPendingSummary.totalAlertas || 0 }} alertas</span>
+                                                    </div>
+                                                    <div class="ebi-section-subtitle">
+                                                        Esta grade mostra somente os comuns com alerta no momento: pendente, hoje ou sem histórico. Comuns em dia não aparecem aqui.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="ibox-content">
+                                            <div class="ebi-kpi-strip">
+                                                <div class="ebi-kpi-mini">
+                                                    <span class="label">Comuns previstos no ciclo</span>
+                                                    <div class="value">{{ ebiPendingSummary.previstosNoCiclo || 0 }}</div>
+                                                    <div class="sub">Base ativa de locais EBI com agenda inferida</div>
+                                                </div>
+                                                <div class="ebi-kpi-mini">
+                                                    <span class="label">Já lançaram</span>
+                                                    <div class="value text-navy">{{ ebiPendingSummary.emDia || 0 }}</div>
+                                                    <div class="sub">Lançamentos dentro da semana esperada</div>
+                                                </div>
+                                                <div class="ebi-kpi-mini">
+                                                    <span class="label">Pendentes</span>
+                                                    <div class="value text-warning">{{ ebiPendingSummary.pendentes || 0 }}</div>
+                                                    <div class="sub">EBIs com data semanal vencida</div>
+                                                </div>
+                                                <div class="ebi-kpi-mini">
+                                                    <span class="label">Sem histórico</span>
+                                                    <div class="value text-danger">{{ ebiPendingSummary.semHistorico || 0 }}</div>
+                                                    <div class="sub">Ativos sem base suficiente para acompanhamento</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="table-responsive ebi-pending-scroll">
+                                                <table class="table table-hover table-bordered" style="margin-bottom:0;">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Comum</th>
+                                                            <th>Município</th>
+                                                            <th class="text-center">Agenda</th>
+                                                            <th class="text-center">Último lanc.</th>
+                                                            <th class="text-center">Previsto</th>
+                                                            <th class="text-center">Status</th>
+                                                            <th class="text-center">Ações</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr ng-repeat="item in ebiPendingItems | limitTo: 12">
+                                                            <td><strong>{{ item.comum }}</strong><br><small class="text-muted">{{ item.responsavelResumo }}</small></td>
+                                                            <td>{{ item.municipio }}</td>
+                                                            <td class="text-center">{{ item.weekdayLabel }}</td>
+                                                            <td class="text-center">{{ item.ultimaDataLabel || '-' }}</td>
+                                                            <td class="text-center">{{ item.dataEsperadaLabel || '-' }}</td>
+                                                            <td class="text-center">
+                                                                <span class="ebi-status-badge"
+                                                                      ng-class="{'ebi-status-ok': formatEbiStatusLabel(item.status) === 'EM DIA', 'ebi-status-today': formatEbiStatusLabel(item.status) === 'HOJE', 'ebi-status-warn': formatEbiStatusLabel(item.status) === 'PENDENTE', 'ebi-status-danger': formatEbiStatusLabel(item.status) === 'CRITICO', 'ebi-status-muted': formatEbiStatusLabel(item.status) === 'SEM HISTÓRICO'}">
+                                                                    {{ formatEbiStatusLabel(item.status) }}
+                                                                </span>
+                                                                <div><small class="text-muted">{{ item.statusDetail }}</small></div>
+                                                            </td>
+                                                            <td class="text-center"><button class="btn btn-xs btn-primary" ng-click="openPendingDetails(item)"><i class="fa fa-filter"></i> Abrir</button></td>
+                                                        </tr>
+                                                        <tr ng-if="!ebiPendingItems.length">
+                                                            <td colspan="7" class="text-center text-muted">Nenhum alerta encontrado para os filtros atuais.</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="ibox">
+                                        <div class="ibox-title">
+                                            <h5>Risco por município</h5>
+                                        </div>
+                                        <div class="ibox-content">
+                                            <div class="text-center text-muted" style="margin-bottom:16px;">
+                                                Ranking operacional por município. Fórmula: alertas = pendentes + hoje + sem histórico.
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-lg-5">
+                                                    <div flot class="flot-chart-content" dataset="ebiPendingFlotData" options="ebiPendingFlotOptions" style="height:220px;"></div>
+                                                </div>
+                                                <div class="col-lg-7">
+                                                    <div class="row">
+                                                        <div class="col-sm-6" ng-repeat="group in ebiPendingMunicipioGroups">
+                                                            <div class="ebi-risk-card">
+                                                                <strong>{{ group.municipio }}</strong>
+                                                                <span class="ebi-risk-total">{{ group.totalAlertas }}</span>
+                                                                <div class="clearfix"></div>
+                                                                <small class="ebi-risk-detail">{{ group.pendentes }} atrasados | {{ group.hoje }} hoje | {{ group.semHistorico }} sem histórico</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-12 text-muted" ng-if="!ebiPendingMunicipioGroups.length">Sem alertas operacionais no momento.</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="ibox">
+                                <div class="ibox-title"><h5>Gestão por município</h5><div class="ibox-tools"><span class="label label-primary">{{ ebiMunicipioGroups.length }} municípios mapeados</span></div></div>
+                                <div class="ibox-content">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover table-bordered">
+                                            <thead><tr><th>Município</th><th class="text-center">Lançamentos</th><th class="text-center">Crianças</th><th class="text-center">Média</th><th class="text-center">Comuns ativos</th><th class="text-center">Cobertura</th><th class="text-center">Status</th><th class="text-right">Ações</th></tr></thead>
+                                            <tbody>
+                                                <tr ng-repeat="group in ebiMunicipioGroups">
+                                                    <td><strong>{{ group.municipio }}</strong><br><small class="text-muted">{{ group.colaboradoras || 0 }} colaboradoras registradas</small></td>
+                                                    <td class="text-center"><span class="label label-primary">{{ group.lancamentos }}</span></td>
+                                                    <td class="text-center"><span class="label label-info">{{ group.totalCriancas }}</span></td>
+                                                    <td class="text-center">{{ group.mediaCriancas }}</td>
+                                                    <td class="text-center">{{ group.comunsAtivos }} / {{ group.totalComunsMapeados || 0 }}</td>
+                                                    <td class="text-center"><strong>{{ group.cobertura }}%</strong><div class="progress progress-mini m-t-xs" style="margin-bottom:0;"><div class="progress-bar" ng-class="{'progress-bar-danger': group.cobertura < 45, 'progress-bar-warning': group.cobertura >= 45 && group.cobertura < 75}" style="width: {{ group.cobertura }}%;"></div></div></td>
+                                                    <td class="text-center"><span class="label" ng-class="{'label-primary': group.status === 'EXCELENTE', 'label-warning': group.status === 'ATENCAO', 'label-danger': group.status === 'CRITICO'}">{{ group.status }}</span></td>
+                                                    <td class="text-right"><button class="btn btn-xs btn-primary" ng-click="filterEbiByMunicipio(group.municipio)"><i class="fa fa-filter"></i> Filtrar</button></td>
+                                                </tr>
+                                                <tr ng-if="!ebiMunicipioGroups.length"><td colspan="8" class="text-center text-muted">Nenhum município encontrado para os filtros atuais.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" ng-class="{active: ebiHistoryTab === 'calculo'}">
+                        <div class="panel-body">
+                            <div class="alert alert-info">
+                                <strong>Como esse cálculo funciona:</strong> o painel compara cada <strong>comum EBI ativa</strong> com os <strong>lançamentos realmente vinculados a essa mesma comum</strong>.
+                                Por isso um município pode ter lançamentos e, ainda assim, uma comum específica aparecer sem histórico.
+                                Aqui você consegue conferir exatamente quantos lançamentos foram reconhecidos por comum.
+                            </div>
+                            <div class="row m-b-md">
+                                <div class="col-md-8 text-muted">
+                                    {{ ebiCalculationRows.length }} comuns EBI na conferência atual. Use os filtros acima para recortar por município, comum e período.
+                                </div>
+                                <div class="col-md-4 text-right">
+                                    <button class="btn btn-white btn-sm" ng-click="setEbiHistoryTab('executivo')"><i class="fa fa-arrow-left"></i> Voltar ao painel</button>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Comum EBI</th>
+                                            <th>Município</th>
+                                            <th class="text-center">Lançamentos vinculados</th>
+                                            <th class="text-center">Último lançamento</th>
+                                            <th>Última localidade reconhecida</th>
+                                            <th class="text-center">Agenda inferida</th>
+                                            <th class="text-center">Status</th>
+                                            <th class="text-center">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr ng-repeat="item in ebiCalculationRows">
+                                            <td><strong>{{ item.comum }}</strong></td>
+                                            <td>{{ item.municipio }}</td>
+                                            <td class="text-center"><span class="label label-primary">{{ item.historyCount || 0 }}</span></td>
+                                            <td class="text-center">{{ item.ultimaDataLabel || '-' }}</td>
+                                            <td>{{ item.ultimaLocalidadeLancada || '-' }}</td>
+                                            <td class="text-center">{{ item.weekdayLabel }}</td>
+                                            <td class="text-center">
+                                                <span class="ebi-status-badge"
+                                                      ng-class="{'ebi-status-ok': formatEbiStatusLabel(item.status) === 'EM DIA', 'ebi-status-today': formatEbiStatusLabel(item.status) === 'HOJE', 'ebi-status-warn': formatEbiStatusLabel(item.status) === 'PENDENTE', 'ebi-status-danger': formatEbiStatusLabel(item.status) === 'CRITICO', 'ebi-status-muted': formatEbiStatusLabel(item.status) === 'SEM HISTÓRICO'}">
+                                                    {{ formatEbiStatusLabel(item.status) }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-xs btn-primary" ng-click="openPendingDetails(item)"><i class="fa fa-search"></i> Ver lançamentos</button>
+                                            </td>
+                                        </tr>
+                                        <tr ng-if="!ebiCalculationRows.length">
+                                            <td colspan="8" class="text-center text-muted">Nenhum comum EBI encontrado para os filtros atuais.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" ng-class="{active: ebiHistoryTab === 'detalhado'}">
+                        <div class="panel-body">
+                            <div class="row m-b-md"><div class="col-md-5 text-muted">{{ filteredRecitativos.length }} lançamentos encontrados. Use os filtros acima para recortar por município, comum e período.</div><div class="col-md-3"><select class="form-control input-sm" ng-model="ebiDetailLimit"><option value="25">Mostrar 25</option><option value="50">Mostrar 50</option><option value="100">Mostrar 100</option></select></div><div class="col-md-4 text-right"><button class="btn btn-white btn-sm" ng-click="setEbiHistoryTab('calculo')"><i class="fa fa-table"></i> Ver conferência</button></div></div>
+                            <div class="table-responsive ebi-history-table-wrap">
+                                <table class="table table-striped table-hover table-bordered">
+                                    <thead><tr><th>Município</th><th class="text-center">Lançamentos</th><th class="text-right">Ações</th></tr></thead>
+                                    <tbody>
+                                        <tr ng-if="loading"><td colspan="3" class="text-center"><i class="fa fa-spinner fa-spin"></i> Carregando...</td></tr>
+                                        <tr ng-repeat-start="group in ebiDetailMunicipioGroups" ng-if="!loading">
+                                            <td><strong>{{ group.municipio }}</strong><br><small class="text-muted">{{ group.total }} lançamentos encontrados</small></td>
+                                            <td class="text-center"><span class="label label-primary">{{ group.total }}</span></td>
+                                            <td class="text-right">
+                                                <button class="btn btn-xs btn-white" ng-click="toggleEbiDetailMunicipio(group.municipio)">
+                                                    <i class="fa" ng-class="isEbiDetailMunicipioExpanded(group.municipio) ? 'fa-angle-up' : 'fa-angle-down'"></i>
+                                                    {{ isEbiDetailMunicipioExpanded(group.municipio) ? 'Ocultar lançamentos' : 'Ver lançamentos' }}
+                                                </button>
+                                                <button class="btn btn-xs btn-primary" ng-click="filterEbiByMunicipio(group.municipio)"><i class="fa fa-filter"></i> Filtrar</button>
+                                            </td>
+                                        </tr>
+                                        <tr ng-repeat-end ng-if="!loading && isEbiDetailMunicipioExpanded(group.municipio)">
+                                            <td colspan="3" style="padding:0;">
+                                                <table class="table table-condensed table-bordered" style="margin-bottom:0;">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Data</th>
+                                                            <th>Localidade</th>
+                                                            <th>História contada</th>
+                                                            <th class="text-center">Meninas</th>
+                                                            <th class="text-center">Meninos</th>
+                                                            <th class="text-center">Colab.</th>
+                                                            <th class="text-center">Total</th>
+                                                            <th class="text-center" width="120">Ações</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr ng-repeat="item in group.itens | limitTo: ebiDetailLimit">
+                                                            <td>{{ item.data_reuniao | date:'dd/MM/yyyy' }}</td>
+                                                            <td><strong>{{ resolveEbiLocalidadeLabel(item.localidade) }}</strong><br><small class="text-muted" ng-if="item.instrutora">{{ item.instrutora }}</small></td>
+                                                            <td>
+                                                                <div ng-if="isEbiSuspenso(item)">
+                                                                    <span class="ebi-justificativa-badge">EBI suspenso</span>
+                                                                    <strong>{{ getEbiJustificativa(item) || 'Sem justificativa informada' }}</strong>
+                                                                    <small class="ebi-justificativa-text">Lançamento justificado com público zerado nesta data.</small>
+                                                                </div>
+                                                                <div ng-if="!isEbiSuspenso(item)">
+                                                                    {{ item.titulo_historia || '-' }}<br><small class="text-muted">{{ item.livro }} <span ng-if="item.capitulo">{{ item.capitulo }}</span><span ng-if="item.versiculo">:{{ item.versiculo }}</span></small>
+                                                                </div>
+                                                            </td>
+                                                            <td class="text-center"><span class="label label-danger">{{ item.meninas || 0 }}</span></td>
+                                                            <td class="text-center"><span class="label label-info">{{ item.meninos || 0 }}</span></td>
+                                                            <td class="text-center"><span class="label label-warning">{{ item.colaboradoras || 0 }}</span></td>
+                                                            <td class="text-center"><strong>{{ calculateTotal(item) }}</strong></td>
+                                                            <td class="text-center"><button class="btn btn-info btn-xs" ng-click="verDetalhes(item)"><i class="fa fa-eye"></i></button> <button class="btn btn-warning btn-xs" ng-if="canManageCadastros" ng-click="prepareEdit(item)"><i class="fa fa-pencil-square-o"></i></button> <button class="btn btn-danger btn-xs" ng-if="canManageCadastros" ng-click="confirmDelete(item)"><i class="fa fa-trash-o"></i></button></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                        <tr ng-if="!ebiDetailMunicipioGroups.length && !loading"><td colspan="3" class="text-center text-muted">Nenhum lançamento encontrado.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAtividade" class="modal inmodal fade" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background:#1ab394;padding:15px 20px;border-radius:5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:1;font-size:22px;">&times;</button>
+                    <h4 class="modal-title" style="color:#fff;font-weight:600;"><i class="fa fa-book" style="margin-right:8px;"></i>{{viewing ? 'Detalhes do lançamento EBI' : (editing ? 'Editar lançamento EBI' : 'Nova história contada - Espaço Bíblico Infantil')}}</h4>
+                </div>
+                <div class="modal-body" style="padding:25px 30px;">
+                    <form name="formAtividade" autocomplete="off">
+                        <div class="row" ng-if="viewing || editing" style="margin-bottom:18px;">
+                            <div class="col-lg-12"><h4>Resumo do comparecimento</h4></div>
+                            <div class="col-sm-4"><div style="border:1px solid #e7eaec;border-radius:6px;padding:16px 18px;background:#f8fffd;min-height:90px;"><div style="font-size:12px;text-transform:uppercase;color:#7f8c8d;letter-spacing:.4px;">Meninas</div><div ng-if="viewing" style="font-size:34px;font-weight:700;color:#ed5565;line-height:1.1;margin-top:8px;">{{currentAtividade.meninas || 0}}</div><input ng-if="editing" type="number" min="0" class="form-control" ng-model="currentAtividade.meninas" style="margin-top:10px;font-size:24px;font-weight:700;color:#ed5565;height:46px;"></div></div>
+                            <div class="col-sm-4"><div style="border:1px solid #e7eaec;border-radius:6px;padding:16px 18px;background:#f8fbff;min-height:90px;"><div style="font-size:12px;text-transform:uppercase;color:#7f8c8d;letter-spacing:.4px;">Meninos</div><div ng-if="viewing" style="font-size:34px;font-weight:700;color:#23a6d5;line-height:1.1;margin-top:8px;">{{currentAtividade.meninos || 0}}</div><input ng-if="editing" type="number" min="0" class="form-control" ng-model="currentAtividade.meninos" style="margin-top:10px;font-size:24px;font-weight:700;color:#23a6d5;height:46px;"></div></div>
+                            <div class="col-sm-4"><div style="border:1px solid #e7eaec;border-radius:6px;padding:16px 18px;background:#fffaf4;min-height:90px;"><div style="font-size:12px;text-transform:uppercase;color:#7f8c8d;letter-spacing:.4px;">Total</div><div style="font-size:34px;font-weight:700;color:#1ab394;line-height:1.1;margin-top:8px;">{{(currentAtividade.meninas || 0) + (currentAtividade.meninos || 0)}}</div></div></div>
+                        </div>
+                        <div class="form-group"><label>Município <span class="text-danger">*</span></label><select class="form-control" ng-model="currentAtividade.cidade" ng-options="c for c in cidades" ng-disabled="viewing" required><option value="">Selecione o município</option></select></div>
+                        <div class="form-group"><label>Localidade / Congregação <span class="text-danger">*</span></label><input type="text" class="form-control" ng-model="currentAtividade.localidade" list="ebiComunsList" placeholder="Digite para pesquisar a localidade" autocomplete="off" ng-keydown="selectFirstLocalidadeMatch($event)" ng-disabled="viewing" required></div>
+                        <datalist id="ebiComunsList"><option ng-repeat="l in localidadesEBI track by l" value="{{l}}"></option></datalist>
+                        <div class="hr-line-dashed"></div>
+                        <div class="form-group"><label>Livro bíblico</label><select class="form-control" ng-model="currentAtividade.livro" ng-options="b for b in livrosBiblia" ng-disabled="viewing"><option value="">Selecione o livro</option></select></div>
+                        <div class="row"><div class="col-sm-3"><div class="form-group"><label>Capítulo</label><input type="text" class="form-control" ng-model="currentAtividade.capitulo" placeholder="Ex: 3" ng-disabled="viewing"></div></div><div class="col-sm-3"><div class="form-group"><label>Versículo</label><input type="text" class="form-control" ng-model="currentAtividade.versiculo" placeholder="Ex: 1 ao 10" ng-disabled="viewing"></div></div><div class="col-sm-6"><div class="form-group"><label>História contada</label><input type="text" class="form-control" ng-model="currentAtividade.titulo_historia" placeholder="Ex: Deus anima Josué" ng-disabled="viewing"></div></div></div>
+                        <div class="form-group"><label>Instrutora da aula</label><input type="text" class="form-control" ng-model="currentAtividade.instrutora" placeholder="Nome da irmã que ministrou" ng-disabled="viewing"></div>
+                        <div class="hr-line-dashed"></div>
+                        <div class="form-group"><label>Data da reunião <span class="text-danger">*</span></label><input type="date" class="form-control" ng-model="currentAtividade.data_reuniao" ng-disabled="viewing" required></div>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label>Situação do EBI</label>
+                                    <select class="form-control" ng-model="currentAtividade.suspenso" ng-disabled="viewing">
+                                        <option value="Não">Realizado normalmente</option>
+                                        <option value="Sim">Suspenso com justificativa</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-8" ng-if="currentAtividade.suspenso === 'Sim'">
+                                <div class="form-group">
+                                    <label>Justificativa breve <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" ng-model="currentAtividade.justificativa" maxlength="140" placeholder="Ex: Reforma da igreja, culto da mocidade, evento regional" ng-disabled="viewing">
+                                    <small class="ebi-justificativa-help">Quando o EBI estiver suspenso, o lançamento continua registrado, mas com números zerados e motivo visível no histórico.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row" ng-if="!viewing && !editing"><div class="col-sm-4"><div class="form-group"><label>Meninas presentes</label><select class="form-control" ng-model="currentAtividade.meninas" ng-options="n for n in rangeCount(50)"></select></div></div><div class="col-sm-4"><div class="form-group"><label>Meninos presentes</label><select class="form-control" ng-model="currentAtividade.meninos" ng-options="n for n in rangeCount(50)"></select></div></div><div class="col-sm-4"><div class="form-group"><label>Colaboradoras</label><select class="form-control" ng-model="currentAtividade.colaboradoras" ng-options="n for n in rangeCount(20)"></select></div></div></div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="background:#f5f5f5;padding:14px 20px;"><button type="button" class="btn btn-white" data-dismiss="modal"><i class="fa fa-times"></i> Voltar</button><button type="button" class="btn btn-primary" ng-click="saveAtividade()" style="background:#1ab394;border-color:#1ab394;" ng-if="!viewing"><i class="fa fa-save"></i> {{editing ? 'Atualizar registro' : 'Salvar lançamento'}}</button></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+

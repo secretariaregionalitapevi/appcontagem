@@ -1,0 +1,227 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-sm-4">
+        <h2>Recitativos</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a ui-sref="dashboards.dashboard_2">Home</a>
+            </li>
+            <li>
+                <a>Reunião de Jovens</a>
+            </li>
+            <li class="active">
+                <strong>Recitativos</strong>
+            </li>
+        </ol>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-12">
+        <div class="wrapper wrapper-content animated fadeInUp">
+
+            <div class="ibox">
+                <div class="ibox-title">
+                    <h5>Lista de Recitativos Lançados</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-primary btn-xs" ng-click="loadData()">
+                            <i class="fa fa-refresh"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row m-b-sm m-t-sm">
+                        <div class="col-md-12">
+                            <div class="ibox-content p-sm border-bottom">
+                                <div class="row">
+                                    <div class="col-sm-3">
+                                        <div class="form-group">
+                                            <label class="control-label">Busca</label>
+                                            <div class="input-group">
+                                                <input type="text" placeholder="Comum ou Data..." class="form-control input-sm" ng-model="filters.searchText">
+                                                <span class="input-group-btn">
+                                                    <button type="button" class="btn btn-white btn-sm" ng-click="resetSearchText()" title="Limpar pesquisa">
+                                                        <i class="fa fa-times"></i>
+                                                    </button>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-3">
+                                        <div class="form-group">
+                                            <label class="control-label">Cidade</label>
+                                            <select class="form-control input-sm" ng-model="filters.cidade" ng-options="c for c in cidades">
+                                                <option value="">Todas as Cidades</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-3">
+                                        <div class="form-group">
+                                            <label class="control-label">Data Inicial</label>
+                                            <input type="date" class="form-control input-sm" ng-model="filters.dataInicio">
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-3">
+                                        <div class="form-group">
+                                            <label class="control-label">Data Final</label>
+                                            <input type="date" class="form-control input-sm" ng-model="filters.dataFim">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <button class="btn btn-primary btn-sm" ng-click="exportToExcel()">
+                                            <i class="fa fa-file-excel"></i> Exportar Excel
+                                        </button>
+                                        <button class="btn btn-danger btn-sm" ng-click="exportToPDF()">
+                                            <i class="fa fa-file-pdf"></i> Exportar PDF
+                                        </button>
+                                        <button class="btn btn-white btn-sm" ng-click="filters = {searchText: '', cidade: '', dataInicio: null, dataFim: null}">
+                                            <i class="fa fa-eraser"></i> Limpar Filtros
+                                        </button>
+                                        <span class="pull-right text-muted m-t-xs">
+                                            Exibindo {{ filteredRecitativos.length }} de {{ recitativos.length }} registros
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="project-list">
+                        <div ng-if="loading" class="text-center p-md">
+                            <i class="fa fa-spinner fa-spin fa-3x"></i>
+                            <p class="m-t-sm">Carregando dados do Supabase...</p>
+                        </div>
+
+                        <div ng-if="error" class="alert alert-danger">
+                            {{ error }}
+                        </div>
+
+                        <table class="table table-hover" ng-if="!loading && !error">
+                            <thead>
+                                <tr>
+                                    <th>Data da Reunião</th>
+                                    <th>Comum</th>
+                                    <th>Auxiliar de Jovens</th>
+                                    <th class="text-center">Meninas</th>
+                                    <th class="text-center">Meninos</th>
+                                    <th class="text-center">Moças</th>
+                                    <th class="text-center">Moços</th>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center" style="vertical-align: middle;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in filteredRecitativos">
+                                    <td class="project-title">
+                                        <a href="#">{{ item.data_reuniao }}</a>
+                                        <br />
+                                        <small>ID: {{ item.id.substring(0,8) }}...</small>
+                                    </td>
+                                    <td>
+                                        {{ item.comum || 'Não informada' }}
+                                    </td>
+                                    <td>
+                                        {{ item.auxiliar_nome || 'Desconhecido' }}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="label label-pink">{{ item.meninas || 0 }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="label label-info">{{ item.meninos || 0 }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="label label-pink">{{ item.mocas || 0 }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="label label-primary">{{ item.mocos || 0 }}</span>
+                                    </td>
+                                    <td class="project-completion">
+                                        <small>Total: {{ calculateTotal(item) }}</small>
+                                        <div class="progress progress-mini">
+                                            <div style="width: 100%;" class="progress-bar"></div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center" style="vertical-align: middle;">
+                                        <div class="btn-group btn-group-xs" role="group" aria-label="Ações do recitativo">
+                                            <button class="btn btn-info" ng-click="verDetalhesRjm(item)" title="Ver">
+                                                <i class="fa fa-eye"></i> Ver
+                                            </button>
+                                            <button class="btn btn-warning" ng-click="editarRecitativoRjm(item)" title="Editar">
+                                                <i class="fa fa-pencil-square-o"></i> Editar
+                                            </button>
+                                            <button class="btn btn-danger" ng-click="excluirRecitativoRjm(item)" title="Excluir">
+                                                <i class="fa fa-trash-o"></i> Excluir
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                    <div ng-if="!loading && !error && recitativos.length === 0" class="text-center p-md">
+                        <p>Nenhum registro encontrado.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalRecitativoRjm" class="modal inmodal fade" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background:#1c84c6; color:#fff;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title">{{ recitativoViewOnly ? 'Detalhes do recitativo' : 'Editar recitativo' }}</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4 form-group">
+                            <label>Data da reunião</label>
+                            <input type="text" class="form-control" ng-model="activeRecitativo.data_reuniao" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-8 form-group">
+                            <label>Comum</label>
+                            <input type="text" class="form-control" ng-model="activeRecitativo.comum" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>Auxiliar</label>
+                            <input type="text" class="form-control" ng-model="activeRecitativo.auxiliar_nome" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>Município</label>
+                            <input type="text" class="form-control" ng-model="activeRecitativo.municipio" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label>Meninas</label>
+                            <input type="number" class="form-control" ng-model="activeRecitativo.meninas" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label>Meninos</label>
+                            <input type="number" class="form-control" ng-model="activeRecitativo.meninos" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label>Moças</label>
+                            <input type="number" class="form-control" ng-model="activeRecitativo.mocas" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label>Moços</label>
+                            <input type="number" class="form-control" ng-model="activeRecitativo.mocos" ng-disabled="recitativoViewOnly">
+                        </div>
+                        <div class="col-md-12">
+                            <div class="well well-sm m-b-none">
+                                <strong>Total calculado:</strong> {{ calculateTotal(activeRecitativo) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white" data-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" ng-if="!recitativoViewOnly" ng-click="salvarRecitativoRjm()">Salvar alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>

@@ -1,0 +1,129 @@
+<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-9">
+        <h2>Auxiliares RJM</h2>
+        <ol class="breadcrumb">
+            <li><a ui-sref="rjm.dashboard">RJM</a></li>
+            <li><a ui-sref="rjm.administrativo">Administrativo</a></li>
+            <li class="active"><strong>Auxiliares</strong></li>
+        </ol>
+    </div>
+    <div class="col-lg-3 text-right m-t-lg">
+        <button class="btn btn-primary btn-sm" ng-click="prepareAdd()" ng-if="canManageCadastros">
+            <i class="fa fa-plus"></i> Novo auxiliar
+        </button>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="ibox">
+        <div class="ibox-title">
+            <h5>Cadastro de auxiliares vinculados aos usuários do sistema</h5>
+        </div>
+        <div class="ibox-content">
+            <div class="row m-b-sm">
+                <div class="col-md-8">
+                    <input type="text" class="form-control input-sm" ng-model="searchText" placeholder="Buscar por nome, e-mail, comum ou município">
+                </div>
+                <div class="col-md-4">
+                    <select class="form-control input-sm" ng-model="filterCidade" ng-options="cidade for cidade in cidades">
+                        <option value="">Todos os municípios</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive" ng-if="!loading">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Auxiliar</th>
+                            <th>E-mail</th>
+                            <th>Comum</th>
+                            <th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat-start="grupo in groupedAuxiliares()">
+                            <td colspan="4" style="background:#eef7ff; font-weight:700; color:#1c84c6;">
+                                MUNICÍPIO: {{ grupo.municipio }} <span class="text-muted">({{ grupo.auxiliares.length }} auxiliares)</span>
+                            </td>
+                        </tr>
+                        <tr ng-repeat="item in grupo.auxiliares">
+                            <td><strong>{{ item.full_name }}</strong></td>
+                            <td>{{ item.email }}</td>
+                            <td>{{ item.comum || '-' }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-warning btn-xs" ng-if="canManageCadastros" ng-click="prepareEdit(item)">
+                                    <i class="fa fa-pencil"></i> Editar
+                                </button>
+                                <button class="btn btn-danger btn-xs" ng-if="canManageCadastros" ng-click="confirmDelete(item)">
+                                    <i class="fa fa-trash"></i> Excluir
+                                </button>
+                            </td>
+                        </tr>
+                        <tr ng-repeat-end style="display:none;"></tr>
+                        <tr ng-if="!groupedAuxiliares().length">
+                            <td colspan="4" class="text-center text-muted">Nenhum auxiliar cadastrado.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-center p-md" ng-if="loading">
+                <i class="fa fa-spinner fa-spin fa-2x"></i>
+                <p class="m-t-sm">Carregando auxiliares...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAddRjmAuxiliar" class="modal inmodal fade" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background:#1c84c6; color:#fff;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title">{{ editingAuxiliar ? 'Editar auxiliar' : 'Novo auxiliar' }}</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        O cadastro do auxiliar é vinculado a um usuário existente do sistema, respeitando a chave da tabela <strong>rjm_auxiliares</strong>.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label>Usuário do sistema</label>
+                            <select class="form-control" ng-model="newAuxiliar.id" ng-change="applySelectedUser('newAuxiliar')">
+                                <option value="">Selecione</option>
+                                <option ng-repeat="user in availableUsers" value="{{ user.id }}">
+                                    {{ user.full_name || user.email }} - {{ user.email }}
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>Comum</label>
+                            <input type="text" class="form-control" ng-model="newAuxiliar.comum" ng-blur="syncAuxiliarCidade('newAuxiliar')">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>Nome completo</label>
+                            <input type="text" class="form-control" ng-model="newAuxiliar.full_name">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>E-mail</label>
+                            <input type="email" class="form-control" ng-model="newAuxiliar.email">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label>Município</label>
+                            <select class="form-control" ng-model="newAuxiliar.cidade">
+                                <option value="">Selecione</option>
+                                <option ng-repeat="cidade in cidades" value="{{ cidade }}">{{ cidade }}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white" data-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" ng-click="saveAuxiliar()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

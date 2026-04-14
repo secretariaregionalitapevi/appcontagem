@@ -1,0 +1,554 @@
+﻿<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="widget style1">
+                <div class="row">
+                    <div class="col-xs-4 text-center">
+                        <i class="fa fa-user fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Usuários Cadastrados </span>    
+                        <h2 class="font-bold">595</h2>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 navy-bg">
+                <div class="row">
+                    <div class="col-xs-4">
+                        <i class="fa fa-home fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Igrejas com Cadastro</span>
+    
+                        <h2 class="font-bold">183</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 lazur-bg">
+                <div class="row">
+                    <div class="col-xs-4">
+                        <i class="fa fa-music fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Todos que Tocam </span>
+    
+                        <h2 class="font-bold">7.240</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 yellow-bg">
+                <div class="row">
+                    <div class="col-xs-4">
+                        <i class="fa fa-users fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Candidatos (as) </span>
+    
+                        <h2 class="font-bold">2.497</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <h5>Relatório de Ensaios Regionais</h5>
+
+                <div class="pull-right">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-xs btn-white active">Hoje</button>
+                        <button type="button" class="btn btn-xs btn-white">Mês</button>
+                        <button type="button" class="btn btn-xs btn-white">Ano</button>
+                    </div>
+                </div>
+            </div>
+            <div class="ibox-content">
+                <div class="row">
+                    <div class="col-lg-9">
+                        <div class="flot-chart" ng-controller="dashboardFlotTwo as chart">
+                            <div flot class="flot-chart-content" dataset="chart.flotData" options="chart.flotOptions"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <ul class="stat-list">
+                            <li>
+                                <h2 class="no-margins">774</h2>
+                                <small>Músicos presentes - Comparado ao ensaio passado</small>
+                                <div class="stat-percent">17% <i class="fa fa-level-down text-danger"></i></div>
+                                <div class="progress progress-mini">
+                                    <div style="width: 78%;" class="progress-bar"></div>
+                                </div>
+                            </li>
+                            <li>
+                                <h2 class="no-margins ">122</h2>
+                                <small>Organistas presentes - Comparado ao ensaio passado</small>
+                                <div class="stat-percent">12% <i class="fa fa-level-up text-success"></i></div>
+                                <div class="progress progress-mini">
+                                    <div style="width: 60%;" class="progress-bar"></div>
+                                </div>
+                            </li>
+                            <li>
+                                <h2 class="no-margins ">42</h2>
+                                <small>Encarregados presentes - Comparado ao ensaio passado</small>
+                                <div class="stat-percent">12% <i class="fa fa-bolt text-navy"></i></div>
+                                <div class="progress progress-mini">
+                                    <div style="width: 22%;" class="progress-bar"></div>
+                                </div>
+                            </li>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content">    
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <span class="label label-success pull-right">Números SAM</span>
+                    <h5>Músicos</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">5 139</h1>
+    
+                    <div class="stat-percent font-bold text-success">17% <i class="fa fa-bolt"></i></div>
+                    <small>Total do aumento</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <span class="label label-info pull-right">Números SAM</span>
+                    <h5>Organistas</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">1 723</h1>
+    
+                    <div class="stat-percent font-bold text-info">20% <i class="fa fa-level-up"></i></div>
+                    <small>Total do aumento</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <span class="label label-primary pull-right">Números SAM</span>
+                    <h5>Candidatos</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">2 427</h1>
+    
+                    <div class="stat-percent font-bold text-navy">14% <i class="fa fa-level-up"></i></div>
+                    <small>Total do aumento</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <span class="label label-danger pull-right">Números SAM</span>
+                    <h5>Candidatas</h5>
+                </div>
+                <div class="ibox-content">
+                    <h1 class="no-margins">704</h1>
+    
+                    <div class="stat-percent font-bold text-danger">8% <i class="fa fa-level-down"></i></div>
+                    <small>Total da queda</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<div class="row">
+    <div class="col-lg-4">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <h5>Agenda de Compromissos</h5>
+                <div ibox-tools></div>
+            </div>
+            <div class="ibox-content ibox-heading">
+                <h3>Você tem uma reunião agendada para hoje!</h3>
+                <small><i class="fa fa-map-marker"></i> Reunião às 19:30. Congregação Central de Itapevi.</small>
+            </div>
+            <div class="ibox-content inspinia-timeline">
+    
+                <div class="timeline-item">
+                    <div class="row">
+                        <div class="col-xs-3 date">
+                            <i class="fa fa-briefcase"></i>
+                            19:30
+                            <small class="text-navy">07/01/2025</small>
+                            <br/>
+                            <small class="text-navy">2 horas atrás</small>
+                        </div>
+                        <div class="col-xs-7 content no-top-border">
+                            <p class="m-b-xs"><strong>Reunião Musical</strong></p>
+    
+                            <p>RLM - Reunião Local Musical - Congregação Central de Jandira.</p>
+    
+                            <p><line-chart data="main.LineChart.data" options="main.LineChart.options"></line-chart></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="row">
+                        <div class="col-xs-3 date">
+                            <i class="fa fa-edit"></i>
+                            19:30
+                            <small class="text-navy">12/01/2025</small>
+                            <br/>
+                            <small class="text-navy">3 horas atrás</small>
+                        </div>
+                        <div class="col-xs-7 content">
+                            <p class="m-b-xs"><strong>Reunião Musical</strong></p>
+    
+                            <p>RLM - Reunião Local Musical - Congregação da Fazendinha.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="row">
+                        <div class="col-xs-3 date">
+                            <i class="fa fa-envelope"></i>
+                            09:30
+                            <small class="text-navy">31/01/2025</small>
+                            <br/>
+                            <small class="text-navy">3 horas atrás</small>
+                        </div>
+                        <div class="col-xs-7 content">
+                            <p class="m-b-xs"><strong>Reunião Musical</strong></p>
+    
+                            <p>RLM - Reunião Local Musical - Congregação Central de Cotia.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="row">
+                        <div class="col-xs-3 date">
+                            <i class="fa fa-phone"></i>
+                            11:00 
+                            <br/>
+                            <small class="text-navy">21 horas atrás</small>
+                        </div>
+                        <div class="col-xs-7 content">
+                            <p class="m-b-xs"><strong>Ligar para o Brás</strong></p>
+    
+                            <p>
+                                Resolver assunto de mapeamento correto dos municípios da Regional Itapevi.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="row">
+                        <div class="col-xs-3 date">
+                            <i class="fa fa-comments"></i>
+                            20:00 
+                            <br/>
+                            <small>21 horas atrás</small>
+                        </div>
+                        <div class="col-xs-7 content">
+                            <p class="m-b-xs"><strong>Treinamento Online</strong></p>
+    
+                            <p>
+                                Treinamento para os irmãos e irmãs da Regional Itapevi que não participaram das Reuniões sobre o preenchimento eletrônico das cartas de exames.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<div class="col-lg-8">
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <h5>Lista de Projetos</h5>
+                <div ibox-tools></div>
+            </div>
+            <div class="ibox-content">
+                <table class="table table-hover no-margins">
+                    <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Data</th>
+                        <th>Usuário</th>
+                        <th>Valor</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>
+                            <small>Pendente...</small>
+                        </td>
+                        <td><i class="fa fa-clock-o"></i> 11:20pm</td>
+                        <td>Eduardo</td>
+                        <td class="text-navy"><i class="fa fa-level-up"></i> 24%</td>
+                    </tr>
+                    <tr>
+                        <td><span class="label label-warning">Cancelado</span></td>
+                        <td><i class="fa fa-clock-o"></i> 10:40am</td>
+                        <td>Ricardo</td>
+                        <td class="text-navy"><i class="fa fa-level-up"></i> 66%</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <small>Pendente...</small>
+                        </td>
+                        <td><i class="fa fa-clock-o"></i> 01:30pm</td>
+                        <td>Rodrigo</td>
+                        <td class="text-navy"><i class="fa fa-level-up"></i> 54%</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <small>Pendente...</small>
+                        </td>
+                        <td><i class="fa fa-clock-o"></i> 02:20pm</td>
+                        <td>Ricardo</td>
+                        <td class="text-navy"><i class="fa fa-level-up"></i> 12%</td>
+                    </tr>
+                    <tr>
+                        <td><span class="label label-primary">Completo</span></td>
+                        <td><i class="fa fa-clock-o"></i> 04:10am</td>
+                        <td>Eduardo</td>
+                        <td class="text-navy"><i class="fa fa-level-up"></i> 66%</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <small>Pendente...</small>
+                        </td>
+                        <td><i class="fa fa-clock-o"></i> 12:08am</td>
+                        <td>Rodrigo</td>
+                        <td class="text-navy"><i class="fa fa-level-up"></i> 23%</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="ibox">
+            <div class="ibox-title">
+                <h5>Lista de Tarefas</h5>
+                <div ibox-tools></div>
+            </div>
+            <div class="ibox-content">
+                <ul class="todo-list m-t small-list">
+                    <li>
+                        <checkbox ng-model="main.checkOne"></checkbox>
+                        <span class="m-l-xs">Crachás Ensaio Regional Itapevi</span>
+                    </li>
+                    <li>
+                        <checkbox ng-model="check1"></checkbox>
+                        <span class="m-l-xs">Treinamento MOO.</span>
+
+                    </li>
+                    <li>
+                        <checkbox ng-model="check2"></checkbox>
+                        <span class="m-l-xs">Organizar Cartas Digitais</span>
+                        <small class="label label-primary"><i class="fa fa-clock-o"></i> 1 mins</small>
+                    </li>
+                    <li>
+                        <checkbox ng-model="main.checkTwo"></checkbox>
+                        <span class="m-l-xs">Treinamento Online</span>
+                    </li>
+                    <li>
+                        <checkbox ng-model="check4"></checkbox>
+                        <span class="m-l-xs">Planejar Treinamento SAM</span>
+                    </li>
+                    <li>
+                        <checkbox ng-model="check5"></checkbox>
+                        <span class="m-l-xs">Avaliar Candidatos</span>
+                    </li>
+                    <li>
+                        <checkbox ng-model="check6"></checkbox>
+                        <span class="m-l-xs">Sistema de Controle de Instrutoras</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-12">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <h5>Transactions worldwide</h5>
+                <div ibox-tools></div>
+            </div>
+            <div class="ibox-content">
+
+                <div class="row">
+                    <div class="col-lg-6">
+                        <table class="table table-hover margin bottom">
+                            <thead>
+                            <tr>
+                                <th style="width: 1%" class="text-center">No.</th>
+                                <th>Transaction</th>
+                                <th class="text-center">Date</th>
+                                <th class="text-center">Amount</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td class="text-center">1</td>
+                                <td> Security doors
+                                    </small></td>
+                                <td class="text-center small">16 Jun 2014</td>
+                                <td class="text-center"><span class="label label-primary">$483.00</span></td>
+
+                            </tr>
+                            <tr>
+                                <td class="text-center">2</td>
+                                <td> Wardrobes
+                                </td>
+                                <td class="text-center small">10 Jun 2014</td>
+                                <td class="text-center"><span class="label label-primary">$327.00</span></td>
+
+                            </tr>
+                            <tr>
+                                <td class="text-center">3</td>
+                                <td> Set of tools
+                                </td>
+                                <td class="text-center small">12 Jun 2014</td>
+                                <td class="text-center"><span class="label label-warning">$125.00</span></td>
+
+                            </tr>
+                            <tr>
+                                <td class="text-center">4</td>
+                                <td> Panoramic pictures</td>
+                                <td class="text-center small">22 Jun 2013</td>
+                                <td class="text-center"><span class="label label-primary">$344.00</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">5</td>
+                                <td>Phones</td>
+                                <td class="text-center small">24 Jun 2013</td>
+                                <td class="text-center"><span class="label label-primary">$235.00</span></td>
+                            </tr>
+                            <tr>
+                                <td class="text-center">6</td>
+                                <td>Monitors</td>
+                                <td class="text-center small">26 Jun 2013</td>
+                                <td class="text-center"><span class="label label-primary">$100.00</span></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-lg-6" ng-controller="dashboardMap as map">
+                        <div vector-map style="height: 300px;" my-map-data="map.data"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+
+</div>
+</div>
+<div class="small-chat-box ng-small-chat fadeInRight animated" ng-show="openChat">
+
+    <div class="heading" draggable="true">
+        <small class="chat-date pull-right">
+            02.19.2015
+        </small>
+        Small chat
+    </div>
+
+    <div class="content" chat-slim-scroll>
+
+        <div class="left">
+            <div class="author-name">
+                Monica Jackson <small class="chat-date">
+                10:02 am
+            </small>
+            </div>
+            <div class="chat-message active">
+                Lorem Ipsum is simply dummy text input.
+            </div>
+
+        </div>
+        <div class="right">
+            <div class="author-name">
+                Mick Smith
+                <small class="chat-date">
+                    11:24 am
+                </small>
+            </div>
+            <div class="chat-message">
+                Lorem Ipsum is simpl.
+            </div>
+        </div>
+        <div class="left">
+            <div class="author-name">
+                Alice Novak
+                <small class="chat-date">
+                    08:45 pm
+                </small>
+            </div>
+            <div class="chat-message active">
+                Check this stock char.
+            </div>
+        </div>
+        <div class="right">
+            <div class="author-name">
+                Anna Lamson
+                <small class="chat-date">
+                    11:24 am
+                </small>
+            </div>
+            <div class="chat-message">
+                The standard chunk of Lorem Ipsum
+            </div>
+        </div>
+        <div class="left">
+            <div class="author-name">
+                Mick Lane
+                <small class="chat-date">
+                    08:45 pm
+                </small>
+            </div>
+            <div class="chat-message active">
+                I belive that. Lorem Ipsum is simply dummy text.
+            </div>
+        </div>
+
+
+    </div>
+    <div class="form-chat">
+        <div class="input-group input-group-sm"><input type="text" class="form-control"> <span class="input-group-btn"> <button
+                class="btn btn-primary" type="button">Send
+        </button> </span></div>
+    </div>
+
+</div>
+<div id="small-chat" ng-click="openChat = !openChat">
+
+    <span class="badge badge-warning pull-right">5</span>
+    <a class="open-small-chat">
+        <i class="fa fa-comments"></i>
+
+    </a>
+</div>

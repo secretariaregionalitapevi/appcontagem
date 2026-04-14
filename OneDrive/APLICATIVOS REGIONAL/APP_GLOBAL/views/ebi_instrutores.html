@@ -1,0 +1,323 @@
+<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Instrutores EBI</h2>
+        <ol class="breadcrumb">
+            <li><a href="#/ebi/dashboard">EBI</a></li>
+            <li class="active"><strong>Colaboradores</strong></li>
+        </ol>
+    </div>
+</div>
+
+<style>
+    @media (max-width: 991px) {
+        #modalAddInstrutorEbi .modal-dialog {
+            width: calc(100vw - 20px) !important;
+            margin: 10px auto !important;
+        }
+
+        #modalAddInstrutorEbi .modal-content {
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
+        }
+
+        #modalAddInstrutorEbi .modal-header,
+        #modalAddInstrutorEbi .modal-body,
+        #modalAddInstrutorEbi .modal-footer {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+        }
+
+        #modalAddInstrutorEbi .row > [class*='col-'] {
+            width: 100% !important;
+            float: none !important;
+            clear: both;
+        }
+
+        #modalAddInstrutorEbi .form-group {
+            margin-bottom: 14px;
+        }
+
+        #modalAddInstrutorEbi label,
+        #modalAddInstrutorEbi .help-block {
+            white-space: normal;
+            line-height: 1.4;
+        }
+
+        #modalAddInstrutorEbi .form-control,
+        #modalAddInstrutorEbi textarea,
+        #modalAddInstrutorEbi .chosen-container {
+            width: 100% !important;
+        }
+
+        #modalAddInstrutorEbi .modal-footer .btn {
+            width: 100%;
+            margin: 4px 0;
+        }
+
+        #modalAddInstrutorEbi .cadastro-music-comum-picker {
+            position: static;
+            width: 100%;
+            margin-top: 6px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        #modalAddInstrutorEbi .modal-title {
+            font-size: 24px;
+            line-height: 1.2;
+        }
+    }
+</style>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="ebiInstrutoresCtrl">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Cadastro de Colaboradores</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-primary btn-xs" type="button" ng-click="prepareAdd()">
+                            <i class="fa fa-plus"></i> Novo Colaborador
+                        </button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Nome Completo</th>
+                                    <th>Celular</th>
+                                    <th>E-mail</th>
+                                    <th>Localidade</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="inst in instrutores">
+                                    <td>
+                                        <span class="label" ng-class="{'label-primary': !inst.status || inst.status === 'Ativo', 'label-default': inst.status === 'Inativo'}">
+                                            {{inst.status || 'Ativo'}}
+                                        </span>
+                                    </td>
+                                    <td><strong>{{inst.nome_completo}}</strong></td>
+                                    <td>{{inst.celular || '-'}}</td>
+                                    <td>{{inst.email || '-'}}</td>
+                                    <td>{{inst.comum_congregacao || inst.localidade || '-'}}</td>
+                                    <td class="text-center">
+                                        <div style="white-space: nowrap;">
+                                            <button class="btn btn-primary btn-xs" ng-click="verDetalhes(inst)" title="Ver">
+                                                <i class="fa fa-eye"></i> Ver
+                                            </button>
+                                            <button class="btn btn-warning btn-xs" ng-if="canManageCadastros" ng-click="prepareEdit(inst)" title="Editar">
+                                                <i class="fa fa-pencil-square-o"></i> Editar
+                                            </button>
+                                            <button class="btn btn-danger btn-xs" ng-if="canManageCadastros" ng-click="confirmDelete(inst)" title="Excluir">
+                                                <i class="fa fa-trash-o"></i> Apagar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalAddInstrutorEbi" class="modal inmodal fade" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;">
+                        <span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span>
+                    </button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa" ng-class="viewOnly ? 'fa-folder-open' : (editingInstrutor ? 'fa-pencil-square-o' : 'fa-briefcase')" style="margin-right:8px;"></i>
+                        {{viewOnly ? 'Detalhes do Colaborador' : (editingInstrutor ? 'Editar Cadastro do Colaborador' : 'Cadastrar Colaborador')}}
+                    </h4>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <form name="formAddInstrutorEbi" novalidate ng-disabled="viewOnly">
+                        <div class="row">
+                            <div class="col-lg-12"><h4>Dados do Colaborador</h4></div>
+                            <div class="col-sm-8 form-group">
+                                <label>Nome Completo *</label>
+                                <input type="text" ng-model="newInstrutor.nome_completo" class="form-control" required>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Comum Congregacao *</label>
+                                <input type="text" ng-model="newInstrutor.comum_congregacao" class="form-control comum-field" placeholder="Digite para pesquisar a comum" autocomplete="off" ng-focus="openComumPicker('comum_congregacao')" ng-change="filterComuns()" ng-keydown="handleComumFieldKeydown($event)" required>
+                                <div class="cadastro-music-comum-picker" ng-if="isComumPickerOpen('comum_congregacao')">
+                                    <div class="cadastro-music-comum-meta">{{comumPickerState.results.length}} de {{totalComuns}} comuns</div>
+                                    <ul class="cadastro-music-comum-results">
+                                        <li ng-repeat="item in comumPickerState.results track by item" ng-click="selectComum(item)">{{item}}</li>
+                                        <li class="cadastro-music-comum-empty" ng-if="!comumPickerState.results.length">Nenhuma comum encontrada.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-sm-3 form-group">
+                                <label>Idade *</label>
+                                <input type="text" ng-model="newInstrutor.idade" class="form-control" inputmode="numeric" required>
+                            </div>
+                            <div class="col-sm-3 form-group">
+                                <label>E Batizado?</label>
+                                <select ng-model="newInstrutor.batizado" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Nao</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-3 form-group">
+                                <label>Data do Batismo</label>
+                                <input type="text" ng-model="newInstrutor.data_batismo" class="form-control" placeholder="dd/mm/aaaa">
+                            </div>
+                            <div class="col-sm-3 form-group">
+                                <label>Celular *</label>
+                                <input type="text" ng-model="newInstrutor.celular" class="form-control" placeholder="(11) 99999-9999" required>
+                            </div>
+                            <div class="col-sm-6 form-group">
+                                <label>E-mail (para controle de acesso) *</label>
+                                <input type="email" ng-model="newInstrutor.email" class="form-control" required>
+                                <span class="help-block m-b-none">Esse e-mail e usado para controle de acesso ao material.</span>
+                            </div>
+                            <div class="col-sm-6 form-group">
+                                <label>Em qual polo vai auxiliar? *</label>
+                                <select
+                                    chosen="{width: '100%', search_contains: true, no_results_text: 'Nenhum polo encontrado para'}"
+                                    class="chosen-select"
+                                    data-placeholder="Digite para pesquisar o polo"
+                                    ng-model="newInstrutor.polo_auxilio"
+                                    required>
+                                    <option value=""></option>
+                                    <option ng-repeat="polo in polosFixos" value="{{polo}}">{{polo}}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="row">
+                            <div class="col-lg-12"><h4>Vínculo Ministerial</h4></div>
+                            <div class="col-sm-4 form-group">
+                                <label>E Musico ou Musicista?</label>
+                                <select ng-model="newInstrutor.musico_ou_musicista" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Nao</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>E Oficializado(a)?</label>
+                                <select ng-model="newInstrutor.oficializado" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Data da Oficialização</label>
+                                <input type="text" ng-model="newInstrutor.data_oficializacao" class="form-control" placeholder="dd/mm/aaaa">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>E Instrutor(a) Atualmente?</label>
+                                <select ng-model="newInstrutor.instrutor_atualmente" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-8 form-group">
+                                <label>Se Sim, em Qual Igreja?</label>
+                                <input type="text" ng-model="newInstrutor.instrutor_em_qual_igreja" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="row">
+                            <div class="col-lg-12"><h4>Formação e Perfil</h4></div>
+                            <div class="col-sm-4 form-group">
+                                <label>Tem Formação Academica em Musica?</label>
+                                <select ng-model="newInstrutor.formacao_musica" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Se Sim, Qual?</label>
+                                <input type="text" ng-model="newInstrutor.formacao_qual" class="form-control">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Data da Formação</label>
+                                <input type="text" ng-model="newInstrutor.formacao_data" class="form-control" placeholder="dd/mm/aaaa">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>E Pedagogo(a)?</label>
+                                <select ng-model="newInstrutor.pedagogo" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Desde Quando?</label>
+                                <input type="text" ng-model="newInstrutor.pedagogo_desde" class="form-control" placeholder="dd/mm/aaaa">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Se Sim, Atua na Área?</label>
+                                <select ng-model="newInstrutor.atua_na_area" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Tem Afinidade com Crianças?</label>
+                                <select ng-model="newInstrutor.afinidade_criancas" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option>Sim</option>
+                                    <option>Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-8 form-group">
+                                <label>Cursos / Workshop / Conhecimentos</label>
+                                <textarea ng-model="newInstrutor.cursos_conhecimentos" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="row">
+                            <div class="col-lg-12"><h4>Confirmações</h4></div>
+                            <div class="col-sm-6 form-group">
+                                <div class="checkbox i-checks" style="margin-top: 6px;">
+                                    <label>
+                                        <input type="checkbox" ng-model="newInstrutor.de_acordo_voluntario" ng-true-value="'Sim'" ng-false-value="''">
+                                        <i></i> Declaro que atuarei voluntariamente
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 form-group">
+                                <div class="checkbox i-checks" style="margin-top: 6px;">
+                                    <label>
+                                        <input type="checkbox" ng-model="newInstrutor.autoriza_tratamento_dados" ng-true-value="'Sim'" ng-false-value="''">
+                                        <i></i> Autorizo o tratamento dos meus dados
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white" data-dismiss="modal">{{viewOnly ? 'Voltar' : 'Cancelar'}}</button>
+                    <button type="button" class="btn btn-primary" style="background:#1ab394; border-color:#1ab394;" ng-click="saveNewInstrutor()" ng-disabled="formAddInstrutorEbi.$invalid" ng-if="!viewOnly">{{editingInstrutor ? 'Salvar Alteracoes' : 'Salvar Cadastro'}}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>

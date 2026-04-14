@@ -1,0 +1,125 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>{{isEdit ? 'Editar Registro de Aula' : 'Novo Registro de Aula'}}</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a href="#/musicalizacao/dashboard">Musicalização</a>
+            </li>
+            <li>
+                <a href="#/musicalizacao/aulas">Aulas</a>
+            </li>
+            <li class="active">
+                <strong>{{isEdit ? 'Editar' : 'Novo'}} Lançamento</strong>
+            </li>
+        </ol>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-8 col-lg-offset-2">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>{{isEdit ? 'Editar Registro de Aula' : 'Dados da Nova Aula'}}</h5>
+                </div>
+                <div class="ibox-content">
+                    <form name="formAula" class="form-horizontal">
+                        
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Data da Aula *</label>
+                            <div class="col-sm-9">
+                                <input type="date" class="form-control" ng-model="aula.data_aula" tabindex="1" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Município *</label>
+                            <div class="col-sm-9">
+                                <select class="form-control" ng-model="aula.cidade" ng-options="c for c in cidades" tabindex="2" required>
+                                    <option value="">-- Selecione o Município --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Nome do Polo *</label>
+                            <div class="col-sm-9">
+                                <select class="form-control" ng-model="aula.polo" ng-options="p.nome_polo as p.nome_polo for p in polos | filter:{localidade: aula.cidade}" tabindex="3" required>
+                                    <option value="">-- Selecione o Polo --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Ciclo *</label>
+                            <div class="col-sm-9">
+                                <label class="radio-inline"><input type="radio" ng-model="aula.ciclo" value="Ciclo 1" tabindex="4"> Ciclo 1</label>
+                                <label class="radio-inline"><input type="radio" ng-model="aula.ciclo" value="Ciclo 2" tabindex="5"> Ciclo 2</label>
+                                <label class="radio-inline"><input type="radio" ng-model="aula.ciclo" value="Ciclo 3" tabindex="6"> Ciclo 3</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Número da Aula *</label>
+                            <div class="col-sm-9">
+                                <input type="number" class="form-control" ng-model="aula.numero_aula" placeholder="Ex: 5" tabindex="7" required>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Quantidades *</label>
+                            <div class="col-sm-9">
+                                <div style="display:flex; gap:10px; flex-wrap:nowrap;">
+                                    <div style="flex:1 1 0;">
+                                        <label class="control-label" style="display:block; text-align:left; margin-bottom:6px;">Meninos</label>
+                                        <input type="number" class="form-control" ng-model="aula.meninos_presentes" tabindex="8" required min="0">
+                                    </div>
+                                    <div style="flex:1 1 0;">
+                                        <label class="control-label" style="display:block; text-align:left; margin-bottom:6px;">Meninas</label>
+                                        <input type="number" class="form-control" ng-model="aula.meninas_presentes" tabindex="9" required min="0">
+                                    </div>
+                                    <div style="flex:1 1 0;">
+                                        <label class="control-label" style="display:block; text-align:left; margin-bottom:6px;">Instrutores</label>
+                                        <input type="number" class="form-control" ng-model="aula.instrutores_presentes" tabindex="10" required min="0">
+                                    </div>
+                                    <div style="flex:1 1 0;">
+                                        <label class="control-label" style="display:block; text-align:left; margin-bottom:6px;">Colaboradores</label>
+                                        <input type="number" class="form-control" ng-model="aula.colaboradores_presentes" tabindex="11" required min="0">
+                                    </div>
+                                    <div style="flex:1 1 0;">
+                                        <label class="control-label" style="display:block; text-align:left; margin-bottom:6px;">Coordenadores</label>
+                                        <input type="number" class="form-control" ng-model="aula.coordenadores_presentes" tabindex="12" required min="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Observações</label>
+                            <div class="col-sm-9">
+                                <textarea class="form-control" ng-model="aula.observacoes" rows="4" placeholder="Alguma ocorrência ou comentário sobre a aula?" tabindex="13"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="hr-line-dashed"></div>
+
+                        <div class="form-group">
+                            <div class="col-sm-12 text-right">
+                                <a href="#/musicalizacao/aulas" class="btn btn-white" style="margin-right: 5px;" tabindex="14">Cancelar</a>
+                                <button class="btn btn-primary" type="button" ng-click="salvarAula()" ng-disabled="formAula.$invalid" tabindex="15">
+                                    <i class="fa fa-save"></i> {{isEdit ? 'Atualizar Registro' : 'Enviar Registro'}}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

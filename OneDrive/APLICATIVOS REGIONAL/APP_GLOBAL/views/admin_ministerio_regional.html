@@ -1,0 +1,382 @@
+<style>
+    .ministerio-table > thead > tr > th,
+    .ministerio-table > tbody > tr > td {
+        vertical-align: middle !important;
+    }
+
+    .ministerio-table > thead > tr > th {
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .ministerio-table .ministerio-celula {
+        text-align: left;
+    }
+
+    .ministerio-table .ministerio-celula-acoes,
+    .ministerio-table .ministerio-coluna-acoes {
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .ministerio-table .ministerio-linha-principal {
+        display: block;
+        margin-bottom: 6px;
+        line-height: 1.35;
+    }
+
+    .ministerio-table .ministerio-linha-secundaria {
+        display: block;
+        line-height: 1.35;
+    }
+
+    .ministerio-table .project-title a {
+        display: inline-block;
+        margin-bottom: 4px;
+    }
+
+    .ministerio-table .progress {
+        margin-bottom: 0;
+    }
+
+    .ministerio-table .ministerio-celula-acoes .btn {
+        margin-left: 4px;
+    }
+
+    .ministerio-table .ministerio-celula-acoes .btn:first-child {
+        margin-left: 0;
+    }
+
+    .ministerio-table .ministerio-celula-acoes > div {
+        display: inline-block;
+        text-align: center;
+    }
+
+    @media (max-width: 991px) {
+        #modalMinisterioRegional .modal-dialog {
+            width: calc(100vw - 20px) !important;
+            margin: 10px auto !important;
+        }
+
+        #modalMinisterioRegional .modal-content {
+            max-height: calc(100vh - 20px);
+            overflow-y: auto;
+        }
+
+        #modalMinisterioRegional .modal-header,
+        #modalMinisterioRegional .modal-body,
+        #modalMinisterioRegional .modal-footer {
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+        }
+
+        #modalMinisterioRegional .row > [class*='col-'] {
+            width: 100% !important;
+            float: none !important;
+            clear: both;
+        }
+
+        #modalMinisterioRegional .modal-footer .btn {
+            width: 100%;
+            margin: 4px 0;
+        }
+    }
+</style>
+
+<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Ministério</h2>
+        <ol class="breadcrumb">
+            <li><a ui-sref="dashboards.dashboard_2">Home</a></li>
+            <li><a ui-sref="admin.user_approvals">Administração</a></li>
+            <li class="active"><strong>Ministério</strong></li>
+        </ol>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="ministerioRegionalAdminCtrl">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Ministério regional</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-primary btn-xs" type="button" ng-click="loadRegistros()" ng-disabled="loading">
+                            <i class="fa fa-refresh"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row m-b-sm m-t-sm">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-addon"><i class="fa fa-search"></i></span>
+                                <input type="text"
+                                       placeholder="Pesquisar nome, comum, ministério, município..."
+                                       class="input-sm form-control"
+                                       ng-model="searchText">
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-right" style="padding-top: 7px; color: #6b7c93;">
+                            <strong>Filtrar por:</strong>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="input-sm form-control" ng-model="municipioFilter">
+                                <option value="">Município</option>
+                                <option ng-repeat="municipio in municipios track by municipio" value="{{municipio}}">{{formatMinisterioLabel(municipio, municipio)}}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="input-sm form-control" ng-model="ministerioFilter">
+                                <option value="">Ministério</option>
+                                <option ng-repeat="ministerio in ministerios track by ministerio" value="{{ministerio}}">{{formatMinisterioLabel(ministerio, ministerio)}}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="input-sm form-control" ng-model="statusFilter">
+                                <option value="">Status</option>
+                                <option value="Ativo">Ativo</option>
+                                <option value="Inativo">Inativo</option>
+                                <option value="Licenciado">Licenciado</option>
+                                <option value="Afastado">Afastado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info" ng-if="loading">
+                        Carregando ministério regional...
+                    </div>
+
+                    <div class="alert alert-danger" ng-if="error">
+                        {{error}}
+                    </div>
+
+                    <div class="row" ng-if="!loading">
+                        <div class="col-sm-3">
+                            <div class="widget style1 navy-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-users fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Total</span>
+                                        <h2 class="font-bold">{{filteredRegistros.length}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 lazur-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-check-circle fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Ativos</span>
+                                        <h2 class="font-bold">{{ativosCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 yellow-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-clock-o fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Inativos</span>
+                                        <h2 class="font-bold">{{inativosCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="widget style1 red-bg">
+                                <div class="row vertical-align">
+                                    <div class="col-xs-3">
+                                        <i class="fa fa-list-alt fa-2x"></i>
+                                    </div>
+                                    <div class="col-xs-9 text-right">
+                                        <span>Cadastro Completo</span>
+                                        <h2 class="font-bold">{{cadastroCompletoCount}}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="project-list" ng-if="!loading && filteredRegistros.length > 0">
+                        <table class="table table-hover ministerio-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 140px;">Status</th>
+                                    <th>Servo</th>
+                                    <th style="min-width: 220px;">Ministério</th>
+                                    <th style="min-width: 260px;">Comum / Administração</th>
+                                    <th style="min-width: 240px;">RRM / Cadastro</th>
+                                    <th class="ministerio-coluna-acoes" style="width: 250px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="record in filteredRegistros track by record.id">
+                                    <td class="project-status ministerio-celula">
+                                        <span class="label"
+                                              ng-class="{
+                                                  'label-primary': record.uiStatus === 'ativo',
+                                                  'label-warning': record.uiStatus === 'inativo' || record.uiStatus === 'licenciado',
+                                                  'label-danger': record.uiStatus === 'afastado'
+                                              }"
+                                              ng-bind="formatRegistroStatus(record.status)">
+                                        </span>
+                                    </td>
+                                    <td class="project-title ministerio-celula">
+                                        <a href="" ng-click="openView(record)" ng-bind="record.nome || 'Sem nome'"></a>
+                                        <small class="text-muted ministerio-linha-secundaria" ng-bind="'ID: ' + ((record.id || '') | limitTo:8)"></small>
+                                    </td>
+                                    <td class="project-completion ministerio-celula">
+                                        <small ng-bind="formatMinisterioLabel(record.ministerio, '-')"></small>
+                                        <div class="progress progress-mini">
+                                            <div class="progress-bar progress-bar-info"
+                                                 ng-style="{ width: getMinisterioProgress(record.ministerio) + '%' }"></div>
+                                        </div>
+                                    </td>
+                                    <td class="project-people ministerio-celula">
+                                        <span class="ministerio-linha-principal" ng-bind="formatMinisterioLabel(record.comum, 'Sem comum')"></span>
+                                        <small class="text-muted ministerio-linha-secundaria" ng-bind="formatMinisterioLabel(record.municipio, 'Sem município') + ' / ' + formatMinisterioLabel(record.administracao, 'Sem administração')"></small>
+                                    </td>
+                                    <td class="project-people ministerio-celula">
+                                        <span class="ministerio-linha-principal" ng-bind="formatMinisterioLabel(record.rrm, 'Sem RRM')"></span>
+                                        <small class="text-muted ministerio-linha-secundaria" ng-bind="'Apresentação: ' + formatMinisterioDate(record.data_apresentacao) + ' | Cadastro completo: ' + formatBooleanLabel(record.cadastro_completo)"></small>
+                                    </td>
+                                    <td class="project-actions ministerio-celula-acoes">
+                                        <div>
+                                            <button class="btn btn-primary btn-xs" ng-click="openView(record)" title="Ver">
+                                                <i class="fa fa-eye"></i> Ver
+                                            </button>
+                                            <button class="btn btn-warning btn-xs" ng-click="openEdit(record)" title="Editar" ng-if="canManageMinisterio">
+                                                <i class="fa fa-pencil-square-o"></i> Editar
+                                            </button>
+                                            <button class="btn btn-danger btn-xs" ng-click="confirmDelete(record)" title="Excluir" ng-if="canManageMinisterio">
+                                                <i class="fa fa-trash-o"></i> Excluir
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-warning" ng-if="!loading && filteredRegistros.length === 0 && !error">
+                        Nenhum registro encontrado para os filtros atuais.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalMinisterioRegional" class="modal inmodal fade" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;">
+                        <span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span>
+                    </button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa" ng-class="viewOnlyRegistro ? 'fa-folder-open' : (selectedRegistroForm && selectedRegistroForm.id ? 'fa-pencil-square-o' : 'fa-plus')"></i>
+                        {{viewOnlyRegistro ? 'Detalhes do Ministério' : (selectedRegistroForm && selectedRegistroForm.id ? 'Editar Ministério' : 'Cadastrar Ministério')}}
+                    </h4>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <form novalidate ng-disabled="viewOnlyRegistro || savingRegistro">
+                        <div class="row">
+                            <div class="col-lg-12"><h4>Dados principais</h4></div>
+                            <div class="col-sm-6 form-group">
+                                <label>Nome</label>
+                                <input type="text" ng-model="selectedRegistroForm.nome" class="form-control">
+                            </div>
+                            <div class="col-sm-3 form-group">
+                                <label>Sexo</label>
+                                <select class="form-control" ng-model="selectedRegistroForm.sexo">
+                                    <option value="">Selecione</option>
+                                    <option value="Masculino">Masculino</option>
+                                    <option value="Feminino">Feminino</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-3 form-group">
+                                <label>Status</label>
+                                <select class="form-control" ng-model="selectedRegistroForm.status">
+                                    <option value="Ativo">Ativo</option>
+                                    <option value="Inativo">Inativo</option>
+                                    <option value="Licenciado">Licenciado</option>
+                                    <option value="Afastado">Afastado</option>
+                                </select>
+                            </div>
+
+                            <div class="col-sm-4 form-group">
+                                <label>Data de Apresentação</label>
+                                <input type="date" ng-model="selectedRegistroForm.data_apresentacao" class="form-control">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Data de Ordenação</label>
+                                <input type="date" ng-model="selectedRegistroForm.data_ordenacao" class="form-control">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Ministério</label>
+                                <input type="text" ng-model="selectedRegistroForm.ministerio" class="form-control">
+                            </div>
+
+                            <div class="col-sm-6 form-group">
+                                <label>Comum</label>
+                                <input type="text" ng-model="selectedRegistroForm.comum" class="form-control">
+                            </div>
+                            <div class="col-sm-6 form-group">
+                                <label>Município</label>
+                                <input type="text" ng-model="selectedRegistroForm.municipio" class="form-control">
+                            </div>
+
+                            <div class="col-sm-4 form-group">
+                                <label>Administração</label>
+                                <input type="text" ng-model="selectedRegistroForm.administracao" class="form-control">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>RRM</label>
+                                <input type="text" ng-model="selectedRegistroForm.rrm" class="form-control">
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Aprovador RRM</label>
+                                <input type="text" ng-model="selectedRegistroForm.aprovador_rrm" class="form-control">
+                            </div>
+
+                            <div class="col-sm-4 form-group">
+                                <label>Cadastro Completo</label>
+                                <select class="form-control" ng-model="selectedRegistroForm.cadastro_completo">
+                                    <option ng-value="true">Sim</option>
+                                    <option ng-value="false">Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4 form-group">
+                                <label>Possui Foto</label>
+                                <select class="form-control" ng-model="selectedRegistroForm.possui_foto">
+                                    <option ng-value="true">Sim</option>
+                                    <option ng-value="false">Não</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-12 form-group">
+                                <label>Observações</label>
+                                <textarea class="form-control" rows="4" ng-model="selectedRegistroForm.observacoes"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-white" data-dismiss="modal">{{viewOnlyRegistro ? 'Voltar' : 'Fechar'}}</button>
+                    <button type="button" class="btn btn-primary" style="background:#1ab394; border-color:#1ab394;"
+                            ng-if="!viewOnlyRegistro" ng-click="saveRegistro()" ng-disabled="savingRegistro || !canManageMinisterio">
+                        <i class="fa fa-save"></i> Salvar alterações
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,529 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Crianças / Alunos</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a href="#/musicalizacao/dashboard">Musicalização</a>
+            </li>
+            <li class="active">
+                <strong>Crianças</strong>
+            </li>
+        </ol>
+    </div>
+    <div class="col-lg-2">
+    </div>
+</div>
+
+<style>
+    @media (max-width: 991px) {
+        #modalAddAluno .modal-dialog,
+        #modalEditAluno .modal-dialog {
+            width: auto;
+            margin: 10px;
+        }
+
+        #modalAddAluno .modal-body,
+        #modalEditAluno .modal-body {
+            padding: 18px 16px !important;
+        }
+
+        #modalAddAluno .row > .col-sm-3,
+        #modalAddAluno .row > .col-sm-4,
+        #modalAddAluno .row > .col-sm-6,
+        #modalAddAluno .row > .col-sm-8,
+        #modalEditAluno .row > .col-sm-3,
+        #modalEditAluno .row > .col-sm-4,
+        #modalEditAluno .row > .col-sm-6,
+        #modalEditAluno .row > .col-sm-8 {
+            width: 100%;
+            float: none;
+        }
+
+        #modalAddAluno label,
+        #modalEditAluno label {
+            display: block;
+            line-height: 1.35;
+            margin-bottom: 6px;
+            white-space: normal;
+        }
+
+        #modalAddAluno .form-group,
+        #modalEditAluno .form-group {
+            margin-bottom: 14px;
+        }
+
+        #modalAddAluno .modal-footer,
+        #modalEditAluno .modal-footer {
+            padding: 12px 16px;
+            text-align: center;
+        }
+
+        #modalAddAluno .modal-footer .btn,
+        #modalEditAluno .modal-footer .btn {
+            min-width: 140px;
+            margin: 4px;
+        }
+    }
+</style>
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Lista de Crianças / Alunos</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-success btn-xs" type="button" ng-click="prepareAdd()"><i class="fa fa-plus"></i> Cadastrar Criança</button>
+                        <button class="btn btn-info btn-xs" type="button" ng-click="exportToExcel()"><i class="fa fa-file-excel-o"></i> Excel</button>
+                        <button class="btn btn-danger btn-xs" type="button" ng-click="exportToPDF()"><i class="fa fa-file-pdf-o"></i> PDF</button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="row mb-md">
+                        <div class="col-sm-4">
+                            <div class="input-group">
+                                <input type="text" placeholder="Buscar aluno..." class="input-sm form-control" ng-model="searchAluno">
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-sm btn-primary"> Buscar</button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center" ng-if="loading">
+                        <div class="sk-spinner sk-spinner-double-bounce">
+                            <div class="sk-double-bounce1"></div>
+                            <div class="sk-double-bounce2"></div>
+                        </div>
+                        <p>Carregando alunos...</p>
+                    </div>
+
+                    <div class="table-responsive" ng-if="!loading">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Polo</th>
+                                    <th>Idade</th>
+                                    <th>Responsável</th>
+                                    <th>Contato</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat-start="grupo in groupedAlunosList">
+                                    <td colspan="7" style="background:#f3fbf8; font-weight:700; color:#1ab394; border-top:2px solid #1ab394;">
+                                        POLO: {{grupo.polo}} <span class="text-muted">({{grupo.alunos.length}} cadastros)</span>
+                                    </td>
+                                </tr>
+                                <tr ng-repeat="aluno in grupo.alunos">
+                                    <td>{{aluno.nome_crianca}}</td>
+                                    <td>{{aluno.polo_participacao || aluno.comum_congregacao || '-'}}</td>
+                                    <td>
+                                        {{getAlunoAgeText(aluno.data_nascimento)}}
+                                        <span class="label label-warning m-l-xs" ng-if="isAlunoNearAgeLimit(aluno.data_nascimento)">Próx. 12</span>
+                                        <span class="label label-danger m-l-xs" ng-if="isAlunoOverAge(aluno.data_nascimento)">12+</span>
+                                    </td>
+                                    <td>{{aluno.nome_responsavel || '-'}}</td>
+                                    <td>{{aluno.celular_responsavel || '-'}}</td>
+                                    <td>
+                                        <span class="label"
+                                              ng-class="{'label-warning': aluno.status === 'Inativo'}"
+                                              ng-style="(aluno.status || 'Ativo') === 'Ativo' ? {'background-color':'#1ab394','color':'#fff'} : {}">
+                                            {{aluno.status || 'Ativo'}}
+                                        </span>
+                                    </td>
+                                    <td class="text-center" style="vertical-align: middle;">
+                                        <div style="white-space: nowrap;">
+                                            <button class="btn btn-primary btn-xs" ng-click="verDetalhes(aluno)" title="Ver Detalhes">
+                                                <i class="fa fa-folder"></i> Ver
+                                            </button>
+                                            <button class="btn btn-warning btn-xs" ng-if="canManageCadastros" ng-click="prepareEdit(aluno)" title="Editar">
+                                                <i class="fa fa-pencil"></i> Editar
+                                            </button>
+                                            <button class="btn btn-danger btn-xs" ng-if="canManageCadastros" ng-click="confirmDelete(aluno)" title="Excluir">
+                                                <i class="fa fa-trash"></i> Apagar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr ng-repeat-end style="display:none;"></tr>
+                                <tr ng-if="groupedAlunosList.length === 0">
+                                    <td colspan="7" class="text-center">Nenhum aluno encontrado ou cadastrado.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal inmodal" id="modalAddAluno" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content animated bounceInRight">
+            <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;"><span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span></button>
+                <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                    <i class="fa fa-child" style="margin-right:8px;"></i>
+                    Cadastrar Criança
+                </h4>
+            </div>
+            <div class="modal-body" style="padding: 25px 30px;">
+                <form name="formAddAluno" novalidate>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Dados da Criança</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label>Nome da Criança *</label>
+                            <input type="text" ng-model="newAluno.nome_crianca" ng-change="formatUppercaseField('newAluno', 'nome_crianca')" class="form-control" style="text-transform: uppercase;" required>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Sexo *</label>
+                            <select class="form-control" ng-model="newAluno.sexo" ng-options="item for item in sexoOptions" required>
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Nascimento *</label>
+                            <input type="text" ng-model="newAluno.data_nascimento" oninput="this.value=this.value.replace(/\D/g,'').slice(0,8).replace(/(\d{2})(\d)/,'$1/$2').replace(/(\d{2})\/(\d{2})(\d)/,'$1/$2/$3')" class="form-control" placeholder="dd/mm/aaaa" maxlength="10" inputmode="numeric" pattern="^\d{2}/\d{2}/\d{4}$" title="Use o formato dd/mm/aaaa" required>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Comum Congregação *</label>
+                            <input type="text" ng-model="newAluno.comum_congregacao" class="form-control comum-field" placeholder="Digite para pesquisar a comum" autocomplete="off" ng-focus="openComumPicker('newAluno', 'comum_congregacao')" ng-change="filterComuns()" ng-keydown="handleComumFieldKeydown($event)" required>
+                            <div class="cadastro-music-comum-picker" ng-if="isComumPickerOpen('newAluno', 'comum_congregacao')">
+                                <div class="cadastro-music-comum-meta">{{comumPickerState.results.length}} de {{totalComuns}} comuns</div>
+                                <ul class="cadastro-music-comum-results">
+                                    <li ng-repeat="item in comumPickerState.results track by item" ng-click="selectComum(item)">{{item}}</li>
+                                    <li class="cadastro-music-comum-empty" ng-if="!comumPickerState.results.length">Nenhuma comum encontrada.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Polo de Participação *</label>
+                            <select class="form-control" ng-model="newAluno.polo_participacao" required>
+                                <option value="">Selecione</option>
+                                <option ng-repeat="polo in polos" value="{{polo.nome_polo}}">{{polo.nome_polo}}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Dados dos Pais / Responsáveis</h4></div>
+                        <div class="col-sm-8 form-group">
+                            <label>Nome do Pai</label>
+                            <input type="text" ng-model="newAluno.nome_pai" ng-change="formatUppercaseField('newAluno', 'nome_pai')" class="form-control" style="text-transform: uppercase;">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Pai é Crente?</label>
+                            <select class="form-control" ng-model="newAluno.pai_e_crente" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-8 form-group">
+                            <label>Nome da Mãe</label>
+                            <input type="text" ng-model="newAluno.nome_mae" ng-change="formatUppercaseField('newAluno', 'nome_mae')" class="form-control" style="text-transform: uppercase;">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Mãe é Crente?</label>
+                            <select class="form-control" ng-model="newAluno.mae_e_crente" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Os Pais Vivem Juntos?</label>
+                            <select class="form-control" ng-model="newAluno.pais_vivem_juntos" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>A Criança Vive com os Pais?</label>
+                            <select class="form-control" ng-model="newAluno.crianca_vive_com_os_pais" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Se Não, Vive com Quem?</label>
+                            <input type="text" ng-model="newAluno.se_nao_vive_com_pais_com_quem_vive" class="form-control">
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Responsável pela Inscrição *</label>
+                            <input type="text" ng-model="newAluno.nome_responsavel" ng-change="formatUppercaseField('newAluno', 'nome_responsavel')" class="form-control" style="text-transform: uppercase;" required>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Celular do Responsável *</label>
+                            <input type="text" ng-model="newAluno.celular_responsavel" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11).replace(/^(\d{0,2})(\d{0,1})(\d{0,4})(\d{0,4}).*$/,function(_,a,b,c,d){var out=''; if(a){out='('+a; if(a.length===2) out+=')';} if(b){out+=' '+b;} if(c){out+=' '+c;} if(d){out+='-'+d;} return out;})" class="form-control" placeholder="(11) 9 1234-3454" maxlength="16" inputmode="numeric" pattern="^\(\d{2}\)\s\d\s\d{4}-\d{4}$" title="Use o formato (11) 9 1234-3454" required>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Tem WhatsApp?</label>
+                            <select class="form-control" ng-model="newAluno.tem_whatsapp" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Participação</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label>Participa das Reuniões (Jovens e Menores)?</label>
+                            <select class="form-control" ng-model="newAluno.participa_reunioes_jovens_menores" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Participa do Espaço Infantil?</label>
+                            <select class="form-control" ng-model="newAluno.participa_espaco_infantil" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Endereço</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label>Rua / Número *</label>
+                            <input type="text" ng-model="newAluno.logradouro_numero" class="form-control" required>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Complemento</label>
+                            <input type="text" ng-model="newAluno.complemento" class="form-control">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Bairro *</label>
+                            <input type="text" ng-model="newAluno.bairro" class="form-control" required>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Cidade *</label>
+                            <input type="text" ng-model="newAluno.cidade" class="form-control" required>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>CEP *</label>
+                            <input type="text" ng-model="newAluno.cep" class="form-control" placeholder="00000-000" required>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Observações</h4></div>
+                        <div class="col-sm-4 form-group">
+                            <label>Dificuldade de Aprendizagem?</label>
+                            <select class="form-control" ng-model="newAluno.dificuldade_aprendizagem" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-8 form-group">
+                            <label>Se Sim, Descreva</label>
+                            <input type="text" ng-model="newAluno.dificuldade_descricao" class="form-control">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Faz Terapia?</label>
+                            <select class="form-control" ng-model="newAluno.faz_terapia" ng-options="item for item in simNaoOptions">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-8 form-group">
+                            <label>Se Sim, Qual Especialidade?</label>
+                            <input type="text" ng-model="newAluno.terapia_especialidade" class="form-control">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="background:#f5f5f5; padding: 14px 20px;">
+                <button type="button" class="btn btn-white" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" ng-click="saveNewAluno()" ng-disabled="formAddAluno.$invalid || savingNewAluno" style="background:#1ab394; border-color:#1ab394;">{{savingNewAluno ? 'Salvando...' : 'Salvar Cadastro'}}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal inmodal" id="modalEditAluno" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content animated bounceInRight">
+            <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;"><span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span></button>
+                <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                    <i class="fa" ng-class="viewOnly ? 'fa-folder-open' : 'fa-user'" style="margin-right:8px;"></i>
+                    {{viewOnly ? 'Detalhes do Cadastro' : 'Editar Cadastro'}}
+                </h4>
+            </div>
+            <div class="modal-body" style="padding: 25px 30px;">
+                <form name="formEditAluno" novalidate>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Dados da Criança</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label>Nome da Criança *</label>
+                            <input type="text" ng-model="editingAluno.nome_crianca" ng-change="formatUppercaseField('editingAluno', 'nome_crianca')" class="form-control" style="text-transform: uppercase;" ng-disabled="viewOnly" required>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Sexo *</label>
+                            <select class="form-control" ng-model="editingAluno.sexo" ng-options="item for item in sexoOptions" ng-disabled="viewOnly" required>
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Nascimento *</label>
+                            <input type="text" ng-model="editingAluno.data_nascimento" oninput="this.value=this.value.replace(/\D/g,'').slice(0,8).replace(/(\d{2})(\d)/,'$1/$2').replace(/(\d{2})\/(\d{2})(\d)/,'$1/$2/$3')" class="form-control" placeholder="dd/mm/aaaa" maxlength="10" inputmode="numeric" pattern="^\d{2}/\d{2}/\d{4}$" title="Use o formato dd/mm/aaaa" ng-disabled="viewOnly" required>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Comum Congregação *</label>
+                            <input type="text" ng-model="editingAluno.comum_congregacao" class="form-control comum-field" placeholder="Digite para pesquisar a comum" autocomplete="off" ng-focus="openComumPicker('editingAluno', 'comum_congregacao')" ng-change="filterComuns()" ng-keydown="handleComumFieldKeydown($event)" ng-disabled="viewOnly" required>
+                            <div class="cadastro-music-comum-picker" ng-if="!viewOnly && isComumPickerOpen('editingAluno', 'comum_congregacao')">
+                                <div class="cadastro-music-comum-meta">{{comumPickerState.results.length}} de {{totalComuns}} comuns</div>
+                                <ul class="cadastro-music-comum-results">
+                                    <li ng-repeat="item in comumPickerState.results track by item" ng-click="selectComum(item)">{{item}}</li>
+                                    <li class="cadastro-music-comum-empty" ng-if="!comumPickerState.results.length">Nenhuma comum encontrada.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Status</label>
+                            <select class="form-control" ng-model="editingAluno.status" ng-disabled="viewOnly">
+                                <option value="Ativo">Ativo</option>
+                                <option value="Inativo">Inativo</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Polo de Participação *</label>
+                            <select class="form-control" ng-model="editingAluno.polo_participacao" ng-disabled="viewOnly" required>
+                                <option value="">Selecione</option>
+                                <option ng-repeat="polo in polos" value="{{polo.nome_polo}}">{{polo.nome_polo}}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="hr-line-dashed"></div>
+
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Dados dos Pais / Responsáveis</h4></div>
+                        <div class="col-sm-8 form-group">
+                            <label>Nome do Pai</label>
+                            <input type="text" ng-model="editingAluno.nome_pai" ng-change="formatUppercaseField('editingAluno', 'nome_pai')" class="form-control" style="text-transform: uppercase;" ng-disabled="viewOnly">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Pai é Crente?</label>
+                            <select class="form-control" ng-model="editingAluno.pai_e_crente" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-8 form-group">
+                            <label>Nome da Mãe</label>
+                            <input type="text" ng-model="editingAluno.nome_mae" ng-change="formatUppercaseField('editingAluno', 'nome_mae')" class="form-control" style="text-transform: uppercase;" ng-disabled="viewOnly">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Mãe é Crente?</label>
+                            <select class="form-control" ng-model="editingAluno.mae_e_crente" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Os Pais Vivem Juntos?</label>
+                            <select class="form-control" ng-model="editingAluno.pais_vivem_juntos" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>A Criança Vive com os Pais?</label>
+                            <select class="form-control" ng-model="editingAluno.crianca_vive_com_os_pais" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Se Não, Vive com Quem?</label>
+                            <input type="text" ng-model="editingAluno.se_nao_vive_com_pais_com_quem_vive" class="form-control" ng-disabled="viewOnly">
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Responsável pela Inscrição *</label>
+                            <input type="text" ng-model="editingAluno.nome_responsavel" ng-change="formatUppercaseField('editingAluno', 'nome_responsavel')" class="form-control" style="text-transform: uppercase;" ng-disabled="viewOnly" required>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Celular do Responsável *</label>
+                            <input type="text" ng-model="editingAluno.celular_responsavel" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11).replace(/^(\d{0,2})(\d{0,1})(\d{0,4})(\d{0,4}).*$/,function(_,a,b,c,d){var out=''; if(a){out='('+a; if(a.length===2) out+=')';} if(b){out+=' '+b;} if(c){out+=' '+c;} if(d){out+='-'+d;} return out;})" class="form-control" placeholder="(11) 9 1234-3454" maxlength="16" inputmode="numeric" pattern="^\(\d{2}\)\s\d\s\d{4}-\d{4}$" title="Use o formato (11) 9 1234-3454" ng-disabled="viewOnly" required>
+                        </div>
+                        <div class="col-sm-3 form-group">
+                            <label>Tem WhatsApp?</label>
+                            <select class="form-control" ng-model="editingAluno.tem_whatsapp" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="hr-line-dashed"></div>
+
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Participação</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label>Participa das Reuniões (Jovens e Menores)?</label>
+                            <select class="form-control" ng-model="editingAluno.participa_reunioes_jovens_menores" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Participa do Espaço Infantil?</label>
+                            <select class="form-control" ng-model="editingAluno.participa_espaco_infantil" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="hr-line-dashed"></div>
+
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Endereço</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label>Rua / Número *</label>
+                            <input type="text" ng-model="editingAluno.logradouro_numero" class="form-control" ng-disabled="viewOnly" required>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label>Complemento</label>
+                            <input type="text" ng-model="editingAluno.complemento" class="form-control" ng-disabled="viewOnly">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Bairro *</label>
+                            <input type="text" ng-model="editingAluno.bairro" class="form-control" ng-disabled="viewOnly" required>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Cidade *</label>
+                            <input type="text" ng-model="editingAluno.cidade" class="form-control" ng-disabled="viewOnly" required>
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>CEP *</label>
+                            <input type="text" ng-model="editingAluno.cep" class="form-control" placeholder="00000-000" ng-disabled="viewOnly" required>
+                        </div>
+                    </div>
+
+                    <div class="hr-line-dashed"></div>
+
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Observações</h4></div>
+                        <div class="col-sm-4 form-group">
+                            <label>Dificuldade de Aprendizagem?</label>
+                            <select class="form-control" ng-model="editingAluno.dificuldade_aprendizagem" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-8 form-group">
+                            <label>Se Sim, Descreva</label>
+                            <input type="text" ng-model="editingAluno.dificuldade_descricao" class="form-control" ng-disabled="viewOnly">
+                        </div>
+                        <div class="col-sm-4 form-group">
+                            <label>Faz Terapia?</label>
+                            <select class="form-control" ng-model="editingAluno.faz_terapia" ng-options="item for item in simNaoOptions" ng-disabled="viewOnly">
+                                <option value="">Selecione</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-8 form-group">
+                            <label>Se Sim, Qual Especialidade?</label>
+                            <input type="text" ng-model="editingAluno.terapia_especialidade" class="form-control" ng-disabled="viewOnly">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="background:#f5f5f5; padding: 14px 20px;">
+                <button type="button" class="btn btn-white" data-dismiss="modal"><i class="fa fa-times"></i> Voltar</button>
+                <button type="button" class="btn btn-primary" ng-if="!viewOnly" ng-click="saveEdit()" ng-disabled="formEditAluno.$invalid || savingEditAluno" style="background:#1ab394; border-color:#1ab394;"><i class="fa fa-save"></i> {{savingEditAluno ? 'Salvando...' : 'Salvar Alterações'}}</button>
+            </div>
+        </div>
+    </div>
+</div>
+

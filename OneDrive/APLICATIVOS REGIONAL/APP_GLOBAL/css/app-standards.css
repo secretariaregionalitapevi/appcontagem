@@ -1,0 +1,115 @@
+:root {
+    --app-primary: #1e4b7a;
+    --app-primary-light: #eef4fa;
+    --app-action-view: #1ab394;
+    --app-action-view-hover: #16987d;
+    --app-action-edit: #f8ac59;
+    --app-action-edit-hover: #eea236;
+    --app-action-delete: #ed5565;
+    --app-action-delete-hover: #e63b4d;
+}
+
+.btn.app-action-btn {
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.btn.app-action-btn .fa {
+    min-width: 12px;
+}
+
+.btn.app-action-view,
+.btn.app-action-view:focus,
+.btn.app-action-view:active {
+    background-color: var(--app-action-view) !important;
+    border-color: var(--app-action-view) !important;
+    color: #fff !important;
+}
+
+.btn.app-action-view:hover {
+    background-color: var(--app-action-view-hover) !important;
+    border-color: var(--app-action-view-hover) !important;
+    color: #fff !important;
+}
+
+.btn.app-action-edit,
+.btn.app-action-edit:focus,
+.btn.app-action-edit:active {
+    background-color: var(--app-action-edit) !important;
+    border-color: var(--app-action-edit) !important;
+    color: #fff !important;
+}
+
+.btn.app-action-edit:hover {
+    background-color: var(--app-action-edit-hover) !important;
+    border-color: var(--app-action-edit-hover) !important;
+    color: #fff !important;
+}
+
+.btn.app-action-delete,
+.btn.app-action-delete:focus,
+.btn.app-action-delete:active {
+    background-color: var(--app-action-delete) !important;
+    border-color: var(--app-action-delete) !important;
+    color: #fff !important;
+}
+
+.btn.app-action-delete:hover {
+    background-color: var(--app-action-delete-hover) !important;
+    border-color: var(--app-action-delete-hover) !important;
+    color: #fff !important;
+}
+
+@media (min-width: 768px) {
+    #wrapper {
+        position: relative;
+    }
+
+    .navbar-static-side {
+        z-index: 2105 !important;
+    }
+
+    #page-wrapper {
+        position: relative;
+        z-index: 1;
+    }
+
+    .navbar-static-side,
+    .navbar-static-side * {
+        pointer-events: auto;
+    }
+
+    .navbar-default .nav > li,
+    .navbar-default .nav > li > a,
+    .navbar-default .nav > li > .nav-second-level {
+        position: relative;
+    }
+}
+
+#side-menu .nav-second-level > li.active > a,
+#side-menu .nav-second-level > li.active > a:hover,
+#side-menu .nav-second-level > li.active > a:focus,
+#side-menu .nav-second-level > li.active > a:active {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.rjm-kpi-card {
+    min-height: 86px;
+}
+
+.rjm-kpi-icon {
+    padding-top: 4px;
+}
+
+.rjm-kpi-icon .fa {
+    font-size: 32px;
+    line-height: 1;
+}
+
+#page-wrapper.rjm\.dashboard {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-y: visible !important;
+}

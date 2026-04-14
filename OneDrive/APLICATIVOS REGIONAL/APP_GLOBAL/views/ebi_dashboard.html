@@ -1,0 +1,170 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-sm-4">
+        <h2>Dashboard EBI</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a ui-sref="dashboards.dashboard_2">Home</a>
+            </li>
+            <li class="active">
+                <strong>Dashboard EBI</strong>
+            </li>
+        </ol>
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight" ng-controller="ebiRecitativosCtrl">
+    <!-- Top Summary Widgets -->
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="widget style1 lazur-bg">
+                <div class="row">
+                    <div class="col-xs-4">
+                        <i class="fa fa-female fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Meninas </span>
+                        <h2 class="font-bold">{{ globalAlunos.meninas || 0 }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 lazur-bg">
+                <div class="row">
+                    <div class="col-xs-4">
+                        <i class="fa fa-male fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Meninos </span>
+                        <h2 class="font-bold">{{ globalAlunos.meninos || 0 }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 yellow-bg">
+                <div class="row">
+                    <div class="col-xs-4">
+                        <i class="fa fa-users fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Colaboradoras </span>
+                        <h2 class="font-bold">{{ globalStaff.total || 0 }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 navy-bg">
+                <div class="row">
+                    <div class="col-xs-4">
+                        <i class="fa fa-check-square-o fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 text-right">
+                        <span> Total Cadastrados </span>
+                        <h2 class="font-bold">{{ globalAlunos.total || 0 }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reports & Filters -->
+    <div class="row m-t-md">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Relatórios e Filtros Rápidos - EBI</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label class="control-label">M&ecirc;s</label>
+                                <select class="form-control input-sm" ng-model="filters.mes" ng-change="applyFilters()"
+                                    ng-options="mes for mes in meses">
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label">Per&iacute;odo</label>
+                                <div class="input-group">
+                                    <input type="date" class="form-control input-sm" ng-model="filters.dataInicio" ng-change="applyFilters()">
+                                    <span class="input-group-addon">até</span>
+                                    <input type="date" class="form-control input-sm" ng-model="filters.dataFim" ng-change="applyFilters()">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label">Cidade</label>
+                                <select class="form-control input-sm" ng-model="filters.cidade" ng-change="applyFilters()" ng-options="c for c in cidades">
+                                    <option value="">Todas as Cidades</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 text-right m-t-md">
+                            <button class="btn btn-primary btn-sm" ng-click="exportToExcel()">
+                                <i class="fa fa-file-excel-o"></i> Exportar Excel
+                            </button>
+                            <button class="btn btn-danger btn-sm" ng-click="exportToPDF()">
+                                <i class="fa fa-file-pdf-o"></i> Exportar PDF
+                            </button>
+                            <button class="btn btn-white btn-sm" ng-click="clearFilters()">
+                                <i class="fa fa-eraser"></i> Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Locality Summary Table -->
+    <div class="row m-t-md">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Resumo de Atividades EBI por Munic&iacute;pio - {{ filters.mes || 'Todos os Meses' }}</h5>
+                    <div class="ibox-tools">
+                        <span class="label label-primary">Regional Itapevi</span>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered text-center">
+                            <thead>
+                                <tr>
+                                    <th class="text-left">MUNIC&Iacute;PIO</th>
+                                    <th class="text-center">MENINAS</th>
+                                    <th class="text-center">MENINOS</th>
+                                    <th class="text-center">COLABORADORAS</th>
+                                    <th class="text-center">TOTAL CRIAN&Ccedil;AS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in dashboardData.municipios">
+                                    <td class="text-left"><i class="fa fa-map-marker-alt text-danger m-r-xs"></i><strong>{{ item.nome }}</strong></td>
+                                    <td>{{ item.meninas }}</td>
+                                    <td>{{ item.meninos }}</td>
+                                    <td>{{ item.colaboradoras }}</td>
+                                    <td><span class="label label-info">{{ item.total }}</span></td>
+                                </tr>
+                            </tbody>
+                            <tfoot style="background: #f3f3f4; font-weight: bold;">
+                                <tr>
+                                    <td class="text-left"><i class="fa fa-map-marker-alt m-r-xs"></i>TOTAL GERAL</td>
+                                    <td>{{ dashboardData.totais.meninas }}</td>
+                                    <td>{{ dashboardData.totais.meninos }}</td>
+                                    <td>{{ dashboardData.totais.colaboradoras }}</td>
+                                    <td><span class="badge badge-primary">{{ dashboardData.totais.geral }}</span></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

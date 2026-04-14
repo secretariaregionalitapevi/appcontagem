@@ -1,0 +1,199 @@
+﻿<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-lg-10">
+        <h2>Polos / Regionais</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a href="#/musicalizacao/dashboard">Musicalização</a>
+            </li>
+            <li class="active">
+                <strong>Polos</strong>
+            </li>
+        </ol>
+    </div>
+    <div class="col-lg-2">
+    </div>
+</div>
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Lista de Polos de Musicalização</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-primary btn-xs" ng-click="prepareAdd()"><i class="fa fa-plus"></i> Novo Polo</button>
+                        <button class="btn btn-info btn-xs" ng-click="exportToExcel()"><i class="fa fa-file-excel-o"></i> Excel</button>
+                        <button class="btn btn-danger btn-xs" ng-click="exportToPDF()"><i class="fa fa-file-pdf-o"></i> PDF</button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    
+                    <div class="text-center" ng-if="loading">
+                        <div class="sk-spinner sk-spinner-double-bounce">
+                            <div class="sk-double-bounce1"></div>
+                            <div class="sk-double-bounce2"></div>
+                        </div>
+                        <p>Carregando polos...</p>
+                    </div>
+
+                    <div class="table-responsive" ng-if="!loading">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome do Polo</th>
+                                    <th>Localidade</th>
+                                    <th>Encarregado Local</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat-start="grupo in groupedPolos()">
+                                    <td colspan="4" style="background:#f3fbf8; font-weight:700; color:#1ab394; border-top:2px solid #1ab394;">
+                                        <i class="fa fa-map-marker-alt text-danger m-r-xs"></i>MUNICÍPIO: {{grupo.municipio}} <span class="text-muted">({{grupo.polos.length}} polos)</span>
+                                    </td>
+                                </tr>
+                                <tr ng-repeat="polo in grupo.polos">
+                                    <td><i class="fa fa-map-marker-alt text-danger m-r-xs"></i>{{polo.nome_polo}}</td>
+                                    <td><i class="fa fa-map-marker-alt text-danger m-r-xs"></i>{{polo.localidade}}</td>
+                                    <td>{{polo.encarregado || '-'}}</td>
+                                    <td class="text-center" style="vertical-align: middle;">
+                                        <div style="white-space: nowrap;">
+                                            <button class="btn btn-warning btn-xs" ng-if="canManageCadastros" ng-click="prepareEdit(polo)" title="Editar">
+                                                <i class="fa fa-pencil"></i> Editar
+                                            </button>
+                                            <button class="btn btn-danger btn-xs" ng-if="canManageCadastros" ng-click="confirmDelete(polo)" title="Excluir">
+                                                <i class="fa fa-trash"></i> Apagar
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr ng-repeat-end style="display:none;"></tr>
+                                <tr ng-if="groupedPolos().length === 0">
+                                    <td colspan="4" class="text-center">Nenhum polo encontrado.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Adicionar Polo -->
+    <div class="modal inmodal" id="modalAddPolo" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;"><span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span></button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa fa-building-o" style="margin-right:8px;"></i>
+                        Novo Polo
+                    </h4>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Dados do Polo</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label style="font-weight:600; color:#555;">Nome do Polo</label>
+                            <input type="text"
+                                   placeholder="Digite para pesquisar a comum"
+                                   class="form-control comum-field"
+                                   ng-model="newPolo.nome_polo"
+                                   autocomplete="off"
+                                   ng-click="openComumPicker('newPolo', 'nome_polo')"
+                                   ng-focus="openComumPicker('newPolo', 'nome_polo')"
+                                   ng-change="filterComuns()"
+                                   ng-keydown="handleComumFieldKeydown($event)">
+                            <div class="text-muted" style="font-size:12px; margin-top:6px;">Pesquise e selecione uma comum cadastrada.</div>
+                            <div class="cadastro-music-comum-picker" ng-if="isComumPickerOpen('newPolo', 'nome_polo')">
+                                <div class="cadastro-music-comum-meta">{{comumPickerState.results.length}} comuns encontradas</div>
+                                <ul class="cadastro-music-comum-results">
+                                    <li ng-repeat="item in comumPickerState.results track by item" ng-click="selectComum(item)">{{item}}</li>
+                                    <li class="cadastro-music-comum-empty" ng-if="!comumPickerState.results.length">Nenhuma comum encontrada.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label style="font-weight:600; color:#555;">Município / Localidade</label>
+                            <select class="form-control" ng-model="newPolo.localidade">
+                                <option value="">Selecione</option>
+                                <option ng-repeat="cidade in cidades" value="{{cidade}}">{{cidade}}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="hr-line-dashed"></div>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Responsável</h4></div>
+                        <div class="col-sm-12 form-group">
+                            <label style="font-weight:600; color:#555;">Encarregado Local</label>
+                            <input type="text" placeholder="Nome do Encarregado" class="form-control" ng-model="newPolo.encarregado">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="background:#f5f5f5; padding: 14px 20px;">
+                    <button type="button" class="btn btn-white" data-dismiss="modal"><i class="fa fa-times"></i> Voltar</button>
+                    <button type="button" class="btn btn-primary" ng-click="saveNewPolo()" style="background:#1ab394; border-color:#1ab394;"><i class="fa fa-save"></i> Salvar Polo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Polo -->
+    <div class="modal inmodal" id="modalEditPolo" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content animated bounceInRight">
+                <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                    <button type="button" class="close" data-dismiss="modal" style="color:#fff; opacity:1; font-size:22px;"><span aria-hidden="true">&times;</span><span class="sr-only">Fechar</span></button>
+                    <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                        <i class="fa fa-building-o" style="margin-right:8px;"></i>
+                        Editar Polo
+                    </h4>
+                </div>
+                <div class="modal-body" style="padding: 25px 30px;">
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Dados do Polo</h4></div>
+                        <div class="col-sm-6 form-group">
+                            <label style="font-weight:600; color:#555;">Nome do Polo</label>
+                            <input type="text"
+                                   class="form-control comum-field"
+                                   ng-model="editingPolo.nome_polo"
+                                   autocomplete="off"
+                                   ng-click="openComumPicker('editingPolo', 'nome_polo')"
+                                   ng-focus="openComumPicker('editingPolo', 'nome_polo')"
+                                   ng-change="filterComuns()"
+                                   ng-keydown="handleComumFieldKeydown($event)">
+                            <div class="text-muted" style="font-size:12px; margin-top:6px;">Pesquise e selecione uma comum cadastrada.</div>
+                            <div class="cadastro-music-comum-picker" ng-if="isComumPickerOpen('editingPolo', 'nome_polo')">
+                                <div class="cadastro-music-comum-meta">{{comumPickerState.results.length}} comuns encontradas</div>
+                                <ul class="cadastro-music-comum-results">
+                                    <li ng-repeat="item in comumPickerState.results track by item" ng-click="selectComum(item)">{{item}}</li>
+                                    <li class="cadastro-music-comum-empty" ng-if="!comumPickerState.results.length">Nenhuma comum encontrada.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 form-group">
+                            <label style="font-weight:600; color:#555;">Município / Localidade</label>
+                            <select class="form-control" ng-model="editingPolo.localidade">
+                                <option value="">Selecione</option>
+                                <option ng-repeat="cidade in cidades" value="{{cidade}}">{{cidade}}</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="hr-line-dashed"></div>
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Responsável</h4></div>
+                        <div class="col-sm-12 form-group">
+                            <label style="font-weight:600; color:#555;">Encarregado Local</label>
+                            <input type="text" class="form-control" ng-model="editingPolo.encarregado">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="background:#f5f5f5; padding: 14px 20px;">
+                    <button type="button" class="btn btn-white" data-dismiss="modal"><i class="fa fa-times"></i> Voltar</button>
+                    <button type="button" class="btn btn-primary" ng-click="saveEdit()" style="background:#1ab394; border-color:#1ab394;"><i class="fa fa-save"></i> Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

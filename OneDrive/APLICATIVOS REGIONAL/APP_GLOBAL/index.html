@@ -1,0 +1,136 @@
+<!--
+*
+* INSPINIA - Responsive Admin Theme
+* Version 2.7.1
+*
+-->
+
+<!DOCTYPE html>
+<html ng-app="inspinia">
+
+<head>
+    <!-- VERSION 1.3.1 CHECK -->
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Unregister Service Workers -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                registrations.forEach(function(registration) {
+                    registration.unregister();
+                    console.log('Service Worker unregistered');
+                });
+            });
+        }
+    </script>
+
+    <!-- Page title set in pageTitle directive -->
+    <title page-title></title>
+
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css?v=1.1.5" rel="stylesheet">
+    <link href="css/cadastromusic-embed.css?v=1.0.1" rel="stylesheet">
+
+    <!-- Font awesome -->
+    <link href="font-awesome/css/font-awesome.css?v=1.1.5" rel="stylesheet">
+    <!-- Font Awesome 6 (for newer icons like fa-hands) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Main Inspinia CSS files -->
+    <link href="css/animate.css?v=1.1.5" rel="stylesheet">
+    <!-- Sweet Alert -->
+    <link href="css/plugins/sweetalert/sweetalert.css?v=1.1.5" rel="stylesheet">
+    <link id="loadBefore" href="css/style.css?v=1.1.5" rel="stylesheet">
+    <link href="css/app-standards.css?v=1.0.0" rel="stylesheet">
+    <style>
+        .label-pink {
+            background-color: #d63384 !important;
+            color: white !important;
+        }
+    </style>
+
+</head>
+
+<!-- ControllerAs syntax -->
+<!-- Main controller with serveral data used in Inspinia theme on diferent view -->
+
+<body ng-controller="MainCtrl as main" class="{{$state.current.data.specialClass}}" landing-scrollspy id="page-top">
+
+    <!-- Main view  -->
+    <div ui-view></div>
+
+    <!-- jQuery and Bootstrap -->
+    <script src="js/jquery/jquery-3.1.1.min.js"></script>
+    <script src="js/plugins/jquery-ui/jquery-ui.min.js"></script>
+    <script src="js/bootstrap/bootstrap.min.js"></script>
+
+    <!-- MetsiMenu -->
+    <script src="js/plugins/metisMenu/jquery.metisMenu.js"></script>
+
+    <!-- SlimScroll -->
+    <script src="js/plugins/slimscroll/jquery.slimscroll.min.js"></script>
+
+    <!-- Peace JS -->
+    <script src="js/plugins/pace/pace.min.js"></script>
+
+    <!-- Custom and plugin javascript -->
+    <script src="js/inspinia.js?v=1.1.5"></script>
+
+    <!-- Main Angular scripts-->
+    <script src="js/angular/angular.min.js"></script>
+    <script src="js/angular/angular-sanitize.js"></script>
+    <script src="js/plugins/oclazyload/dist/ocLazyLoad.min.js"></script>
+    <script src="js/angular-translate/angular-translate.min.js"></script>
+    <script src="js/ui-router/angular-ui-router.min.js"></script>
+    <script src="js/bootstrap/ui-bootstrap-tpls-1.1.2.min.js"></script>
+    <script src="js/plugins/angular-idle/angular-idle.js"></script>
+
+    <!-- Sweet alert -->
+    <script src="js/plugins/sweetalert/sweetalert.min.js"></script>
+    <script src="js/plugins/sweetalert/angular-sweetalert.min.js"></script>
+
+    <!--
+ You need to include this script on any page that has a Google Map.
+
+ When using Google Maps on your own site you MUST signup for your own API key at:
+ https://developers.google.com/maps/documentation/javascript/tutorial#api_key
+ After your sign up replace the key in the URL below..
+-->
+    <script type="text/javascript"
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDQTpXj82d8UpCi97wzo_nKXL7nYrd4G70"></script>
+
+    <!-- Angular App Script -->
+    <script src="js/app.js?v=1.3.7"></script>
+    <script src="js/config.js?v=1.3.25"></script>
+    <script src="js/translations.js?v=1.3.7"></script>
+    <script src="js/directives.js?v=1.3.7"></script>
+    <script src="js/services/auth.service.js?v=1.3.26"></script>
+    <script src="js/services/rjm.service.js?v=1.3.9"></script>
+    <script src="js/services/ebi.service.js?v=1.3.8"></script>
+    <script src="js/services/musicalizacao.service.js?v=1.3.11"></script>
+    <script src="js/services/visitas.service.js?v=1.0.0"></script>
+    <script src="js/services/santa_ceia.service.js?v=1.0.0"></script>
+    <script src="js/cadastromusic-data.js?v=1.0.2"></script>
+    
+    <!-- Excel & PDF Export Tools -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="js/ui-standards.js?v=1.1.0"></script>
+    <script src="js/ebi_active_spaces.js?v=1.0.3"></script>
+
+    <script src="js/controllers_v130.js?v=1.3.93"></script>
+
+
+</body>
+
+</html>
+
+
+

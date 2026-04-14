@@ -1,0 +1,334 @@
+<div class="row wrapper border-bottom white-bg page-heading">
+    <div class="col-sm-6">
+        <h2>Lan&ccedil;amentos de Visitas</h2>
+        <ol class="breadcrumb">
+            <li>
+                <a ui-sref="dashboards.dashboard_2">Home</a>
+            </li>
+            <li>
+                <a ui-sref="visitas.dashboard">Visitas</a>
+            </li>
+            <li class="active">
+                <strong>Lan&ccedil;amentos</strong>
+            </li>
+        </ol>
+    </div>
+</div>
+
+<style>
+    .visitas-lancamentos-summary .widget {
+        min-height: 86px;
+    }
+
+    .visitas-lancamentos-summary .widget .row {
+        display: flex;
+        align-items: center;
+    }
+
+    .visitas-lancamentos-summary .summary-icon {
+        text-align: center;
+        padding-left: 10px;
+        padding-right: 0;
+        display: flex;
+        justify-content: flex-start;
+    }
+
+    .visitas-lancamentos-summary .summary-icon i {
+        font-size: 52px;
+        line-height: 1;
+    }
+
+    .visitas-lancamentos-summary .summary-metric {
+        text-align: right;
+    }
+</style>
+
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row visitas-lancamentos-summary">
+        <div class="col-lg-3">
+            <div class="widget style1 navy-bg">
+                <div class="row">
+                    <div class="col-xs-4 summary-icon">
+                        <i class="fa fa-file-text fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 summary-metric">
+                        <span> Registros filtrados </span>
+                        <h2 class="font-bold">{{ (summary.totalRegistros || 0) }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 lazur-bg">
+                <div class="row">
+                    <div class="col-xs-4 summary-icon">
+                        <i class="fa fa-map-marker fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 summary-metric">
+                        <span> Munic&iacute;pios </span>
+                        <h2 class="font-bold">{{ (summary.municipios || 0) }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 yellow-bg">
+                <div class="row">
+                    <div class="col-xs-4 summary-icon">
+                        <i class="fa fa-check-square-o fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 summary-metric">
+                        <span> M&ecirc;s atual </span>
+                        <h2 class="font-bold">{{ (summary.mesAtual || 0) }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="widget style1 bg-primary">
+                <div class="row">
+                    <div class="col-xs-4 summary-icon">
+                        <i class="fa fa-bar-chart fa-5x"></i>
+                    </div>
+                    <div class="col-xs-8 summary-metric">
+                        <span> Total de visitas </span>
+                        <h2 class="font-bold">{{ (summary.totalVisitas || 0) }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-5">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>{{ editing ? 'Editar lan&ccedil;amento' : 'Novo lan&ccedil;amento mensal' }}</h5>
+                </div>
+                <div class="ibox-content">
+                    <div class="alert alert-warning" ng-if="visitasError">
+                        {{ visitasError }}
+                    </div>
+
+                    <form novalidate>
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label>Munic&iacute;pio</label>
+                                    <select class="form-control" ng-model="formData.municipio" ng-change="onFormMunicipioChange()" ng-disabled="!canManageCadastros">
+                                        <option value="">Todos os munic&iacute;pios</option>
+                                        <option ng-repeat="cidade in cidades" value="{{ cidade }}">{{ cidade }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label>Ano</label>
+                                    <input type="number" class="form-control" ng-model="formData.referencia_ano" ng-disabled="!canManageCadastros">
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label>M&ecirc;s</label>
+                                    <select class="form-control" ng-model="formData.referencia_mes" ng-disabled="!canManageCadastros">
+                                        <option value="1">Janeiro</option>
+                                        <option value="2">Fevereiro</option>
+                                        <option value="3">Mar&ccedil;o</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Maio</option>
+                                        <option value="6">Junho</option>
+                                        <option value="7">Julho</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Setembro</option>
+                                        <option value="10">Outubro</option>
+                                        <option value="11">Novembro</option>
+                                        <option value="12">Dezembro</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Comum</label>
+                            <input type="text"
+                                   class="form-control"
+                                   list="visitas-comuns-list"
+                                   placeholder="Digite o c&oacute;digo ou nome da comum..."
+                                   ng-model="formData.comum"
+                                   ng-change="onComumSearchChange()"
+                                   ng-blur="onComumChange()"
+                                   ng-disabled="!canManageCadastros"
+                                   autocomplete="off">
+                            <datalist id="visitas-comuns-list">
+                                <option ng-repeat="comum in filteredComunsDisponiveis" value="{{ comum }}"></option>
+                            </datalist>
+                            <small class="text-muted">{{ filteredComunsDisponiveis.length }} comuns dispon&iacute;veis para o munic&iacute;pio e per&iacute;odo atuais.</small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label>Munic&iacute;pio da comum</label>
+                                    <input type="text" class="form-control" ng-model="formData.municipio" readonly>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label>C&oacute;digo</label>
+                                    <input type="text" class="form-control" ng-model="formData.codigo_comum" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <div class="form-group">
+                                    <label>Data</label>
+                                    <input type="date" class="form-control" ng-model="formData.data_lancamento" ng-disabled="!canManageCadastros">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label>GVI</label>
+                                    <input type="number" min="0" class="form-control" ng-model="formData.gvi" ng-disabled="!canManageCadastros">
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label>GVM</label>
+                                    <input type="number" min="0" class="form-control" ng-model="formData.gvm" ng-disabled="!canManageCadastros">
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="form-group">
+                                    <label>M&uacute;sicos</label>
+                                    <input type="number" min="0" class="form-control" ng-model="formData.musicos" ng-disabled="!canManageCadastros">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label>Reuni&atilde;o Familiar</label>
+                                    <input type="number" min="0" class="form-control" ng-model="formData.rf" ng-disabled="!canManageCadastros">
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label>Evangeliza&ccedil;&atilde;o</label>
+                                    <input type="number" min="0" class="form-control" ng-model="formData.re" ng-disabled="!canManageCadastros">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Observa&ccedil;&otilde;es</label>
+                            <textarea class="form-control" rows="3" ng-model="formData.observacoes" ng-disabled="!canManageCadastros"></textarea>
+                        </div>
+
+                        <div class="text-right">
+                            <button type="button" class="btn btn-white" ng-click="cancelEdit()" ng-if="editing">
+                                Cancelar edi&ccedil;&atilde;o
+                            </button>
+                            <button type="button" class="btn btn-primary" ng-click="saveLancamento()" ng-disabled="saving || !canManageCadastros">
+                                <i class="fa" ng-class="editing ? 'fa-save' : 'fa-plus'"></i> {{ editing ? 'Atualizar' : 'Salvar lan&ccedil;amento' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>Hist&oacute;rico de lan&ccedil;amentos</h5>
+                    <div class="ibox-tools">
+                        <button class="btn btn-default btn-xs" ng-click="prepareNovo()" ng-if="editing">
+                            <i class="fa fa-eraser"></i> Limpar formul&aacute;rio
+                        </button>
+                    </div>
+                </div>
+                <div class="ibox-content">
+                    <div class="text-muted text-center m-b-md" ng-if="loading">
+                        <i class="fa fa-spinner fa-spin"></i> Carregando registros...
+                    </div>
+
+                    <div class="row m-b-sm">
+                        <div class="col-sm-5">
+                            <input type="text" class="form-control input-sm" placeholder="Pesquisar comum, c&oacute;digo ou observa&ccedil;&atilde;o..." ng-model="filters.searchText">
+                        </div>
+                        <div class="col-sm-3">
+                            <select class="form-control input-sm" ng-model="filters.cidade">
+                                <option value="">Todos os munic&iacute;pios</option>
+                                <option ng-repeat="cidade in cidades" value="{{ cidade }}">{{ cidade }}</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-4">
+                            <select class="form-control input-sm" ng-model="filters.mes">
+                                <option value="">Todos os meses</option>
+                                <option value="Janeiro">Janeiro</option>
+                                <option value="Fevereiro">Fevereiro</option>
+                                <option value="Mar&ccedil;o">Mar&ccedil;o</option>
+                                <option value="Abril">Abril</option>
+                                <option value="Maio">Maio</option>
+                                <option value="Junho">Junho</option>
+                                <option value="Julho">Julho</option>
+                                <option value="Agosto">Agosto</option>
+                                <option value="Setembro">Setembro</option>
+                                <option value="Outubro">Outubro</option>
+                                <option value="Novembro">Novembro</option>
+                                <option value="Dezembro">Dezembro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Per&iacute;odo</th>
+                                    <th>Comum</th>
+                                    <th class="text-center">Total</th>
+                                    <th>A&ccedil;&otilde;es</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="item in filteredLancamentos">
+                                    <td style="width: 150px;">
+                                        <strong>{{ getPeriodoDisplay(item) }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ getDataDisplay(item) }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ item.comum }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ item.municipio }} <span ng-if="item.codigo">| {{ item.codigo }}</span></small>
+                                    </td>
+                                    <td class="text-center" style="width: 110px;">
+                                        <span class="label label-primary">{{ item.total }}</span>
+                                    </td>
+                                    <td style="width: 160px;">
+                                        <button class="btn btn-white btn-xs" ng-click="editLancamento(item)">
+                                            <i class="fa fa-pencil"></i> Editar
+                                        </button>
+                                        <button class="btn btn-danger btn-xs" ng-click="confirmDelete(item)" ng-disabled="!canManageCadastros">
+                                            <i class="fa fa-trash"></i> Excluir
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr ng-if="!filteredLancamentos.length">
+                                    <td colspan="4" class="text-center text-muted">Nenhum lan&ccedil;amento encontrado para os filtros atuais.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

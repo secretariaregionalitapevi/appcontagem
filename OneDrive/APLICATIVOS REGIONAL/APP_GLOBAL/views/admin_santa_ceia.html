@@ -1,0 +1,1145 @@
+<style>
+    .santa-ceia-report .ibox {
+        page-break-inside: avoid;
+    }
+
+    .santa-ceia-report .ibox-title h5,
+    .santa-ceia-report .ibox-content h1,
+    .santa-ceia-report .ibox-content h2,
+    .santa-ceia-report .ibox-content h3,
+    .santa-ceia-report .ibox-content h4 {
+        word-break: break-word;
+    }
+
+    .santa-ceia-chart-wrap {
+        min-height: 290px;
+        padding: 4px 10px 0 0;
+    }
+
+    .santa-ceia-comparison-main .ibox-content {
+        padding-bottom: 10px;
+    }
+
+    .santa-ceia-comparison-main .m-t-sm {
+        margin-top: 6px !important;
+    }
+
+    .santa-ceia-comparison-main .m-t-md {
+        margin-top: 6px !important;
+    }
+
+    .santa-ceia-top-row .ibox {
+        margin-bottom: 25px;
+    }
+
+    .santa-ceia-top-row .ibox-title {
+        min-height: 48px;
+    }
+
+    .santa-ceia-top-row .ibox-title h5 {
+        margin: 0;
+    }
+
+    .santa-ceia-top-row .ibox-content {
+        padding-top: 16px;
+        min-height: 90px;
+    }
+
+    .santa-ceia-top-row .ibox-content > small,
+    .santa-ceia-top-row .ibox-content .stat-percent {
+        display: block;
+        white-space: nowrap;
+    }
+
+    .santa-ceia-top-row .ibox-content small {
+        font-size: 11px;
+    }
+
+    .santa-ceia-chart-summary {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid #edf2f7;
+    }
+
+    .santa-ceia-widget-card {
+        position: relative;
+        min-height: 126px;
+        margin-bottom: 0;
+        padding: 18px 18px 16px;
+        border-radius: 14px;
+        border: 1px solid #e8eef5;
+        background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+        box-shadow: 0 8px 24px rgba(47, 64, 80, 0.06);
+        overflow: hidden;
+    }
+
+    .santa-ceia-widget-card:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: #1ab394;
+    }
+
+    .santa-ceia-widget-card.is-info:before {
+        background: #23a6d5;
+    }
+
+    .santa-ceia-widget-card.is-warning:before {
+        background: #f8ac59;
+    }
+
+    .santa-ceia-widget-card .widget-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: rgba(26, 179, 148, 0.12);
+        color: #1ab394;
+        font-size: 18px;
+    }
+
+    .santa-ceia-widget-card.is-info .widget-icon {
+        background: rgba(35, 166, 213, 0.12);
+        color: #23a6d5;
+    }
+
+    .santa-ceia-widget-card.is-warning .widget-icon {
+        background: rgba(248, 172, 89, 0.14);
+        color: #f8ac59;
+    }
+
+    .santa-ceia-widget-card .widget-label {
+        display: block;
+        margin-top: 14px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        color: #8a97a6;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .santa-ceia-widget-card .widget-value {
+        display: block;
+        margin-top: 10px;
+        font-size: 30px;
+        line-height: 1;
+        font-weight: 700;
+        color: #2f4050;
+    }
+
+    .santa-ceia-widget-card .widget-note {
+        display: block;
+        margin-top: 8px;
+        font-size: 12px;
+        line-height: 1.3;
+        color: #7f8c8d;
+        min-height: 32px;
+    }
+
+
+    .santa-ceia-comuns-panel .santa-ceia-panel-modern > .row:first-child,
+    .santa-ceia-comuns-panel .santa-ceia-panel-modern > .row:first-of-type {
+        display: none;
+    }
+
+    .santa-ceia-comuns-panel .santa-ceia-side-card:first-of-type {
+        margin-top: 0 !important;
+    }
+
+    .santa-ceia-comuns-panel > .ibox-content + .ibox-content {
+        display: none;
+    }
+
+    .santa-ceia-side-summary {
+        display: block;
+        padding: 14px 14px 12px;
+        border-radius: 10px;
+        min-height: 96px;
+        border: 1px solid #eef2f7;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbfc 100%);
+    }
+
+    .santa-ceia-side-summary .summary-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .6px;
+        color: #8a97a6;
+    }
+
+    .santa-ceia-side-summary .summary-value {
+        display: block;
+        margin-top: 10px;
+        font-size: 30px;
+        line-height: 1;
+        font-weight: 700;
+        color: #2f4050;
+    }
+
+    .santa-ceia-side-summary .summary-note {
+        display: block;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #7f8c8d;
+    }
+
+    .santa-ceia-side-summary.is-primary .summary-value,
+    .santa-ceia-side-card.is-primary .card-metric {
+        color: #1ab394;
+    }
+
+    .santa-ceia-side-summary.is-info .summary-value,
+    .santa-ceia-side-card.is-info .card-metric {
+        color: #23a6d5;
+    }
+
+    .santa-ceia-side-summary.is-warning .summary-value,
+    .santa-ceia-side-card.is-warning .card-metric {
+        color: #f8ac59;
+    }
+
+    .santa-ceia-side-card {
+        padding: 16px 18px;
+        border-radius: 12px;
+        border: 1px solid #eef2f7;
+        background: #ffffff;
+        box-shadow: 0 6px 18px rgba(47, 64, 80, 0.06);
+    }
+
+    .santa-ceia-side-card + .santa-ceia-side-card {
+        margin-top: 14px;
+    }
+
+    .santa-ceia-side-card .card-eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+        color: #8a97a6;
+    }
+
+    .santa-ceia-side-card .card-title {
+        margin-top: 6px;
+        font-size: 18px;
+        line-height: 1.35;
+        font-weight: 700;
+        color: #2f4050;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .santa-ceia-side-card .card-meta {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #7f8c8d;
+    }
+
+    .santa-ceia-side-card .card-metric {
+        margin-top: 14px;
+        font-size: 28px;
+        line-height: 1;
+        font-weight: 700;
+    }
+
+    .santa-ceia-side-card .card-footer {
+        margin-top: 10px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #7f8c8d;
+        gap: 10px;
+    }
+
+    .santa-ceia-side-card .card-footer span {
+        white-space: nowrap;
+    }
+
+    .santa-ceia-side-card .card-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        background: #f3f6fb;
+        color: #8091a5;
+    }
+
+    .santa-ceia-inline-metrics {
+        margin-top: 14px;
+    }
+
+    .santa-ceia-inline-metric {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 68px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        color: #ffffff;
+        box-shadow: 0 8px 20px rgba(47, 64, 80, 0.08);
+    }
+
+    .santa-ceia-inline-metric.is-primary {
+        background: linear-gradient(135deg, #22b8a0 0%, #1ab394 100%);
+    }
+
+    .santa-ceia-inline-metric.is-info {
+        background: linear-gradient(135deg, #35c4d4 0%, #23a6d5 100%);
+    }
+
+    .santa-ceia-inline-metric.is-warning {
+        background: linear-gradient(135deg, #ffb45b 0%, #f8ac59 100%);
+    }
+
+    .santa-ceia-inline-metric .metric-icon {
+        font-size: 24px;
+        opacity: 0.95;
+    }
+
+    .santa-ceia-inline-metric .metric-copy {
+        flex: 1;
+        padding-left: 12px;
+    }
+
+    .santa-ceia-inline-metric .metric-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .6px;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    .santa-ceia-inline-metric .metric-value {
+        display: block;
+        margin-top: 4px;
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1;
+        color: #ffffff;
+    }
+
+    @page {
+        size: A4 portrait;
+        margin: 6mm;
+    }
+
+    @media print {
+        html,
+        body {
+            width: 210mm !important;
+            height: 297mm !important;
+            background: #ffffff !important;
+            overflow: visible !important;
+        }
+
+        .navbar-static-top,
+        .footer,
+        .page-heading,
+        .breadcrumb,
+        .modal,
+        .modal-backdrop,
+        .santa-ceia-print-hide {
+            display: none !important;
+        }
+
+        #page-wrapper {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .wrapper.wrapper-content.santa-ceia-report {
+            padding: 0 !important;
+            margin: 0 !important;
+            zoom: 0.78;
+        }
+
+        .santa-ceia-report .row {
+            margin-left: -6px !important;
+            margin-right: -6px !important;
+        }
+
+        .santa-ceia-report [class*="col-"] {
+            float: left !important;
+            padding-left: 6px !important;
+            padding-right: 6px !important;
+        }
+
+        .santa-ceia-report .col-lg-2 {
+            width: 16.66666667% !important;
+        }
+
+        .santa-ceia-report .col-lg-4 {
+            width: 33.33333333% !important;
+        }
+
+        .santa-ceia-report .col-lg-8 {
+            width: 66.66666667% !important;
+        }
+
+        .santa-ceia-report .col-lg-12,
+        .santa-ceia-report .col-sm-3,
+        .santa-ceia-report .col-sm-4,
+        .santa-ceia-report .col-sm-6,
+        .santa-ceia-report .col-sm-9,
+        .santa-ceia-report .col-md-4,
+        .santa-ceia-report .col-md-6,
+        .santa-ceia-report .col-md-8 {
+            width: 100% !important;
+        }
+
+        .santa-ceia-report .ibox {
+            margin-bottom: 12px !important;
+            border: 1px solid #e5e6e7 !important;
+            box-shadow: none !important;
+        }
+
+        .santa-ceia-report .ibox-title {
+            min-height: 38px !important;
+            padding: 10px 12px 9px !important;
+        }
+
+        .santa-ceia-report .ibox-content {
+            padding: 10px 12px 12px !important;
+        }
+
+        .santa-ceia-chart-wrap {
+            min-height: 170px !important;
+            padding-right: 0 !important;
+        }
+
+        .santa-ceia-report .ibox-content h1 {
+            font-size: 28px !important;
+        }
+
+        .santa-ceia-report .ibox-content h2 {
+            font-size: 26px !important;
+        }
+
+        .santa-ceia-report .ibox-content h3 {
+            font-size: 21px !important;
+        }
+
+        .santa-ceia-report .ibox-content h4 {
+            font-size: 17px !important;
+        }
+
+        .santa-ceia-report small,
+        .santa-ceia-report .stats-label,
+        .santa-ceia-report .stat-percent,
+        .santa-ceia-report .table > thead > tr > th,
+        .santa-ceia-report .table > tbody > tr > td {
+            font-size: 11px !important;
+        }
+
+        .santa-ceia-report .m-t-lg,
+        .santa-ceia-report .m-t-md {
+            margin-top: 8px !important;
+        }
+
+        .santa-ceia-report .progress {
+            margin-bottom: 8px !important;
+        }
+
+        .santa-ceia-report .table {
+            margin-bottom: 0 !important;
+        }
+
+        .santa-ceia-report .table-responsive {
+            overflow: visible !important;
+            border: 0 !important;
+        }
+
+        .santa-ceia-report .table > thead > tr > th,
+        .santa-ceia-report .table > tbody > tr > td {
+            padding: 6px 5px !important;
+            vertical-align: middle !important;
+        }
+
+        .santa-ceia-report .table > thead > tr > th:last-child,
+        .santa-ceia-report .table > tbody > tr > td:last-child {
+            display: none !important;
+        }
+
+        .santa-ceia-report .flot-chart,
+        .santa-ceia-report canvas {
+            max-height: 140px !important;
+        }
+    }
+
+    @media (max-width: 991px) {
+        .santa-ceia-chart-wrap {
+            min-height: 220px;
+            padding-right: 0;
+        }
+
+        .santa-ceia-widget-card {
+            margin-bottom: 15px;
+            min-height: 0;
+        }
+
+        .santa-ceia-widget-card .widget-note,
+        .santa-ceia-side-card .card-title,
+        .santa-ceia-side-card .card-footer span,
+        .santa-ceia-top-row .ibox-title h5 {
+            white-space: normal;
+        }
+
+    }
+</style>
+
+<div class="wrapper wrapper-content animated fadeInRight santa-ceia-report">
+<div class="row santa-ceia-top-row">
+    <div class="col-lg-2">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <span class="label label-success pull-right">Anual</span>
+                <h5>Total {{regionalStats.previousYearLabel}}</h5>
+            </div>
+            <div class="ibox-content">
+                <h1 class="no-margins">{{regionalStats.totalPrevious | number}}</h1>
+                <div class="stat-percent font-bold text-info">{{regionalStats.previousCoverageRate | number:0}}%</div>
+                <small>{{regionalStats.previousCoverageCount}}/{{regionalStats.totalTarget}} comuns em {{regionalStats.previousYearLabel}}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-2">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <span class="label label-info pull-right">Cobertura</span>
+                <h5>Total {{regionalStats.currentYearLabel}}</h5>
+            </div>
+            <div class="ibox-content">
+                <h1 class="no-margins">{{regionalStats.totalCurrent | number}}</h1>
+                <div class="stat-percent font-bold text-info">{{regionalStats.currentCoverageRate | number:0}}%</div>
+                <small>{{regionalStats.currentCoverageCount}}/{{regionalStats.totalTarget}} comuns em {{regionalStats.currentYearLabel}}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <span class="label label-primary pull-right">Irmandade</span>
+                <h5>Participa&ccedil;&atilde;o</h5>
+            </div>
+            <div class="ibox-content">
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h1 class="no-margins">{{regionalStats.irmas | number}}</h1>
+                        <div class="font-bold text-navy">{{regionalStats.femaleShare | number:0}}% <i class="fa fa-level-up"></i> <small class="m-l-xs">Irm&atilde;s {{regionalStats.currentYearLabel}}</small></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h1 class="no-margins">{{regionalStats.irmaos | number}}</h1>
+                        <div class="font-bold text-navy">{{regionalStats.maleShare | number:0}}% <i class="fa fa-level-up"></i> <small class="m-l-xs">Irm&atilde;os {{regionalStats.currentYearLabel}}</small></div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <span class="label label-primary pull-right">Irmandade</span>
+                <h5>Evolu&ccedil;&atilde;o mensal</h5>
+            </div>
+            <div class="ibox-content">
+                <div class="row">
+                    <div class="col-xs-5">
+                        <small>Saldo 2026</small>
+                        <h2 class="no-margins" ng-class="regionalStats.growth >= 0 ? 'text-navy' : 'text-danger'">{{regionalStats.growth | number}}</h2>
+                        <div class="font-bold" ng-class="regionalStats.growth >= 0 ? 'text-navy' : 'text-danger'">
+                            {{regionalStats.growthRate | number:1}}% <i class="fa" ng-class="regionalStats.growth >= 0 ? 'fa-level-up' : 'fa-level-down'"></i>
+                        </div>
+                    </div>
+                    <div class="col-xs-7">
+                        <div class="flot-chart" style="height: 55px;">
+                            <div flot class="flot-chart-content" dataset="topSparklineData" options="topSparklineOptions"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="ibox float-e-margins santa-ceia-comparison-main">
+            <div class="ibox-content">
+                <div>
+                    <span class="pull-right text-right">
+                        <button type="button"
+                                class="btn btn-xs btn-primary m-b-xs"
+                                style="background:#1e4b7a; border-color:#1e4b7a;"
+                                ng-if="canImportHistoricalEvents"
+                                ng-click="importHistoricalEvents2025()"
+                                ng-disabled="importingHistoricalEvents">
+                            <i class="fa" ng-class="importingHistoricalEvents ? 'fa-spinner fa-spin' : 'fa-cloud-upload'"></i>
+                            {{importingHistoricalEvents ? 'Importando 2025...' : 'Importar Atendimento 2025'}}
+                        </button>
+                        <br ng-if="canImportHistoricalEvents"/>
+                        <small>Base regional prevista: <strong>{{regionalStats.totalTarget}} comuns</strong></small>
+                        <br/>
+                        Cobertura {{regionalStats.currentYearLabel}}: {{regionalStats.currentCoverageCount}} de {{regionalStats.totalTarget}}
+                    </span>
+                    <h3 class="font-bold no-margins">
+                        Comparativo de Participa&ccedil;&atilde;o {{regionalStats.previousYearLabel}} vs {{regionalStats.currentYearLabel}}
+                    </h3>
+                    <small>Vis&atilde;o administrativa consolidada da Santa Ceia.</small>
+                </div>
+
+                <div class="m-t-sm">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="santa-ceia-chart-wrap">
+                                <canvas linechart options="lineOptions" data="lineDataDashboard4" height="250" responsive="true"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <ul class="stat-list m-t-lg">
+                                <li>
+                                    <h2 class="no-margins">{{regionalStats.totalPrevious | number}}</h2>
+                                    <small>Total de {{regionalStats.previousYearLabel}}</small>
+                                    <div class="progress progress-mini">
+                                        <div class="progress-bar" ng-style="{'width': regionalStats.previousBarWidth + '%'}"></div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <h2 class="no-margins">{{regionalStats.totalCurrent | number}}</h2>
+                                    <small>Total de {{regionalStats.currentYearLabel}}</small>
+                                    <div class="progress progress-mini">
+                                        <div class="progress-bar" ng-style="{'width': regionalStats.currentBarWidth + '%'}"></div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <h2 class="no-margins" ng-class="regionalStats.growth >= 0 ? 'text-navy' : 'text-danger'">{{regionalStats.growth | number}}</h2>
+                                    <small>Saldo {{regionalStats.currentYearLabel}} x {{regionalStats.previousYearLabel}}</small>
+                                    <div class="progress progress-mini">
+                                        <div class="progress-bar" ng-style="{'width': regionalStats.growthBarWidth + '%'}"></div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="m-t-md">
+                    <small class="pull-right">
+                        <i class="fa fa-clock-o"> </i>
+                        Atualizado em {{regionalStats.lastUpdateLabel}}
+                    </small>
+                    <small>
+                        <strong>An&aacute;lise:</strong> em {{regionalStats.currentYearLabel}} a regional tem {{regionalStats.totalCurrent | number}} participantes lan&ccedil;ados, distribu&iacute;dos em {{regionalStats.currentCoverageCount}} de {{regionalStats.totalTarget}} comuns previstas.
+                    </small>
+                </div>
+
+                <div class="row santa-ceia-chart-summary">
+                    <div class="col-sm-4">
+                        <div class="santa-ceia-widget-card">
+                            <span class="widget-icon"><i class="fa fa-line-chart"></i></span>
+                            <span class="widget-label">M&eacute;dia por comum lan&ccedil;ada</span>
+                            <span class="widget-value">{{regionalStats.averagePerComum | number:0}}</span>
+                            <span class="widget-note">m&eacute;dia de participantes nas {{regionalStats.currentCoverageCount}} comuns com registro em {{regionalStats.currentYearLabel}}</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="santa-ceia-widget-card is-info">
+                            <span class="widget-icon"><i class="fa fa-check-square-o"></i></span>
+                            <span class="widget-label">Cobertura regional</span>
+                            <span class="widget-value">{{regionalStats.coverageRate | number:0}}%</span>
+                            <span class="widget-note">{{regionalStats.completed}} de {{regionalStats.totalTarget}} comuns com registro em {{regionalStats.currentYearLabel}}</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="santa-ceia-widget-card is-warning">
+                            <span class="widget-icon"><i class="fa fa-bolt"></i></span>
+                            <span class="widget-label">Saldo acumulado</span>
+                            <span class="widget-value">{{regionalStats.growthRate | number:0}}%</span>
+                            <span class="widget-note">diferen&ccedil;a do total lan&ccedil;ado em {{regionalStats.currentYearLabel}} frente a {{regionalStats.previousYearLabel}}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row santa-ceia-chart-summary m-t-md">
+                    <div class="col-sm-4">
+                        <div class="santa-ceia-widget-card">
+                            <span class="widget-icon"><i class="fa fa-balance-scale"></i></span>
+                            <span class="widget-label">Base compar&aacute;vel</span>
+                            <span class="widget-value">{{regionalStats.comparableBaseCount}}</span>
+                            <span class="widget-note">comuns com registro em {{regionalStats.previousYearLabel}} e {{regionalStats.currentYearLabel}}</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="santa-ceia-widget-card is-warning">
+                            <span class="widget-icon"><i class="fa fa-history"></i></span>
+                            <span class="widget-label">Somente {{regionalStats.previousYearLabel}}</span>
+                            <span class="widget-value">{{regionalStats.previousOnlyCount}}</span>
+                            <span class="widget-note">comuns com hist&oacute;rico em {{regionalStats.previousYearLabel}} ainda sem registro em {{regionalStats.currentYearLabel}}</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="santa-ceia-widget-card is-info">
+                            <span class="widget-icon"><i class="fa fa-calendar-check-o"></i></span>
+                            <span class="widget-label">Somente {{regionalStats.currentYearLabel}}</span>
+                            <span class="widget-value">{{regionalStats.currentOnlyCount}}</span>
+                            <span class="widget-note">comuns com registro novo em {{regionalStats.currentYearLabel}} sem base em {{regionalStats.previousYearLabel}}</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="ibox float-e-margins santa-ceia-comuns-panel">
+            <div class="ibox-title">
+                <span class="label label-warning pull-right">Resumo</span>
+                <h5>Painel Anal&iacute;tico</h5>
+            </div>
+            <div class="ibox-content">
+                <div class="santa-ceia-panel-modern">
+                    <div class="santa-ceia-side-card is-primary">
+                        <span class="card-badge">Base compar&aacute;vel</span>
+                        <div class="card-title">{{regionalStats.comparableBaseCount}} comuns</div>
+                        <div class="card-meta">Comuns com registro nos dois anos para compara&ccedil;&atilde;o direta</div>
+                        <div class="card-metric">{{regionalStats.sameBaseCurrentTotal | number}}</div>
+                        <div class="card-footer">
+                            <span>{{regionalStats.currentYearLabel}}</span>
+                            <span>participantes na base compar&aacute;vel</span>
+                        </div>
+                    </div>
+
+                    <div class="santa-ceia-side-card is-warning">
+                        <span class="card-badge">Pend&ecirc;ncia {{regionalStats.currentYearLabel}}</span>
+                        <div class="card-title">{{regionalStats.pending}} comuns</div>
+                        <div class="card-meta">Comuns previstas para a regional ainda sem registro em {{regionalStats.currentYearLabel}}</div>
+                        <div class="card-metric">{{regionalStats.historicalOpportunity | number}}</div>
+                        <div class="card-footer">
+                            <span>{{regionalStats.previousYearLabel}}</span>
+                            <span>participantes hist&oacute;ricos ainda n&atilde;o repetidos</span>
+                        </div>
+                    </div>
+
+                    <div class="santa-ceia-side-card is-info">
+                        <span class="card-badge">&Uacute;ltima atualiza&ccedil;&atilde;o {{regionalStats.currentYearLabel}}</span>
+                        <div class="card-title">{{(recentComuns[0] && recentComuns[0].comum) || '-'}}</div>
+                        <div class="card-meta">{{(recentComuns[0] && recentComuns[0].municipio) || 'Munic&iacute;pio n&atilde;o informado'}}</div>
+                        <div class="card-metric">{{(recentComuns[0] && recentComuns[0].summaryCurrent && recentComuns[0].summaryCurrent.total) || 0}}</div>
+                        <div class="card-footer">
+                            <span>{{(recentComuns[0] && recentComuns[0].summaryCurrent && recentComuns[0].summaryCurrent.dateLabel) || '-'}}</span>
+                            <span>registro mais recente</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row santa-ceia-inline-metrics">
+                    <div class="col-xs-4">
+                        <div class="santa-ceia-inline-metric is-primary">
+                            <span class="metric-icon"><i class="fa fa-refresh"></i></span>
+                            <div class="metric-copy">
+                                <span class="metric-label">{{regionalStats.previousYearLabel}}</span>
+                                <span class="metric-value">{{regionalStats.totalPrevious | number}}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xs-4">
+                        <div class="santa-ceia-inline-metric is-info">
+                            <span class="metric-icon"><i class="fa fa-pie-chart"></i></span>
+                            <div class="metric-copy">
+                                <span class="metric-label">{{regionalStats.currentYearLabel}}</span>
+                                <span class="metric-value">{{regionalStats.totalCurrent | number}}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-4">
+                        <div class="santa-ceia-inline-metric is-warning">
+                            <span class="metric-icon"><i class="fa fa-clock-o"></i></span>
+                            <div class="metric-copy">
+                                <span class="metric-label">Saldo</span>
+                                <span class="metric-value">{{regionalStats.growth | number}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <h5>Intelig&ecirc;ncia Administrativa</h5>
+                <div ibox-tools></div>
+            </div>
+            <div class="ibox-content">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4 class="font-bold m-b-sm">Comparativo por Munic&iacute;pio</h4>
+                        <div class="table-responsive">
+                            <table class="table table-condensed">
+                                <thead>
+                                <tr>
+                                    <th>Munic&iacute;pio</th>
+                                    <th class="text-center">{{regionalStats.previousYearLabel}}</th>
+                                    <th class="text-center">{{regionalStats.currentYearLabel}}</th>
+                                    <th class="text-center">Varia&ccedil;&atilde;o</th>
+                                    <th class="text-center">Comuns {{regionalStats.currentYearLabel}}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr ng-repeat="item in municipioDecisionRows | limitTo:5">
+                                    <td>
+                                        <strong>{{item.municipio}}</strong>
+                                        <br>
+                                        <small class="text-muted">{{item.comparaveis}} compar&aacute;veis / {{item.totalComuns}} comuns</small>
+                                    </td>
+                                    <td class="text-center">{{item.previousTotal | number}}</td>
+                                    <td class="text-center">{{item.currentTotal | number}}</td>
+                                    <td class="text-center" ng-class="item.growth >= 0 ? 'text-navy' : 'text-danger'">
+                                        {{item.growthRate | number:0}}%
+                                    </td>
+                                    <td class="text-center">{{item.comuns2026}}</td>
+                                </tr>
+                                <tr ng-if="!municipioDecisionRows.length">
+                                    <td colspan="5" class="text-center">Sem base anal&iacute;tica suficiente.</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h4 class="font-bold m-b-sm">Pend&ecirc;ncias Priorit&aacute;rias</h4>
+                        <div class="table-responsive">
+                            <table class="table table-condensed">
+                                <thead>
+                                <tr>
+                                    <th>Comum</th>
+                                    <th class="text-center">Hist. {{regionalStats.previousYearLabel}}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr ng-repeat="item in priorityPendingComuns | limitTo:5">
+                                    <td>
+                                        <strong>{{item.comum}}</strong>
+                                        <br>
+                                        <small class="text-muted">{{item.municipio}} | {{item.data || '-'}}</small>
+                                    </td>
+                                    <td class="text-center text-warning">{{item.previousTotal | number}}</td>
+                                </tr>
+                                <tr ng-if="!priorityPendingComuns.length">
+                                    <td colspan="2" class="text-center">Nenhuma pend&ecirc;ncia com hist&oacute;rico relevante.</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="row m-t-md">
+                    <div class="col-md-12">
+                        <div class="well well-sm" style="margin-top: 30px; margin-bottom: 0; background: #f8fbfd; border-color: #e6eef3;">
+                            <strong>Leitura executiva:</strong>
+                            A base compar&aacute;vel atual soma {{regionalStats.sameBaseCurrentTotal | number}} participantes em {{regionalStats.currentYearLabel}}
+                            contra {{regionalStats.sameBasePreviousTotal | number}} em {{regionalStats.previousYearLabel}},
+                            com varia&ccedil;&atilde;o de {{regionalStats.comparableGrowthRate | number:0}}%.
+                            As comuns ainda sem dados em {{regionalStats.currentYearLabel}} representam {{regionalStats.historicalOpportunity | number}}
+                            participantes de hist&oacute;rico em {{regionalStats.previousYearLabel}}.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+
+<div class="col-lg-12">
+<div class="ibox float-e-margins">
+<div class="ibox-title">
+    <h5>Comparativo por Comum</h5>
+    <div ibox-tools></div>
+</div>
+<div class="ibox-content">
+    <div class="row">
+        <div class="col-sm-7 m-b-xs santa-ceia-print-hide">
+            <div data-toggle="buttons" class="btn-group santa-ceia-filter-group">
+                <label class="btn btn-sm btn-white" ng-class="{'active': statusFilter === 'todos'}" ng-click="setStatusFilter('todos')"> <input type="radio"> Todos </label>
+                <label class="btn btn-sm btn-white" ng-class="{'active': statusFilter === 'concluido'}" ng-click="setStatusFilter('concluido')"> <input type="radio"> Com dados em {{regionalStats.currentYearLabel}} </label>
+                <label class="btn btn-sm btn-white" ng-class="{'active': statusFilter === 'pendente'}" ng-click="setStatusFilter('pendente')"> <input type="radio"> Sem dados em {{regionalStats.currentYearLabel}} </label>
+            </div>
+        </div>
+        <div class="col-sm-5 santa-ceia-print-hide text-right">
+            <button type="button" class="btn btn-info btn-xs" ng-click="exportToExcel()"><i class="fa fa-file-excel-o"></i> Excel</button>
+            <button type="button" class="btn btn-danger btn-xs" ng-click="exportToPDF()"><i class="fa fa-file-pdf-o"></i> PDF</button>
+        </div>
+    </div>
+    <div class="row m-b-sm santa-ceia-print-hide">
+        <div class="col-sm-2">
+            <select class="form-control input-sm" ng-model="anoFiltro" ng-change="applyFilters()">
+                <option value="comparativo">Comparativo</option>
+                <option value="{{regionalStats.previousYearLabel}}">{{regionalStats.previousYearLabel}}</option>
+                <option value="{{regionalStats.currentYearLabel}}">{{regionalStats.currentYearLabel}}</option>
+            </select>
+        </div>
+        <div class="col-sm-3">
+            <select class="form-control input-sm" ng-model="municipioFiltro" ng-change="applyFilters()">
+                <option value="">Todos os Munic&iacute;pios</option>
+                <option ng-repeat="municipio in municipiosFiltroOptions" value="{{municipio}}">{{municipio}}</option>
+            </select>
+        </div>
+        <div class="col-sm-2">
+            <input type="date" class="form-control input-sm" ng-model="dataInicioFiltro" ng-change="applyFilters()">
+        </div>
+        <div class="col-sm-2">
+            <input type="date" class="form-control input-sm" ng-model="dataFimFiltro" ng-change="applyFilters()">
+        </div>
+        <div class="col-sm-3 santa-ceia-print-hide">
+            <div class="input-group"><input type="text" placeholder="Pesquisar" class="input-sm form-control" ng-model="fTable" ng-change="applyFilters()"> <span class="input-group-btn">
+                                        <button type="button" class="btn btn-sm btn-primary" ng-click="applyFilters()"><i class="fa fa-search"></i> Pesquisar</button> </span></div>
+        </div>
+    </div>
+    <div class="row santa-ceia-print-hide m-b-sm">
+        <div class="col-sm-12 text-muted">
+            {{ totalFilteredComuns }} comuns filtradas distribuídas em {{ santaCeiaMunicipioGroups.length }} municípios.
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th>Munic&iacute;pio</th>
+                <th class="text-center">Com dados {{regionalStats.previousYearLabel}}</th>
+                <th class="text-center">Com dados {{regionalStats.currentYearLabel}}</th>
+                <th class="text-center">Compar&aacute;veis</th>
+                <th class="text-center">Cobertura {{regionalStats.currentYearLabel}}</th>
+                <th class="text-right">A&ccedil;&otilde;es</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr ng-repeat-start="group in santaCeiaMunicipioGroups">
+                <td>
+                    <strong>{{group.municipio}}</strong>
+                    <br>
+                    <small class="text-muted">{{group.itens.length}} comuns filtradas</small>
+                </td>
+                <td class="text-center">
+                    <span class="label label-warning">{{group.dados2025}}</span>
+                </td>
+                <td class="text-center">
+                    <span class="label label-primary">{{group.dados2026}}</span>
+                </td>
+                <td class="text-center">
+                    <span class="label label-info">{{group.comparaveis}}</span>
+                </td>
+                <td class="text-center">
+                    <strong>{{group.cobertura}}%</strong>
+                </td>
+                <td class="text-right">
+                    <button class="btn btn-xs btn-info" ng-click="toggleSantaCeiaMunicipio(group.municipio)">
+                        <i class="fa" ng-class="isSantaCeiaMunicipioExpanded(group.municipio) ? 'fa-angle-up' : 'fa-angle-down'"></i>
+                        {{ isSantaCeiaMunicipioExpanded(group.municipio) ? 'Ocultar comuns' : 'Ver comuns' }}
+                    </button>
+                </td>
+            </tr>
+            <tr ng-repeat-end ng-if="isSantaCeiaMunicipioExpanded(group.municipio)">
+                <td colspan="6" style="padding: 0;">
+                    <table class="table table-condensed" style="margin-bottom: 0;">
+                        <thead>
+                            <tr>
+                                <th>Comum</th>
+                                <th>{{regionalStats.previousYearLabel}} Atendimento</th>
+                                <th class="text-center">{{regionalStats.previousYearLabel}} Irm&atilde;s</th>
+                                <th class="text-center">{{regionalStats.previousYearLabel}} Irm&atilde;os</th>
+                                <th class="text-center">{{regionalStats.previousYearLabel}} Total</th>
+                                <th class="text-center">{{regionalStats.previousYearLabel}} Data</th>
+                                <th>{{regionalStats.currentYearLabel}} Atendimento</th>
+                                <th class="text-center">{{regionalStats.currentYearLabel}} Irm&atilde;s</th>
+                                <th class="text-center">{{regionalStats.currentYearLabel}} Irm&atilde;os</th>
+                                <th class="text-center">{{regionalStats.currentYearLabel}} Total</th>
+                                <th class="text-center">{{regionalStats.currentYearLabel}} Data</th>
+                                <th class="text-center">Varia&ccedil;&atilde;o</th>
+                                <th class="text-center">Situa&ccedil;&atilde;o</th>
+                                <th class="text-right">A&ccedil;&atilde;o</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="g in group.itens">
+                                <td><strong>{{g.comum}}</strong></td>
+                                <td>{{g.summaryPrevious.attendanceLabel}}</td>
+                                <td class="text-center">{{g.summaryPrevious.irmas | number}}</td>
+                                <td class="text-center">{{g.summaryPrevious.irmaos | number}}</td>
+                                <td class="text-center">{{g.summaryPrevious.total | number}}</td>
+                                <td class="text-center">{{g.summaryPrevious.dateLabel}}</td>
+                                <td>{{g.summaryCurrent.attendanceLabel}}</td>
+                                <td class="text-center">{{g.summaryCurrent.irmas | number}}</td>
+                                <td class="text-center">{{g.summaryCurrent.irmaos | number}}</td>
+                                <td class="text-center">{{g.summaryCurrent.total | number}}</td>
+                                <td class="text-center">{{g.summaryCurrent.dateLabel}}</td>
+                                <td class="text-center" ng-class="g.variationTotal >= 0 ? 'text-navy' : 'text-danger'">{{g.variationTotal | number}}</td>
+                                <td class="text-center">
+                                    <span class="label" ng-class="g.comparisonStatusCss">{{g.comparisonStatusLabel}}</span>
+                                </td>
+                                <td class="text-right">
+                                    <button type="button"
+                                            class="btn btn-info btn-xs"
+                                            ng-click="openDetails(g)"
+                                            ng-if="g.summaryPrevious.hasData || g.summaryCurrent.hasData">
+                                        <i class="fa fa-eye"></i> Ver
+                                    </button>
+                                    <span ng-if="!(g.summaryPrevious.hasData || g.summaryCurrent.hasData)">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            <tr ng-if="!santaCeiaMunicipioGroups.length">
+                <td colspan="6" class="text-center">Nenhuma congrega&ccedil;&atilde;o encontrada para o filtro atual.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</div>
+</div>
+
+</div>
+
+</div>
+
+<div class="modal inmodal" id="santaCeiaDetalhesModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content animated bounceInRight">
+            <div class="modal-header" style="background: #1ab394; padding: 15px 20px; border-radius: 5px 5px 0 0;">
+                <button type="button" class="close" data-dismiss="modal"><span
+                        aria-hidden="true" style="color:#fff; opacity:1; font-size:22px;">&times;</span><span class="sr-only">Fechar</span></button>
+                <h4 class="modal-title" style="color:#fff; font-weight:600;">
+                    <i class="fa fa-check-square" style="margin-right:8px;"></i>
+                    Detalhes da Santa Ceia
+                </h4>
+                <div style="color:#eafaf6; margin-top:6px;">{{selectedComumDetails.comum}} | {{selectedComumDetails.municipio}} | {{selectedComumDetails.detailDateLabel}}</div>
+            </div>
+            <div class="modal-body" style="padding: 25px 30px;">
+                <div class="text-center" ng-if="loadingDetails">
+                    <div class="sk-spinner sk-spinner-three-bounce">
+                        <div class="sk-bounce1"></div>
+                        <div class="sk-bounce2"></div>
+                        <div class="sk-bounce3"></div>
+                    </div>
+                    <p>Carregando detalhes...</p>
+                </div>
+
+                <div ng-if="!loadingDetails">
+                    <div class="row">
+                        <div class="col-lg-12"><h4>Resumo da Congrega&ccedil;&atilde;o</h4></div>
+                        <div class="col-sm-4">
+                            <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#f8fffd;">
+                                <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Total {{regionalStats.previousYearLabel}}</div>
+                                <div style="font-size:28px; font-weight:700; color:#1ab394; line-height:1.2; margin-top:6px;">{{selectedComumDetails.summaryPrevious.total | number}}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#fffaf4;">
+                                <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Total {{regionalStats.currentYearLabel}}</div>
+                                <div style="font-size:28px; font-weight:700; color:#23a6d5; line-height:1.2; margin-top:6px;">{{selectedComumDetails.summaryCurrent.total | number}}</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div style="border:1px solid #e7eaec; border-radius:6px; padding:16px 18px; background:#f8fbff;">
+                                <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px;">Varia&ccedil;&atilde;o</div>
+                                <div style="font-size:28px; font-weight:700; color:#f8ac59; line-height:1.2; margin-top:6px;">{{selectedComumDetails.variationTotal | number}}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hr-line-dashed"></div>
+
+                    <div class="row m-b-sm" ng-if="selectedComumDetails.atendimentosHistorico && selectedComumDetails.atendimentosHistorico.length">
+                        <div class="col-sm-12">
+                            <div style="border:1px solid #e7eaec; border-radius:6px; padding:14px 16px; background:#fcfffe;">
+                                <div style="font-size:12px; text-transform:uppercase; color:#7f8c8d; letter-spacing:.4px; margin-bottom:10px;">Atendimento por data</div>
+                                <div ng-repeat="at in selectedComumDetails.atendimentosHistorico | orderBy:'data_evento'" style="margin-bottom:8px;">
+                                    <strong>{{at.atendimento}}</strong>
+                                    <span class="text-muted"> | {{at.data_evento | date:'dd/MM/yyyy'}}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row m-b-sm">
+                        <div class="col-sm-6">
+                            <div style="display:flex; align-items:stretch;">
+                                <span style="display:flex; align-items:center; justify-content:center; width:42px; border:1px solid #e5e6e7; border-right:0; background:#fff; color:#676a6c;">
+                                    <i class="fa fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" ng-model="frequenciaFiltro" placeholder="Pesquisar rodada ou observa&ccedil;&atilde;o..." style="border-radius:0; flex:1 1 auto;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" ng-if="!loadingDetails">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th width="30">#</th>
+                                    <th>Data</th>
+                                    <th width="180">Rodada</th>
+                                    <th>Irm&atilde;s</th>
+                                    <th>Irm&atilde;os</th>
+                                    <th>Total</th>
+                                    <th>Observa&ccedil;&atilde;o</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="round in selectedComumDetails.rounds | filter:frequenciaFiltro">
+                                    <td>{{$index + 1}}</td>
+                                    <td>{{round.data_evento | date:'dd/MM/yyyy'}}</td>
+                                    <td>
+                                        <span class="label label-primary" style="display:inline-block; min-width:110px; text-align:center; font-size:12px; padding:6px 10px;">
+                                            {{round.rodadaLabel}}
+                                        </span>
+                                    </td>
+                                    <td>{{round.irmas | number}}</td>
+                                    <td>{{round.irmaos | number}}</td>
+                                    <td>{{round.total | number}}</td>
+                                    <td>
+                                        <input type="text" class="form-control" ng-value="round.observacoes || '-'" readonly>
+                                    </td>
+                                </tr>
+                                <tr ng-if="!selectedComumDetails.rounds.length">
+                                    <td colspan="7" class="text-center">Nenhuma rodada cadastrada para esta congrega&ccedil;&atilde;o.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="background:#f5f5f5; padding: 14px 20px;">
+                <button type="button" class="btn btn-white" data-dismiss="modal"><i class="fa fa-times"></i> Voltar</button>
+                <button type="button" class="btn btn-primary" data-dismiss="modal" style="background:#1ab394; border-color:#1ab394;">
+                    <i class="fa fa-check"></i> Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
