@@ -81,6 +81,18 @@
                 </ul>
             </li>
 
+            <li ui-sref-active="active" ng-if="main.canAccessModule('RJM')">
+                <a href="" data-mobile-sref="rjm.dashboard"><i class="fa fa-book"></i> <span class="nav-label">{{ 'RJM' | translate
+                        }}</span><span class="fa arrow"></span></a>
+                <ul class="nav nav-second-level collapse" ng-class="{in: $state.includes('rjm')}">
+                    <li ui-sref-active="active"><a ui-sref="rjm.dashboard">Dashboard RJM</a></li>
+                    <li ui-sref-active="active"><a ui-sref="music.static_table">Frequência</a></li>
+                    <li ui-sref-active="active"><a ui-sref="rjm.recitativos">Recitativos</a></li>
+                    <li ui-sref-active="active"><a ui-sref="music.foo_table">Reunião de Jovens</a></li>
+                    <li ui-sref-active="active"><a ui-sref="music.nggrid">Reunião da Mocidade</a></li>
+                </ul>
+            </li>
+
             <li ng-class="{active: $state.includes('darpe')}"
                 ng-if="main.canAccessModule('Darpe')">
                 <a href="" data-mobile-sref="darpe.musicos"><i class="fa fa-medkit"></i> <span class="nav-label">{{ 'D.A.R.P.E' | translate }}
@@ -139,19 +151,8 @@
                     <li ui-sref-active="active"><a ui-sref="music.nggrid">Organistas</a></li>
                     <li ui-sref-active="active"><a ui-sref="music.nggrid">Candidatos</a></li>
                 </ul>
-            </li>            
-
-            <li ui-sref-active="active" ng-if="main.canAccessModule('RJM')">
-                <a href="" data-mobile-sref="rjm.dashboard"><i class="fa fa-book"></i> <span class="nav-label">{{ 'RJM' | translate
-                        }}</span><span class="fa arrow"></span></a>
-                <ul class="nav nav-second-level collapse" ng-class="{in: $state.includes('rjm')}">
-                    <li ui-sref-active="active"><a ui-sref="rjm.dashboard">Dashboard RJM</a></li>
-                    <li ui-sref-active="active"><a ui-sref="music.static_table">Frequência</a></li>
-                    <li ui-sref-active="active"><a ui-sref="rjm.recitativos">Recitativos</a></li>
-                    <li ui-sref-active="active"><a ui-sref="music.foo_table">Reunião de Jovens</a></li>
-                    <li ui-sref-active="active"><a ui-sref="music.nggrid">Reunião da Mocidade</a></li>
-                </ul>
-            </li>
+            </li>         
+           
 
             <li ng-class="{active: $state.includes('tables')}" ng-if="main.canAccessGlobalMenu()">
                 <a href=""><i class="fa fa-file-pdf-o"></i> <span class="nav-label">{{ 'RELATORIOS' | translate

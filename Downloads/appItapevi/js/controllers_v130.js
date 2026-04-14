@@ -1,4 +1,4 @@
-﻿/**
+/**
  * INSPINIA - Responsive Admin Theme
  *
  * Main controller.js file
@@ -10203,6 +10203,16 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
     $scope.pendingMunicipioGroups = [];
     $scope.expandedPendingMunicipio = '';
     $scope.lastDashboardUpdateLabel = '';
+    $scope.pendingHealthSummary = {
+        previstos: 0,
+        emDia: 0,
+        mesAberto: 0,
+        atraso30: 0,
+        atraso60: 0,
+        atraso90: 0,
+        semHistorico: 0,
+        totalPendentes: 0
+    };
 
     function mergeExpectedEntry(grouped, nome, cidade) {
         var normalizedName = repairVisitasModuleText(nome || '');
@@ -10376,7 +10386,244 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
         $scope.hasMorePendingLancamentos = items.length > $scope.pendingDisplayLimit;
     }
 
-    function buildPendingMunicipioGroups(expectedByCity, launchedByCity) {
+    function parseVisitasDateOnlyAsLocal(value) {
+        var text;
+        var parts;
+
+        if (!value) {
+            return null;
+        }
+
+        if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+            return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+        }
+
+        text = String(value || '').trim().split('T')[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+            parts = text.split('-');
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+
+        return null;
+    }
+
+    function getVisitasTodayLocalDate() {
+        var now = new Date();
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    function getVisitasDayDiff(fromDate, toDate) {
+        var start = parseVisitasDateOnlyAsLocal(fromDate);
+        var end = parseVisitasDateOnlyAsLocal(toDate);
+
+        if (!start || !end) {
+            return null;
+        }
+
+        return Math.floor((end.getTime() - start.getTime()) / 86400000);
+    }
+
+    function getVisitasPendingStatusMeta(item) {
+        var status = String((item && item.pendingStatus) || '').toUpperCase();
+
+        if (status === '90+ DIAS') {
+            return { order: 1, tone: 'danger', label: '90+ DIAS' };
+        }
+        if (status === '61-90 DIAS') {
+            return { order: 2, tone: 'danger', label: '61-90 DIAS' };
+        }
+        if (status === '31-60 DIAS') {
+            return { order: 3, tone: 'warn', label: '31-60 DIAS' };
+        }
+        if (status === 'MÊS EM ABERTO') {
+            return { order: 4, tone: 'today', label: 'MÊS EM ABERTO' };
+        }
+        if (status === 'SEM HISTÓRICO') {
+            return { order: 5, tone: 'muted', label: 'SEM HISTÓRICO' };
+        }
+
+        return { order: 6, tone: 'ok', label: status || 'EM DIA' };
+    }
+
+    function getVisitasPendingStatusClass(item) {
+        var meta = getVisitasPendingStatusMeta(item);
+
+        if (meta.tone === 'danger') {
+            return 'label-danger';
+        }
+        if (meta.tone === 'warn') {
+            return 'label-warning';
+        }
+        if (meta.tone === 'today') {
+            return 'label-primary';
+        }
+        if (meta.tone === 'muted') {
+            return 'label-default';
+        }
+
+        return 'label-success';
+    }
+
+    function filterVisitasHealthRecords(records) {
+        var search = String($scope.filters.searchText || '').trim().toLowerCase();
+        var cityFilter = normalizeMunicipioRegionalLabel($scope.filters.cidade || '');
+
+        return (records || []).filter(function (item) {
+            var textMatch = true;
+            var cityMatch = true;
+            var textSource;
+            var municipio;
+
+            if (search) {
+                textSource = [
+                    item && (item.comum || item.igreja),
+                    item && item.codigo,
+                    item && item.municipio
+                ].join(' ').toLowerCase();
+                textMatch = textSource.indexOf(search) !== -1;
+            }
+
+            if (cityFilter) {
+                municipio = normalizeMunicipioRegionalLabel(
+                    normalizeOfficialMunicipioRegionalLabel(item && item.municipio)
+                    || normalizeOfficialMunicipioRegionalLabel(normalizeVisitasMunicipioFromComumLocal(item && (item.comum || item.igreja)))
+                    || ''
+                );
+                cityMatch = municipio === cityFilter;
+            }
+
+            return textMatch && cityMatch;
+        });
+    }
+
+    function buildVisitasPendingHealth(expectedEntries, expectedByKey, expectedByUniqueCode) {
+        var today = getVisitasTodayLocalDate();
+        var currentMonth = today.getMonth();
+        var currentYear = today.getFullYear();
+        var launchesByKey = {};
+        var emDiaByCity = {};
+        var summary = {
+            previstos: expectedEntries.length,
+            emDia: 0,
+            mesAberto: 0,
+            atraso30: 0,
+            atraso60: 0,
+            atraso90: 0,
+            semHistorico: 0,
+            totalPendentes: 0
+        };
+        var filteredRecords = filterVisitasHealthRecords($scope.lancamentos || []);
+        var items;
+
+        angular.forEach(filteredRecords, function (item) {
+            var key = normalizeComumCatalogLookup(item.comum || item.igreja);
+            var code = extractVisitaCodigoLocal(item.comum || item.igreja);
+            var expectedEntry = expectedByKey[key] || (code ? expectedByUniqueCode[code] : null);
+            var lastDate = parseVisitasDateOnlyAsLocal(item && item.data);
+            var bucket;
+
+            if (!expectedEntry || !lastDate) {
+                return;
+            }
+
+            bucket = launchesByKey[expectedEntry.key] || {
+                latestDate: null,
+                hasCurrentMonthLaunch: false,
+                historyCount: 0
+            };
+
+            bucket.historyCount += 1;
+            if (!bucket.latestDate || lastDate.getTime() > bucket.latestDate.getTime()) {
+                bucket.latestDate = lastDate;
+            }
+            if (lastDate.getMonth() === currentMonth && lastDate.getFullYear() === currentYear) {
+                bucket.hasCurrentMonthLaunch = true;
+            }
+
+            launchesByKey[expectedEntry.key] = bucket;
+        });
+
+        items = expectedEntries.map(function (entry) {
+            var health = launchesByKey[entry.key];
+            var latestDate = health && health.latestDate ? health.latestDate : null;
+            var latestDateLabel = latestDate ? formatVisitasDateBRLocal(latestDate) : '-';
+            var daysWithoutLaunch = latestDate ? getVisitasDayDiff(latestDate, today) : null;
+            var pendingStatus = 'EM DIA';
+            var pendingStatusDetail = 'Lançamento mensal registrado no mês atual.';
+            var statusMeta;
+
+            if (!health || !latestDate) {
+                pendingStatus = 'SEM HISTÓRICO';
+                pendingStatusDetail = 'Ainda não existe lançamento mensal para esta comum.';
+                summary.semHistorico += 1;
+                summary.totalPendentes += 1;
+            } else if (health.hasCurrentMonthLaunch) {
+                summary.emDia += 1;
+                if ($scope.cidades.indexOf(entry.cidade) !== -1) {
+                    emDiaByCity[entry.cidade] = (emDiaByCity[entry.cidade] || 0) + 1;
+                }
+            } else if (daysWithoutLaunch > 90) {
+                pendingStatus = '90+ DIAS';
+                pendingStatusDetail = 'Último lançamento há mais de 90 dias.';
+                summary.atraso90 += 1;
+                summary.totalPendentes += 1;
+            } else if (daysWithoutLaunch > 60) {
+                pendingStatus = '61-90 DIAS';
+                pendingStatusDetail = 'Último lançamento entre 61 e 90 dias.';
+                summary.atraso60 += 1;
+                summary.totalPendentes += 1;
+            } else if (daysWithoutLaunch > 30) {
+                pendingStatus = '31-60 DIAS';
+                pendingStatusDetail = 'Último lançamento entre 31 e 60 dias.';
+                summary.atraso30 += 1;
+                summary.totalPendentes += 1;
+            } else {
+                pendingStatus = 'MÊS EM ABERTO';
+                pendingStatusDetail = 'Ainda falta o lançamento do mês atual.';
+                summary.mesAberto += 1;
+                summary.totalPendentes += 1;
+            }
+
+            statusMeta = getVisitasPendingStatusMeta({ pendingStatus: pendingStatus });
+
+            return {
+                key: entry.key,
+                nome: entry.nome,
+                codigo: entry.codigo,
+                cidade: entry.cidade,
+                latestDate: latestDate,
+                latestDateLabel: latestDateLabel,
+                daysWithoutLaunch: daysWithoutLaunch,
+                pendingStatus: pendingStatus,
+                pendingStatusLabel: statusMeta.label,
+                pendingStatusTone: statusMeta.tone,
+                pendingStatusOrder: statusMeta.order,
+                pendingStatusDetail: pendingStatusDetail,
+                historyCount: health ? health.historyCount : 0,
+                hasCurrentMonthLaunch: !!(health && health.hasCurrentMonthLaunch)
+            };
+        }).sort(function (a, b) {
+            if (a.pendingStatusOrder !== b.pendingStatusOrder) {
+                return a.pendingStatusOrder - b.pendingStatusOrder;
+            }
+            if (String(a.cidade || '') !== String(b.cidade || '')) {
+                return String(a.cidade || '').localeCompare(String(b.cidade || ''), 'pt-BR');
+            }
+            if (String(a.codigo || '') !== String(b.codigo || '')) {
+                return String(a.codigo || '').localeCompare(String(b.codigo || ''), 'pt-BR');
+            }
+            return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+        });
+
+        return {
+            allItems: items,
+            items: items.filter(function (item) { return item.pendingStatus !== 'EM DIA'; }),
+            summary: summary,
+            emDiaByCity: emDiaByCity
+        };
+    }
+
+    function buildPendingMunicipioGroups(expectedByCity, launchedByCity, pendingItems) {
         var grouped = {};
 
         $scope.cidades.forEach(function (municipio) {
@@ -10389,7 +10636,7 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
             };
         });
 
-        angular.forEach($scope.pendingLancamentos || [], function (item) {
+        angular.forEach(pendingItems || [], function (item) {
             var municipio = normalizeOfficialMunicipioRegionalLabel(item && item.cidade)
                 || (!$scope._comumCatalogLoaded ? normalizeOfficialMunicipioRegionalLabel(item && item.nome) : '');
 
@@ -10405,13 +10652,31 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
             var group = grouped[municipio];
             var cobertura = group.previstos ? ((group.realizados / group.previstos) * 100).toFixed(2) : '0.00';
 
+            group.mesAberto = 0;
+            group.atraso30 = 0;
+            group.atraso60 = 0;
+            group.atraso90 = 0;
+            group.semHistorico = 0;
+
             group.cobertura = cobertura;
             group.itens = group.itens.sort(function (a, b) {
+                if ((a.pendingStatusOrder || 0) !== (b.pendingStatusOrder || 0)) {
+                    return (a.pendingStatusOrder || 0) - (b.pendingStatusOrder || 0);
+                }
+
                 if (String(a.codigo || '') !== String(b.codigo || '')) {
                     return String(a.codigo || '').localeCompare(String(b.codigo || ''), 'pt-BR');
                 }
 
                 return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+            });
+
+            group.itens.forEach(function (item) {
+                if (item.pendingStatus === 'MÊS EM ABERTO') group.mesAberto += 1;
+                else if (item.pendingStatus === '31-60 DIAS') group.atraso30 += 1;
+                else if (item.pendingStatus === '61-90 DIAS') group.atraso60 += 1;
+                else if (item.pendingStatus === '90+ DIAS') group.atraso90 += 1;
+                else if (item.pendingStatus === 'SEM HISTÓRICO') group.semHistorico += 1;
             });
 
             return group;
@@ -10585,6 +10850,7 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
         var launchedByKey = {};
         var expectedByCity = {};
         var launchedByCity = {};
+        var healthInsights;
 
         angular.forEach(expectedEntries, function (entry) {
             expectedByKey[entry.key] = entry;
@@ -10650,18 +10916,39 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
         });
 
         $scope.expectedVisitas = expectedEntries;
-        $scope.pendingLancamentos = expectedEntries.filter(function (entry) { return !launchedByKey[entry.key]; });
-        refreshPendingLancamentosView();
-        $scope.pendingMunicipioGroups = buildPendingMunicipioGroups(expectedByCity, launchedByCity);
-        if ($scope.expandedPendingMunicipio && !$scope.pendingMunicipioGroups.some(function (item) { return item.municipio === $scope.expandedPendingMunicipio; })) {
-            $scope.expandedPendingMunicipio = '';
-        }
         $scope.lancamentosConsolidados = Object.keys(launchedByKey).map(function (key) { return launchedByKey[key]; }).sort(function (a, b) {
             if (String(a.data || '') !== String(b.data || '')) {
                 return String(b.data || '').localeCompare(String(a.data || ''));
             }
             return String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
         });
+        $scope.pendingLancamentos = expectedEntries.filter(function (entry) {
+            return !launchedByKey[entry.key];
+        }).map(function (entry) {
+            return angular.extend({}, entry, {
+                pendingStatus: 'SEM HISTÓRICO',
+                pendingStatusKey: 'sem_historico',
+                pendingStatusLabel: 'SEM HISTÓRICO',
+                pendingStatusDetail: 'Ainda não existe lançamento reconhecido para esta comum no período filtrado.',
+                latestDateLabel: '-',
+                daysWithoutLaunch: null
+            });
+        });
+        $scope.pendingHealthSummary = {
+            previstos: expectedEntries.length,
+            emDia: 0,
+            mesAberto: 0,
+            atraso30: 0,
+            atraso60: 0,
+            atraso90: 0,
+            semHistorico: $scope.pendingLancamentos.length,
+            totalPendentes: $scope.pendingLancamentos.length
+        };
+        refreshPendingLancamentosView();
+        $scope.pendingMunicipioGroups = buildPendingMunicipioGroups(expectedByCity, launchedByCity, $scope.pendingLancamentos);
+        if ($scope.expandedPendingMunicipio && !$scope.pendingMunicipioGroups.some(function (item) { return item.municipio === $scope.expandedPendingMunicipio; })) {
+            $scope.expandedPendingMunicipio = '';
+        }
         $scope.expectedLancamentosCount = expectedEntries.length;
         $scope.realizadosCount = $scope.lancamentosConsolidados.length;
         $scope.pendingCount = $scope.pendingLancamentos.length;
@@ -10845,14 +11132,18 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
 
     $scope.copyMunicipioPendingCharge = function (group) {
         var itens = (group && group.itens ? group.itens : []).slice(0, 12).map(function (item) {
-            return '- ' + (item && item.nome ? item.nome : '-');
+            return '- ' + (item && item.nome ? item.nome : '-') + ' | ' + (item && item.pendingStatusLabel ? item.pendingStatusLabel : 'PENDENTE');
         });
         var extra = group && group.itens && group.itens.length > 12 ? ['- ...'] : [];
         var message = [
             'Pendências de lançamento de visitas',
             'Município: ' + (group && group.municipio ? group.municipio : '-'),
-            'Pendências: ' + (group && typeof group.pendentes === 'number' ? group.pendentes : 0),
-            'Período: ' + getPeriodoLabel(),
+            'Comuns com atenção: ' + (group && typeof group.pendentes === 'number' ? group.pendentes : 0),
+            'Mês em aberto: ' + (group && typeof group.mesAberto === 'number' ? group.mesAberto : 0),
+            '31 a 60 dias: ' + (group && typeof group.atraso30 === 'number' ? group.atraso30 : 0),
+            '61 a 90 dias: ' + (group && typeof group.atraso60 === 'number' ? group.atraso60 : 0),
+            '90+ dias: ' + (group && typeof group.atraso90 === 'number' ? group.atraso90 : 0),
+            'Sem histórico: ' + (group && typeof group.semHistorico === 'number' ? group.semHistorico : 0),
             '',
             'Comuns pendentes:'
         ].concat(itens, extra).join('\n');
@@ -10869,12 +11160,16 @@ function visitasDashboardCtrl($scope, AuthService, SweetAlert, VisitasService, $
         notify('Cobrança', message, 'info');
     };
 
+    $scope.getVisitasPendingStatusClass = getVisitasPendingStatusClass;
+
     $scope.copyPendingCharge = function (item) {
         var message = [
             'Pendência de lançamento de visitas',
             'Comum: ' + (item && item.nome ? item.nome : '-'),
             'Município: ' + (item && item.cidade ? item.cidade : '-'),
-            'Período: ' + getPeriodoLabel()
+            'Status: ' + (item && item.pendingStatusLabel ? item.pendingStatusLabel : '-'),
+            'Último lançamento: ' + (item && item.latestDateLabel ? item.latestDateLabel : '-'),
+            'Dias sem lançar: ' + (item && item.daysWithoutLaunch !== null && item.daysWithoutLaunch !== undefined ? item.daysWithoutLaunch : '-')
         ].join('\n');
 
         if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
@@ -14438,26 +14733,29 @@ function santaCeiaAdminCtrl($scope, SantaCeiaService, AuthService, $rootScope) {
     function createSparklineOptions() {
         return {
             xaxis: {
-                tickDecimals: 0
+                tickDecimals: 0,
+                show: false
             },
-            series: {
-                lines: {
-                    show: true,
-                    fill: true,
-                    fillColor: {
-                        colors: [{ opacity: 0.35 }, { opacity: 0.05 }]
-                    }
-                },
-                points: {
-                    show: false
-                }
+            yaxis: {
+                show: false
             },
             grid: {
-                show: false,
-                borderWidth: 0
+                hoverable: true,
+                clickable: true,
+                tickColor: "#eeeeee",
+                borderWidth: 0,
+                color: '#d5d5d5'
             },
             legend: {
                 show: false
+            },
+            tooltip: true,
+            tooltipOpts: {
+                content: "%s: %y",
+                shifts: {
+                    x: -60,
+                    y: 25
+                }
             }
         };
     }
@@ -15108,11 +15406,29 @@ function santaCeiaAdminCtrl($scope, SantaCeiaService, AuthService, $rootScope) {
         };
 
         $scope.regionalStats.coverageRate = $scope.regionalStats.totalTarget ? (($scope.regionalStats.completed / $scope.regionalStats.totalTarget) * 100) : 0;
-        $scope.topSparklineData = [{
-            label: "Participação",
-            data: sparklineSeries.length ? sparklineSeries : createSparklineData()[0].data,
-            color: '#1ab394'
-        }];
+        var sparklineSeriesCurrent = (monthlyCurrent || []).map(function(val, idx) {
+            return [idx, val];
+        });
+
+        var sparklineSeriesPrevious = (monthlyPrevious || []).map(function(val, idx) {
+            return [idx, val];
+        });
+
+        $scope.topSparklineData = [
+            {
+                label: String(PREVIOUS_YEAR),
+                data: sparklineSeriesPrevious,
+                color: '#d5d5d5',
+                lines: { show: true, fill: 0.1, lineWidth: 1 }
+            },
+            {
+                label: String(CURRENT_YEAR),
+                data: sparklineSeriesCurrent,
+                color: '#1ab394',
+                splines: { show: true, tension: 0.4, lineWidth: 2, fill: 0.4 },
+                points: { show: true, radius: 3 }
+            }
+        ];
         $scope.topComuns = [];
         $scope.recentComuns = latestCurrentRow ? [latestCurrentRow] : [];
         $scope.topGrowthComuns = [];

@@ -1,4 +1,4 @@
-﻿<style>
+<style>
     .santa-ceia-report .ibox {
         page-break-inside: avoid;
     }
@@ -45,7 +45,7 @@
         min-height: 90px;
     }
 
-    .santa-ceia-top-row .ibox-content small,
+    .santa-ceia-top-row .ibox-content > small,
     .santa-ceia-top-row .ibox-content .stat-percent {
         display: block;
         white-space: nowrap;
@@ -540,11 +540,11 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h1 class="no-margins">{{regionalStats.irmas | number}}</h1>
-                        <div class="font-bold text-navy">{{regionalStats.femaleShare | number:0}}% <i class="fa fa-level-up"></i> <small>Irm&atilde;s {{regionalStats.currentYearLabel}}</small></div>
+                        <div class="font-bold text-navy">{{regionalStats.femaleShare | number:0}}% <i class="fa fa-level-up"></i> <small class="m-l-xs">Irm&atilde;s {{regionalStats.currentYearLabel}}</small></div>
                     </div>
                     <div class="col-md-6">
                         <h1 class="no-margins">{{regionalStats.irmaos | number}}</h1>
-                        <div class="font-bold text-navy">{{regionalStats.maleShare | number:0}}% <i class="fa fa-level-up"></i> <small>Irm&atilde;os {{regionalStats.currentYearLabel}}</small></div>
+                        <div class="font-bold text-navy">{{regionalStats.maleShare | number:0}}% <i class="fa fa-level-up"></i> <small class="m-l-xs">Irm&atilde;os {{regionalStats.currentYearLabel}}</small></div>
                     </div>
                 </div>
 
@@ -558,12 +558,22 @@
                 <span class="label label-primary pull-right">Irmandade</span>
                 <h5>Evolu&ccedil;&atilde;o mensal</h5>
             </div>
-            <div class="ibox-content no-padding">
-                <div class="flot-chart m-t-lg" style="height: 55px;">
-                    <div flot class="flot-chart-content" dataset="topSparklineData" options="topSparklineOptions"></div>
+            <div class="ibox-content">
+                <div class="row">
+                    <div class="col-xs-5">
+                        <small>Saldo 2026</small>
+                        <h2 class="no-margins" ng-class="regionalStats.growth >= 0 ? 'text-navy' : 'text-danger'">{{regionalStats.growth | number}}</h2>
+                        <div class="font-bold" ng-class="regionalStats.growth >= 0 ? 'text-navy' : 'text-danger'">
+                            {{regionalStats.growthRate | number:1}}% <i class="fa" ng-class="regionalStats.growth >= 0 ? 'fa-level-up' : 'fa-level-down'"></i>
+                        </div>
+                    </div>
+                    <div class="col-xs-7">
+                        <div class="flot-chart" style="height: 55px;">
+                            <div flot class="flot-chart-content" dataset="topSparklineData" options="topSparklineOptions"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
@@ -572,21 +582,21 @@
         <div class="ibox float-e-margins santa-ceia-comparison-main">
             <div class="ibox-content">
                 <div>
-                                        <span class="pull-right text-right">
-                                        <button type="button"
-                                                class="btn btn-xs btn-primary m-b-xs"
-                                                style="background:#1e4b7a; border-color:#1e4b7a;"
-                                                ng-if="canImportHistoricalEvents"
-                                                ng-click="importHistoricalEvents2025()"
-                                                ng-disabled="importingHistoricalEvents">
-                                            <i class="fa" ng-class="importingHistoricalEvents ? 'fa-spinner fa-spin' : 'fa-cloud-upload'"></i>
-                                            {{importingHistoricalEvents ? 'Importando 2025...' : 'Importar Atendimento 2025'}}
-                                        </button>
-                                            <br ng-if="canImportHistoricalEvents"/>
-                                        <small>Base regional prevista: <strong>{{regionalStats.totalTarget}} comuns</strong></small>
-                                            <br/>
-                                            Cobertura {{regionalStats.currentYearLabel}}: {{regionalStats.currentCoverageCount}} de {{regionalStats.totalTarget}}
-                                        </span>
+                    <span class="pull-right text-right">
+                        <button type="button"
+                                class="btn btn-xs btn-primary m-b-xs"
+                                style="background:#1e4b7a; border-color:#1e4b7a;"
+                                ng-if="canImportHistoricalEvents"
+                                ng-click="importHistoricalEvents2025()"
+                                ng-disabled="importingHistoricalEvents">
+                            <i class="fa" ng-class="importingHistoricalEvents ? 'fa-spinner fa-spin' : 'fa-cloud-upload'"></i>
+                            {{importingHistoricalEvents ? 'Importando 2025...' : 'Importar Atendimento 2025'}}
+                        </button>
+                        <br ng-if="canImportHistoricalEvents"/>
+                        <small>Base regional prevista: <strong>{{regionalStats.totalTarget}} comuns</strong></small>
+                        <br/>
+                        Cobertura {{regionalStats.currentYearLabel}}: {{regionalStats.currentCoverageCount}} de {{regionalStats.totalTarget}}
+                    </span>
                     <h3 class="font-bold no-margins">
                         Comparativo de Participa&ccedil;&atilde;o {{regionalStats.previousYearLabel}} vs {{regionalStats.currentYearLabel}}
                     </h3>
@@ -594,7 +604,6 @@
                 </div>
 
                 <div class="m-t-sm">
-
                     <div class="row">
                         <div class="col-md-8">
                             <div class="santa-ceia-chart-wrap">

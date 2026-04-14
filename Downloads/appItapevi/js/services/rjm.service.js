@@ -1,16 +1,12 @@
-﻿(function () {
+(function () {
     'use strict';
 
     angular.module('inspinia')
         .factory('RjmService', RjmService);
 
-    RjmService.$inject = ['$q', 'AuthService'];
+    RjmService.$inject = ['$q'];
 
-    function RjmService($q, AuthService) {
-        // We use the same configuration as AuthService or access it if possible
-        // Since AuthService doesn't expose the supabase client, we re-initialize it here
-        // or we could refactor AuthService to expose it. For now, we'll re-initialize.
-        
+    function RjmService($q) {
         var SUPABASE_URL = 'https://sqamxlhfazulrisiptud.supabase.co';
         var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxYW14bGhmYXp1bHJpc2lwdHVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNzU4ODQsImV4cCI6MjA4Mjk1MTg4NH0.UmshkDqIgJQYVMmWVVgmfQm-YacUbRBeSpmYsNG0baE';
 
@@ -18,27 +14,180 @@
             || (window.__appSupabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
 
         var service = {
-            getRecitativos: getRecitativos
+            getRecitativos: getRecitativos,
+            getComuns: getComuns,
+            saveComum: saveComum,
+            updateComum: updateComum,
+            deleteComum: deleteComum,
+            getAuxiliares: getAuxiliares,
+            saveAuxiliar: saveAuxiliar,
+            updateAuxiliar: updateAuxiliar,
+            deleteAuxiliar: deleteAuxiliar
         };
 
         return service;
 
-        function getRecitativos() {
+        function createDeferredQuery(query, mapper, tolerateError) {
             var deferred = $q.defer();
+            query.then(function (response) {
+                if (response.error && !tolerateError) {
+                    deferred.reject(response.error);
+                    return;
+                }
 
-            // Fetching all columns first to identify the correct foreign key names
-            supabase
-                .from('rjm_recitativos')
-                .select('*')
-                .order('data_reuniao', { ascending: false })
-                .then(function (response) {
-                    if (response.error) {
-                        deferred.reject(response.error);
-                    } else {
-                        deferred.resolve(response.data);
-                    }
-                });
+                if (response.error && tolerateError) {
+                    deferred.resolve([]);
+                    return;
+                }
 
+                deferred.resolve(mapper ? (response.data || []).map(mapper) : (response.data || []));
+            });
+            return deferred.promise;
+        }
+
+        function normalizeUpperText(value) {
+            return String(value || '').trim().toUpperCase();
+        }
+
+        function normalizeRecitativoRecord(item) {
+            var record = angular.copy(item || {});
+            record.municipio = normalizeUpperText(record.municipio);
+            record.comum = normalizeUpperText(record.comum);
+            record.auxiliar_nome = String(record.auxiliar_nome || '').trim();
+            record.auxiliar_email = String(record.auxiliar_email || '').trim().toLowerCase();
+            return record;
+        }
+
+        function normalizeComumRecord(item) {
+            var record = angular.copy(item || {});
+            record.comum = normalizeUpperText(record.comum);
+            record.cidade = normalizeUpperText(record.cidade);
+            record.cooperador_jovens = String(record.cooperador_jovens || '').trim();
+            record.telefone = String(record.telefone || '').trim();
+            return record;
+        }
+
+        function normalizeComumPayload(item) {
+            return {
+                comum: normalizeUpperText(item && item.comum),
+                cidade: normalizeUpperText(item && item.cidade),
+                cooperador_jovens: String((item && item.cooperador_jovens) || '').trim() || null,
+                telefone: String((item && item.telefone) || '').trim() || null
+            };
+        }
+
+        function normalizeAuxiliarRecord(item) {
+            var record = angular.copy(item || {});
+            record.full_name = String(record.full_name || '').trim();
+            record.email = String(record.email || '').trim().toLowerCase();
+            record.comum = normalizeUpperText(record.comum);
+            record.cidade = normalizeUpperText(record.cidade);
+            return record;
+        }
+
+        function normalizeAuxiliarPayload(item) {
+            return {
+                id: item && item.id ? item.id : null,
+                full_name: String((item && item.full_name) || '').trim(),
+                email: String((item && item.email) || '').trim().toLowerCase(),
+                comum: normalizeUpperText(item && item.comum),
+                cidade: normalizeUpperText(item && item.cidade)
+            };
+        }
+
+        function getRecitativos() {
+            return createDeferredQuery(
+                supabase.from('rjm_recitativos').select('*').order('data_reuniao', { ascending: false }),
+                normalizeRecitativoRecord
+            );
+        }
+
+        function getComuns() {
+            return createDeferredQuery(
+                supabase.from('rjm_comuns').select('*').order('cidade', { ascending: true }).order('comum', { ascending: true }),
+                normalizeComumRecord,
+                true
+            );
+        }
+
+        function saveComum(data) {
+            var deferred = $q.defer();
+            supabase.from('rjm_comuns').insert([normalizeComumPayload(data)]).then(function (response) {
+                if (response.error) deferred.reject(response.error);
+                else deferred.resolve(response.data);
+            });
+            return deferred.promise;
+        }
+
+        function updateComum(data) {
+            var deferred = $q.defer();
+            supabase.from('rjm_comuns').update(normalizeComumPayload(data)).eq('id', data.id).then(function (response) {
+                if (response.error) deferred.reject(response.error);
+                else deferred.resolve(response.data);
+            });
+            return deferred.promise;
+        }
+
+        function deleteComum(id) {
+            var deferred = $q.defer();
+            supabase.from('rjm_comuns').delete().eq('id', id).then(function (response) {
+                if (response.error) deferred.reject(response.error);
+                else deferred.resolve(response.data);
+            });
+            return deferred.promise;
+        }
+
+        function getAuxiliares() {
+            return createDeferredQuery(
+                supabase.from('rjm_auxiliares').select('*').order('cidade', { ascending: true }).order('full_name', { ascending: true }),
+                normalizeAuxiliarRecord,
+                true
+            );
+        }
+
+        function saveAuxiliar(data) {
+            var deferred = $q.defer();
+            var payload = normalizeAuxiliarPayload(data);
+
+            if (!payload.id) {
+                deferred.reject({ message: 'Selecione um usuário válido para vincular o auxiliar.' });
+                return deferred.promise;
+            }
+
+            supabase.from('rjm_auxiliares').insert([payload]).then(function (response) {
+                if (response.error) deferred.reject(response.error);
+                else deferred.resolve(response.data);
+            });
+            return deferred.promise;
+        }
+
+        function updateAuxiliar(data) {
+            var deferred = $q.defer();
+            var payload = normalizeAuxiliarPayload(data);
+
+            if (!payload.id) {
+                deferred.reject({ message: 'Auxiliar sem vínculo de usuário.' });
+                return deferred.promise;
+            }
+
+            supabase.from('rjm_auxiliares').update({
+                full_name: payload.full_name,
+                email: payload.email,
+                comum: payload.comum,
+                cidade: payload.cidade
+            }).eq('id', payload.id).then(function (response) {
+                if (response.error) deferred.reject(response.error);
+                else deferred.resolve(response.data);
+            });
+            return deferred.promise;
+        }
+
+        function deleteAuxiliar(id) {
+            var deferred = $q.defer();
+            supabase.from('rjm_auxiliares').delete().eq('id', id).then(function (response) {
+                if (response.error) deferred.reject(response.error);
+                else deferred.resolve(response.data);
+            });
             return deferred.promise;
         }
     }

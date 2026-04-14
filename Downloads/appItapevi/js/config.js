@@ -513,7 +513,7 @@ function config($stateProvider, $urlRouterProvider, $ocLazyLoadProvider, IdlePro
         })
         .state('visitas.dashboard', {
             url: "/dashboard",
-            templateUrl: "views/visitas_dashboard.html?v=1.1.7",
+            templateUrl: "views/visitas_dashboard.html?v=1.1.12",
             data: { pageTitle: 'Dashboard de Visitas' },
             controller: 'visitasDashboardCtrl'
         })
@@ -525,31 +525,31 @@ function config($stateProvider, $urlRouterProvider, $ocLazyLoadProvider, IdlePro
         })
         .state('visitas.irmandade', {
             url: "/irmandade",
-            templateUrl: "views/visitas_dashboard.html?v=1.1.7",
+            templateUrl: "views/visitas_dashboard.html?v=1.1.12",
             data: { pageTitle: 'Dashboard de Visitas' },
             controller: 'visitasDashboardCtrl'
         })
         .state('visitas.mocidade', {
             url: "/mocidade",
-            templateUrl: "views/visitas_dashboard.html?v=1.1.7",
+            templateUrl: "views/visitas_dashboard.html?v=1.1.12",
             data: { pageTitle: 'Dashboard de Visitas' },
             controller: 'visitasDashboardCtrl'
         })
         .state('visitas.musicos', {
             url: "/musicos",
-            templateUrl: "views/visitas_dashboard.html?v=1.1.7",
+            templateUrl: "views/visitas_dashboard.html?v=1.1.12",
             data: { pageTitle: 'Dashboard de Visitas' },
             controller: 'visitasDashboardCtrl'
         })
         .state('visitas.familiar', {
             url: "/familiar",
-            templateUrl: "views/visitas_dashboard.html?v=1.1.7",
+            templateUrl: "views/visitas_dashboard.html?v=1.1.12",
             data: { pageTitle: 'Dashboard de Visitas' },
             controller: 'visitasDashboardCtrl'
         })
         .state('visitas.evangelizacao', {
             url: "/evangelizacao",
-            templateUrl: "views/visitas_dashboard.html?v=1.1.7",
+            templateUrl: "views/visitas_dashboard.html?v=1.1.12",
             data: { pageTitle: 'Dashboard de Visitas' },
             controller: 'visitasDashboardCtrl'
         })

@@ -18,6 +18,19 @@
         overflow-y: auto;
         overflow-x: auto;
     }
+    .visitas-pendencia-note {
+        color: #7f8c8d;
+        line-height: 1.5;
+    }
+    .visitas-pending-breakdown {
+        color: #7f8c8d;
+        line-height: 1.5;
+    }
+    .visitas-inline-status {
+        display: inline-block;
+        margin-right: 8px;
+        margin-bottom: 4px;
+    }
 </style>
 
 <div class="wrapper wrapper-content animated fadeInRight">
@@ -300,20 +313,20 @@
                 </div>
                 <div class="ibox-content">
                     <div class="row">
-                        <div class="col-sm-3">
+                        <div class="col-lg-3 col-sm-6">
                             <div class="widget style1 navy-bg">
                                 <div class="row">
                                     <div class="col-xs-4 text-center">
                                         <i class="fa fa-list-alt fa-5x"></i>
                                     </div>
                                     <div class="col-xs-8 text-right">
-                                        <span> Previstas no período </span>
+                                        <span> Base ativa </span>
                                         <h2 class="font-bold">{{ expectedLancamentosCount }}</h2>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-lg-3 col-sm-6">
                             <div class="widget style1 lazur-bg">
                                 <div class="row">
                                     <div class="col-xs-4 text-center">
@@ -326,7 +339,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-lg-3 col-sm-6">
                             <div class="widget style1 yellow-bg">
                                 <div class="row">
                                     <div class="col-xs-4 text-center">
@@ -339,8 +352,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-sm-3">
-                            <div class="widget style1 bg-primary">
+                        <div class="col-lg-3 col-sm-6">
+                            <div class="widget style1 green-bg">
                                 <div class="row">
                                     <div class="col-xs-4 text-center">
                                         <i class="fa fa-pie-chart fa-5x"></i>
@@ -354,13 +367,13 @@
                         </div>
                     </div>
 
-                    <div class="m-t-md m-b-sm text-muted">
-                        A base prevista considera o cadastro oficial de comuns consolidado com os vínculos do ministério regional.
+                    <div class="m-t-md m-b-sm visitas-pendencia-note">
+                        A base prevista considera o cadastro oficial de comuns consolidado com os lançamentos reconhecidos no período filtrado.
                     </div>
 
                     <div class="row m-b-sm">
                         <div class="col-sm-8 text-muted">
-                            {{ pendingLancamentos.length }} pendências distribuídas em {{ pendingMunicipioGroups.length }} municípios.
+                            {{ pendingCount || 0 }} pendências distribuídas em {{ pendingMunicipioGroups.length }} municípios.
                         </div>
                     </div>
 
@@ -380,7 +393,7 @@
                                     <td>
                                         <strong>{{ group.municipio }}</strong>
                                         <br>
-                                        <small class="text-muted">{{ group.itens.length }} comuns pendentes</small>
+                                        <small class="text-muted">{{ group.previstos }} comuns previstas</small>
                                     </td>
                                     <td class="text-center">
                                         <span class="label label-warning">{{ group.pendentes }}</span>
@@ -410,17 +423,20 @@
                                             <thead>
                                                 <tr>
                                                     <th>Comum</th>
-                                                    <th class="text-center">Status</th>
+                                                    <th class="text-center">Último lançamento</th>
                                                     <th class="text-right">Ações</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <tr ng-repeat="item in group.itens">
                                                     <td>
+                                                        <span class="label visitas-inline-status" ng-class="getVisitasPendingStatusClass(item)">{{ item.pendingStatusLabel }}</span>
                                                         <strong>{{ item.nome }}</strong>
+                                                        <div><small class="text-muted">{{ item.pendingStatusDetail }}</small></div>
                                                     </td>
                                                     <td class="text-center">
-                                                        <span class="label label-warning">PENDENTE</span>
+                                                        {{ item.latestDateLabel || '-' }}
+                                                        <div><small class="text-muted">{{ item.daysWithoutLaunch === null ? '-' : item.daysWithoutLaunch }} dias sem lançar</small></div>
                                                     </td>
                                                     <td class="text-right">
                                                         <button class="btn btn-xs btn-success" ng-click="openPendingLaunch(item)">
