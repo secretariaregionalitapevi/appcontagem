@@ -714,7 +714,7 @@ function listarLocaisEnsaio() {
 // Função para obter atualizações de progresso (chamada pelo HTML)
 
 // Função principal genérica para alimentar aba Organistas em qualquer planilha destino
-function alimentarAbaOrganistasDestino(localEnsaio, ssDestino, nomePlanilha) {
+function alimentarAbaOrganistasDestino(localEnsaio, ssDestino, nomePlanilha, shSource = null) {
   try {
     console.log(`🏛️ Iniciando alimentação da aba Organistas na planilha externa de ${nomePlanilha} para: ${localEnsaio}`);
     
@@ -724,12 +724,14 @@ function alimentarAbaOrganistasDestino(localEnsaio, ssDestino, nomePlanilha) {
       console.log(`⚠️ [alimentarAbaOrganistasDestino] Usando local padrão: "${localEnsaio}"`);
     }
 
-    const shDados = openOrCreateSheet(SHEET_NAME);
+    // 🚨 AJUSTE: Usar shSource se fornecido (ex: aba Registros da regional)
+    const shDados = shSource || openOrCreateSheet(SHEET_NAME);
     const lastRow = shDados.getLastRow();
     const lastCol = shDados.getLastColumn();
     
     if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
+      console.warn(`[alimentarAbaOrganistasDestino] Fonte "${shDados.getName()}" está vazia.`);
+      return { ok: false, mensagem: 'Sem dados para processar' };
     }
 
     const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];

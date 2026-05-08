@@ -1521,6 +1521,7 @@ function executarExportacaoAltaPerformance() {
         // Também atualiza a aba Organistas
         let resultadoOrganistas = null;
         try {
+          switch (planilha.nome) {
             case 'Cotia':
               resultadoOrganistas = alimentarAbaOrganistasCotia(localEnsaio);
               alimentarAbaMinisterioCotia(localEnsaio);
@@ -2044,132 +2045,88 @@ function executarExportarCotia() {
   }
 }
 
-// Função para exportar dados completos para planilha externa de Itapevi (com instrumentos e cargos)
 
-function mapearInstrumento(instrumento) {
-  if (!instrumento) return null;
-  
-  const instrumentoNormalizado = formatarTexto(instrumento);
-  
-  const mapeamentoInstrumentos = {
-    'Órgão': 'Organista',
-    'Organista': 'Organista',
-    'Violino': 'Violino',
-    'Viola': 'Viola',
-    'Violoncelo': 'Violoncelo',
-    'Clarinete': 'Clarinete',
-    'Flauta': 'Flauta transversal',
-    'Flauta Transversal': 'Flauta transversal',
-    'Saxofone Soprano (Reto)': 'Saxofone soprano (reto)',
-    'Saxofone Soprano Reto': 'Saxofone soprano (reto)',
-    'Trompete': 'Trompete',
-    'Trombone': 'Trombone',
-    'Tuba': 'Tuba',
-    'Fagote': 'Fagote',
-    'Oboé': 'Oboé',
-    'Corne Inglês': 'Corne inglês',
-    'Cornet': 'Cornet',
-    'Flugelhorn': 'Flugelhorn',
-    'Trompa': 'Trompa',
-    'Acordeon': 'Acordeon',
-    'Acordeão': 'Acordeon',
-    'Eufônio': 'Eufônio',
-    'Barítono (Pisto)': 'Barítono (pisto)',
-    'Trombonito': 'Trombonito'
-  };
-  
-  return mapeamentoInstrumentos[instrumentoNormalizado] || instrumentoNormalizado;
-}
-
-// Função para limpar todos os contadores do resumo antes de atualizar
-
+/**
+ * Função para limpar os contadores do resumo (colunas B, E e H) de forma eficiente.
+ */
 function limparContadoresResumo(sheet, linhasComFormulas = [28, 41, 48, 50]) {
   console.log('🧹 Limpando contadores do resumo (Memória Bulk)...');
-  
   try {
     const lastRow = sheet.getLastRow();
+    const maxCols = sheet.getLastColumn();
     if (lastRow < 2) return;
     
-    const range = sheet.getRange(1, 1, lastRow, 2);
+    // Colunas de valores: B=2, E=5, H=8 (1-indexed para getRange, mas aqui usamos 0-indexed para o array de values)
+    const colunasValores = [1, 4, 7].filter(c => c < maxCols);
+    const range = sheet.getRange(1, 1, lastRow, maxCols);
     const values = range.getValues();
     const formulas = range.getFormulas();
-    
-    let contadoresLimpos = 0;
-    const mixedValues = [];
-    
-    for (let i = 0; i < values.length; i++) {
+    let limpos = 0;
+
+    for (let i = 1; i < values.length; i++) { // Pula cabeçalho
       const row = i + 1;
-      let newValue = values[i][1];
-      
-      if (i > 0 && !linhasComFormulas.includes(row) && !formulas[i][1]) {
-        const rotulo = values[i][0];
-        if (rotulo && typeof rotulo === 'string' && rotulo.trim() !== '') {
-          if (typeof newValue === 'number' && newValue > 0) {
-            newValue = 0;
-            contadoresLimpos++;
-          }
+      if (linhasComFormulas.includes(row)) continue;
+
+      colunasValores.forEach(colIdx => {
+        if (!formulas[i][colIdx] && typeof values[i][colIdx] === 'number') {
+          values[i][colIdx] = 0;
+          limpos++;
         }
-      }
-      mixedValues.push([formulas[i][1] ? formulas[i][1] : newValue]);
+      });
     }
-    
-    if (contadoresLimpos > 0) {
-      sheet.getRange(1, 2, lastRow, 1).setValues(mixedValues);
-    }
-    
-    console.log(`✅ Limpeza concluída: ${contadoresLimpos} contadores zerados`);
-  } catch (error) {
-    console.error('❌ Erro durante a limpeza:', error);
-    throw error;
+    if (limpos > 0) range.setValues(values);
+    console.log(`✅ Limpeza concluída: ${limpos} células zeradas.`);
+  } catch (e) {
+    console.error('❌ Erro na limpeza do resumo:', e.message);
   }
 }
 
-// Função Otimizada para atualizar Tudo de Uma Vez
+/**
+ * Atualiza os contadores do Dashboard em lote, escaneando colunas A, D e G.
+ */
 function atualizarTodosContadoresResumoBulk(sheet, arrayDeAtualizacoes, linhasComFormulas = [28, 41, 48, 50]) {
-  console.log(`🔍 Atualizando múltiplos rótulos em memória bulk...`);
-  
+  console.log(`🔍 Atualizando Dashboard (Memória Bulk)...`);
   try {
-    // Prepara um dicionário com todos os textos normalizados que precisamos procurar
-    const currentDict = {};
-    arrayDeAtualizacoes.forEach(item => {
-      const normRotulo = normalizarNome(item.rotulo);
-      currentDict[normRotulo] = item.valor;
-    });
-
     const lastRow = sheet.getLastRow();
+    const maxCols = sheet.getLastColumn();
     if (lastRow < 2) return;
     
-    const range = sheet.getRange(1, 1, lastRow, 2);
+    // Blocos de rótulo e valor: [A,B], [D,E], [G,H]
+    const blocos = [
+      { label: 0, val: 1 }, 
+      { label: 3, val: 4 }, 
+      { label: 6, val: 7 }
+    ].filter(b => b.val < maxCols);
+
+    const dict = {};
+    arrayDeAtualizacoes.forEach(item => {
+      dict[normalizarNome(item.rotulo)] = item.valor;
+    });
+
+    const range = sheet.getRange(1, 1, lastRow, maxCols);
     const values = range.getValues();
     const formulas = range.getFormulas();
     let atualizados = 0;
-    
-    const mixedValues = [];
-    
+
     for (let i = 0; i < values.length; i++) {
       const row = i + 1;
-      let newValue = values[i][1];
-      
-      if (!linhasComFormulas.includes(row) && !formulas[i][1]) {
-        const rotuloV = values[i][0];
-        if (rotuloV && typeof rotuloV === 'string') {
-          const normRowLabel = normalizarNome(rotuloV);
-          if (currentDict.hasOwnProperty(normRowLabel)) {
-             newValue = currentDict[normRowLabel];
-             atualizados++;
+      if (linhasComFormulas.includes(row)) continue;
+
+      blocos.forEach(b => {
+        const labelText = String(values[i][b.label] || '');
+        if (labelText) {
+          const normLabel = normalizarNome(labelText);
+          if (dict.hasOwnProperty(normLabel) && !formulas[i][b.val]) {
+            values[i][b.val] = dict[normLabel];
+            atualizados++;
           }
         }
-      }
-      mixedValues.push([formulas[i][1] ? formulas[i][1] : newValue]);
+      });
     }
-    
-    if (atualizados > 0) {
-      sheet.getRange(1, 2, lastRow, 1).setValues(mixedValues);
-    }
-    console.log(`📋 Atualizados ${atualizados} valores na coluna B com sucesso na memória`);
-  } catch(e) {
-    console.error('❌ Erro na atualizacao bulk: ', e);
-    throw e;
+    range.setValues(values);
+    console.log(`✅ Dashboard atualizado: ${atualizados} campos modificados.`);
+  } catch (e) {
+    console.error('❌ Erro na atualização bulk do dashboard:', e.message);
   }
 }
 
@@ -2823,8 +2780,18 @@ function atualizarResumoContadorIncremental(shResumo, data, ss) {
       contadores[cargoMapeado] = (contadores[cargoMapeado] || 0) + 1;
     }
 
-    // Lógica para Organistas (inclui cargos femininos musicais)
-    if (tCargo === 'organista') {
+    // Lógica para contagem de Organistas (Célula B2 do Resumo)
+    // Usamos normalizarNome para ignorar acentos (ex: Secretária vira SECRETARIA)
+    const cargoNorm = normalizarNome(cargo);
+    
+    // Verifica se o cargo é EXCLUSIVAMENTE de organista
+    // Se contiver Examinadora, Instrutora ou Secretária, NÃO conta aqui (vai para outro campo)
+    const isCargoOrganistaPuro = cargoNorm.includes('ORGANISTA') && 
+                                 !cargoNorm.includes('EXAMINADORA') && 
+                                 !cargoNorm.includes('INSTRUTORA') && 
+                                 !cargoNorm.includes('SECRETARIA');
+    
+    if (isCargoOrganistaPuro) {
       totalOrganistas++;
     }
 

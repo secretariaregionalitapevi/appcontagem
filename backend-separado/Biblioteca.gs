@@ -2,29 +2,20 @@
  * ============================================================================
  * BIBLIOTECA DE AUTONOMIA REGIONAL (PULL ARCHITECTURE)
  * ============================================================================
- * Funções centralizadas para permitir que as planilhas regionais puxem 
- * seus próprios dados de forma autônoma da Matriz.
- * 
- * Uso em Planilhas Regionais:
- * SistemaSAM_Biblioteca.processarDadosRegionaisCentral('Cotia', SpreadsheetApp.getActiveSpreadsheet());
- * ============================================================================
  */
 
 /**
  * Ponto de entrada central para as regionais puxarem seus dados.
- * @param {string} localEnsaio - O nome da localidade (ex: 'Cotia', 'Itapevi')
- * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ssDestino - Objeto d a planilha de destino  
- * @returns {Object} Resumo da execução
  */
 function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
   try {
-    console.log(`🚀 Iniciando Sincronização ULTRA-RÁPIDA (Supabase) para: ${localEnsaio}`);
+    console.log("🚀 Iniciando Sincronização para: " + localEnsaio);
     
-    // 1. Busca os registros diretamente no Supabase (Alta Performance)
-    const registros = buscarRegistrosSupabase(localEnsaio);
+    // 1. Busca os registros diretamente no Supabase
+    var registros = buscarRegistrosSupabase(localEnsaio);
     
     if (!registros || registros.length === 0) {
-      console.log('ℹ️ Nenhum dado encontrado no Supabase para este local.');
+      console.log('ℹ️ Nenhum dado encontrado.');
       return { 
         sucesso: true, 
         mensagem: "Nenhum dado encontrado no banco de dados para este local.",
@@ -32,41 +23,45 @@ function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
       };
     }
 
-    // 2. Atualiza a aba 'Registros' da regional (Bulk)
-    const shRegistros = ssDestino.getSheetByName('Registros');
+    // 2. Atualiza a aba 'Registros'
+    var shRegistros = ssDestino.getSheetByName('Registros');
     if (shRegistros) {
+      ssDestino.toast("📥 Recebendo dados de " + localEnsaio + "...", 'Sincronização', 5);
       atualizarAbaRegistrosLocalBulk(shRegistros, registros);
+      SpreadsheetApp.flush();
     }
     
-    // 3. Atualiza Dashboard (Recontagem Local Rápida)
-    let resumoExecucao = { membros: 0, organistas: 0, ministry: 0 };
-    const shResumo = ssDestino.getSheetByName('Resumo');
+    // 3. Atualiza Dashboard
+    ssDestino.toast('📊 Atualizando Dashboard...', 'Sincronização', 5);
+    var resumoExecucao = { membros: 0, organistas: 0, ministry: 0 };
+    var shResumo = ssDestino.getSheetByName('Resumo');
     if (shResumo) {
       resumoExecucao = atualizarResumoContadorIncremental(shResumo, null, ssDestino);
     }
     
     // 4. Atualiza Organistas e Ministério
     try {
-      alimentarAbaOrganistasDestino(localEnsaio, ssDestino, localEnsaio);
-      alimentarAbaMinisterioDestino(localEnsaio, ssDestino, localEnsaio);
+      ssDestino.toast('🎹 Atualizando listas auxiliares...', 'Sincronização', 5);
+      alimentarAbaOrganistasDestino(localEnsaio, ssDestino, localEnsaio, shRegistros);
+      alimentarAbaMinisterioDestino(localEnsaio, ssDestino, localEnsaio, shRegistros);
     } catch (e) {
-      console.warn('⚠️ Erro ao atualizar abas secundárias:', e.message);
+      console.warn('⚠️ Erro abas secundárias:', e.message);
     }
     
-    console.log(`✅ Sincronização concluída com sucesso para: ${localEnsaio}`);
+    ssDestino.toast('✅ Sincronização concluída!', 'Sucesso', 5);
     
     return {
       sucesso: true,
-      mensagem: `Sincronização concluída com sucesso para ${localEnsaio}.`,
+      mensagem: "Sincronização concluída com sucesso.",
       detalhes: {
-        total: registros.length
+        total: registros.length,
+        membros: resumoExecucao.membros,
+        organistas: resumoExecucao.organistas,
+        ministerio: resumoExecucao.ministerio
       }
     };
   } catch (err) {
-    console.error(`❌ Erro crítico na Sincronização Autônoma: ${err.message}`);
-    return {
-      sucesso: false,
-      mensagem: `Erro: ${err.message}`
-    };
+    console.error("❌ Erro crítico: " + err.message);
+    return { sucesso: false, mensagem: err.message };
   }
 }

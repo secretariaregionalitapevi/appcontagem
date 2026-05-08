@@ -16,7 +16,7 @@
  */
 
 // Função principal genérica para alimentar aba Ministério em qualquer planilha destino
-function alimentarAbaMinisterioDestino(localEnsaio, ssDestino, nomePlanilha) {
+function alimentarAbaMinisterioDestino(localEnsaio, ssDestino, nomePlanilha, shSource = null) {
   try {
     console.log(`🏛️ Iniciando alimentação da aba Ministério na planilha externa de ${nomePlanilha} para: ${localEnsaio}`);
     
@@ -26,12 +26,14 @@ function alimentarAbaMinisterioDestino(localEnsaio, ssDestino, nomePlanilha) {
       console.log(`⚠️ [alimentarAbaMinisterioDestino] Usando local padrão: "${localEnsaio}"`);
     }
 
-    const shDados = openOrCreateSheet(SHEET_NAME);
+    // 🚨 AJUSTE: Usar shSource se fornecido (ex: aba Registros da regional)
+    const shDados = shSource || openOrCreateSheet(SHEET_NAME);
     const lastRow = shDados.getLastRow();
     const lastCol = shDados.getLastColumn();
     
     if (lastRow < 2) {
-      throw new Error('Não há dados abaixo do cabeçalho em "Dados".');
+      console.warn(`[alimentarAbaMinisterioDestino] Fonte "${shDados.getName()}" está vazia.`);
+      return { ok: false, mensagem: 'Sem dados para processar' };
     }
 
     const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
