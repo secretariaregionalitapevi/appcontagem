@@ -96,8 +96,8 @@ export const LoginScreen: React.FC = () => {
     const confirmed = await showToast.confirm(
       'Confirmação de Local',
       Platform.OS === 'web'
-        ? `Você confirma que está no ensaio em <strong style="color: #255ec8;">${localNome}</strong>?`
-        : `Você confirma que está no ensaio em ${localNome}?`,
+        ? `Você confirma que está no ensaio em:<br><span style="color: #1e4b7a; font-size: 28px; font-weight: 800; display: block; margin-top: 15px; letter-spacing: -0.5px;">${localNome}</span>`
+        : `Você confirma que está no ensaio em:\n${localNome.toUpperCase()}?`,
       'generic',
       {
         confirmText: Platform.OS === 'web'
@@ -149,161 +149,151 @@ export const LoginScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.loginWrap}>
-          {/* Logo CCB */}
-          <View style={styles.logoContainer}>
-            <TouchableOpacity
-              onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}
-              activeOpacity={0.7}
-            >
-              <Image
-                source={require('../img/logo-ccb-light.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
 
-          {/* Título */}
-          <Text style={styles.title}>Bem-vindos ao SAC</Text>
-
-          {/* Subtítulo */}
-          <Text style={styles.leadText}>
-            Sistema Administrativo de Contagem, criado para facilitar a administração Musical da
-            Congregação Cristã no Brasil
-            {'\n'}
-            <Text style={styles.boldText}>{appConfig.REGIONAL_NAME}</Text>.
-          </Text>
-
-          <Text style={styles.subText}>Faça o login para acessar o Sistema</Text>
-
-          {/* Formulário */}
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <View style={styles.inputGroupText}>
-                <FontAwesome5 name="envelope" size={16} color={theme.colors.icon} />
-              </View>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Nome de usuário"
-                placeholderTextColor={theme.colors.textSecondary}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <View style={styles.inputGroupText}>
-                <FontAwesome5 name="lock" size={16} color={theme.colors.icon} />
-              </View>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Senha"
-                placeholderTextColor={theme.colors.textSecondary}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                style={styles.togglePassword}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <FontAwesome5
-                  name={showPassword ? 'eye-slash' : 'eye'}
-                  size={16}
-                  color={theme.colors.icon}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <View style={styles.inputGroupText}>
-                <FontAwesome5
-                  name="map-marker-alt"
-                  size={16}
-                  color={theme.colors.icon}
-                />
-              </View>
-              {Platform.OS === 'web' ? (
-                <select
-                  style={styles.selectWeb}
-                  value={localEnsaio}
-                  onChange={e => setLocalEnsaio(e.target.value)}
-                  required
-                >
-                  <option value="">Local do Ensaio</option>
-                  {locaisEnsaio.map(local => (
-                    <option key={local.id} value={local.id}>
-                      {local.nome}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <View style={styles.selectNative}>
-                  <Text style={styles.selectText}>
-                    {localEnsaio
-                      ? locaisEnsaio.find(l => l.id === localEnsaio)?.nome || 'Local do Ensaio'
-                      : 'Local do Ensaio'}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <PrimaryButton
-              title={isSignUp ? 'Criar conta' : 'Login'}
-              onPress={handleLogin}
-              loading={loading}
-              style={styles.loginButton}
-            />
-
-            {!isSignUp && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate('ForgotPassword' as any)}
-                style={styles.forgotPasswordContainer}
-              >
-                <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.divider} />
-
-            <View style={styles.registerContainer}>
-              <Text style={styles.registerText}>Não tem uma conta?</Text>
-              <TouchableOpacity
-                style={styles.registerButton}
-                onPress={() => {
-                  console.log('🔘 Botão "Criar conta" clicado');
-                  try {
-                    navigation.navigate('SignUp');
-                  } catch (error) {
-                    console.error('❌ Erro ao navegar para SignUp:', error);
-                    showToast.error(
-                      'Erro',
-                      'Não foi possível abrir a tela de cadastro. Tente novamente.'
-                    );
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.registerButtonText}>Criar conta</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Rodapé */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v{pkg.version || '1.0'}
-              {'\n'}
+          <View style={styles.sacCard}>
+            {/* Header Estilo Santa Ceia */}
+            <View style={styles.sacHeader}>
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}
+                activeOpacity={0.7}
               >
-                <Text style={styles.footerLink}>Congregação Cristã no Brasil</Text>
+                <Image
+                  source={require('../img/logo-ccb-light.png')}
+                  style={styles.sacLogo}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
-              {'\n'}
-              <Text style={styles.footerBold}>{appConfig.REGIONAL_NAME}</Text>
+              <Text style={styles.sacTitle}>Lançamento de Presença</Text>
+              <Text style={styles.sacSubtitle}>
+                Ensaios Regionais
+              </Text>
+            </View>
+
+            <View style={styles.sacBody}>
+              {/* Lead Text (Estilizado) */}
+
+
+              {/* Formulário com Icons boxes */}
+              <View style={styles.formGroup}>
+                <View style={styles.inputIconBox}>
+                  <FontAwesome5 name="envelope" size={18} color="#1e4b7a" />
+                </View>
+                <TextInput
+                  style={styles.sacInput}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="E-mail cadastrado"
+                  placeholderTextColor="#94a3b8"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <View style={styles.inputIconBox}>
+                  <FontAwesome5 name="lock" size={18} color="#1e4b7a" />
+                </View>
+                <TextInput
+                  style={styles.sacInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Senha"
+                  placeholderTextColor="#94a3b8"
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <FontAwesome5
+                    name={showPassword ? 'eye-slash' : 'eye'}
+                    size={16}
+                    color="#94a3b8"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.formGroup}>
+                <View style={styles.inputIconBox}>
+                  <FontAwesome5 name="map-marker-alt" size={18} color="#1e4b7a" />
+                </View>
+                {Platform.OS === 'web' ? (
+                  <select
+                    style={{
+                      ...styles.sacSelectWeb,
+                      color: !localEnsaio ? '#94a3b8' : '#334155',
+                      paddingLeft: 15,
+                      paddingRight: 15,
+                    }}
+                    value={localEnsaio}
+                    onChange={e => setLocalEnsaio(e.target.value)}
+                    required
+                  >
+                    <option value="" style={{ color: '#94a3b8' }}>Local do Ensaio</option>
+                    {locaisEnsaio.map(local => (
+                      <option key={local.id} value={local.id} style={{ color: '#334155' }}>
+                        {local.nome}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <View style={styles.sacSelectNative}>
+                    <Text style={[
+                      styles.sacSelectText,
+                      !localEnsaio && { color: '#94a3b8' }
+                    ]}>
+                      {localEnsaio
+                        ? locaisEnsaio.find(l => l.id === localEnsaio)?.nome || 'Local do Ensaio'
+                        : 'Local do Ensaio'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.sacBtn, loading && { opacity: 0.7 }]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.sacBtnText}>{loading ? 'CARREGANDO...' : 'LOGIN'}</Text>
+              </TouchableOpacity>
+
+              {!isSignUp && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ForgotPassword' as any)}
+                  style={styles.forgotPasswordContainer}
+                >
+                  <Text style={styles.forgotPasswordText}>Esqueceu a senha?</Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.divider} />
+
+              <View style={styles.registerContainer}>
+                <Text style={styles.registerText}>Não tem uma conta?</Text>
+                <TouchableOpacity
+                  style={styles.sacBtnSecondary}
+                  onPress={() => navigation.navigate('SignUp')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.sacBtnSecondaryText}>CRIAR CONTA</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          {/* Rodapé da Página */}
+          <View style={styles.sacPageFooter}>
+            <Text style={styles.footerText}>
+              © Aplicativo de Contagem v{pkg.version || '1.0'}{'\n'}
+              <Text
+                style={styles.footerLink}
+                onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}
+              >
+                Congregação Cristã no Brasil
+              </Text>{'\n'}
+              Regional Itapevi
             </Text>
           </View>
         </View>
@@ -315,196 +305,192 @@ export const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#f1f5f9',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: theme.spacing.md,
+    padding: 20,
   },
   loginWrap: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 500,
     alignSelf: 'center',
-    paddingVertical: theme.spacing.md,
   },
-  logoContainer: {
+  sacCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 25,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  sacHeader: {
+    backgroundColor: '#1e4b7a',
+    padding: 40,
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
   },
-  logo: {
-    width: 200,
-    height: 120,
-    marginVertical: theme.spacing.sm,
+  sacLogo: {
+    width: 260,
+    height: 110,
+    marginBottom: 15,
+    tintColor: '#fff', // Para forçar branco se a imagem permitir
   },
-  title: {
-    fontSize: theme.fontSize.xxl,
+  sacTitle: {
+    color: '#fff',
+    fontSize: 26,
     fontWeight: '700',
+    marginBottom: 8,
     textAlign: 'center',
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-    color: theme.colors.text,
+  },
+  sacSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 15,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  sacBody: {
+    padding: 30,
   },
   leadText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
+    fontSize: 15,
+    color: '#64748b',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.md,
+    marginBottom: 5,
   },
   boldText: {
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#1e4b7a',
   },
   subText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
+    fontSize: 13,
+    color: '#94a3b8',
     textAlign: 'center',
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    marginBottom: 20,
   },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  inputGroup: {
+  formGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    alignItems: 'stretch',
+    marginBottom: 15,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.surface,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    height: 52,
     overflow: 'hidden',
-    minHeight: 48,
   },
-  selectWeb: {
+  inputIconBox: {
+    width: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderRightWidth: 1,
+    borderRightColor: '#e2e8f0',
+  },
+  sacInput: {
     flex: 1,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    paddingVertical: theme.spacing.sm,
-    paddingLeft: theme.spacing.md,
-    paddingRight: theme.spacing.md,
-    minHeight: 48,
-    borderLeftWidth: 1,
-    borderLeftColor: theme.colors.border,
-    borderTopWidth: 0,
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
+    paddingHorizontal: 15,
+    fontSize: 15,
+    color: '#334155',
+  },
+  sacSelectWeb: {
+    flex: 1,
+    fontSize: 15,
+    color: '#334155',
+    paddingLeft: 15,
+    paddingRight: 15,
     backgroundColor: 'transparent',
+    borderWidth: 0,
     outline: 'none',
     cursor: 'pointer',
   } as any,
-  selectNative: {
+  sacSelectNative: {
     flex: 1,
-    paddingVertical: theme.spacing.sm,
-    paddingLeft: theme.spacing.md,
-    paddingRight: theme.spacing.md,
-    minHeight: 48,
-    borderLeftWidth: 1,
-    borderLeftColor: theme.colors.border,
+    paddingHorizontal: 15,
     justifyContent: 'center',
   },
-  selectText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
+  sacSelectText: {
+    fontSize: 15,
+    color: '#334155',
   },
-  inputGroupText: {
-    backgroundColor: theme.colors.surface,
-    borderRightWidth: 0,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    justifyContent: 'center',
+  passwordToggle: {
+    width: 50,
     alignItems: 'center',
-    minWidth: 40,
-  },
-  icon: {
-    textAlign: 'center',
-  },
-  input: {
-    flex: 1,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    paddingVertical: theme.spacing.sm,
-    paddingLeft: theme.spacing.md,
-    paddingRight: theme.spacing.md,
-    minHeight: 48,
-    borderLeftWidth: 1,
-    borderLeftColor: theme.colors.border,
-  },
-  togglePassword: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
     justifyContent: 'center',
+  },
+  sacBtn: {
+    height: 48,
+    backgroundColor: '#1e4b7a',
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  toggleIcon: {
-    fontSize: theme.fontSize.lg,
-    color: theme.colors.icon,
-  },
-  select: {
-    flex: 1,
-    borderWidth: 0,
-    borderLeftWidth: 1,
-    borderLeftColor: theme.colors.border,
-  },
-  loginButton: {
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.xs,
+  sacBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   forgotPasswordContainer: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.xs,
+    paddingVertical: 15,
   },
   forgotPasswordText: {
-    color: theme.colors.primary,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '500',
+    color: '#1e4b7a',
+    fontSize: 13,
+    fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: theme.colors.border,
-    marginVertical: theme.spacing.md,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 10,
   },
   registerContainer: {
     alignItems: 'center',
   },
   registerText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 10,
   },
-  registerButton: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.lg,
+  sacBtnSecondary: {
     width: '100%',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    alignItems: 'center',
   },
-  registerButtonText: {
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    fontSize: theme.fontSize.sm,
+  sacBtnSecondaryText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '600',
   },
-  footer: {
-    marginTop: theme.spacing.md,
+  sacPageFooter: {
+    marginTop: 20,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
+    fontSize: 11,
+    color: '#94a3b8',
     textAlign: 'center',
-    lineHeight: 18,
-  },
-  footerBold: {
-    fontWeight: '600',
+    lineHeight: 16,
   },
   footerLink: {
-    color: theme.colors.primary,
+    color: '#64748b',
     textDecorationLine: 'underline',
   },
 });

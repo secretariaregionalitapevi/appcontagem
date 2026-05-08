@@ -128,11 +128,14 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     // Verificar se o valor atual é uma entrada manual (começa com "manual_")
     const isManualValue = value && typeof value === 'string' && value.startsWith('manual_');
 
-    // Filtrar opções baseado no texto
+    // Filtrar opções baseado no texto (suporte a múltiplas palavras)
     const query = normalize(searchText);
+    const queryWords = query.split(' ').filter(word => word.length > 0);
+
     const filteredOptions = options.filter(opt => {
       const labelNorm = normalize(opt.label);
-      return labelNorm.includes(query);
+      // Deve conter TODAS as palavras digitadas (em qualquer ordem)
+      return queryWords.every(word => labelNorm.includes(word));
     });
 
     // 🚨 CRÍTICO: Se há um nome selecionado válido da lista E o usuário não está editando
@@ -243,7 +246,12 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     if (currentOption) {
       setSearchText(currentOption.label);
     } else if (!value) {
-      setSearchText('');
+      // 🚨 CORREÇÃO CRÍTICA: Só limpar o searchText se NÃO estiver focado.
+      // Se estiver focado, o usuário está digitando e não queremos limpar o que ele escreveu
+      // só porque o valor no componente pai ainda está vazio (estado de busca).
+      if (!isFocused) {
+        setSearchText('');
+      }
     } else {
       // 🚨 CORREÇÃO CRÍTICA: Se o value é um ID técnico (pessoa_ ou cand_), NÃO exibir o ID no campo.
       // Isso acontecia quando a lista de opções estava carregando ou era temporariamente limpa.
@@ -261,7 +269,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
         setSearchText(value);
       }
     }
-  }, [value, options, isManualMode]);
+  }, [value, options, isManualMode, isFocused]); // 🚨 ADICIONADO isFocused como dependência
 
   // Quando o usuário digita
   const handleChange = (text: string) => {
@@ -279,7 +287,11 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
 
     // 🚨 LÓGICA SEM FISSURAS: Verificar se o que foi digitado resultaria em algum item na lista
     const query = normalize(text);
-    const hasMatches = options.some(opt => normalize(opt.label).includes(query));
+    const queryWords = query.split(' ').filter(word => word.length > 0);
+    const hasMatches = options.some(opt => {
+      const labelNorm = normalize(opt.label);
+      return queryWords.every(word => labelNorm.includes(word));
+    });
 
     if (!hasMatches && text.trim().length > 0) {
       // Se não há combinações, entra em modo manual AUTOMATICAMENTE
