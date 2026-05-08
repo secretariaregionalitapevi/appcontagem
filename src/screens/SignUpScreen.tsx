@@ -79,17 +79,17 @@ export const SignUpScreen: React.FC = () => {
 
     // Validações
     if (!nomeCompleto.trim() || !email.trim() || !password || !confirmPassword) {
-      Alert.alert('Campos obrigatórios', 'Preencha todos os campos obrigatórios.');
+      showToast.warning('Campos obrigatórios', 'Preencha todos os campos obrigatórios.');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Senhas não coincidem', 'As senhas digitadas não são iguais.');
+      showToast.warning('Senhas não coincidem', 'As senhas digitadas não são iguais.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Senha muito curta', 'A senha deve ter pelo menos 6 caracteres.');
+      showToast.warning('Senha muito curta', 'A senha deve ter pelo menos 6 caracteres.');
       return;
     }
 

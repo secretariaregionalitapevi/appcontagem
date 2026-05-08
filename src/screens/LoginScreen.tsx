@@ -279,7 +279,7 @@ export const LoginScreen: React.FC = () => {
                     navigation.navigate('SignUp');
                   } catch (error) {
                     console.error('❌ Erro ao navegar para SignUp:', error);
-                    Alert.alert(
+                    showToast.error(
                       'Erro',
                       'Não foi possível abrir a tela de cadastro. Tente novamente.'
                     );

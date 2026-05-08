@@ -124,15 +124,18 @@ export const EditRegistrosScreen: React.FC = () => {
 
   const performSearch = async (term: string) => {
     if (!localEnsaio || !isMaster) {
+      console.warn('⚠️ [performSearch] Busca cancelada (local não definido ou usuário não master):', { localEnsaio, isMaster, userRole: user?.role });
       return;
     }
 
+    console.log('🔍 [performSearch] Iniciando busca:', { term, localEnsaio, isMaster });
     try {
       setLoading(true);
       const results = await supabaseDataService.fetchRegistrosFromSupabase(
         localEnsaio,
         term || undefined
       );
+      console.log(`✅ [performSearch] Busca concluída. Resultados: ${results.length}`);
       setRegistros(results);
     } catch (error) {
       console.error('Erro ao buscar registros:', error);

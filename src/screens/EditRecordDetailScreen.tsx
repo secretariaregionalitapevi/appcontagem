@@ -50,6 +50,7 @@ export const EditRecordDetailScreen: React.FC = () => {
     const { registro, localEnsaio } = route.params;
 
     const [cargos, setCargos] = useState<Cargo[]>([]);
+    const [instrumentos, setInstrumentos] = useState<{ id: string; nome: string }[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -68,14 +69,19 @@ export const EditRecordDetailScreen: React.FC = () => {
         if (Platform.OS === 'web' && typeof document !== 'undefined') {
             document.title = 'CCB | Detalhes do Registro';
         }
-        loadCargos();
+        loadData();
     }, []);
 
-    const loadCargos = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            const cargosData = await supabaseDataService.getCargosFromLocal();
+            const [cargosData, instrumentosData] = await Promise.all([
+                supabaseDataService.getCargosFromLocal(),
+                supabaseDataService.getInstrumentosFromLocal()
+            ]);
+            
             setCargos(cargosData);
+            setInstrumentos(instrumentosData);
 
             // Encontrar o ID do cargo pelo nome
             const cargoEncontrado = cargosData.find(
@@ -85,7 +91,7 @@ export const EditRecordDetailScreen: React.FC = () => {
                 setCargoId(cargoEncontrado.id);
             }
         } catch (error) {
-            console.error('❌ Erro ao carregar cargos:', error);
+            console.error('❌ Erro ao carregar dados:', error);
         } finally {
             setLoading(false);
         }
@@ -98,6 +104,14 @@ export const EditRecordDetailScreen: React.FC = () => {
             value: c.id,
         }));
     }, [cargos]);
+
+    const instrumentosOptions = useMemo(() => {
+        return instrumentos.map(i => ({
+            id: i.id,
+            label: i.nome,
+            value: i.nome, // Usamos o nome como valor para o instrumento
+        }));
+    }, [instrumentos]);
 
     const handleSave = async () => {
         if (!registro.uuid) {
@@ -239,14 +253,23 @@ export const EditRecordDetailScreen: React.FC = () => {
                                 />
                             </View>
 
-                            <View style={styles.formField}>
+                            <View style={[styles.formField, { zIndex: 90 }]}>
                                 <Text style={styles.label}>INSTRUMENTO</Text>
-                                <TextInput
-                                    style={styles.input}
+                                <AutocompleteField
                                     value={instrumento}
-                                    onChangeText={setInstrumento}
-                                    placeholder="Instrumento"
-                                    autoCapitalize="characters"
+                                    options={instrumentosOptions}
+                                    onSelect={option => {
+                                        const novoInstrumento = String(option.label);
+                                        setInstrumento(novoInstrumento);
+                                        // Tentar inferir naipe automaticamente
+                                        const getNaipe = require('../utils/instrumentNaipe').getNaipeByInstrumento;
+                                        const novoNaipe = getNaipe(novoInstrumento);
+                                        if (novoNaipe) {
+                                            setNaipe(novoNaipe);
+                                        }
+                                    }}
+                                    placeholder="Selecione o instrumento..."
+                                    icon="music"
                                 />
                             </View>
 
@@ -261,16 +284,28 @@ export const EditRecordDetailScreen: React.FC = () => {
                                 />
                             </View>
 
-                            <View style={styles.formField}>
-                                <Text style={styles.label}>CLASSE DA ORGANISTA</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={classe}
-                                    onChangeText={setClasse}
-                                    placeholder="Classe"
-                                    autoCapitalize="characters"
-                                />
-                            </View>
+                            {/* Lógica Condicional: Só mostrar Classe se for Organista ou cargo feminino musical */}
+                            {(cargoId === 'cargo_2_organista' || 
+                              cargoId === 'cargo_5_instrutora' || 
+                              cargoId === 'cargo_6_examinadora' || 
+                              (cargos.find(c => c.id === cargoId)?.nome || '').toUpperCase().includes('ORGANISTA')) && (
+                                <View style={[styles.formField, { zIndex: 80 }]}>
+                                    <Text style={styles.label}>CLASSE DA ORGANISTA</Text>
+                                    <AutocompleteField
+                                        value={classe}
+                                        options={[
+                                            { id: '1', label: 'OFICIALIZADA', value: 'OFICIALIZADA' },
+                                            { id: '2', label: 'CULTO OFICIAL', value: 'CULTO OFICIAL' },
+                                            { id: '3', label: 'RJM / MEIA HORA', value: 'RJM / MEIA HORA' },
+                                            { id: '4', label: 'MEIA HORA', value: 'MEIA HORA' },
+                                            { id: '5', label: 'CANDIDATA', value: 'CANDIDATA' },
+                                        ]}
+                                        onSelect={option => setClasse(String(option.value))}
+                                        placeholder="Selecione a classe..."
+                                        icon="keyboard"
+                                    />
+                                </View>
+                            )}
 
                             <View style={styles.formField}>
                                 <Text style={styles.label}>ANOTAÇÕES</Text>

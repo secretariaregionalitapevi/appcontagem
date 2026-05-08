@@ -708,7 +708,9 @@ export const googleSheetsService = {
           throw new Error('Pessoa não encontrada');
         }
 
-        cargoReal = pessoa.cargo_real || cargoSelecionado.nome;
+        // 🚨 CORREÇÃO: Se o cargo selecionado for Encarregado, priorizar ele (para evitar que volte como músico)
+        const isCargoEspecial = cargoSelecionado.nome.toUpperCase().includes('ENCARREGADO');
+        cargoReal = isCargoEspecial ? cargoSelecionado.nome : (pessoa.cargo_real || cargoSelecionado.nome);
         nomeCompleto = pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`;
       }
 
@@ -1146,7 +1148,10 @@ export const googleSheetsService = {
         sheetData['NAIPE_INSTRUMENTO'] = updateData.naipe_instrumento.toUpperCase();
       }
       if (updateData.classe_organista !== undefined) {
-        sheetData['CLASSE_ORGANISTA'] = updateData.classe_organista.toUpperCase();
+        const value = updateData.classe_organista.toUpperCase();
+        sheetData['CLASSE_ORGANISTA'] = value;
+        // 🚀 COMPATIBILIDADE: Manter NÍVEL em sincronia com CLASSE_ORGANISTA
+        sheetData['NÍVEL'] = value;
       }
       if (updateData.data_ensaio) {
         // Formatar data se necessário
@@ -1164,7 +1169,7 @@ export const googleSheetsService = {
 
       const requestBody = {
         op: 'update',
-        sheet: SHEET_NAME, // Standardized to 'sheet'
+        sheet: SHEET_NAME,
         match: {
           UUID: uuid,
         },
@@ -1182,14 +1187,7 @@ export const googleSheetsService = {
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
-        body: JSON.stringify({
-          op: 'update',
-          Sheet: SHEET_NAME, // 🚨 REVERT: Voltando para 'Sheet'
-          match: {
-            UUID: uuid,
-          },
-          data: sheetData,
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 
@@ -1197,15 +1195,17 @@ export const googleSheetsService = {
 
       console.log('✅ [GoogleSheets] UPDATE: Requisição concluída', {
         status: response.status,
-        type: response.type
+        type: response.type,
+        ok: response.ok
       });
 
-      // Com no-cors, a resposta é sempre opaca, então consideramos sucesso
-      if (response.type === 'opaque' || (response as any).type === 0) {
-        console.log('✅ [GoogleSheets] Resposta opaca recebida (Atualização Provável)');
+      // 🚨 CORREÇÃO: Aceitar status OK (200) ou resposta opaca como sucesso
+      if (response.ok || response.type === 'opaque' || (response as any).type === 0) {
+        console.log('✅ [GoogleSheets] Atualização concluída com sucesso');
         return { success: true };
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text().catch(() => 'Erro desconhecido');
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
     } catch (error) {
       console.error('❌ Erro ao atualizar registro no Google Sheets:', error);

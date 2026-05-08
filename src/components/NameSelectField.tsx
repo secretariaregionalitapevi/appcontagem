@@ -31,6 +31,7 @@ interface SelectOption {
   id: string;
   label: string;
   value: unknown;
+  data?: any; // 🚨 NOVO: Suporte para passar objeto original de volta
 }
 
 interface NameSelectFieldProps {
@@ -47,17 +48,26 @@ interface NameSelectFieldProps {
 
 const MANUAL_INPUT_OPTION_ID = '__MANUAL_INPUT__';
 
-export const NameSelectField: React.FC<NameSelectFieldProps> = ({
-  label,
-  value,
-  options,
-  onSelect,
-  placeholder = 'Digite para buscar...',
-  error,
-  style,
-  loading = false,
-  onSubmit,
-}) => {
+export interface NameSelectFieldRef {
+  focus: () => void;
+  blur: () => void;
+}
+
+export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFieldProps>(
+  (
+    {
+      label,
+      value,
+      options,
+      onSelect,
+      placeholder = 'Digite para buscar...',
+      error,
+      style,
+      loading = false,
+      onSubmit,
+    },
+    ref
+  ) => {
   // Iniciar sempre como select, não como manual
   const [isManualMode, setIsManualMode] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -69,6 +79,20 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const isSelectingRef = useRef<boolean>(false); // Flag para evitar interferência do blur durante seleção
+
+  // 🚀 EXPOR MÉTODOS VIA REF
+  React.useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    },
+    blur: () => {
+      if (inputRef.current) {
+        inputRef.current.blur();
+      }
+    },
+  }));
 
   // Normalizar texto (remove acentos, converte para minúscula)
   const normalize = (text: string) => {
@@ -128,13 +152,17 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       }
     }
 
-    // Se há resultados filtrados, mostrar apenas eles
-    if (filteredOptions.length > 0) {
-      return filteredOptions;
+    // 🚨 CORREÇÃO: Mostrar a opção manual APENAS se não houver NENHUM resultado na lista
+    const result = [...filteredOptions];
+    if (searchText.trim().length > 0 && !hasValidSelection && filteredOptions.length === 0) {
+      result.push({
+        id: MANUAL_INPUT_OPTION_ID,
+        label: `NÃO ENCONTREI (Digitar "${searchText.trim().toUpperCase()}" manualmente)`,
+        value: MANUAL_INPUT_OPTION_ID,
+      });
     }
 
-    // Se não há resultados, não mostramos nada (o modo manual será ativado no handleChange)
-    return [];
+    return result;
   }, [searchText, options, isManualMode, value]);
 
   // 🚨 CRÍTICO: Quando não há opções, entrar automaticamente em modo manual
@@ -217,9 +245,21 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     } else if (!value) {
       setSearchText('');
     } else {
-      // Se o value não está nas opções, pode ser entrada manual anterior
-      // Mas não converter automaticamente - deixar o usuário escolher
-      setSearchText(value);
+      // 🚨 CORREÇÃO CRÍTICA: Se o value é um ID técnico (pessoa_ ou cand_), NÃO exibir o ID no campo.
+      // Isso acontecia quando a lista de opções estava carregando ou era temporariamente limpa.
+      const isTechnicalId = typeof value === 'string' && (value.startsWith('pessoa_') || value.startsWith('cand_'));
+      
+      if (isTechnicalId) {
+        // Se for ID técnico e não achou na lista (ex: carregando), não mudar o searchText para o ID feio
+        // Podemos tentar extrair o nome do ID como fallback estético se estiver vazio
+        if (searchText === '') {
+          const fallbackNome = value.replace(/^(pessoa|cand)_(\d+_)?/gi, '').replace(/_/g, ' ').toUpperCase();
+          setSearchText(fallbackNome);
+        }
+      } else {
+        // Se for valor manual real (ou apenas texto), manter como está
+        setSearchText(value);
+      }
     }
   }, [value, options, isManualMode]);
 
@@ -247,7 +287,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         console.log('✏️ [NameSelectField] Sem correspondências - ativando modo manual automático');
         setIsManualMode(true);
       }
-      onSelect({ id: 'manual', label: text, value: text });
+      onSelect({ id: 'manual', label: text, value: text, data: null });
       setShowList(false);
     } else {
       // Se há combinações, garante que NÃO está em modo manual
@@ -357,8 +397,10 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
     // Se selecionou opção manual, ativar modo manual
     if (option.id === MANUAL_INPUT_OPTION_ID || option.value === MANUAL_INPUT_OPTION_ID) {
       setIsManualMode(true);
-      setSearchText('');
-      onSelect({ id: 'manual', label: '', value: '' });
+      // Preservar o texto atual como o nome manual
+      const manualName = searchText.trim().toUpperCase();
+      setSearchText(manualName);
+      onSelect({ id: 'manual', label: manualName, value: manualName });
       isSelectingRef.current = false;
       // Focar no input após um pequeno delay
       setTimeout(() => {
@@ -385,6 +427,7 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       id: option.id,
       label: option.label,
       value: selectedValue,
+      data: option.data, // 🚨 CRÍTICO: Preservar dados originais (instrumento, etc)
     });
 
     const resetDelay = Platform.OS === 'android' ? 200 : 100;
@@ -394,11 +437,11 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
         inputRef.current.blur();
       }
 
-      // 🚨 CRÍTICO: Disparar onSubmit se fornecido DENTRO do timeout
-      // para garantir que os sets states tenham tempo de terminar de rodar em RegisterScreen
-      if (onSubmit) {
+      // 🚀 REMOVIDO: Não enviar automaticamente ao selecionar conforme pedido do usuário
+      // Para garantir que o usuário veja o que selecionou antes de enviar
+      /* if (onSubmit) {
         onSubmit();
-      }
+      } */
     }, resetDelay);
   };
 
@@ -406,11 +449,12 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
   const handleEnterPress = () => {
     if (isManualMode) {
       if (searchText.trim()) {
-        onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
+        onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim(), data: null });
         // Acionar submit imediatamente no modo manual se for fornecida a prop
-        if (onSubmit) {
-          setTimeout(() => onSubmit(), 150); // Delay curto para dar tempo de atualizar o state
-        }
+        // 🚀 REMOVIDO: Não enviar com Enter no modo manual conforme pedido do usuário
+        /* if (onSubmit) {
+          setTimeout(() => onSubmit(), 150);
+        } */
       }
       if (inputRef.current) {
         inputRef.current.blur();
@@ -439,10 +483,11 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
           searchText
         );
         setIsManualMode(true);
-        onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim() });
-        if (onSubmit) {
+        onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim(), data: null });
+        // 🚀 REMOVIDO: Não enviar com Enter conforme pedido do usuário
+        /* if (onSubmit) {
           setTimeout(() => onSubmit(), 150);
-        }
+        } */
         if (inputRef.current) {
           inputRef.current.blur();
         }
@@ -878,7 +923,9 @@ export const NameSelectField: React.FC<NameSelectFieldProps> = ({
       {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-};
+});
+
+NameSelectField.displayName = 'NameSelectField';
 
 const styles = StyleSheet.create({
   container: {

@@ -14,9 +14,9 @@ import {
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useAuthContext } from '../context/AuthContext';
-import { SimpleSelectField } from '../components/SimpleSelectField';
+import { SimpleSelectField, SimpleSelectFieldRef } from '../components/SimpleSelectField';
 import { AutocompleteField, AutocompleteFieldRef } from '../components/AutocompleteField';
-import { NameSelectField } from '../components/NameSelectField';
+import { NameSelectField, NameSelectFieldRef } from '../components/NameSelectField';
 import { TextInputField } from '../components/TextInputField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { OfflineBadge } from '../components/OfflineBadge';
@@ -88,6 +88,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const loadPessoasTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 🚀 OTIMIZAÇÃO: Ref para debounce
   const comumFieldRef = useRef<AutocompleteFieldRef>(null); // 🚀 REF: Para focar no campo de comum após registro
+  const cargoFieldRef = useRef<any>(null); // 🚀 REF: Para focar no cargo (Web: select, Mobile: SimpleSelectField)
+  const nomeFieldRef = useRef<NameSelectFieldRef>(null); // 🚀 REF: Para focar no nome após cargo selecionado
   const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{
     nome: string;
@@ -122,11 +124,23 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   // 1. Músico (Musical=true)
   // 2. Instrutor
   // 3. Encarregados (Local/Regional) quando em "Outras Localidades" (isForaRegional=true)
-  const showInstrumento = !isOrganista && !isCandidato && (
-    selectedCargoObj?.is_musical || 
-    cargoNome.trim().toUpperCase() === 'MÚSICO' || 
-    isInstrutor || 
-    (isForaRegional && isEncarregado)
+  // 🚨 NOVO FLUXO: Mostramos o campo se:
+  // - For "Outras Localidades" (tudo manual)
+  // - For Nome Manual (não encontrado na lista)
+  // - For uma pessoa selecionada mas que veio SEM instrumento do banco de dados (falha no mapeamento ou dado incompleto)
+  const isMusicalCargo = selectedCargoObj?.is_musical || 
+                         cargoNome.trim().toUpperCase() === 'MÚSICO' || 
+                         isInstrutor || 
+                         (isForaRegional && isEncarregado);
+
+  const selectedPessoaData = useMemo(() => {
+    if (!selectedPessoa || isNomeManual) return null;
+    return pessoas.find(p => p.id === selectedPessoa);
+  }, [selectedPessoa, isNomeManual, pessoas]);
+
+  const showInstrumento = !isOrganista && !isCandidato && isMusicalCargo && (
+    isForaRegional || 
+    isNomeManual
   );
 
   // DEBUGGING VISIBILIDADE INSTRUMENTO
@@ -135,8 +149,9 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     cargoNome: cargoNome.trim().toUpperCase(),
     isOrganista,
     isCandidato,
-    isInstrutor,
-    is_musical: selectedCargoObj?.is_musical,
+    isMusicalCargo,
+    selectedPessoa,
+    hasPessoaInstrumento: selectedPessoaData?.instrumento_id,
     showInstrumento
   });
 
@@ -404,14 +419,10 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     const cargoNome = selectedCargoObj?.nome || '';
     const precisaInstrumento = cargoNome === 'Músico'; // Apenas Músico requer instrumento obrigatório
 
-    // Só carregar pessoas se tiver comum + cargo + (instrumento se necessário)
+    // 🚨 NOVO FLUXO: Não bloquear busca de pessoas se o instrumento não estiver selecionado
+    // Isso permite que o sistema busque todos os músicos da comum/cargo primeiro
     if (selectedComum && selectedCargo) {
-      if (precisaInstrumento && !selectedInstrumento) {
-        // Precisa de instrumento mas não foi selecionado ainda
-        setPessoas([]);
-        setSelectedPessoa('');
-        return;
-      }
+
       // 🚀 OTIMIZAÇÃO: Debounce de 300ms (aumentado de 100ms) para evitar múltiplas chamadas rápidas
       // Reduz significativamente a carga no Supabase durante a seleção de campos
       loadPessoasTimeoutRef.current = setTimeout(() => {
@@ -488,7 +499,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       }
     } catch (error) {
       console.error('❌ Erro crítico ao carregar dados iniciais:', error);
-      Alert.alert('Erro', 'Não foi possível carregar os dados base. Verifique sua conexão.');
+      showToast.error('Erro', 'Não foi possível carregar os dados base. Verifique sua conexão.');
     } finally {
       if (!isRefresh) {
         setInitialLoading(false);
@@ -667,21 +678,33 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         }
 
         // Converter dados do cache para formato Pessoa[]
-        const pessoas: Pessoa[] = filteredCached.map((p: any, index: number) => {
+        const pessoas: Pessoa[] = filteredCached.map((p: any) => {
           const nomeCompleto = (p.nome || '').trim();
           const partesNome = nomeCompleto.split(' ').filter((p: string) => p.trim());
           const primeiroNome = partesNome[0] || '';
           const ultimoNome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : '';
 
+          // 🚨 NOVO: Mapear ID do instrumento pelo nome (mesma lógica do supabaseDataService)
+          let realInstrumentoId = null;
+          if (p.instrumento) {
+            const instNomeBusca = p.instrumento.trim().toUpperCase();
+            const instEncontrado = instrumentos.find(i => 
+              i.nome.toUpperCase() === instNomeBusca ||
+              i.nome.toUpperCase().includes(instNomeBusca) ||
+              instNomeBusca.includes(i.nome.toUpperCase())
+            );
+            if (instEncontrado) realInstrumentoId = instEncontrado.id;
+          }
+
           const pessoa: Pessoa = {
-            id: `pessoa_${index}_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}`,
+            id: p.id || `p_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
             nome: primeiroNome,
             sobrenome: ultimoNome,
             nome_completo: nomeCompleto,
             comum_id: selectedComum,
             cargo_id: selectedCargo,
             cargo_real: (p.cargo || '').toUpperCase().trim(),
-            instrumento_id: showInstrumento ? selectedInstrumento : null,
+            instrumento_id: realInstrumentoId || (showInstrumento ? selectedInstrumento : null),
             cidade: (p.cidade || '').toUpperCase().trim(),
             nivel: (p.nivel || '').trim().toUpperCase() || null,
             ativo: true,
@@ -779,7 +802,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       // Validar campos obrigatórios (permitir nome manual para candidatos também)
       if (!selectedComum || !selectedCargo) {
         console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
-        Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
+        showToast.error('Erro', 'Preencha todos os campos obrigatórios');
         isSubmittingRef.current = false;
         return;
       }
@@ -813,13 +836,16 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         return;
       }
 
-      // Validar instrumento apenas para Músico e Instrutor (obrigatório)
-      // Encarregados podem ter instrumento, mas NÃO é obrigatório
+      // Validar instrumento apenas para Músico e Instrutor
+      // 🚨 CORREÇÃO: Só é OBRIGATÓRIO se for nome manual ou fora da regional
+      // Para nomes selecionados da lista, o sistema cuida disso internamente (não bloqueia o usuário)
       const cargoNome = cargos.find(c => c.id === selectedCargo)?.nome || '';
-      const instrumentoObrigatorio = cargoNome.trim().toUpperCase() === 'MÚSICO' || cargoNome.trim().toUpperCase() === 'INSTRUTOR'; 
-      if (instrumentoObrigatorio && !selectedInstrumento) {
-        console.warn('⚠️ [SUBMIT] Instrumento não selecionado para Músico');
-        Alert.alert('Erro', 'Selecione o instrumento para Músico');
+      const isMúsicoOuInstrutor = cargoNome.trim().toUpperCase() === 'MÚSICO' || cargoNome.trim().toUpperCase() === 'INSTRUTOR'; 
+      const instrumentoObrigatorioParaUsuario = (isNomeManual || isForaRegional) && isMúsicoOuInstrutor;
+
+      if (instrumentoObrigatorioParaUsuario && !selectedInstrumento) {
+        console.warn('⚠️ [SUBMIT] Instrumento não selecionado para entrada manual');
+        Alert.alert('Erro', 'Selecione o instrumento');
         isSubmittingRef.current = false;
         return;
       }
@@ -877,9 +903,9 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           cargo_id: selectedCargo,
           instrumento_id: isCandidato
             ? instrumentoCandidato
-            : showInstrumento && selectedInstrumento
-              ? selectedInstrumento
-              : null,
+            : isNomeManual || isForaRegional
+              ? selectedInstrumento || null
+              : (selectedPessoaData?.instrumento_id || selectedInstrumento || null),
           classe_organista: classeOrganistaFinal,
           local_ensaio: localEnsaio || 'Não definido',
           data_hora_registro: getCurrentDateTimeISO(),
@@ -1051,8 +1077,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       'Instrutor',
       'Instrutora',
       'Examinadora',
-      'Encarregado Local',
-      'Encarregado Regional',
+      // 'Encarregado Local', // ✅ Permitir na página principal
+      // 'Encarregado Regional', // ✅ Permitir na página principal
       'Secretário da Música',
       'Secretária da Música',
     ];
@@ -1077,11 +1103,18 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
 
   // MEMOIZAR pessoasOptions para evitar recriação constante
   const pessoasOptions = useMemo(() => {
-    return pessoas.map(p => ({
-      id: p.id,
-      label: p.nome_completo || `${p.nome} ${p.sobrenome}`, // Usar nome completo se disponível
-      value: p.id,
-    }));
+    return pessoas.map(p => {
+      // 🚨 NOVO FLUXO: Incluir instrumento no label para diferenciar músicos
+      const nomeBase = p.nome_completo || `${p.nome} ${p.sobrenome}`;
+      const instrumento = p.instrumento_id ? ` (${p.instrumento_id.replace(/^instrumento_(\d+_)?/gi, '').replace(/_/g, ' ').toUpperCase()})` : '';
+      
+      return {
+        id: p.id,
+        label: `${nomeBase}${instrumento}`,
+        value: p.id,
+        data: p, // 🚨 CRÍTICO: Passar objeto original para capturar instrumento no onSelect
+      };
+    });
   }, [pessoas]);
 
   const handleEditRegistros = () => {
@@ -1355,6 +1388,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     refreshing,
     onRefresh,
     comumFieldRef,
+    cargoFieldRef,
+    nomeFieldRef,
     duplicateModalVisible,
     setDuplicateModalVisible,
     duplicateInfo,

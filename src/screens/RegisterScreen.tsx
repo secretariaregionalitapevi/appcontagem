@@ -56,6 +56,8 @@ export const RegisterScreen: React.FC = () => {
     refreshing,
     onRefresh,
     comumFieldRef,
+    cargoFieldRef,
+    nomeFieldRef,
     duplicateModalVisible,
     setDuplicateModalVisible,
     duplicateInfo,
@@ -79,6 +81,8 @@ export const RegisterScreen: React.FC = () => {
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
     handleHardReset,
+    selectedClasseOrganista,
+    setSelectedClasseOrganista,
   } = controller;
 
   const { width } = useWindowDimensions();
@@ -246,6 +250,13 @@ export const RegisterScreen: React.FC = () => {
                     setSelectedComum(String(option.value));
                     setSelectedPessoa('');
                     setIsNomeManual(false);
+                    
+                    // 🚀 SEQUENCIAL: Focar no Cargo após selecionar Comum
+                    setTimeout(() => {
+                      if (cargoFieldRef.current) {
+                        cargoFieldRef.current.focus();
+                      }
+                    }, 100);
                   }}
                   placeholder="Selecione a comum..."
                 />
@@ -262,6 +273,7 @@ export const RegisterScreen: React.FC = () => {
                 <Text style={styles.label}>CARGO/MINISTÉRIO *</Text>
                 {Platform.OS === 'web' ? (
                   <select
+                    ref={cargoFieldRef}
                     style={
                       {
                         ...styles.selectWeb,
@@ -281,6 +293,15 @@ export const RegisterScreen: React.FC = () => {
                       setSelectedInstrumento('');
                       setSelectedPessoa('');
                       setIsNomeManual(false);
+
+                      // 🚀 SEQUENCIAL: No Web, focar no Nome após selecionar Cargo
+                      if (e.target.value) {
+                        setTimeout(() => {
+                          if (nomeFieldRef.current) {
+                            nomeFieldRef.current.focus();
+                          }
+                        }, 100);
+                      }
                     }}
                     required
                   >
@@ -293,6 +314,7 @@ export const RegisterScreen: React.FC = () => {
                   </select>
                 ) : (
                   <SimpleSelectField
+                    ref={cargoFieldRef}
                     label=""
                     value={selectedCargo}
                     options={cargosOptions}
@@ -301,41 +323,18 @@ export const RegisterScreen: React.FC = () => {
                       setSelectedInstrumento('');
                       setSelectedPessoa('');
                       setIsNomeManual(false);
+
+                      // 🚀 SEQUENCIAL: No Mobile, focar no Nome após selecionar Cargo
+                      setTimeout(() => {
+                        if (nomeFieldRef.current) {
+                          nomeFieldRef.current.focus();
+                        }
+                      }, 100);
                     }}
                     placeholder="Selecione o cargo..."
                   />
                 )}
               </View>
-
-              {showInstrumento && (
-                <View
-                  style={[
-                    styles.field,
-                    Platform.OS === 'web'
-                      ? {
-                        position: 'relative' as const,
-                        zIndex: 999999,
-                        overflow: 'visible' as const,
-                        // @ts-ignore
-                        isolation: 'isolate',
-                      }
-                      : {},
-                  ]}
-                >
-                  <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
-                  <SimpleSelectField
-                    label=""
-                    value={selectedInstrumento}
-                    options={instrumentosOptions}
-                    onSelect={(option: any) => {
-                      setSelectedInstrumento(String(option.value));
-                      setSelectedPessoa('');
-                      setIsNomeManual(false);
-                    }}
-                    placeholder="Selecione o instrumento..."
-                  />
-                </View>
-              )}
 
               <View
                 style={
@@ -351,6 +350,7 @@ export const RegisterScreen: React.FC = () => {
                 }
               >
                 <NameSelectField
+                  ref={nomeFieldRef}
                   key={nameFieldKey} // Key para forçar remontagem quando limpar
                   label="Nome e Sobrenome *"
                   value={selectedPessoa}
@@ -361,57 +361,49 @@ export const RegisterScreen: React.FC = () => {
                       label: option.label,
                       value: option.value,
                       isManual: option.id === 'manual',
-                      selectedPessoaAntes: selectedPessoa,
-                      isNomeManualAntes: isNomeManual,
+                      hasData: !!option.data,
                     });
 
                     if (option.id === 'manual') {
-                      // 🚨 CORREÇÃO CRÍTICA: NÃO processar modo manual durante carregamento
-                      // Aguardar lista carregar completamente antes de tratar como manual
-                      if (loadingPessoas) {
-                        console.log(
-                          '⏳ [RegisterScreen] Modo manual detectado mas lista ainda carregando - ignorando até carregar'
-                        );
-                        return; // Não processar durante carregamento
-                      }
+                      if (loadingPessoas) return;
 
-                      console.log('✏️✏️✏️✏️✏️ [RegisterScreen] OPÇÃO MANUAL DETECTADA!');
-                      console.log(
-                        '✏️✏️✏️✏️✏️ [RegisterScreen] Option recebida:',
-                        JSON.stringify(option)
-                      );
                       if (!option.value || option.value === '' || !option.value.trim()) {
-                        console.log(
-                          '🧹 [RegisterScreen] Manual ou vazio sem valor - limpando estado'
-                        );
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                         return;
                       }
 
-                      // Se há valor, atualizar selectedPessoa
-                      const novoValor = option.value.trim();
-                      console.log(
-                        '✏️ [RegisterScreen] DEFININDO NOME MANUAL AUTOMÁTICO:',
-                        novoValor
-                      );
-                      setSelectedPessoa(novoValor);
+                      setSelectedPessoa(option.value.trim());
                       setIsNomeManual(true);
+                      // Ao ser manual, o campo de instrumento aparecerá (via useRegisterController)
+                      setSelectedInstrumento(''); 
                     } else {
-                      // 🚨 CORREÇÃO CRÍTICA: Se o valor está vazio e NÃO é manual, limpar o estado
                       if (!option.value || option.value === '' || !option.id || option.id === '') {
-                        console.log(
-                          '🧹 [RegisterScreen] Valor vazio - limpando selectedPessoa e isNomeManual'
-                        );
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                         return;
                       }
-                      // 🚨 CRÍTICO: Usar option.value (ID) ou option.id como fallback
+                      
                       const pessoaId = option.value || option.id;
-                      console.log('✅ [RegisterScreen] Definindo selectedPessoa:', pessoaId);
                       setSelectedPessoa(pessoaId);
                       setIsNomeManual(false);
+
+                      // 🚨 NOVO FLUXO: Capturar instrumento e classe automaticamente dos dados da pessoa
+                      if (option.data) {
+                        const p = option.data;
+                        console.log('✅ [RegisterScreen] Autopreenchimento detectado para:', p.nome_completo);
+                        
+                        if (p.instrumento_id) {
+                          console.log('🎸 Definindo instrumento automático:', p.instrumento_id);
+                          setSelectedInstrumento(p.instrumento_id);
+                        }
+                        
+                        if (p.classe_organista || p.nivel) {
+                          const classe = p.classe_organista || p.nivel;
+                          console.log('🎓 Definindo classe automática:', classe);
+                          setSelectedClasseOrganista(classe);
+                        }
+                      }
                     }
                   }}
                   placeholder="Selecione o nome..."
@@ -419,6 +411,38 @@ export const RegisterScreen: React.FC = () => {
                   onSubmit={handleSubmit}
                 />
               </View>
+
+              {showInstrumento && (
+                <View
+                  style={[
+                    styles.field,
+                    Platform.OS === 'web'
+                      ? {
+                        position: 'relative' as const,
+                        zIndex: 100, // Z-index menor que o do nome para o dropdown do nome sobrepor este campo
+                        overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
+                        marginTop: theme.spacing.md,
+                        marginBottom: theme.spacing.md,
+                      }
+                      : {
+                        marginTop: theme.spacing.md,
+                      },
+                  ]}
+                >
+                  <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
+                  <SimpleSelectField
+                    label=""
+                    value={selectedInstrumento}
+                    options={instrumentosOptions}
+                    onSelect={(option: any) => {
+                      setSelectedInstrumento(String(option.value));
+                    }}
+                    placeholder="Selecione o instrumento..."
+                  />
+                </View>
+              )}
 
               <Text style={styles.hint}>
                 Selecione um nome da lista após preencher Comum e Cargo.

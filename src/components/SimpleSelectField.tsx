@@ -33,25 +33,48 @@ interface SimpleSelectFieldProps {
   style?: any;
 }
 
-export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
-  label,
-  value,
-  options,
-  onSelect,
-  placeholder = 'Digite para buscar...',
-  error,
-  style,
-}) => {
-  const [searchText, setSearchText] = useState('');
-  const [showList, setShowList] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [isFocused, setIsFocused] = useState(false);
-  const containerRef = useRef<View>(null);
-  const inputRef = useRef<TextInput>(null);
-  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const flatListRef = useRef<FlatList>(null);
-  const { width } = useWindowDimensions();
-  const isMobile = width <= 768; // Consider mobile logic for web if <= 768px
+export interface SimpleSelectFieldRef {
+  focus: () => void;
+  blur: () => void;
+}
+
+export const SimpleSelectField = React.forwardRef<SimpleSelectFieldRef, SimpleSelectFieldProps>(
+  (
+    {
+      label,
+      value,
+      options,
+      onSelect,
+      placeholder = 'Digite para buscar...',
+      error,
+      style,
+    },
+    ref
+  ) => {
+    const [searchText, setSearchText] = useState('');
+    const [showList, setShowList] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [isFocused, setIsFocused] = useState(false);
+    const containerRef = useRef<View>(null);
+    const inputRef = useRef<TextInput>(null);
+    const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const flatListRef = useRef<FlatList>(null);
+    const { width } = useWindowDimensions();
+    const isMobile = width <= 768; // Consider mobile logic for web if <= 768px
+
+    // 🚀 EXPOR MÉTODOS VIA REF
+    React.useImperativeHandle(ref, () => ({
+      focus: () => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      },
+      blur: () => {
+        if (inputRef.current) {
+          inputRef.current.blur();
+        }
+      },
+    }));
 
   // Normalizar texto (remove acentos, converte para minúscula)
   const normalize = (text: string) => {
@@ -364,9 +387,11 @@ export const SimpleSelectField: React.FC<SimpleSelectFieldProps> = ({
       </View>
 
       {!!error && <Text style={styles.errorText}>{error}</Text>}
-    </View >
+    </View>
   );
-};
+});
+
+SimpleSelectField.displayName = 'SimpleSelectField';
 
 const styles = StyleSheet.create({
   container: {

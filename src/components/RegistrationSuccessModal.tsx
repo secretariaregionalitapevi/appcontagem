@@ -99,12 +99,12 @@ export const RegistrationSuccessModal: React.FC<RegistrationSuccessModalProps> =
           </View>
 
           {/* Título */}
-          <Text style={styles.title}>Confirmar Registro</Text>
+          <Text style={[styles.title, Platform.OS === 'web' && { fontFamily: 'Outfit' }]}>Confirmar Registro</Text>
 
           {/* Mensagem Principal */}
           <View style={styles.messageContainer}>
-            <Text style={styles.organistaName}>{nome}</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.organistaName, Platform.OS === 'web' && { fontFamily: 'Outfit' }]}>{nome}</Text>
+            <Text style={[styles.subtitle, Platform.OS === 'web' && { fontFamily: 'Inter' }]}>
               A organista tocou no ensaio?
             </Text>
           </View>
@@ -136,7 +136,7 @@ export const RegistrationSuccessModal: React.FC<RegistrationSuccessModalProps> =
               disabled={loading}
             >
               <Ionicons name="close-circle" size={20} color="white" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>NÃO</Text>
+              <Text style={[styles.buttonText, Platform.OS === 'web' && { fontFamily: 'Inter' }]}>NÃO</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -146,7 +146,7 @@ export const RegistrationSuccessModal: React.FC<RegistrationSuccessModalProps> =
               disabled={loading}
             >
               <Ionicons name="checkmark-circle" size={20} color="white" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>SIM</Text>
+              <Text style={[styles.buttonText, Platform.OS === 'web' && { fontFamily: 'Inter' }]}>SIM</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -166,13 +166,13 @@ const styles = StyleSheet.create({
   },
   modal: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 24,
     width: '100%',
     maxWidth: 400,
     padding: theme.spacing.xl,
     alignItems: 'center',
     ...(Platform.OS === 'web'
-      ? { boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }
+      ? { boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }
       : {
           elevation: 10,
           shadowColor: '#000',

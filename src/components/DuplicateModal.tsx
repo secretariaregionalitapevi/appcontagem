@@ -104,21 +104,35 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
 
           {/* Mensagem principal estilo EnR */}
           <View style={styles.messageContainer}>
-            <Text style={styles.message}>
-              <Text style={styles.bold}>{nome || 'Nome não encontrado'}</Text> de <Text style={styles.bold}>{comum || 'Comum não encontrada'}</Text>
-            </Text>
+            <Text style={styles.nomeText}>{nome || 'Nome não encontrado'}</Text>
+            <Text style={styles.comumText}>de {comum || 'Comum não encontrada'}</Text>
             <Text style={styles.messageSuffix}>já foi cadastrado(a).</Text>
           </View>
 
-          {/* Box de Detalhes (Backup style) */}
+          {/* Box de Detalhes (Elaborado) */}
           <View style={styles.detailsContainer}>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Data: </Text>
-              <Text style={styles.detailValue}>{data || '--/--/----'}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Horário: </Text>
-              <Text style={styles.detailValue}>{horario || '--:--'}</Text>
+            <View style={styles.detailBox}>
+              <View style={styles.detailItem}>
+                <View style={styles.detailIconWrapper}>
+                   <FontAwesome5 name="calendar-alt" size={16} color="#255ec8" />
+                </View>
+                <View>
+                  <Text style={styles.detailLabel}>Data</Text>
+                  <Text style={styles.detailValue}>{data || '--/--/----'}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.detailDivider} />
+
+              <View style={styles.detailItem}>
+                <View style={styles.detailIconWrapper}>
+                   <FontAwesome5 name="clock" size={16} color="#255ec8" />
+                </View>
+                <View>
+                  <Text style={styles.detailLabel}>Horário</Text>
+                  <Text style={styles.detailValue}>{horario || '--:--'}</Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -200,60 +214,80 @@ const styles = StyleSheet.create({
   messageContainer: {
     marginBottom: theme.spacing.lg,
     paddingHorizontal: theme.spacing.xl,
+    alignItems: 'center',
   },
-  message: {
-    fontSize: 18, // Um pouco maior conforme imagem
-    color: '#545454',
+  nomeText: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#334155',
     textAlign: 'center',
-    lineHeight: 26,
-    fontWeight: '600',
+    marginBottom: 4,
+  },
+  comumText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#64748b',
+    textAlign: 'center',
   },
   messageSuffix: {
-    fontSize: 16,
-    color: '#797979',
+    fontSize: 15,
+    color: '#94a3b8',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   bold: {
     fontWeight: '700',
     color: '#545454',
   },
   detailsContainer: {
-    backgroundColor: '#f8f9fa',
     marginHorizontal: theme.spacing.xl,
-    borderRadius: 12,
-    padding: theme.spacing.md,
     marginBottom: theme.spacing.xl,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
   },
-  detailRow: {
+  detailBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    justifyContent: 'space-between',
   },
-  detailIcon: {
-    marginRight: theme.spacing.sm,
-    width: 16,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#6c757d',
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
+  detailIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   detailLabel: {
-    fontWeight: '700', // Mais negrito conforme modelo
-    color: '#495057',
-    width: 65, // Alinhamento fixo
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   detailValue: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  detailDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#e2e8f0',
+    marginHorizontal: 12,
   },
   buttonsContainer: {
     flexDirection: 'row',
-    gap: 12, // Gap fixo conforme modelo
+    gap: 12,
     padding: theme.spacing.lg,
     justifyContent: 'center',
     backgroundColor: '#ffffff',
@@ -264,19 +298,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    backgroundColor: '#dc2626', // Vermelho para cancelar
-    minHeight: 46,
-    ...(Platform.OS === 'web'
-      ? {
-          transition: 'all 0.2s ease',
-          cursor: 'pointer',
-          ':hover': {
-            backgroundColor: '#b91c1c',
-          },
-        }
-      : {}),
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    backgroundColor: '#ef4444',
+    minHeight: 48,
+    borderWidth: 0,
+    ...Platform.select({
+      web: {
+        // @ts-ignore
+        outlineStyle: 'none',
+        cursor: 'pointer',
+      },
+      default: {
+        elevation: 4,
+      }
+    })
   },
   buttonIcon: {
     marginRight: 8, // Espaço entre ícone e texto conforme modelo

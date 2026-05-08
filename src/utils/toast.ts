@@ -42,7 +42,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
     const fontLinks = [
       'https://fonts.googleapis.com',
       'https://fonts.gstatic.com',
-      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Outfit:wght@400;500;600&display=swap',
+      'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap',
       'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
     ];
 
@@ -61,8 +61,8 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 2000, position: any = 'center', toast = false, showCancel = false) => {
   return {
     icon: icon,
-    title: `<span style="font-weight: 700; color: #4a4a4a; font-size: ${toast ? '18px' : '24px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${title}</span>`,
-    html: message ? `<div style="color: #666; font-size: ${toast ? '14px' : '16px'}; margin-top: 10px; line-height: 1.5; font-weight: 400;">${message}</div>` : '',
+    title: `<span style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #1e293b; font-size: ${toast ? '18px' : '26px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${title}</span>`,
+    html: message ? `<div style="font-family: 'Inter', sans-serif; color: #64748b; font-size: ${toast ? '14px' : '16px'}; margin-top: 12px; line-height: 1.6; font-weight: 400;">${message}</div>` : '',
     showConfirmButton: showConfirm,
     showCancelButton: showCancel,
     confirmButtonText: 'Continuar',
@@ -70,9 +70,9 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
     confirmButtonColor: '#255ec8',
     timer: timer,
     timerProgressBar: !!timer,
-    width: toast ? 'auto' : '450px',
-    padding: toast ? '12px 20px' : '1.5rem', // Reduzido de 2rem para 1.5rem
-    backdrop: toast ? false : `rgba(10, 14, 23, 0.4)`,
+    width: toast ? 'auto' : '480px',
+    padding: toast ? '12px 20px' : '2rem',
+    backdrop: toast ? false : `rgba(15, 23, 42, 0.5)`, // Slate 900 com transparência
     position: position,
     toast: toast,
     showClass: {
@@ -86,7 +86,7 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
       if (!Swal) return;
       const popup = Swal.getPopup();
       if (popup) {
-        popup.style.borderRadius = '20px';
+        popup.style.borderRadius = toast ? '16px' : '24px';
         popup.style.boxShadow = toast 
           ? '0 10px 30px rgba(0,0,0,0.1)' 
           : '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
@@ -95,25 +95,21 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
         // Responsividade para mobile
         if (window.innerWidth < 480) {
           popup.style.width = '92%';
-          popup.style.padding = toast ? '10px 15px' : '1.2rem';
-          const htmlContainer = Swal.getHtmlContainer();
-          if (htmlContainer) {
-            htmlContainer.style.fontSize = '14px'; // Levemente menor no mobile
-          }
+          popup.style.padding = toast ? '10px 15px' : '1.5rem';
         }
         
         const confirmBtn = Swal.getConfirmButton();
         if (confirmBtn) {
-          confirmBtn.style.borderRadius = '12px';
+          confirmBtn.style.borderRadius = '14px';
           confirmBtn.style.fontWeight = '700';
           confirmBtn.style.fontFamily = "'Inter', sans-serif";
-          confirmBtn.style.background = 'linear-gradient(180deg, #2f71e8 0%, #255ec8 100%)';
-          confirmBtn.style.padding = '12px 24px';
+          confirmBtn.style.padding = '12px 28px';
           confirmBtn.style.fontSize = '15px';
           confirmBtn.style.display = 'inline-flex';
           confirmBtn.style.alignItems = 'center';
           confirmBtn.style.justifyContent = 'center';
           confirmBtn.style.gap = '8px';
+          confirmBtn.style.transition = 'all 0.2s ease';
           
           // Adicionar ícone se não tiver
           if (!confirmBtn.innerHTML.includes('<i')) {
@@ -123,16 +119,18 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
         
         const cancelBtn = Swal.getCancelButton();
         if (cancelBtn) {
-          cancelBtn.style.borderRadius = '12px';
+          cancelBtn.style.borderRadius = '14px';
           cancelBtn.style.fontWeight = '600';
           cancelBtn.style.fontFamily = "'Inter', sans-serif";
-          cancelBtn.style.padding = '12px 24px';
+          cancelBtn.style.padding = '12px 28px';
           cancelBtn.style.fontSize = '15px';
           cancelBtn.style.display = 'inline-flex';
           cancelBtn.style.alignItems = 'center';
           cancelBtn.style.justifyContent = 'center';
           cancelBtn.style.gap = '8px';
           cancelBtn.style.margin = '0 5px';
+          cancelBtn.style.transition = 'all 0.2s ease';
+          cancelBtn.style.backgroundColor = '#64748b';
           
           // Adicionar ícone se não tiver
           if (!cancelBtn.innerHTML.includes('<i')) {
@@ -144,8 +142,13 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
         if (actions) {
           actions.style.flexDirection = 'row';
           actions.style.justifyContent = 'center';
-          actions.style.gap = '10px';
-          actions.style.marginTop = '20px';
+          actions.style.gap = '12px';
+          actions.style.marginTop = '24px';
+        }
+
+        const icon = Swal.getIcon();
+        if (icon) {
+          icon.style.marginTop = '10px';
         }
       }
     },
@@ -389,37 +392,39 @@ export const showToast = {
       if (Swal) {
         const isMobile = typeof window !== 'undefined' && window.innerWidth < 480;
         const result = await Swal.fire({
-          title: `<span style="font-weight: 700; color: #4a4a4a; font-size: ${isMobile ? '22px' : '26px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${options.title}</span>`,
-          html: `<div style="color: #666; font-size: ${isMobile ? '15px' : '16px'}; margin-top: 10px; line-height: 1.5;">${options.html}</div>`,
+          title: `<span style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #1e293b; font-size: ${isMobile ? '24px' : '28px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${options.title}</span>`,
+          html: `<div style="font-family: 'Inter', sans-serif; color: #64748b; font-size: ${isMobile ? '15px' : '16px'}; margin-top: 12px; line-height: 1.6;">${options.html}</div>`,
           icon: options.icon || 'question',
           showCancelButton: true,
           confirmButtonText: options.confirmButtonText || 'Confirmar',
           cancelButtonText: options.cancelButtonText || 'Cancelar',
           confirmButtonColor: options.confirmButtonColor || '#2160c4',
-          cancelButtonColor: options.cancelButtonColor || '#e6453d',
-          width: options.width || (isMobile ? '92%' : '480px'),
+          cancelButtonColor: options.cancelButtonColor || '#64748b',
+          width: options.width || (isMobile ? '92%' : '500px'),
           padding: isMobile ? '1.5rem' : '2rem',
-          backdrop: `rgba(10, 14, 23, 0.4)`,
+          backdrop: `rgba(15, 23, 42, 0.5)`,
           allowOutsideClick: false,
           didOpen: () => {
             const popup = Swal.getPopup();
             if (popup) {
-              popup.style.borderRadius = '20px';
+              popup.style.borderRadius = '24px';
               popup.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
               
               const cBtn = Swal.getConfirmButton();
               if (cBtn) {
-                cBtn.style.borderRadius = '12px';
+                cBtn.style.borderRadius = '14px';
                 cBtn.style.fontWeight = '700';
                 cBtn.style.fontFamily = "'Inter', sans-serif";
-                cBtn.style.padding = '12px 24px';
+                cBtn.style.padding = '12px 32px';
+                cBtn.style.transition = 'all 0.2s ease';
               }
               const canBtn = Swal.getCancelButton();
               if (canBtn) {
-                canBtn.style.borderRadius = '12px';
+                canBtn.style.borderRadius = '14px';
                 canBtn.style.fontWeight = '600';
                 canBtn.style.fontFamily = "'Inter', sans-serif";
-                canBtn.style.padding = '12px 24px';
+                canBtn.style.padding = '12px 32px';
+                canBtn.style.transition = 'all 0.2s ease';
               }
             }
           }

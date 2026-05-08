@@ -83,6 +83,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [selectedComum, setSelectedComum] = useState<string>('');
   const [selectedCargo, setSelectedCargo] = useState<string>('');
+  const [isNomeManual, setIsNomeManual] = useState(false);
   const [initialSearchLoading, setInitialSearchLoading] = useState(true);
 
   // Carregar local do ensaio, comuns e cargos
@@ -151,7 +152,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
         }
         setLocalEnsaio(localNome);
       } else {
-        Alert.alert('Atenção', 'Local de ensaio não definido. Defina o local nas configurações.');
+        showToast.warning('Atenção', 'Local de ensaio não definido. Defina o local nas configurações.');
       }
     } catch (error) {
       console.error('❌ Erro ao carregar local de ensaio:', error);
@@ -268,9 +269,11 @@ export const OrganistasEnsaioScreen: React.FC = () => {
   };
 
   const handleSelectOrganista = (option: { id: string; label: string; value: unknown; data: any }) => {
+    console.log('🎹 [OrganistasEnsaio] Selecionada:', option.id);
     if (typeof option.value === 'string') {
       setSelectedOrganista(option.value);
       setOrganistaSelecionada(option.data);
+      setIsNomeManual(option.id === 'manual');
     }
   };
 
@@ -278,6 +281,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
   const clearOrganistaField = () => {
     setSelectedOrganista('');
     setOrganistaSelecionada(null);
+    setIsNomeManual(false);
     setOrganistaFieldKey(prev => prev + 1);
   };
 
@@ -353,12 +357,12 @@ export const OrganistasEnsaioScreen: React.FC = () => {
 
   const handleConfirmSave = async (tocouNoEnsaio: boolean) => {
     if (!user) {
-      Alert.alert('Erro', 'Usuário não autenticado');
+      showToast.error('Erro', 'Usuário não autenticado');
       return;
     }
 
     if (!isOnline) {
-      Alert.alert('Offline', 'Conecte-se à internet para salvar o registro');
+      showToast.warning('Offline', 'Conecte-se à internet para salvar o registro');
       return;
     }
 
@@ -400,6 +404,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
         data_ensaio: dataEnsaio,
         tocou: tocouNoEnsaio,
         usuario_responsavel: nomeUsuario,
+        observacoes: isNomeManual ? 'SAM Desatualizado' : undefined,
       };
 
       console.log('💾 Salvando registro com tocou:', tocouNoEnsaio);

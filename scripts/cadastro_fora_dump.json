@@ -1,0 +1,1478 @@
+[
+  {
+    "id": "b81e7c55-c372-4986-baed-36518bd933c1",
+    "nome": "HEBER RODRIGUES CABRAL",
+    "instrumento": null,
+    "comum": "BR-21-1058  -  BAIRRO DOS ALTOS",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "e9007050-9304-4eb9-a9a9-774c559e3e07",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-21-1556 VOTUPOCA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "02f87d52-1b0c-45a1-aa35-db45c352e9b3",
+    "nome": "DAVID FISCHER DE MELLO",
+    "instrumento": null,
+    "comum": "BR-22-0163 BARUERI CENTRAL",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "6afcfacf-e47e-4cc2-8c76-3ec9753ebf3d",
+    "nome": "ANDRE LUIS DE CAMARGO",
+    "instrumento": null,
+    "comum": "BR-22-0164 CRUZ PRETA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "11e92d7d-472b-4c46-ac9d-d4c0c1e74a25",
+    "nome": "ELIZEU SIMEÃO CARVALHO",
+    "instrumento": null,
+    "comum": "BR-22-0165 JARDIM BELVAL",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a2168221-30e1-4990-be75-bbcd951dd8b7",
+    "nome": "CARLOS ALBERTO MENCHAO",
+    "instrumento": null,
+    "comum": "BR-22-0166 TERMINAL PETROBRÁS",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "431706d3-a3e8-4a18-b419-6843cd10d274",
+    "nome": "SEBASTIAO FERMIANO DE MOURA",
+    "instrumento": null,
+    "comum": "BR-22-0167 JARDIM SILVEIRA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "5bdea84e-ca41-46c2-97c3-d92768003a6d",
+    "nome": "ELIEZER SILAS BERTELLINI",
+    "instrumento": null,
+    "comum": "BR-22-0168 ALDEIA DE BARUERI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a0013dd1-66f1-451f-8aee-d3baa859d860",
+    "nome": "FÁBIO PIMENTA ALVES LYRA",
+    "instrumento": null,
+    "comum": "BR-22-0169 JARDIM DOS CAMARGOS",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "6b8e3cf0-5ebd-4437-aeb1-f0baf2164f4c",
+    "nome": "ROBERTO CARLOS DA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-0170 PARQUE IMPERIAL",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "8a279752-e04a-44d1-b0e4-d87c64f74bc7",
+    "nome": "LÁZARO CARDOSO BROCHADO",
+    "instrumento": null,
+    "comum": "BR-22-0363 JARDIM MARIA HELENA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "25290f87-2dde-40da-ae07-4d353b40e5d1",
+    "nome": "VALDEIR FÉLIX DE SOUZA",
+    "instrumento": null,
+    "comum": "BR-22-1635 PARQUE VIANA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a996fd15-2681-4620-927b-c573d1a4fe85",
+    "nome": "ANDRÉ VIEIRA DE MACEDO",
+    "instrumento": null,
+    "comum": "BR-22-1655 JARDIM PAULISTA  -  BARUERI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "1ee9b5c8-2bde-4325-a2cb-4670a92b4970",
+    "nome": "ISAÍAS AVELINO DO PRADO",
+    "instrumento": null,
+    "comum": "BR-22-1720 CHACARAS MARCO",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "3288b180-2162-4a38-8ece-31ea65fdc328",
+    "nome": "RONALDO DIONÍSIO OLIVEIRA",
+    "instrumento": null,
+    "comum": "BR-22-1800 JARDIM SANTA CECÍLIA  -  BARUERI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "71c8d82c-fc11-4411-b8b9-d17d41a72d22",
+    "nome": "WELLINGTON RODRIGUES CABRAL",
+    "instrumento": null,
+    "comum": "BR-22-1869 PARQUE DOS CAMARGOS I",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0708c001-c22f-4c8d-a786-e689e23aa530",
+    "nome": "WELLINGTON ALBUQUERQUE",
+    "instrumento": null,
+    "comum": "BR-22-1870 JARDIM CALIFORNIA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "8923c543-a49a-4056-bb5c-db31b97082d8",
+    "nome": "EDMILSON PEREIRA DUQUE",
+    "instrumento": null,
+    "comum": "BR-22-1871 JARDIM TUPANCI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "5ea109e9-0eae-49c6-ac9f-957af86a86a3",
+    "nome": "GILSON DO NASCIMENTO",
+    "instrumento": null,
+    "comum": "BR-22-1944 JARDIM SÃO PEDRO",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a8159530-98b5-4548-a0d7-6590e46a3093",
+    "nome": "JOSÉ CARLOS VIEIRA",
+    "instrumento": null,
+    "comum": "BR-22-2172 JARDIM JULIO",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "9dc08c86-e006-45bf-af14-bd32db5b44ee",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2280 VILA BOA VISTA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "be100f25-82a5-4fd0-9933-91e128f5c230",
+    "nome": "RUBENS EDUARDO",
+    "instrumento": null,
+    "comum": "BR-22-2483 JARDIM DO LIBANO",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a77dcf0a-2e1f-495c-bf82-24bd13d1ac23",
+    "nome": "ENILDO FERREIRA DE SOUZA",
+    "instrumento": null,
+    "comum": "BR-22-2563 PARQUE IMPERIAL II",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "dfbd9477-c2af-48e9-a417-92b7dd27d0e7",
+    "nome": "CLAUDOMIRO ROCHA DIAS",
+    "instrumento": null,
+    "comum": "BR-22-2573 VILA ENGENHO NOVO",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "96b2e60f-5099-47c6-ad7d-b0a8e83b5f71",
+    "nome": "ELIEL DA SILVA ALVES",
+    "instrumento": null,
+    "comum": "BR-22-2589 JARDIM SÃO LUIZ  -  BARUERI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "3a8f27f8-3276-489e-9d5c-a9edbb38dda4",
+    "nome": "ISAIAS ALVES FERREIRA",
+    "instrumento": null,
+    "comum": "BR-22-2722 PARQUE DOS CAMARGOS II",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "096819a8-b8e0-473f-8655-8848d74ccb4a",
+    "nome": "MARCELO ROCHA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-2740 VILA SÃO SILVESTRE",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "3fc148de-73bd-433b-bdea-f4be95914699",
+    "nome": "RONALDO LERBACH JUNIOR",
+    "instrumento": null,
+    "comum": "BR-22-2745 JARDIM ITAQUITI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f2b601dc-2cae-4cb3-9223-811d3805cece",
+    "nome": "ANTONIO CARLOS DOS SANTOS",
+    "instrumento": null,
+    "comum": "BR-22-2834 PARQUE IMPERIAL III",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "e56bd103-5348-45ce-8a5b-69a4dab9703d",
+    "nome": "JOÃO DA SILVA OLIVEIRA",
+    "instrumento": null,
+    "comum": "BR-22-2920 JARDIM TUPÃ",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f2339e91-c4d2-4fe0-81f8-e0cc8f20d275",
+    "nome": "APARECIDO JOSÉ DA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-2922 JARDIM ESPERANÇA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "82086508-a903-44ad-8ef9-45ed98134508",
+    "nome": "EVANILTON BRITO DOS SANTOS",
+    "instrumento": null,
+    "comum": "BR-22-2957 JARDIM MUTINGA DE BARUERI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "38295742-c0f0-4ee0-848e-a549449234a3",
+    "nome": "ISRAEL MENDONÇA DE SOUZA",
+    "instrumento": null,
+    "comum": "BR-22-3053 JARDIM SILVEIRA II",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "dcd482de-40bf-421b-a756-cc026c16df32",
+    "nome": "EVALDO MOREIRA DA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-3070 JARDIM GABRIELA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "bd2d830b-0300-4e0a-a445-151094bb1e06",
+    "nome": "SAMUEL DE OLIVEIRA BALLES",
+    "instrumento": null,
+    "comum": "BR-22-3071 VALE DO SOL  -  BARUERI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "7ddf97cd-22f3-443f-992e-67973cbbbb4e",
+    "nome": "JAIME COSTA",
+    "instrumento": null,
+    "comum": "BR-22-3133 JARDIM REGINALICE",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "7d2aa437-a89c-491c-af1c-267fc24ac586",
+    "nome": "SEBASTIÃO RIBEIRO",
+    "instrumento": null,
+    "comum": "BR-22-3138 JARDIM MARIA CRISTINA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "c2a354e1-c4b2-4f59-a729-5047e166060a",
+    "nome": "SEBASTIÃO ABRÃO FILHO",
+    "instrumento": null,
+    "comum": "BR-22-3203 JARDIM AUDIR",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "3ac0e22c-7522-46bb-9c7a-767005c2d265",
+    "nome": "THIEGO CORREA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-3289 JARDIM ITAPARICA  -  BARUERI",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a29d489e-11c1-42c7-971d-22d407b0c643",
+    "nome": "JOEL ROSA | 13",
+    "instrumento": null,
+    "comum": "BR-22-3369 PARQUE DOS CAMARGOS III",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2572438b-a588-4457-a8b2-7a739401bf6d",
+    "nome": "ALBERTO DE SOUZA",
+    "instrumento": null,
+    "comum": "BR-22-3538 JARDIM CALIFORNIA II",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f436ee29-ffbd-499d-8d4c-ed3e72dbf613",
+    "nome": "MIDINILSON SIMEÃO DA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-3682 VILA NOVA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0c03c750-0e39-4a5f-a709-a8d43cf8dc38",
+    "nome": "EDUARDO GUERSONI BEHAR",
+    "instrumento": null,
+    "comum": "BR-22-3867 ALDEIA DA SERRA",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "26fb185c-91d1-4f2b-a019-1d62b9daf6b1",
+    "nome": "LEÔNIDAS BALIEIRO",
+    "instrumento": null,
+    "comum": "BR-22-4007 ALPHAVILLE CONDE II",
+    "cidade": "BARUERI",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "091e244b-b30b-425f-89e9-ef13407a7c9f",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-21-0814 COLÔNIA SUL AMERICANA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "dfc5d392-329a-4891-b8b7-02cb5cc83c38",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-21-0816 VILA FREIDA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "c2497305-e2ae-417c-af53-80eead51b986",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0359 CARAPICUÍBA  -  CENTRAL",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "142351ea-d71f-4440-8893-b19800692c1e",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0360 ALDEIA DE CARAPICUÍBA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "74f1de3e-b686-4d97-a9f2-e9a38b6660a0",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0361 JARDIM BELA VISTA  -  CARAPICUÍBA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0ded4237-c60a-4834-97d5-711e6f933fca",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0362 VILA DIRCE",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "69877436-cfd7-460b-a6d5-2d09700d22a7",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0364 VILA MARCONDES",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ed5d20ce-27b1-43d7-80f3-4930d1b4ed97",
+    "nome": "RICARDO CLAUDIO DOS SANTOS",
+    "instrumento": null,
+    "comum": "BR-22-0365 VILA CRETI",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "d9642596-1b82-441e-9c27-e947dfa98e2a",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0366 VILA TEREZINHA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "1eac8621-c906-4bf7-af62-45ceab8f56fb",
+    "nome": "LUIS FABRICIO DA SILVA DIAS",
+    "instrumento": null,
+    "comum": "BR-22-0367 CIDADE ARISTON",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "e608e79d-48ff-4176-87d9-6b84f6e82e9e",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0368 JARDIM MARIA BEATRIZ",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "c134cb0a-7320-4f40-8b5e-3b7a4909ea85",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0369 JARDIM TONATO",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f9c80054-2e39-4779-b930-885df7581d72",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0370 VILA HELENA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2dda9bb8-1147-40f4-af48-568732d6b819",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0371 JARDIM NOVO HORIZONTE I",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "c5625a08-3d8f-4213-9086-55b87e5c46b5",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0372 JARDIM LEOPOLDINA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "9ba7a210-5c64-4d1e-bb81-fd0b23520192",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0373 COHAB 1",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "32f17f3f-b086-4dc2-be04-970f70bde910",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-0374 VILA MENCK  -  CARAPICUÍBA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "daa9f26d-30fd-4fdc-b9c8-6d08e07c027f",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1634 VILA CRISTINA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ee31aa9f-571e-4dae-aada-7dc376a2d80a",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1666 VILA MUNICIPAL",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a1ac5195-fe45-490a-981c-6f1a140412d2",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1667 VILA GUSTAVO CORREIA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "c76e40e9-90ef-47c9-92e2-9e7f80577e00",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1711 VILA QUINTINO",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "4309aa78-6c58-4994-8d6a-0a4b71d859a5",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1714 JARDIM SÃO DANIEL",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "4d293a01-21cd-436f-9c88-07c90ea86d02",
+    "nome": "MARIO RIBEIRO ALVES JUNIOR",
+    "instrumento": null,
+    "comum": "BR-22-1717 JARDIM ÂNGELA MARIA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "73f542b9-472f-415e-8158-a6d9369e1517",
+    "nome": "ANTONIO RODRIGUES DA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-1718 JARDIM LEONOR",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "bac6bee0-1aa7-4c94-a9c2-731ddcb89518",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1719 JARDIM SANTA RITA  -  CARAPICUÍBA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "d65df070-fbae-4584-9e6a-d4e34e0b7949",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1801 ROSEIRA PARQUE",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "87d50851-2563-4017-9b9d-4a85246a6bd9",
+    "nome": "OZEAS FRANCISCO DE SOUSA",
+    "instrumento": null,
+    "comum": "BR-22-1868 COHAB 5",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "50c5b64b-2d06-458c-9a7e-4f20875f531c",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1945 VILA IV CENTENÁRIO",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0ea7898a-0ea0-4011-82b3-76a541e41b4e",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1946 JARDIM GUAPIUVA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "450d534b-b438-469f-8c40-ad55123283d4",
+    "nome": "JAIR CAMARA",
+    "instrumento": null,
+    "comum": "BR-22-1947 VILA SUL AMERICANA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2f112140-4de9-404b-aec8-30006d812d2f",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1948 VILA BOLIVAR",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b58ffc73-2e5b-4a72-b8e4-f173b8b06c72",
+    "nome": "ISAEL PEDRO DA SILVA",
+    "instrumento": null,
+    "comum": "BR-22-1970 OLARIA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "be4f1c8b-bb5c-42e3-bd75-f6e509c9e67d",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-1971 VILA CAPRIOTI",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "9e91d689-a0ee-45e5-afd4-33ce1359231a",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2484 PARQUE JANDAIA I",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2ae79ab2-9c8b-4a90-bf3e-1a2912bac2de",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2485 VILA OLIVINA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "1139c997-ec69-446f-8d00-8e75eaaeecf5",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2490 PARQUE JANDAIA II",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "87fa4713-8bba-4917-8ddc-be70236854ba",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2491 VILA LOURDES",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f8d96b54-2c27-4312-8611-e00988b8b655",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2564 VILA SILVIÂNIA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "54f6bd26-d179-4002-866f-f5a311db4225",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2565 JARDIM ANGÉLICA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "817e0215-9d5b-4adc-9c2b-7af1ee5e33be",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2566 JARDIM PLANALTO",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "c20ebaf0-0c4f-438c-b111-e7e381214cc5",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2568 VILA SANTA CATARINA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "c4dbab16-8337-4d69-acfa-64e96270cc45",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2594 PACAEMBU",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ccef31d8-4386-450a-96b7-530a604a0038",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2595 JARDIM DAS PEDRAS  -  CARAPICUÍBA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b9c43534-80c1-4ba7-8108-aba7590dd0cd",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2597 VILA ANA MARIA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "5c316786-e9ca-4009-836b-ffb9b436115c",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2614 PARQUE SANTA TERESA  -  CARAPICUÍBA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ff2c5413-b7b5-4869-b4bf-d841a982bc9a",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2706 VILA DAS CARPAS",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "eb4572f6-2cc8-48ff-84fa-d9762a195073",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2736 JARDIM DAS PALMEIRAS",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0fbfc2fd-c9a3-4244-8092-cd7b76bed93c",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-2741 JARDIM NOVO HORIZONTE II",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2b05cc0a-4e8f-4f47-9cda-1e0c656cfb6b",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3072 JARDIM ALICE",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b9e9a33a-a390-4eb0-82e5-95ae31bba27b",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3280 VILA GUARANI",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "7ffddf54-079c-452a-bb48-98e83960300a",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3287 VILA NOVA CARAPICUÍBA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ad106e48-04f0-4c5f-8837-19f8c190e90f",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3298 PARQUE JANDAIA III  -  VILA TERESA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "bc815ba9-1e44-4d46-92c2-9fe1124f37c8",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3326 VILA NOVO VITORELLO",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "68f70fd4-bcb8-4964-bb2a-97f7cf1c285e",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3368 JARDIM ANA ESTELA I",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ffb2884c-5a74-4b70-a89a-7354326984e5",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3621 JARDIM PLANALTO II",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b29c220d-9728-4f87-a95b-b107b7b84f80",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3625 VILA ELEMAR",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b4cac5c4-fb4b-4f46-9aee-7f7c5c9663e9",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3626 VILA ELEMAR",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "4b9a94f0-2f49-4017-863f-7164318d9227",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3681 VILA IZA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "87a78bb0-f454-4b7f-b5e1-000b22a6c03c",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3686 JARDIM HILDA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "1f71eecf-38d5-4b62-8718-4e47255111b8",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3734 JARDIM ANA ESTELA II",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b850237c-1d7f-4a69-8a8e-7f04a1e842ac",
+    "nome": "ERENILDO DE JESUS LIMA",
+    "instrumento": null,
+    "comum": "BR-22-3744 VILA DOS MINEIROS",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "e5cae43e-f542-4df5-b543-4dcafbe7387d",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3746 VILA MENCK II",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "5086f8e1-000f-41b5-a168-d8806ce73d7e",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-22-3886 ALTO DE SANTA LÚCIA",
+    "cidade": "CARAPICUÍBA",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2054cfd2-0b86-4928-add7-8fa087313b70",
+    "nome": "LUIZ CARLOS MONTEIRO",
+    "instrumento": null,
+    "comum": "BR-21-0279 KM  -  18",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f241f55a-4676-47db-99ff-8591f4789f05",
+    "nome": "JOAO HENRIQUE CAMPONUCCI",
+    "instrumento": null,
+    "comum": "BR-21-0280 CENTRO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "84a98644-657b-4cce-b8be-35d6fd7ac30f",
+    "nome": "EDUARDO FERREIRA DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-0281 CIDADE MUNHOZ",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "509d1d74-557a-4a87-84c9-5aa14263e1eb",
+    "nome": "JOAO MOREIRA DE ALMEIDA",
+    "instrumento": null,
+    "comum": "BR-21-0282 CIDADE ROCHDALE",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0d7f93ef-d599-4f47-ba73-cb78af03ca36",
+    "nome": "MAURO DE SOUZA",
+    "instrumento": null,
+    "comum": "BR-21-0283 JAGUARIBE",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "08ccaae4-5047-4aaf-8650-7626749905d5",
+    "nome": "LUCAS LOURENCO BAGNOLI",
+    "instrumento": null,
+    "comum": "BR-21-0284 JARDIM BARONESA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "caafc350-43b5-4d07-859c-1f82f9be835e",
+    "nome": "LUIZ CARLOS BADANAI",
+    "instrumento": null,
+    "comum": "BR-21-0287 JARDIM CIPAVA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "073db621-ec8c-4ec3-be6a-55a41782b7eb",
+    "nome": "JOÃO BATISTA DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-0288 JARDIM CONCEIÇÃO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "7d5ce90a-c2e8-4174-8729-a4f45d22cb87",
+    "nome": "JUAREZ SOARES ALVES",
+    "instrumento": null,
+    "comum": "BR-21-0289 JARDIM ORIENTAL",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "52a9adec-582f-4e0e-9a57-b89c6d6494e2",
+    "nome": "MARCELO FRANCISCO DE LIMA",
+    "instrumento": null,
+    "comum": "BR-21-0290 JARDIM HELENA MARIA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2ca4109d-1bbe-40f0-b588-b18f32a053c6",
+    "nome": "EUGENIO GOMES MACIEL",
+    "instrumento": null,
+    "comum": "BR-21-0291 JARDIM MUTINGA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2e42566d-0e8f-4023-916f-4a7dc2ef49f9",
+    "nome": "ELCIO APARECIDO",
+    "instrumento": null,
+    "comum": "BR-21-0292 JARDIM PADROEIRA II",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "dceceaf0-69ad-49c2-8450-d6dc5a9989ea",
+    "nome": "RODINEI DOS SANTOS",
+    "instrumento": null,
+    "comum": "BR-21-0293 JARDIM PIRATININGA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "57704d02-71ea-4940-b0c8-3007b28a7571",
+    "nome": "OSVALDO GOMES DE OLIVEIRA",
+    "instrumento": null,
+    "comum": "BR-21-0294 JARDIM PLATINA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "6947287c-4da5-4b4e-a064-1cd598d589ff",
+    "nome": "WANDERLEY ARRUDA",
+    "instrumento": null,
+    "comum": "BR-21-0295 JARDIM ROBERTO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ac1ae090-5709-4ac3-968c-00f48144a19d",
+    "nome": "ESTEVÃO BATISTA DO VALE",
+    "instrumento": null,
+    "comum": "BR-21-0296 JARDIM SANTA RITA DE CÁSSIA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "42d9aa5b-7ead-4ad6-9934-ed633801425f",
+    "nome": "JOHN GUIMARÃES",
+    "instrumento": null,
+    "comum": "BR-21-0297 JARDIM SANTO ANTONIO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "8817c054-79c3-4e2e-8d20-d36135711fd2",
+    "nome": "FRANCISCO NARANJO",
+    "instrumento": null,
+    "comum": "BR-21-0298 JARDIM UMUARAMA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0afc6794-7f15-4f2e-b55b-f255c2c01c1e",
+    "nome": "JOSÉ CARLOS PASCHOAL",
+    "instrumento": null,
+    "comum": "BR-21-0299 NOVO OSASCO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b13881cf-5055-427b-b9ac-d181ec9d6e27",
+    "nome": "SIDNEI BATISTA DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-0300 PRESIDENTE ALTINO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "5bdc76ac-f9f2-4d5d-bd3e-ba7e7e6b3856",
+    "nome": "PAULO BUGELLI",
+    "instrumento": null,
+    "comum": "BR-21-0301 VILA YARA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2d8a90e5-cb4b-47e0-81d2-254c1ef64df6",
+    "nome": "LAZARO FERMIANO DE MOURA",
+    "instrumento": null,
+    "comum": "BR-21-0302 VILA QUITAÚNA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "99219863-e59b-49f5-bba6-327a6c02bb38",
+    "nome": "LUIS OTÁVIO NUNES XAVIER",
+    "instrumento": null,
+    "comum": "BR-21-0303 VILA AYROSA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "7cb93b80-ddf5-4e95-8636-76f90a508fef",
+    "nome": "JOSE NAPOLEÃO DE MACEDO FILHO",
+    "instrumento": null,
+    "comum": "BR-21-0304 JARDIM TRÊS MONTANHAS",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "73d11eb8-c0df-4c5d-b2d2-988baef727d8",
+    "nome": "SEBASTIÃO TEÓFILO ARAÚJO",
+    "instrumento": null,
+    "comum": "BR-21-0305 VILA YOLANDA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "1d584c41-b51a-46b0-a729-19be04caa0d9",
+    "nome": "ANTONIO CARLOS DIONIZIO",
+    "instrumento": null,
+    "comum": "BR-21-0306 VILA DOS REMÉDIOS",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0261ba04-0241-4288-b4b2-50ea0780575a",
+    "nome": "JOSÉ ANTONIO",
+    "instrumento": null,
+    "comum": "BR-21-0384 JARDIM BONANÇA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "49536cac-b713-4390-9693-c2229c159265",
+    "nome": "DAVID JOSE DA COSTA",
+    "instrumento": null,
+    "comum": "BR-21-0385 JARDIM CIRINO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a6cede7d-2405-4755-8e6e-7d5c2ea7bf0f",
+    "nome": "MOISÉS ANTÔNIO DOS SANTOS",
+    "instrumento": null,
+    "comum": "BR-21-0386 JARDIM PAULISTA  -  OSASCO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f12cca1a-400f-494b-9d05-d0631ec9f3f5",
+    "nome": "NATALÍCIO GOMES DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-0387 VILA ISABEL",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "2430e567-3e08-487a-bf2f-f34f748a3486",
+    "nome": "RENATO GIAROLA GUIMARÃES",
+    "instrumento": null,
+    "comum": "BR-21-0397 JARDIM JOELMA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "ce13303f-7138-4f9c-8589-3658ce5ffbc0",
+    "nome": "EDUARDO HENRIQUE DE FLÓRIO",
+    "instrumento": null,
+    "comum": "BR-21-0403 JARDIM SÃO MANOEL",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "1ab8a959-5879-4900-b6f3-98ebea4ae4ec",
+    "nome": "ESROM PRATES PINTO",
+    "instrumento": null,
+    "comum": "BR-21-0434 VILA MENCK  -  OSASCO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "e05ccdd9-585e-4659-9548-57b05825a6f0",
+    "nome": "DAVI PEDRO GONÇALVES",
+    "instrumento": null,
+    "comum": "BR-21-0442 JARDIM PRIMAVERA  -  OSASCO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "e620ab9d-cfe5-40a4-a57d-f5e12849fe98",
+    "nome": "EZEQUIEL FRANCISCO ALVES",
+    "instrumento": null,
+    "comum": "BR-21-0443 JARDIM D'ÁVILA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "b63b29d3-4ca4-4775-b047-e55f92a73df1",
+    "nome": "LUCIANO DE FREITAS",
+    "instrumento": null,
+    "comum": "BR-21-0444 JARDIM TEREZA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "9b382fa8-1757-4bd8-8ca4-1f7a7f0917bb",
+    "nome": "IRINEU MARTINS DOS SANTOS",
+    "instrumento": null,
+    "comum": "BR-21-0445 JARDIM ALIANÇA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "25b58818-d97c-498b-bd43-21f5cf8e3c01",
+    "nome": "EZEQUIEL DE LIMA",
+    "instrumento": null,
+    "comum": "BR-21-0446 BEL JARDIM",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "86bfea54-dea6-4876-b58c-bfb704ec058f",
+    "nome": "EZEQUIEL CÂNDIDO DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-0447 JARDIM BUSSOCABA CITY",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "49fe3b2b-f34f-42f8-a693-ac2700b59140",
+    "nome": "OZÉIAS DA SILVA ALVES",
+    "instrumento": null,
+    "comum": "BR-21-0463 VILA OSASCO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "6eb9a68a-ecb9-4955-adf4-aac16f246c2e",
+    "nome": "VALDECIR CARLOS DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-0465 VILA LAUCI",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "4a07940a-26bf-44c6-b3c6-043dcb46d20e",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-21-0516 BONFIM",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "96ad91e6-0675-404f-9b60-f9a20567ddc1",
+    "nome": "CRISTIANO GALVÃO DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-0533 PORTAL D'OESTE",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "a9826e34-6f7c-41fc-b734-a92c58abd042",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-21-0666 JARDIM SANTA FÉ",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "84c47360-e3ad-47f7-ac69-67c6bad6d2be",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-21-0667 VILA DAS MARGARIDAS",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "0d3ffcb1-6de4-441f-9263-b4bc4003f9df",
+    "nome": "MATIAS JOSE TOMAZ",
+    "instrumento": null,
+    "comum": "BR-21-0673 JARDIM MUNHOZ JÚNIOR",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "9348f758-88bf-4a0a-b077-d4955254454d",
+    "nome": "SAMUEL SIEBRA DE OLIVEIRA DANTAS",
+    "instrumento": null,
+    "comum": "BR-21-0714 AÇUCARA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "18352a1a-f895-427a-b39c-ace82c40d9b2",
+    "nome": "DANIEL ERIC TEIXEIRA DE SOUZA",
+    "instrumento": null,
+    "comum": "BR-21-0739 JARDIM SANTA MARIA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "1279deca-9e53-473e-a5cd-84952939de17",
+    "nome": "CLAUDINEI MARIANO DE SOUSA",
+    "instrumento": null,
+    "comum": "BR-21-0906 PORTAL D'OESTE II",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "5b598e18-abad-4ee8-9780-98a8881ef6c5",
+    "nome": "JOSERAN GONÇALVES DA COSTA",
+    "instrumento": null,
+    "comum": "BR-21-0909 FAZENDINHA  -  OSASCO",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "bf2edb46-6e63-4d0d-840b-c101b95311a4",
+    "nome": "RONALDO REGINALDO DA COSTA",
+    "instrumento": null,
+    "comum": "BR-21-0973 BARONESA II",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "5720233e-7349-4af7-afe4-f5743f3df008",
+    "nome": "MARCELO LEME DOS SANTOS",
+    "instrumento": null,
+    "comum": "BR-21-0982 JARDIM VICENTINA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "061483e4-0b37-4f69-a5b1-7b0fa69f1fa9",
+    "nome": "",
+    "instrumento": null,
+    "comum": "BR-21-1015 CIRINO II",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "f567ca3e-887a-4b83-bed0-73c42df993bc",
+    "nome": "EDI CARLOS APARECIDO DA SILVA",
+    "instrumento": null,
+    "comum": "BR-21-1038 I.A.P.I.  -  TERRA NOSSA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "23af5285-c99b-472b-8aa5-826633556237",
+    "nome": "JOSE ELIODORIO SILVA SANTOS",
+    "instrumento": null,
+    "comum": "BR-21-1060 CIRINO II",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "596508e7-10d8-464b-8108-b30594cbe25b",
+    "nome": "REULY FAGNER BARROS",
+    "instrumento": null,
+    "comum": "BR-21-1156 RECANTO DAS ROSAS",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  },
+  {
+    "id": "4f74a2b3-4c6a-4aaa-bb45-0b85367127f4",
+    "nome": "EDUARDO MORAES DA SILVA SANTOS",
+    "instrumento": null,
+    "comum": "BR-21-1448 COMUNIDADE ESPERANÇA",
+    "cidade": "OSASCO",
+    "cargo": "ENCARREGADO LOCAL",
+    "nivel": "OFICIALIZADO(A)"
+  }
+]
