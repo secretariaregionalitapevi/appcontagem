@@ -630,7 +630,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     }
 
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
-    const CACHE_VERSION = 'v4'; // Sincronizado com supabaseDataService.ts
+    const CACHE_VERSION = 'v5'; // Bust cache to ensure new mapping logic is applied
     const cacheKey = `pessoas_${CACHE_VERSION}_${isForaRegional ? 'fora_' : ''}${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
 
     try {
@@ -696,13 +696,24 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
             if (instEncontrado) realInstrumentoId = instEncontrado.id;
           }
 
+          // 🚨 NOVO: Mapear ID do cargo pelo nome real do banco (evita Encarregado virar Músico)
+          let realCargoId = selectedCargo;
+          if (p.cargo) {
+            const cargoNomeBusca = p.cargo.trim().toUpperCase();
+            const cargoEncontrado = cargos.find(c => c.nome.toUpperCase() === cargoNomeBusca);
+            if (cargoEncontrado) {
+              realCargoId = cargoEncontrado.id;
+              console.log(`👔 [loadPessoas] Mapeado cargo real: "${cargoNomeBusca}" -> ${realCargoId}`);
+            }
+          }
+
           const pessoa: Pessoa = {
             id: p.id || `p_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
             nome: primeiroNome,
             sobrenome: ultimoNome,
             nome_completo: nomeCompleto,
             comum_id: selectedComum,
-            cargo_id: selectedCargo,
+            cargo_id: realCargoId,
             cargo_real: (p.cargo || '').toUpperCase().trim(),
             instrumento_id: realInstrumentoId || (showInstrumento ? selectedInstrumento : null),
             cidade: (p.cidade || '').toUpperCase().trim(),
@@ -896,11 +907,21 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         }
 
         const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
+      // 🚨 NOVO FLUXO: Garantir que se uma pessoa foi selecionada da lista, 
+      // usamos o cargo REAL dela ao invés do selecionado no dropdown (que pode ser genérico)
+      let cargoIdFinal = selectedCargo;
+      if (selectedPessoa && !isNomeManual) {
+        const pessoaObj = pessoas.find(p => p.id === selectedPessoa);
+        if (pessoaObj && pessoaObj.cargo_id && pessoaObj.cargo_id !== selectedCargo) {
+          console.log(`👔 [handleSubmit] Corrigindo cargo: ${selectedCargo} -> ${pessoaObj.cargo_id} (Pessoa: ${pessoaObj.nome_completo})`);
+          cargoIdFinal = pessoaObj.cargo_id;
+        }
+      }
 
         const registro: RegistroPresenca = {
           pessoa_id: pessoaIdFinal,
           comum_id: isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum,
-          cargo_id: selectedCargo,
+          cargo_id: cargoIdFinal,
           instrumento_id: isCandidato
             ? instrumentoCandidato
             : isNomeManual || isForaRegional
@@ -1077,8 +1098,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       'Instrutor',
       'Instrutora',
       'Examinadora',
-      // 'Encarregado Local', // ✅ Permitir na página principal
-      // 'Encarregado Regional', // ✅ Permitir na página principal
+      'Encarregado Local',
+      'Encarregado Regional',
       'Secretário da Música',
       'Secretária da Música',
     ];

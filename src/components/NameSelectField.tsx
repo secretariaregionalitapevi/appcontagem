@@ -376,10 +376,16 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     */
 
     // Só fechar lista se não há itens filtrados
-    // 🚨 CRÍTICO: Android precisa de delay maior para capturar toques
     // 🚨 CRÍTICO: Fechar a lista após o delay para permitir o clique
-    const delay = Platform.OS === 'web' ? 400 : Platform.OS === 'android' ? 600 : 300;
+    // 🚀 OTIMIZAÇÃO: No Web, o onMouseDown com preventDefault já cuida da maioria dos casos,
+    // mas aumentamos o delay para garantir que o evento de click (onPress) também tenha tempo.
+    const delay = Platform.OS === 'web' ? 500 : Platform.OS === 'android' ? 600 : 300;
     blurTimeoutRef.current = setTimeout(() => {
+      // Se ainda estiver selecionando, NÃO fechar a lista ainda
+      if (isSelectingRef.current) {
+        console.log('⏳ [NameSelectField] Blur ignorado: seleção em curso...');
+        return;
+      }
       setShowList(false);
       blurTimeoutRef.current = null;
     }, delay);
@@ -851,14 +857,15 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
                                   isManualOption && styles.itemManual,
                                 ]}
                                 onPress={() => {
-                                  // Cancelar blur pendente ao clicar
-                                  if (blurTimeoutRef.current) {
-                                    clearTimeout(blurTimeoutRef.current);
-                                    blurTimeoutRef.current = null;
+                                  // 🚨 CRÍTICO: No Web, o onPress pode disparar após o onBlur
+                                  // Só chamamos handleSelect se não foi capturado pelo onMouseDown
+                                  if (!isSelectingRef.current) {
+                                    handleSelect(item);
                                   }
-                                  handleSelect(item);
                                 }}
                                 onPressIn={() => {
+                                  // Marcar início da seleção
+                                  isSelectingRef.current = true;
                                   // Cancelar blur imediatamente ao tocar (melhor para mobile)
                                   if (blurTimeoutRef.current) {
                                     clearTimeout(blurTimeoutRef.current);
@@ -869,13 +876,26 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
                                 hitSlop={
                                   Platform.OS === 'web'
                                     ? undefined
-                                    : { top: 10, bottom: 10, left: 0, right: 0 }
+                                    : { top: 10, bottom: 10, left: 10, right: 10 }
                                 }
                                 delayPressIn={0}
                                 {...(Platform.OS === 'web'
                                   ? {
                                     onMouseEnter: () => setSelectedIndex(index),
                                     onMouseLeave: () => setSelectedIndex(-1),
+                                    onMouseDown: (e: any) => {
+                                      // 🚨 CRÍTICO PARA WEB: Prevenir o blur do input ao clicar no dropdown
+                                      e.preventDefault();
+                                      // Cancelar blur pendente
+                                      if (blurTimeoutRef.current) {
+                                        clearTimeout(blurTimeoutRef.current);
+                                        blurTimeoutRef.current = null;
+                                      }
+                                      // Marcar seleção
+                                      isSelectingRef.current = true;
+                                      // Selecionar o item IMEDIATAMENTE
+                                      handleSelect(item);
+                                    },
                                   }
                                   : {})}
                               >

@@ -708,10 +708,43 @@ export const googleSheetsService = {
           throw new Error('Pessoa não encontrada');
         }
 
-        // 🚨 CORREÇÃO: Se o cargo selecionado for Encarregado, priorizar ele (para evitar que volte como músico)
-        const isCargoEspecial = cargoSelecionado.nome.toUpperCase().includes('ENCARREGADO');
-        cargoReal = isCargoEspecial ? cargoSelecionado.nome : (pessoa.cargo_real || cargoSelecionado.nome);
+        // 🚨 CORREÇÃO CRÍTICA: Se a pessoa encontrada tiver um cargo específico (id diferente de músico/organista), 
+        // priorizar sempre o cargo real da pessoa, não o que está no registro.
+        // Isso resolve o problema de registros que ficaram na fila com o cargo errado.
+        let cargoRealFinal = cargoSelecionado.nome;
+        
+        // 1. Tentar buscar pelo cargo_id mapeado na pessoa (mais robusto)
+        if (pessoa.cargo_id) {
+          const realCargoObj = cargos.find(c => c.id === pessoa.cargo_id);
+          if (realCargoObj) {
+            // Se o cargo no banco for mais "específico" que o selecionado, usar o do banco
+            // Ex: Músico -> Encarregado, Organista -> Examinadora
+            const isMusicoOuOrganista = cargoSelecionado.nome.toUpperCase().includes('MÚSICO') || 
+                                       cargoSelecionado.nome.toUpperCase().includes('ORGANISTA') ||
+                                       cargoSelecionado.nome.toUpperCase().includes('CANDIDATO');
+            
+            if (isMusicoOuOrganista && realCargoObj.id !== cargoSelecionado.id) {
+              cargoRealFinal = realCargoObj.nome;
+            }
+          }
+        }
+        
+        // 2. Fallback: Se o cargo mapeado ainda for genérico, mas a pessoa tem cargo_real texto
+        if (cargoRealFinal.toUpperCase().includes('MÚSICO') || cargoRealFinal.toUpperCase().includes('ORGANISTA')) {
+          if (pessoa.cargo_real) {
+            const isCargoEspecial = pessoa.cargo_real.toUpperCase().includes('ENCARREGADO') || 
+                                    pessoa.cargo_real.toUpperCase().includes('EXAMINADORA') ||
+                                    pessoa.cargo_real.toUpperCase().includes('INSTRUTORA');
+            if (isCargoEspecial) {
+              cargoRealFinal = pessoa.cargo_real;
+            }
+          }
+        }
+
+        cargoReal = cargoRealFinal;
         nomeCompleto = pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`;
+        
+        console.log(`👔 [GoogleSheets] Cargo final resolvido para ${nomeCompleto}: ${cargoReal}`);
       }
 
       // Buscar nivel da pessoa (OFICIALIZADO, CULTO OFICIAL ou CANDIDATO)

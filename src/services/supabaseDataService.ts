@@ -343,8 +343,8 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v6', JSON.stringify(comuns));
-        console.log('✅ Comuns salvas no cache V6');
+        await robustSetItem('cache_comuns_v7', JSON.stringify(comuns));
+        console.log('✅ Comuns salvas no cache V7');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
       }
@@ -383,7 +383,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v6');
+        const cached = await robustGetItem('cache_comuns_v7');
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -395,7 +395,7 @@ export const supabaseDataService = {
             }));
 
           memoryCache.comuns = validComuns;
-          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V6`);
+          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V7`);
           return validComuns;
         }
       } catch (error) {
@@ -1277,7 +1277,7 @@ export const supabaseDataService = {
               // Fazer busca com o nome EXATO do banco (sem normalizar)
               let queryExata = supabase
                 .from(table)
-                .select('nome, comum, cargo, instrumento, cidade, nivel')
+                .select('id, nome, comum, cargo, instrumento, cidade, nivel')
                 .ilike('comum', `%${comumEncontrada}%`);
 
               // 🚨 CORREÇÃO CRÍTICA: Aplicar filtro de cargo ANTES de order e range
@@ -1287,7 +1287,8 @@ export const supabaseDataService = {
               // Aplicar filtros de cargo e instrumento
               let queryFinal = queryExata;
               if (cargoBusca === 'ORGANISTA') {
-                queryFinal = queryFinal.ilike('instrumento', '%ÓRGÃO%');
+                queryFinal = queryFinal
+                  .or('instrumento.ilike.%ÓRGÃO%,cargo.ilike.%EXAMINADORA%,cargo.ilike.%INSTRUTORA%');
               } else if (cargoBusca === 'MÚSICO' || cargoBusca.includes('MÚSICO')) {
                 if (instrumentoBusca) {
                   // 🚨 CORREÇÃO CRÍTICA: Quando busca por instrumento (ex: Músico + Violino),
@@ -1343,7 +1344,7 @@ export const supabaseDataService = {
         // Se não encontrou com múltiplas queries, tentar query única como fallback
         let query = supabase
           .from(table)
-          .select('nome, comum, cargo, instrumento, cidade, nivel')
+          .select('id, nome, comum, cargo, instrumento, cidade, nivel')
           .ilike('comum', `%${comumBusca}%`)
           .order('nome', { ascending: true });
 
@@ -2080,13 +2081,23 @@ export const supabaseDataService = {
           }
         }
 
+        // 🚨 NOVO: Mapear ID do cargo pelo nome real do banco (evita Encarregado virar Músico)
+        let realCargoId = cargoId || '';
+        if (p.cargo) {
+          const cargoNomeBusca = p.cargo.trim().toUpperCase();
+          const cargoEncontrado = cargos.find(c => c.nome.toUpperCase() === cargoNomeBusca);
+          if (cargoEncontrado) {
+            realCargoId = cargoEncontrado.id;
+          }
+        }
+
         const pessoa: Pessoa = {
           id: p.id || `p_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
           nome: primeiroNome,
           sobrenome: ultimoNome, // Último nome para registro (será usado apenas primeiro + último no registro)
           nome_completo: nomeCompleto, // Nome completo para exibição na lista
           comum_id: comumId || '',
-          cargo_id: cargoId || '',
+          cargo_id: realCargoId,
           cargo_real: (p.cargo || '').toUpperCase().trim(), // Cargo real da pessoa no banco de dados
           instrumento_id: realInstrumentoId,
           cidade: (p.cidade || '').toUpperCase().trim(), // Incluir cidade da pessoa
@@ -2364,10 +2375,42 @@ export const supabaseDataService = {
       }
 
       // Usar cargo real da pessoa se disponível, senão usar o cargo selecionado
-      // 🚨 CORREÇÃO: Se o cargo selecionado for Encarregado, priorizar ele (para evitar que volte como músico)
-      const isCargoEspecial = cargoSelecionado.nome.toUpperCase().includes('ENCARREGADO');
-      cargoReal = isCargoEspecial ? cargoSelecionado.nome : (pessoa.cargo_real || cargoSelecionado.nome);
+      // 🚨 CORREÇÃO CRÍTICA: Se a pessoa encontrada tiver um cargo específico (id diferente de músico/organista), 
+      // priorizar sempre o cargo real da pessoa, não o que está no registro.
+      let cargoRealFinal = cargoSelecionado.nome;
+      
+      // 1. Tentar buscar pelo cargo_id mapeado na pessoa (mais robusto)
+      if (pessoa.cargo_id) {
+        const realCargoObj = cargos.find(c => c.id === pessoa.cargo_id);
+        if (realCargoObj) {
+          // Se o cargo no banco for mais "específico" que o selecionado, usar o do banco
+          // Ex: Músico -> Encarregado, Organista -> Examinadora
+          const isMusicoOuOrganista = cargoSelecionado.nome.toUpperCase().includes('MÚSICO') || 
+                                     cargoSelecionado.nome.toUpperCase().includes('ORGANISTA') ||
+                                     cargoSelecionado.nome.toUpperCase().includes('CANDIDATO');
+          
+          if (isMusicoOuOrganista && realCargoObj.id !== cargoSelecionado.id) {
+            cargoRealFinal = realCargoObj.nome;
+          }
+        }
+      }
+      
+      // 2. Fallback: Se o cargo mapeado ainda for genérico, mas a pessoa tem cargo_real texto
+      if (cargoRealFinal.toUpperCase().includes('MÚSICO') || cargoRealFinal.toUpperCase().includes('ORGANISTA')) {
+        if (pessoa.cargo_real) {
+          const isCargoEspecial = pessoa.cargo_real.toUpperCase().includes('ENCARREGADO') || 
+                                  pessoa.cargo_real.toUpperCase().includes('EXAMINADORA') ||
+                                  pessoa.cargo_real.toUpperCase().includes('INSTRUTORA');
+          if (isCargoEspecial) {
+            cargoRealFinal = pessoa.cargo_real;
+          }
+        }
+      }
+
+      cargoReal = cargoRealFinal;
       nomeCompleto = pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`;
+      
+      console.log(`👔 [SupabaseService] Cargo final resolvido para ${nomeCompleto}: ${cargoReal}`);
     }
 
     const cargo = { ...cargoSelecionado, nome: cargoReal };

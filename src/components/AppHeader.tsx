@@ -166,9 +166,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               </Text>
               {!IS_SMALL_SCREEN && (
                 <View style={styles.brandSubtitleContainer}>
-                  <Ionicons name="location-sharp" size={12} color="#ff6b6b" />
+                  <View style={styles.pinContainer}>
+                    <Ionicons name="location-sharp" size={14} color="#ef4444" />
+                    <View style={styles.pinDot} />
+                  </View>
                   <Text style={styles.brandSubtitle} numberOfLines={1}>
-                    Local do Ensaio: {localEnsaio}
+                    Local do Ensaio: <Text style={styles.brandSubtitleBold}>{localEnsaio}</Text>
                   </Text>
                 </View>
               )}
@@ -283,9 +286,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <View style={styles.headerSecondRow}>
           <View style={styles.headerSecondRowContent}>
             <View style={styles.brandSubtitleContainer}>
-              <Ionicons name="location-sharp" size={12} color="#ff6b6b" />
+              <View style={styles.pinContainer}>
+                <Ionicons name="location-sharp" size={14} color="#ef4444" />
+                <View style={styles.pinDot} />
+              </View>
               <Text style={styles.brandSubtitle} numberOfLines={1}>
-                Local do Ensaio: {localEnsaio}
+                Local do Ensaio: <Text style={styles.brandSubtitleBold}>{localEnsaio}</Text>
               </Text>
             </View>
           </View>
@@ -387,6 +393,10 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     flexShrink: 1,
   },
+  brandSubtitleBold: {
+    fontWeight: '700',
+    color: '#ffffff',
+  },
   userInfoBelowTitle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -483,5 +493,20 @@ const styles = StyleSheet.create({
   },
   newRegistroBtn: {
     backgroundColor: '#22c55e', // verde vibrante
+  },
+  pinContainer: {
+    width: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  pinDot: {
+    position: 'absolute',
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: '#ffffff',
+    top: 3.5,
   },
 });

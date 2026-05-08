@@ -388,16 +388,18 @@ export const RegisterScreen: React.FC = () => {
                       setSelectedPessoa(pessoaId);
                       setIsNomeManual(false);
 
-                      // 🚨 NOVO FLUXO: Capturar instrumento e classe automaticamente dos dados da pessoa
+                      // 🚨 NOVO FLUXO: Capturar cargo, instrumento e classe automaticamente dos dados da pessoa
                       if (option.data) {
                         const p = option.data;
                         console.log('✅ [RegisterScreen] Autopreenchimento detectado para:', p.nome_completo);
                         
+                        // 1. Definir instrumento automaticamente
                         if (p.instrumento_id) {
                           console.log('🎸 Definindo instrumento automático:', p.instrumento_id);
                           setSelectedInstrumento(p.instrumento_id);
                         }
                         
+                        // 2. Definir classe automaticamente
                         if (p.classe_organista || p.nivel) {
                           const classe = p.classe_organista || p.nivel;
                           console.log('🎓 Definindo classe automática:', classe);
