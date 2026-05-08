@@ -107,7 +107,7 @@ export const offlineSyncService = {
     }
   },
 
-  async syncAllData(): Promise<{ success: boolean; error?: string; syncResult?: { successCount: number; totalCount: number } }> {
+  async syncAllData(options: { fastSync?: boolean } = {}): Promise<{ success: boolean; error?: string; syncResult?: { successCount: number; totalCount: number } }> {
     const isOnline = await this.isOnline();
     if (!isOnline) {
       // Não é um erro crítico, apenas informativo
@@ -122,38 +122,23 @@ export const offlineSyncService = {
         return { success: false, error: 'Sessão expirada. Faça login novamente.' };
       }
 
-      // Sincronizar dados de referência (com tratamento de erro individual para não quebrar tudo)
-      try {
-        await supabaseDataService.syncComunsToLocal();
-      } catch (error) {
-        console.warn(
-          '⚠️ Erro ao sincronizar comuns (continuando...):',
-          error instanceof Error ? error.message : error
-        );
+      // Sincronizar dados de referência APENAS se não for fastSync
+      if (!options.fastSync) {
+        console.log('🔄 [syncAllData] Sincronização completa de referências iniciada...');
+        try {
+          await Promise.all([
+            supabaseDataService.syncComunsToLocal(),
+            supabaseDataService.syncCargosToLocal(),
+            supabaseDataService.syncInstrumentosToLocal()
+          ]);
+        } catch (error) {
+          console.warn('⚠️ Erro parcial na sincronização de referências:', error);
+        }
+      } else {
+        console.log('🚀 [syncAllData] Modo FAST: Pulando referências, focando na fila...');
       }
 
-      try {
-        await supabaseDataService.syncCargosToLocal();
-      } catch (error) {
-        console.warn(
-          '⚠️ Erro ao sincronizar cargos (continuando...):',
-          error instanceof Error ? error.message : error
-        );
-      }
-
-      try {
-        await supabaseDataService.syncInstrumentosToLocal();
-      } catch (error) {
-        console.warn(
-          '⚠️ Erro ao sincronizar instrumentos (continuando...):',
-          error instanceof Error ? error.message : error
-        );
-      }
-
-      // Pessoas são buscadas diretamente da tabela cadastro quando necessário
-      // await supabaseDataService.syncPessoasToLocal(); // REMOVIDO - não existe tabela pessoas
-
-      // Sincronizar registros pendentes
+      // Sincronizar registros pendentes (Sempre faz parte do syncAllData)
       let syncResult: { successCount: number; totalCount: number } | undefined;
       try {
         syncResult = await this.syncPendingRegistros();
@@ -377,7 +362,7 @@ export const offlineSyncService = {
 
         // Pequena pausa entre itens para não sobrecarregar
         if (i < registros.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, 150)); // Reduzido de 300ms para 150ms
         }
       }
 
@@ -472,33 +457,26 @@ export const offlineSyncService = {
     }
 
     // 🛡️ VERIFICAÇÃO DE DUPLICADOS NO SUPABASE PRIMEIRO (se online)
-    // Deve verificar ANTES de salvar em qualquer lugar
-    // Verifica por nome + comum + cargo + data (mais rigoroso que UUID)
-    // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
+    // 🚀 OTIMIZAÇÃO: Centralizado em supabaseDataService.checkDuplicataRemota
     if (isOnline && !skipDuplicateCheck) {
       try {
-        // 🚀 OTIMIZAÇÃO: Buscar apenas o necessário (evitar buscar pessoas se nome manual)
+        // 1. Resolver dados para a busca (Nome, Comum, Cargo Real)
         const isNomeManual = registro.pessoa_id.startsWith('manual_');
-
-        // Buscar comuns e cargos sempre (são rápidos do cache)
         const [comuns, cargos] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
           supabaseDataService.getCargosFromLocal(),
         ]);
 
-        const comum = comuns.find(c => c.id === registro.comum_id);
-        const cargo = cargos.find(c => c.id === registro.cargo_id);
+        const comumObj = comuns.find(c => c.id === registro.comum_id);
+        const cargoObj = cargos.find(c => c.id === registro.cargo_id);
 
-        if (comum && cargo) {
+        if (comumObj && cargoObj) {
           let nomeCompleto = '';
-          let cargoReal = cargo.nome; // Usar cargo selecionado como padrão
+          let cargoReal = cargoObj.nome;
 
           if (isNomeManual) {
-            // 🚀 OTIMIZAÇÃO: Não buscar pessoas se nome manual
             nomeCompleto = registro.pessoa_id.replace(/^manual_/, '').toUpperCase();
-            cargoReal = cargo.nome;
           } else {
-            // Buscar pessoas apenas se necessário
             const pessoas = await supabaseDataService.getPessoasFromLocal(
               registro.comum_id,
               registro.cargo_id,
@@ -506,93 +484,32 @@ export const offlineSyncService = {
             );
             const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
             if (pessoa) {
-              nomeCompleto = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`)
-                .trim()
-                .toUpperCase();
-              cargoReal = pessoa.cargo_real || cargo.nome;
+              nomeCompleto = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`).trim().toUpperCase();
+              cargoReal = pessoa.cargo_real || cargoObj.nome;
             }
           }
 
-          const comumBusca = comum.nome.toUpperCase();
-          const cargoBusca = cargoReal.toUpperCase(); // Usar cargo REAL, não o selecionado
-
-          // Verificar duplicata no Supabase ANTES de salvar
-          const dataRegistro = new Date(registro.data_hora_registro);
-          const dataInicio = new Date(
-            dataRegistro.getFullYear(),
-            dataRegistro.getMonth(),
-            dataRegistro.getDate()
-          );
-          const dataFim = new Date(dataInicio);
-          dataFim.setDate(dataFim.getDate() + 1);
-
-          // Usar supabase diretamente para verificar
-          if (isSupabaseConfigured() && supabase) {
-            // 🚀 OTIMIZAÇÃO: Query com timeout e limit(1) para parar na primeira duplicata (mais rápido)
-            const duplicataPromise = supabase
-              .from('presencas')
-              .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
-              .ilike('nome_completo', nomeCompleto)
-              .ilike('comum', comumBusca)
-              .ilike('cargo', cargoBusca)
-              .gte('data_ensaio', dataInicio.toISOString())
-              .lt('data_ensaio', dataFim.toISOString())
-              .limit(1); // 🚀 OTIMIZAÇÃO: Parar na primeira duplicata encontrada (mais rápido)
-
-            // 🚀 OTIMIZAÇÃO: Timeout de 3 segundos para redes lentas
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 3000)
-            );
-
-            const { data: duplicatas, error: duplicataError } = await Promise.race([
-              duplicataPromise,
-              timeoutPromise
-            ]) as any;
-
-            // Se for timeout, continuar (não bloquear)
-            if (duplicataError && duplicataError.message?.includes('Timeout')) {
-              console.warn('⚠️ Timeout na verificação de duplicatas (continuando...):', duplicataError.message);
-            } else if (!duplicataError && duplicatas && duplicatas.length > 0) {
-              // Duplicata encontrada = bloquear
-              const duplicata = duplicatas[0];
-              console.error('🚨🚨🚨 DUPLICATA DETECTADA NO SUPABASE - BLOQUEANDO 🚨🚨🚨', {
-                nome: nomeCompleto,
-                comum: comumBusca,
-                cargo: cargoBusca,
-                uuidExistente: duplicata.uuid,
-                dataExistente: duplicata.data_ensaio,
-              });
-
-              // Formatar data e horário do registro existente usando funções utilitárias
-              try {
-                let dateForData = duplicata.data_ensaio || duplicata.created_at;
-                if (dateForData && typeof dateForData === 'string' && dateForData.length === 10) {
-                  dateForData += 'T12:00:00'; // Evitar shift de timezone
-                }
-                const dataExistente = new Date(dateForData);
-                const dataFormatada = formatDate ? formatDate(dataExistente) : dataExistente.toLocaleDateString('pt-BR');
-
-                const timeExistente = new Date(duplicata.created_at || duplicata.data_ensaio);
-                const horarioFormatado = formatTime ? formatTime(timeExistente) : timeExistente.toLocaleTimeString('pt-BR');
-
-                return {
-                  success: false,
-                  error: `DUPLICATA:${nomeCompleto}|${comumBusca}|${dataFormatada}|${horarioFormatado}`,
-                };
-              } catch (formatError) {
-                // Se erro ao formatar, usar data ISO como fallback
-                console.warn('⚠️ Erro ao formatar data da duplicata:', formatError);
-                return {
-                  success: false,
-                  error: `DUPLICATA:${nomeCompleto}|${comumBusca}|${duplicata.data_ensaio}|${duplicata.created_at}`,
-                };
-              }
-            }
-          }
+          // 2. Executar verificação remota centralizada
+          await supabaseDataService.checkDuplicataRemota({
+            nome: nomeCompleto,
+            comum: comumObj.nome,
+            cargo: cargoReal,
+            dataIso: registro.data_hora_registro
+          });
         }
-      } catch (error) {
-        console.warn('⚠️ Erro ao verificar duplicatas no Supabase (continuando...):', error);
-        // Se houver erro na verificação online, continuar com verificação local
+      } catch (error: any) {
+        // Se for erro de duplicata, retornar formato esperado pelo controller
+        if (error.message?.includes('DUPLICATA_BLOQUEADA')) {
+          const infoStr = error.message.split('DUPLICATA_BLOQUEADA:')[1] || error.message;
+          console.error('🚨 [OfflineSync] Duplicata bloqueada detectada:', infoStr);
+          return {
+            success: false,
+            error: infoStr,
+          };
+        }
+        
+        // Se for timeout ou outro erro, apenas avisar e continuar (modo resiliente)
+        console.warn('⚠️ Erro ao verificar duplicatas remota (continuando...):', error.message || error);
       }
     }
 

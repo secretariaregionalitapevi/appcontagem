@@ -223,7 +223,10 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
     const headers = data[0];
     const headerMap = {};
     headers.forEach((header, index) => {
-      headerMap[header] = index;
+      if (header) {
+        const hClean = header.toString().trim().toUpperCase();
+        headerMap[hClean] = index;
+      }
     });
     
     // Filtra dados do local especificado (otimizado)
@@ -367,6 +370,13 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
     // Organistas
     if (contadores.organistas > 0) {
       atualizacoes.push({ rotulo: 'Organista', valor: contadores.organistas });
+      atualizacoes.push({ rotulo: 'Organistas', valor: contadores.organistas });
+    }
+
+    // Ministério Total (Soma de todos os cargos ministeriais presentes)
+    const totalMinisterio = Object.values(contadores.cargosMinisteriais).reduce((a, b) => a + b, 0);
+    if (totalMinisterio > 0) {
+      atualizacoes.push({ rotulo: 'Ministério', valor: totalMinisterio });
     }
     
     // Executa todas as atualizações de uma vez (otimização)
@@ -412,7 +422,10 @@ function exportarParaPlanilhaDestinoCompleta(localEnsaio, ssDestino, nomePlanilh
 
     const headerMap = {};
     headerRow.forEach((h, i) => { 
-      if (h) headerMap[h.toString().trim()] = i; 
+      if (h) {
+        const hClean = h.toString().trim().toUpperCase();
+        headerMap[hClean] = i; 
+      }
     });
 
     const linhasLocal = [];

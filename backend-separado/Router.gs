@@ -218,6 +218,23 @@ function doPost(e) {
       const sheetName = body?.sheet || SHEET_NAME;
       const data = body?.data || {};
       
+      // --- VERIFICAÇÃO ANTI-DUPLICATA SUPABASE (FONTE DA VERDADE) ---
+      const jaExisteNoSupabase = verificarDuplicataNoSupabase(
+        data['NOME COMPLETO'], 
+        data['COMUM'], 
+        data['CARGO'], 
+        data['DATA_ENSAIO'] || new Date().toISOString()
+      );
+      
+      if (jaExisteNoSupabase) {
+        console.warn(`🚫 BLOQUEIO SUPABASE: Duplicata detectada para ${data['NOME COMPLETO']}`);
+        return jsonResponse({ 
+          ok: false, 
+          error: 'DUPLICATA', 
+          message: 'Este registro já consta no sistema (Supabase).' 
+        });
+      }
+
       const sh = openOrCreateSheet(sheetName);
       
       // Garantir UUID e SYNC_STATUS se não existirem
@@ -245,18 +262,20 @@ function doPost(e) {
       // 1. Salvar na Planilha Mestra
       ensureHeaders(sh);
       
-      // --- VERIFICAÇÃO ANTI-DUPLICATA ---
+      // --- VERIFICAÇÃO ANTI-DUPLICATA ROBUSTA ---
       const uuidReq = data['UUID'];
-      const nomeReq = (data['NOME COMPLETO'] || '').toString().trim().toUpperCase();
-      const localReq = (data['LOCAL_ENSAIO'] || '').toString().trim().toUpperCase();
-      const cargoReq = (data['CARGO'] || '').toString().trim().toUpperCase();
-      const dataReq = (data['DATA_ENSAIO'] || '').toString().trim(); // assumindo mesmo formato
+      const nomeReq = normalizarNome(data['NOME COMPLETO'] || '');
+      const localReq = normalizarNome(data['LOCAL_ENSAIO'] || '');
+      const cargoReq = normalizarNome(data['CARGO'] || '');
+      const dataReqFull = (data['DATA_ENSAIO'] || '').toString().trim();
+      // Extrai apenas a parte da data (DD/MM/AAAA ou AAAA-MM-DD)
+      const dataReqSoData = dataReqFull.includes(' ') ? dataReqFull.split(' ')[0] : (dataReqFull.includes('T') ? dataReqFull.split('T')[0] : dataReqFull);
 
       let isDuplicate = false;
       const lastRow = sh.getLastRow();
       if (lastRow > 1) {
-        // Obter ultimas 50 linhas para verificar duplicata no dia
-        const startRow = Math.max(2, lastRow - 50);
+        // Obter ultimas 300 linhas para garantir que pegamos o dia todo
+        const startRow = Math.max(2, lastRow - 300);
         const numRows = lastRow - startRow + 1;
         const lastCol = sh.getLastColumn();
         const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => (h || '').toString().trim().toUpperCase());
@@ -272,16 +291,34 @@ function doPost(e) {
           for (let i = recentData.length - 1; i >= 0; i--) {
             const row = recentData[i];
             const rowUuid = idxUuid >= 0 ? (row[idxUuid] || '').toString().trim() : '';
-            const rowNome = (row[idxNome] || '').toString().trim().toUpperCase();
-            const rowLocal = idxLocal >= 0 ? (row[idxLocal] || '').toString().trim().toUpperCase() : '';
-            const rowCargo = idxCargo >= 0 ? (row[idxCargo] || '').toString().trim().toUpperCase() : '';
-            const rowData = (row[idxData] || '').toString().trim();
+            const rowNome = normalizarNome(row[idxNome] || '');
+            const rowLocal = idxLocal >= 0 ? normalizarNome(row[idxLocal] || '') : '';
+            const rowCargo = idxCargo >= 0 ? normalizarNome(row[idxCargo] || '') : '';
             
-            // É duplicata se o UUID bate OU se Nome, Local, Cargo e Data batem perfeitamente.
+            // 🚨 CORREÇÃO: Comparação de data robusta usando Utilities.formatDate
+            const rawRowData = row[idxData];
+            let rowDataSoData = "";
+            try {
+              const dateObj = rawRowData instanceof Date ? rawRowData : new Date(rawRowData);
+              rowDataSoData = Utilities.formatDate(dateObj, "GMT-3", "yyyy-MM-dd");
+            } catch(e) {
+              rowDataSoData = String(rawRowData).split(' ')[0];
+            }
+            
+            // Normaliza a data da requisição para o mesmo formato
+            let reqDataSoData = "";
+            try {
+               const reqDateObj = new Date(dataReqFull);
+               reqDataSoData = Utilities.formatDate(reqDateObj, "GMT-3", "yyyy-MM-dd");
+            } catch(e) {
+               reqDataSoData = dataReqSoData;
+            }
+            
+            // É duplicata se o UUID bate OU se (Nome + Local + Cargo + DATA) batem.
             if ((uuidReq && rowUuid === uuidReq) || 
-                (nomeReq && nomeReq === rowNome && localReq === rowLocal && cargoReq === rowCargo && dataReq === rowData)) {
+                (nomeReq && nomeReq === rowNome && localReq === rowLocal && cargoReq === rowCargo && reqDataSoData === rowDataSoData)) {
               isDuplicate = true;
-              console.log(`⚠️ Duplicata ignorada no Code.gs para Mestra: Nome=${nomeReq}, Local=${localReq}, Data=${dataReq}`);
+              console.log(`⚠️ Duplicata detectada e bloqueada: ${nomeReq} em ${localReq} na data ${reqDataSoData}`);
               break;
             }
           }
@@ -339,14 +376,23 @@ function doPost(e) {
         try {
           const registrosInternos = [{ uuid: data['UUID'], record: data }];
           
-          // 1. Sincronização padrão para a regional identificada
-          // Usamos syncToSpreadsheet pois ele garante headers e evita duplicatas por UUID
+          // 1. Sincronização padrão para a regional identificada (aba Registros)
           const inseridosReg = syncToSpreadsheet(regionalId, registrosInternos, 'Registros');
           
           if (inseridosReg > 0 || isDuplicate) {
             diag.regional.ok = true;
             diag.regional.sheetUsed = 'Registros';
             debugMsg += ` → ✅ Regional OK (${regionalId})`;
+            
+            // 🚨 NOVO: Atualização Incremental (Real-time) das outras abas (Resumo, Organistas, Ministério)
+            if (!isDuplicate) {
+              try {
+                console.log('🔄 [REAL-TIME] Iniciando atualização incremental das abas da regional...');
+                atualizarTudoRegionalIncremental(regionalId, data);
+              } catch (incErr) {
+                console.error('❌ Erro na atualização incremental:', incErr.message);
+              }
+            }
           } else {
             diag.regional.error = 'Registro já existente na regional (UUID)';
             debugMsg += ` → ℹ️ Já existe na regional`;

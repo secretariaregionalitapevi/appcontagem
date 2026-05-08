@@ -134,6 +134,8 @@ const aliasCargo = {
   'instrutora': 'Instrutora',
   'instrutores': 'Instrutor',
   'instrutoras': 'Instrutora',
+  'organista': 'Organista',
+  'organistas': 'Organista',
   'porteiro (a)': 'Porteiro (a)',
   'porteiro': 'Porteiro (a)',
   'porteira': 'Porteiro (a)',

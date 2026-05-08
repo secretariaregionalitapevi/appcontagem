@@ -14,8 +14,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { theme } from '../theme';
 import { showToast } from '../utils/toast';
 import pkg from '../../package.json';
 
@@ -29,15 +27,6 @@ export const ForgotPasswordScreen: React.FC = () => {
   // Configurações carregadas do config.js (ou fallback padrão)
   const appConfig = (typeof window !== 'undefined' && window.APP_CONFIG) || {
     REGIONAL_NAME: 'Regional Itapevi',
-    LOCAIS_ENSAIO: (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
-      { id: '1', nome: 'Cotia' },
-      { id: '2', nome: 'Caucaia do Alto' },
-      { id: '3', nome: 'Fazendinha' },
-      { id: '4', nome: 'Itapevi' },
-      { id: '5', nome: 'Jandira' },
-      { id: '6', nome: 'Pirapora' },
-      { id: '7', nome: 'Vargem Grande' },
-    ]
   };
 
   // Definir título da página na web
@@ -81,73 +70,94 @@ export const ForgotPasswordScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.loginWrap}>
-          {/* Logo CCB */}
-          <View style={styles.logoContainer}>
-            <TouchableOpacity
-              onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}
-              activeOpacity={0.7}
-            >
-              <Image
-                source={require('../img/logo-ccb-light.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
+          
+          <View style={styles.sacCard}>
+            {/* Header Estilo Santa Ceia - IDENTICO AO LOGIN */}
+            <View style={styles.sacHeader}>
+              <TouchableOpacity
+                onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}
+                activeOpacity={0.7}
+              >
+                <Image
+                  source={require('../img/logo-ccb-light.png')}
+                  style={styles.sacLogo}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+              <Text style={styles.sacTitle}>Recuperar Senha</Text>
+              <Text style={styles.sacSubtitle}>
+                Sistema Administrativo de Contagem
+              </Text>
+            </View>
+
+            <View style={styles.sacBody}>
+              <Text style={styles.leadText}>
+                {sent 
+                  ? 'Um link de recuperação foi enviado para o seu e-mail.' 
+                  : 'Informe seu e-mail cadastrado e enviaremos um link para você redefinir sua senha.'}
+              </Text>
+              
+              {sent && (
+                <Text style={styles.subText}>
+                  Por favor, verifique sua caixa de entrada.
+                </Text>
+              )}
+
+              {!sent && (
+                <View style={styles.formGroup}>
+                  <View style={styles.inputIconBox}>
+                    <FontAwesome5 name="envelope" size={18} color="#1e4b7a" />
+                  </View>
+                  <TextInput
+                    style={styles.sacInput}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Seu e-mail cadastrado"
+                    placeholderTextColor="#94a3b8"
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    autoComplete="email"
+                  />
+                </View>
+              )}
+
+              {!sent && (
+                <TouchableOpacity 
+                  style={[styles.sacBtn, loading && { opacity: 0.7 }]} 
+                  onPress={handleResetPassword}
+                  disabled={loading}
+                >
+                  <FontAwesome5 name="paper-plane" size={16} color="#fff" style={{ marginRight: 10 }} />
+                  <Text style={styles.sacBtnText}>
+                    {loading ? 'ENVIANDO...' : 'ENVIAR LINK DE RECUPERAÇÃO'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity 
+                style={styles.forgotPasswordContainer} 
+                onPress={() => navigation.goBack()}
+              >
+                <Text style={styles.forgotPasswordText}>
+                  <FontAwesome5 name="arrow-left" size={12} color="#1e4b7a" />  Voltar para o Login
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <Text style={styles.title}>Recuperar Senha</Text>
-          
-          <Text style={styles.leadText}>
-            Sistema Administrativo de Contagem
-            {'\n'}
-            <Text style={styles.boldText}>{appConfig.REGIONAL_NAME}</Text>.
-            {'\n\n'}
-            {sent 
-              ? 'Um link de recuperação foi enviado para o seu e-mail. Por favor, verifique sua caixa de entrada.' 
-              : 'Informe seu e-mail cadastrado e enviaremos um link para você redefinir sua senha.'}
-          </Text>
-
-          {!sent && (
-            <View style={styles.card}>
-              <View style={styles.inputGroup}>
-                <View style={styles.inputGroupText}>
-                  <FontAwesome5 name="envelope" size={16} color={theme.colors.icon} />
-                </View>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Seu e-mail"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                />
-              </View>
-
-              <PrimaryButton
-                title="Enviar link de recuperação"
-                onPress={handleResetPassword}
-                loading={loading}
-                style={styles.button}
-              />
-            </View>
-          )}
-
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-          >
-            <FontAwesome5 name="arrow-left" size={14} color={theme.colors.primary} />
-            <Text style={styles.backButtonText}>Voltar para o Login</Text>
-          </TouchableOpacity>
-
-          {/* Rodapé */}
-          <View style={styles.footer}>
+          {/* Rodapé - IDENTICO AO LOGIN */}
+          <View style={styles.sacPageFooter}>
             <Text style={styles.footerText}>
-              <Text style={styles.footerBold}>©</Text> Aplicativo de Contagem v{pkg.version || '1.0'}
+              © Aplicativo de Contagem v{pkg.version || '1.0'}
               {'\n'}
-              <Text style={styles.footerBold}>{appConfig.REGIONAL_NAME}</Text>
+              <Text 
+                style={styles.footerLink}
+                onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}
+              >
+                Congregação Cristã no Brasil
+              </Text>
+              {'\n'}
+              {appConfig.REGIONAL_NAME}
             </Text>
           </View>
         </View>
@@ -159,108 +169,137 @@ export const ForgotPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#f1f5f9',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: theme.spacing.md,
+    padding: 20,
   },
   loginWrap: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 500, // Ajustado para bater com o Login
     alignSelf: 'center',
-    paddingVertical: theme.spacing.md,
   },
-  logoContainer: {
+  sacCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 25,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  sacHeader: {
+    backgroundColor: '#1e4b7a',
+    padding: 40, // Ajustado para bater com o Login
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
   },
-  logo: {
-    width: 200,
-    height: 120,
-    marginVertical: theme.spacing.sm,
+  sacLogo: {
+    width: 260, // Ajustado para bater com o Login
+    height: 110,
+    marginBottom: 15,
+    tintColor: '#fff', // FORÇAR BRANCO
   },
-  title: {
-    fontSize: theme.fontSize.xxl,
+  sacTitle: {
+    color: '#fff',
+    fontSize: 26, // Ajustado para bater com o Login
     fontWeight: '700',
+    marginBottom: 8,
     textAlign: 'center',
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    color: theme.colors.text,
+  },
+  sacSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 15,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  sacBody: {
+    padding: 30,
   },
   leadText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.textSecondary,
+    fontSize: 15,
+    color: '#64748b',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.md,
+    marginBottom: 5,
   },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
+  subText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  inputGroup: {
+  formGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    alignItems: 'stretch',
+    marginBottom: 15,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.surface,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    height: 52,
     overflow: 'hidden',
-    minHeight: 48,
   },
-  inputGroupText: {
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.spacing.sm,
-    justifyContent: 'center',
+  inputIconBox: {
+    width: 50,
     alignItems: 'center',
-    minWidth: 40,
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+    borderRightWidth: 1,
+    borderRightColor: '#e2e8f0',
   },
-  input: {
+  sacInput: {
     flex: 1,
-    fontSize: theme.fontSize.md,
-    color: theme.colors.text,
-    paddingVertical: theme.spacing.sm,
-    paddingLeft: theme.spacing.md,
-    paddingRight: theme.spacing.md,
-    minHeight: 48,
-    borderLeftWidth: 1,
-    borderLeftColor: theme.colors.border,
+    paddingHorizontal: 15,
+    fontSize: 15,
+    color: '#334155',
   },
-  button: {
-    marginTop: theme.spacing.sm,
-  },
-  backButton: {
+  sacBtn: {
+    height: 48,
+    backgroundColor: '#1e4b7a',
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
+    marginTop: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  backButtonText: {
-    color: theme.colors.primary,
+  sacBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  forgotPasswordContainer: {
+    alignItems: 'center',
+    paddingVertical: 15,
+    marginTop: 10,
+  },
+  forgotPasswordText: {
+    color: '#1e4b7a',
+    fontSize: 13,
     fontWeight: '600',
-    fontSize: theme.fontSize.sm,
-    marginLeft: theme.spacing.sm,
   },
-  footer: {
-    marginTop: theme.spacing.xl,
+  sacPageFooter: {
+    marginTop: 20,
     alignItems: 'center',
   },
   footerText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
+    fontSize: 11,
+    color: '#94a3b8',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
   },
-  footerBold: {
-    fontWeight: '700',
-  },
-  boldText: {
-    fontWeight: '600',
+  footerLink: {
+    color: '#64748b',
+    textDecorationLine: 'underline',
   },
 });

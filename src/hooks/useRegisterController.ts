@@ -225,6 +225,22 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     }
   }, [syncing, isOnline, refreshCount]);
 
+  const syncDataFast = useCallback(async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const result = await offlineSyncService.syncAllData({ fastSync: true });
+      await refreshCount();
+      if (result.successCount > 0) {
+        showToast.success(`${result.successCount} item(s) sincronizado(s)`);
+      }
+    } catch (error) {
+      console.log('📴 [SYNC FAST] Erro:', error);
+    } finally {
+      setSyncing(false);
+    }
+  }, [syncing, refreshCount]);
+
   useEffect(() => {
     loadInitialData(false);
   }, []);
@@ -250,11 +266,11 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
               // Aguardar um pouco para garantir que a conexão está estável
               setTimeout(() => {
                 if (!syncing) {
-                  syncData().catch(error => {
+                  syncDataFast().catch(error => {
                     console.error('❌ Erro na sincronização automática ao voltar online:', error);
                   });
                 }
-              }, 1500); // Reduzido para 1.5s para ser mais rápido
+              }, 500); // Reduzido de 1500ms para 500ms para ser mais rápido
             } else {
               console.log('📭 Nenhum registro pendente para sincronizar');
             }
@@ -285,18 +301,13 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           const isReallyOnline = await offlineSyncService.isOnline();
           if (isReallyOnline) {
             console.log('✅ Conectividade real confirmada - processando fila');
-            // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando volta online
-            // showToast.success('Conexão restaurada', 'Enviando registros pendentes...');
-            // Usar syncData para garantir que o estado syncing seja atualizado (mostra no badge)
-            await syncData();
-            console.log('✅ Fila processada automaticamente via syncData');
-          } else {
-            console.log('⚠️ Evento online falso - mantendo modo offline');
+            await syncDataFast();
+            console.log('✅ Fila processada automaticamente via syncDataFast');
           }
         } catch (e) {
           console.error('❌ Erro ao verificar conectividade:', e);
         }
-      }, 3000); // 3 segundos (exatamente como BACKUPCONT)
+      }, 1000); // Reduzido de 3000ms para 1000ms
     };
 
     const handleOffline = () => {
@@ -940,7 +951,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         const dupLocal = await supabaseDataService.checkDuplicataLocal({
           pessoaId: registro.pessoa_id,
           comumId: registro.comum_id,
-          instrumentoId: registro.instrumento_id, // Usar instrumento agora
+          cargoId: registro.cargo_id, // 🚨 CORREÇÃO: Usar cargoId
           dataIso: registro.data_hora_registro
         });
 
@@ -974,10 +985,12 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         const isOnlineNow = await offlineSyncService.isOnline();
         if (isOnlineNow) {
           try {
+            const cargoNomeParaCheck = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+            
             await supabaseDataService.checkDuplicataRemota({
               nome: registro.pessoa_id.startsWith('manual_') ? registro.pessoa_id.replace('manual_', '') : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || ''),
               comum: (comuns.find(c => c.id === registro.comum_id)?.nome || ''),
-              instrumento: (instrumentos.find(i => i.id === registro.instrumento_id)?.nome || ''), // Passar instrumento
+              cargo: cargoNomeParaCheck, // 🚨 CORREÇÃO: Travar por Cargo, não por Instrumento
               dataIso: registro.data_hora_registro
             });
           } catch (dupError: any) {

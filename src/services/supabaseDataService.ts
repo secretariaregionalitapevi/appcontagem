@@ -3469,7 +3469,7 @@ export const supabaseDataService = {
   async checkDuplicataLocal(params: {
     pessoaId: string;
     comumId: string;
-    instrumentoId?: string;
+    cargoId?: string;
     dataIso: string;
   }): Promise<{ nome: string; comum: string; data: string; horario: string } | null> {
     try {
@@ -3478,6 +3478,7 @@ export const supabaseDataService = {
 
       const duplicata = fila.find(r => {
         const rDataStr = r.data_hora_registro.split('T')[0];
+
         return (
           r.pessoa_id === params.pessoaId &&
           r.comum_id === params.comumId &&
@@ -3508,7 +3509,7 @@ export const supabaseDataService = {
   async checkDuplicataRemota(params: {
     nome: string;
     comum: string;
-    instrumento?: string; // 🚨 Trocar cargo por instrumento
+    cargo?: string;
     dataIso: string;
   }): Promise<void> {
     if (!isSupabaseConfigured() || !supabase) return;
@@ -3516,40 +3517,43 @@ export const supabaseDataService = {
     try {
       const nomeBusca = (params.nome || '').trim().toUpperCase();
       const comumBusca = (params.comum || '').trim().toUpperCase();
-      const instrumentoBusca = (params.instrumento || '').trim().toUpperCase();
+      const cargoBusca = (params.cargo || '').trim().toUpperCase();
 
       if (!nomeBusca || !comumBusca) return;
 
-      // Extrair apenas a data (sem hora) para comparação
+      // 🚨 CORREÇÃO: Usar data local para evitar erros de fuso horário
       const dataRegistro = new Date(params.dataIso);
+      
+      // Início do dia local (00:00:00)
       const dataInicio = new Date(
         dataRegistro.getFullYear(),
         dataRegistro.getMonth(),
-        dataRegistro.getDate()
+        dataRegistro.getDate(),
+        0, 0, 0
       );
+      
+      // Fim do dia local (23:59:59)
       const dataFim = new Date(dataInicio);
       dataFim.setDate(dataFim.getDate() + 1);
 
-      console.log('🔍 [checkDuplicataRemota] Verificando:', {
+      console.log('🔍 [checkDuplicataRemota] Verificando no Supabase (Exact Match):', {
         nome: nomeBusca,
         comum: comumBusca,
-        instrumento: instrumentoBusca,
-        data: dataInicio.toISOString().split('T')[0]
+        range: `${dataInicio.toISOString()} até ${dataFim.toISOString()}`
       });
 
-      const query = supabase
+      // 🚨 CRÍTICO: Usar matching exato para Nome e Comum (como solicitado)
+      const duplicataPromise = supabase
         .from('presencas')
-        .select('uuid, nome_completo, comum, cargo, instrumento, data_ensaio, created_at')
+        .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
         .ilike('nome_completo', nomeBusca)
         .ilike('comum', comumBusca)
         .gte('data_ensaio', dataInicio.toISOString())
         .lt('data_ensaio', dataFim.toISOString())
-        .order('created_at', { ascending: true }); // Garantir que pegamos o primeiro registro
-
-      const duplicataPromise = query.limit(1);
+        .limit(1);
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 3000)
+        setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 5000)
       );
 
       const { data: duplicatas, error: duplicataError } = (await Promise.race([
@@ -3573,7 +3577,7 @@ export const supabaseDataService = {
         const horarioFormatado = formatTime(duplicata.created_at || dateSource);
 
         throw new Error(
-          `DUPLICATA_BLOQUEADA:DUPLICATA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`
+          `DUPLICATA_BLOQUEADA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`
         );
       }
     } catch (error) {

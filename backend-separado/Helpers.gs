@@ -286,6 +286,7 @@ function mapearCargoParaContagem(cargoOriginal) {
   if (cLower.includes('encarregado local') || cLower.includes('encarregado de local') || cLower.includes('encarregado')) return 'Encarregado Local';
   
   if (cLower.includes('examinador')) return 'Examinadora';
+  if (cLower.includes('organista')) return 'Organista';
   
   // Para Secretários(as) do GEM -> viram Instrutores(as)
   if (cLower.includes('secretaria') && cLower.includes('gem')) return 'Instrutora';
@@ -1520,17 +1521,13 @@ function executarExportacaoAltaPerformance() {
         // Também atualiza a aba Organistas
         let resultadoOrganistas = null;
         try {
-          switch (planilha.nome) {
             case 'Cotia':
               resultadoOrganistas = alimentarAbaOrganistasCotia(localEnsaio);
+              alimentarAbaMinisterioCotia(localEnsaio);
               break;
             case 'Itapevi':
               resultadoOrganistas = alimentarAbaOrganistasItapevi(localEnsaio);
               alimentarAbaMinisterioItapevi(localEnsaio);
-              break;
-            case 'Cotia':
-              resultadoOrganistas = alimentarAbaOrganistasCotia(localEnsaio);
-              alimentarAbaMinisterioCotia(localEnsaio);
               break;
             case 'Caucaia':
               resultadoOrganistas = alimentarAbaOrganistasCaucaia(localEnsaio);
@@ -2752,3 +2749,400 @@ function menuRelatorioDetalhado() {
   }
 }
 
+/**
+ * ATUALIZAÇÃO INCREMENTAL TOTAL (Real-time)
+ * Esta função coordena a atualização de todas as abas da regional
+ * sem precisar reconstruir tudo do zero.
+ */
+function atualizarTudoRegionalIncremental(regionalId, data) {
+  console.log(`🚀 [INCREMENTAL] Iniciando atualização total para regional: ${regionalId}`);
+  
+  try {
+    const ss = SpreadsheetApp.openById(regionalId);
+    
+    // 1. Atualizar Dashboard (Resumo) - Agora com RECONTAGEM LOCAL (Self-healing)
+    const shResumo = ss.getSheetByName('Resumo');
+    if (shResumo) {
+      atualizarResumoContadorIncremental(shResumo, data, ss);
+    }
+    
+    // 2. Se for Organista/Feminino -> Atualizar aba Organistas
+    const tipoCargo = classificarCargo(data['CARGO'] || '');
+    if (tipoCargo === 'organista') {
+      adicionarOrganistaIncremental(ss, data);
+    }
+    
+    // 3. Se for Ministério -> Atualizar aba Ministério
+    if (tipoCargo === 'ministerio') {
+      adicionarMinisterioIncremental(ss, data);
+    }
+    
+    console.log('✅ [INCREMENTAL] Atualização concluída com sucesso!');
+  } catch (e) {
+    console.error('❌ [INCREMENTAL] Erro na atualização:', e.message);
+  }
+}
+
+/**
+ * RECONTAGEM LOCAL (Real-time & Auto-corretiva)
+ * Lê a aba Registros da própria regional e atualiza o Dashboard instantaneamente.
+ * Substitui a lógica de "+1" para garantir que o dashboard esteja sempre 100% certo.
+ */
+function atualizarResumoContadorIncremental(shResumo, data, ss) {
+  console.log('🔄 [REAL-TIME] Iniciando recontagem local para o Dashboard...');
+  
+  const shRegistros = ss.getSheetByName('Registros');
+  if (!shRegistros) return;
+
+  const dataLocal = shRegistros.getDataRange().getValues();
+  if (dataLocal.length < 2) {
+    limparContadoresResumo(shResumo);
+    return;
+  }
+
+  const headers = dataLocal[0].map(h => (h || '').toString().trim().toUpperCase());
+  const idxCargo = headers.indexOf('CARGO');
+  const idxInstr = headers.indexOf('INSTRUMENTO');
+  const idxVaiTocar = headers.indexOf('VAI_TOCAR');
+
+  const contadores = {};
+  let totalOrganistas = 0;
+
+  // Processa os registros locais (rápido, pois são poucos na regional)
+  for (let i = 1; i < dataLocal.length; i++) {
+    const row = dataLocal[i];
+    const cargo = (row[idxCargo] || '').toString();
+    const instr = (row[idxInstr] || '').toString();
+    
+    const cargoMapeado = mapearCargoParaContagem(cargo);
+    const instrMapeado = mapearInstrumento(instr);
+    const tCargo = classificarCargo(cargo);
+
+    // Contagem de Cargos (Bulk)
+    if (cargoMapeado) {
+      contadores[cargoMapeado] = (contadores[cargoMapeado] || 0) + 1;
+    }
+
+    // Lógica para Organistas (inclui cargos femininos musicais)
+    if (tCargo === 'organista') {
+      totalOrganistas++;
+    }
+
+    // Contagem de Instrumentos
+    if (instrMapeado && instrMapeado !== 'Organista') {
+      contadores[instrMapeado] = (contadores[instrMapeado] || 0) + 1;
+    }
+  }
+
+  // Prepara o lote de atualização para o Dashboard
+  const arrayUpdates = [];
+  Object.keys(contadores).forEach(k => arrayUpdates.push({ rotulo: k, valor: contadores[k] }));
+  
+  // Totais principais
+  const totalMembros = dataLocal.length - 1;
+  const totalMinisterio = (contadores['Ancião'] || 0) + (contadores['Diácono'] || 0) + 
+                          (contadores['Cooperador do Ofício'] || 0) + (contadores['Cooperador de Jovens'] || 0);
+
+  arrayUpdates.push({ rotulo: 'Organista', valor: totalOrganistas });
+  arrayUpdates.push({ rotulo: 'Organistas', valor: totalOrganistas });
+  arrayUpdates.push({ rotulo: 'Ministério', valor: totalMinisterio });
+  arrayUpdates.push({ rotulo: 'Membros', valor: totalMembros });
+
+  // Aplica ao Dashboard (Limpa e escreve os novos valores reais)
+  limparContadoresResumo(shResumo);
+  atualizarTodosContadoresResumoBulk(shResumo, arrayUpdates);
+  
+  console.log('✅ [REAL-TIME] Dashboard auto-corrigido com sucesso!');
+  
+  // Retorna os dados para o modal de sucesso
+  return {
+    membros: totalMembros,
+    organistas: totalOrganistas,
+    ministerio: totalMinisterio
+  };
+}
+
+/**
+ * Adiciona uma organista na lista e reordena mantendo a prioridade
+ */
+function adicionarOrganistaIncremental(ss, data) {
+  let sh = ss.getSheetByName('Organistas');
+  if (!sh) return;
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 4) return; // Header na linha 4
+
+  // Mapear dados
+  const nome = (data['NOME COMPLETO'] || '').toString().trim();
+  const cargo = (data['CARGO'] || '').toString().trim();
+  const nivel = (data['CLASSE_ORGANISTA'] || data['NÍVEL'] || '').toString().trim();
+  const comum = (data['COMUM'] || '').toString().trim();
+  const cidade = (data['CIDADE'] || '').toString().trim();
+  
+  // Novo ID (incremento simples)
+  let nextId = 1;
+  if (lastRow >= 5) {
+    const ids = sh.getRange(5, 1, lastRow - 4, 1).getValues();
+    nextId = ids.length + 1;
+  }
+
+  // Append na última linha
+  sh.appendRow([nextId, nome, cargo, nivel, comum, cidade, 'SIM']);
+  
+  // Reordenar por prioridade (simulando a lógica do script original)
+  reordenarListaIncremental(sh, 5, [
+    { col: 3, type: 'prioridade_organista' }, // Cargo (Prioridade)
+    { col: 2, type: 'string' }              // Nome
+  ]);
+  
+  console.log(`🎹 Organista adicionada: ${nome}`);
+}
+
+/**
+ * Adiciona ao Ministério e reordena
+ */
+function adicionarMinisterioIncremental(ss, data) {
+  let sh = ss.getSheetByName('Ministério');
+  if (!sh) return;
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 4) return;
+
+  const nome = (data['NOME COMPLETO'] || '').toString().trim();
+  const cargo = (data['CARGO'] || '').toString().trim();
+  const comum = (data['COMUM'] || '').toString().trim();
+  const cidade = (data['CIDADE'] || '').toString().trim();
+
+  let nextId = 1;
+  if (lastRow >= 5) {
+    const ids = sh.getRange(5, 1, lastRow - 4, 1).getValues();
+    nextId = ids.length + 1;
+  }
+
+  sh.appendRow([nextId, nome, cargo, comum, cidade]);
+  
+  reordenarListaIncremental(sh, 5, [
+    { col: 3, type: 'prioridade_ministerio' }, 
+    { col: 2, type: 'string' }
+  ]);
+  
+  console.log(`👔 Ministério adicionado: ${nome}`);
+}
+
+/**
+ * Função genérica de ordenação que entende as prioridades de cargo
+ */
+function reordenarListaIncremental(sh, startRow, configs) {
+  const lastRow = sh.getLastRow();
+  if (lastRow <= startRow) return;
+
+  const range = sh.getRange(startRow, 1, lastRow - startRow + 1, sh.getLastColumn());
+  const values = range.getValues();
+
+  values.sort((a, b) => {
+    for (let config of configs) {
+      let valA = a[config.col - 1];
+      let valB = b[config.col - 1];
+
+      if (config.type === 'prioridade_organista') {
+        const pA = obterPrioridadeCargoIncremental(valA);
+        const pB = obterPrioridadeCargoIncremental(valB);
+        if (pA !== pB) return pA - pB;
+      } else if (config.type === 'prioridade_ministerio') {
+        const pA = obterPrioridadeMinisterioIncremental(valA);
+        const pB = obterPrioridadeMinisterioIncremental(valB);
+        if (pA !== pB) return pA - pB;
+      } else {
+        if (valA < valB) return -1;
+        if (valA > valB) return 1;
+      }
+    }
+    return 0;
+  });
+
+  // Atualiza IDs após o sort
+  values.forEach((row, idx) => {
+    row[0] = idx + 1;
+  });
+
+  range.setValues(values);
+}
+
+function obterPrioridadeCargoIncremental(cargo) {
+  const c = String(cargo || '').toLowerCase();
+  if (c.includes('examinadora')) return 1;
+  if (c.includes('secretaria') && c.includes('musica')) return 2;
+  if (c.includes('instrutora')) return 3;
+  if (c.includes('organista')) return 4;
+  return 5;
+}
+
+function obterPrioridadeMinisterioIncremental(cargo) {
+  const c = String(cargo || '').toUpperCase();
+  if (c === 'ANCIÃO') return 1;
+  if (c === 'DIÁCONO') return 2;
+  if (c === 'COOPERADOR DO OFÍCIO') return 3;
+  if (c === 'COOPERADOR DE JOVENS') return 4;
+  if (c === 'ENCARREGADO REGIONAL') return 5;
+  return 999;
+}
+
+/**
+ * Busca todos os registros de um local diretamente no Supabase (Alta Performance)
+ */
+function buscarRegistrosSupabase(localEnsaio) {
+  if (!localEnsaio) return [];
+  
+  const localBusca = String(localEnsaio).toUpperCase().trim();
+  // 🚨 CORREÇÃO CRÍTICA: O nome da tabela no Supabase é 'presencas', não 'registros'
+  const url = SUPABASE_URL + '/rest/v1/presencas?local_ensaio=ilike.%2A' + encodeURIComponent(localBusca) + '%2A&order=data_ensaio.desc';
+  
+  const options = {
+    'method': 'get',
+    'headers': {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json'
+    },
+    'muteHttpExceptions': true
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    if (response.getResponseCode() === 200) {
+      return JSON.parse(response.getContentText());
+    }
+  } catch (e) {
+    console.error('Erro ao buscar no Supabase:', e.message);
+  }
+  return [];
+}
+
+/**
+ * Atualiza a aba Registros local de uma planilha regional de uma vez (Bulk)
+ */
+function atualizarAbaRegistrosLocalBulk(sheet, registros) {
+  if (!registros || registros.length === 0) return;
+
+  const headers = [
+    'UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÍVEL','INSTRUMENTO',
+    'NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO',
+    'REGISTRADO_POR','SYNC_STATUS','SYNCED_AT','ANOTACOES','DUPLICATA'
+  ];
+  
+  // Garante cabeçalho
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+  
+  const values = registros.map(reg => [
+    reg.uuid || '',
+    reg.nome_completo || '',
+    reg.comum || '',
+    reg.cidade || '',
+    reg.cargo || '',
+    reg.nivel || '',
+    reg.instrumento || '',
+    reg.naipe_instrumento || '',
+    reg.classe_organista || '',
+    reg.local_ensaio || '',
+    reg.data_ensaio || '',
+    reg.registrado_por || '',
+    'SYNCED',
+    reg.synced_at || '',
+    reg.anotacoes || '',
+    reg.duplicata || ''
+  ]);
+
+  if (values.length > 0) {
+    // Limpa dados antigos (preservando cabeçalho)
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.getRange(2, 1, lastRow - 1, headers.length).clearContent();
+    }
+    // Insere novos
+    sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+  }
+}
+/**
+ * Verifica se já existe um registro idêntico no Supabase para evitar duplicatas.
+ * Consulta a tabela 'presencas' por Nome, Comum, Cargo e Data.
+ */
+function verificarDuplicataNoSupabase(nome, comum, cargo, dataIso) {
+  if (!nome || !comum || !dataIso) return false;
+
+  const nomeBusca = String(nome).trim().toUpperCase();
+  const comumBusca = String(comum).trim().toUpperCase();
+  const cargoBusca = String(cargo).trim().toUpperCase();
+  
+  // Extrai apenas a data YYYY-MM-DD
+  let dataAlvo = "";
+  try {
+    const d = new Date(dataIso);
+    dataAlvo = Utilities.formatDate(d, "GMT-3", "yyyy-MM-dd");
+  } catch(e) {
+    dataAlvo = dataIso.split(' ')[0].split('T')[0];
+  }
+
+  // Query: Mesma pessoa, mesma comum, mesmo cargo, no mesmo dia
+  const url = SUPABASE_URL + '/rest/v1/presencas?' + 
+              'nome_completo=ilike.' + encodeURIComponent(nomeBusca) + 
+              '&comum=ilike.' + encodeURIComponent(comumBusca) + 
+              '&cargo=ilike.' + encodeURIComponent(cargoBusca) + 
+              '&data_ensaio=gte.' + dataAlvo + 'T00:00:00' +
+              '&data_ensaio=lt.' + dataAlvo + 'T23:59:59' +
+              '&select=uuid';
+
+  const options = {
+    'method': 'get',
+    'headers': {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+    },
+    'muteHttpExceptions': true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    if (response.getResponseCode() === 200) {
+      const results = JSON.parse(response.getContentText());
+      return results.length > 0;
+    }
+  } catch (e) {
+    console.error('❌ Erro na verificação remota de duplicata:', e.message);
+  }
+  return false;
+}
+
+// Função para atualizar apenas coluna B preservando fórmulas em linhas específicas
+function atualizarColunaBPreservandoFormulas(sheet, rotulo, valor, linhasComFormulas = [28, 41, 48, 50]) {
+  console.log(`🔍 Buscando rótulo: "${rotulo}" com valor: ${valor}`);
+  
+  const tf = sheet.createTextFinder(rotulo).matchEntireCell(true);
+  const matches = tf.findAll();
+  
+  console.log(`📋 Encontrados ${matches.length} matches para "${rotulo}"`);
+  
+  if (matches.length === 0) {
+    console.log(`⚠️ Nenhum match encontrado para "${rotulo}"`);
+    return;
+  }
+  
+  matches.forEach((m, index) => {
+    const row = m.getRow();
+    const col = m.getColumn();
+    const cellValue = m.getValue();
+    
+    console.log(`📍 Match ${index + 1}: Linha ${row}, Coluna ${col}, Valor: "${cellValue}"`);
+    
+    // Verifica se a linha contém fórmulas que devem ser preservadas
+    if (linhasComFormulas.includes(row)) {
+      console.log(`📊 Preservando fórmula na linha ${row} para: ${rotulo}`);
+      return; // Não atualiza esta linha
+    }
+    
+    // Atualiza apenas a coluna B (offset 0, 1)
+    const targetCell = m.offset(0, 1);
+    const oldValue = targetCell.getValue();
+    targetCell.setValue(valor);
+    console.log(`📊 Atualizado: ${rotulo} = ${valor} (linha ${row}, coluna ${col + 1}, valor anterior: ${oldValue})`);
+  });
+}

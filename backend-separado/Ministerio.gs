@@ -37,18 +37,21 @@ function alimentarAbaMinisterioDestino(localEnsaio, ssDestino, nomePlanilha) {
     const headerRow = shDados.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
     const data = shDados.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
 
-    const idxNome = headerRow.findIndex(h => h && h.toString().toLowerCase().includes('nome'));
-    const idxCargo = headerRow.findIndex(h => h && h.toString().toLowerCase().includes('cargo'));
-    const idxComum = headerRow.findIndex(h => h && h.toString().toLowerCase().includes('comum'));
-    const idxCidade = headerRow.findIndex(h => h && (
-      h.toString().toLowerCase().includes('cidade') || h.toString().toLowerCase().includes('municipio') || h.toString().toLowerCase().includes('município') || h.toString().toLowerCase().includes('localidade')
-    ));
-    const idxLocalEnsaio = headerRow.findIndex(h => h && h.toString().toLowerCase().includes('local_ensaio'));
-    const idxVaiTocar = headerRow.findIndex(h => h && h.toString().toLowerCase().includes('vai_tocar'));
-    const idxInstrumento = headerRow.findIndex(h => h && h.toString().toLowerCase().includes('instrumento'));
+    const headerMap = {};
+    headerRow.forEach((h, i) => {
+      if (h) headerMap[h.toString().trim().toUpperCase()] = i;
+    });
 
-    if (idxNome < 0 || idxCargo < 0) {
-      throw new Error('Colunas "nome" ou "cargo" não encontradas');
+    const idxNome = headerMap['NOME COMPLETO'];
+    const idxCargo = headerMap['CARGO'];
+    const idxComum = headerMap['COMUM'];
+    const idxCidade = headerMap['CIDADE'];
+    const idxLocalEnsaio = headerMap['LOCAL_ENSAIO'];
+    const idxVaiTocar = headerMap['VAI_TOCAR'];
+    const idxInstrumento = headerMap['INSTRUMENTO'];
+
+    if (idxNome === undefined || idxCargo === undefined) {
+      throw new Error('Colunas "NOME COMPLETO" ou "CARGO" não encontradas na aba Dados');
     }
     
     if (!localEnsaio || localEnsaio === 'undefined' || String(localEnsaio).trim() === '' || localEnsaio === nomePlanilha) {
