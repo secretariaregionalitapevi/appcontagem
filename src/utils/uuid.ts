@@ -78,3 +78,37 @@ export function generateExternalUUID(): string {
   const randomString = Math.random().toString(36).substring(2, 11); // 9 caracteres aleatórios
   return `external_${timestamp}_${randomString}`;
 }
+
+/**
+ * Gera um UUID determinístico baseado em uma string de semente.
+ * Útil para evitar duplicidade em condições de corrida (race conditions).
+ * Segue o formato UUID v4 (xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx).
+ */
+export function generateDeterministicUUID(seed: string): string {
+  // Função de hash simples (DJB2) para gerar uma semente numérica
+  let hash = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 33) ^ seed.charCodeAt(i);
+  }
+  
+  // Converter para representação hex de 32 caracteres (padronizada)
+  const getHex = (num: number) => Math.abs(num).toString(16).padStart(8, '0');
+  
+  // Gerar partes baseadas no hash e variações determinísticas
+  let hex = getHex(hash);
+  hex += getHex(hash ^ 0xDEADBEEF);
+  hex += getHex(hash ^ 0xCAFEBABE);
+  hex += getHex(hash ^ 0x8BADF00D);
+  
+  hex = hex.toLowerCase().padEnd(32, '0').slice(0, 32);
+  
+  // Montar no formato UUID (com versão 4 e variante 8/9/a/b injetados)
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    '4' + hex.slice(13, 16), // Versão 4
+    ((parseInt(hex.slice(16, 17), 16) & 0x3) | 0x8).toString(16) + hex.slice(17, 20), // Variante RFC4122
+    hex.slice(20, 32)
+  ].join('-');
+}
+

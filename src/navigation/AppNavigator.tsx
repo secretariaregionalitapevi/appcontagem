@@ -15,10 +15,20 @@ import { View, ActivityIndicator, StyleSheet, Text, Platform } from 'react-nativ
 import { theme } from '../theme';
 import { localStorageService } from '../services/localStorageService';
 
+import { InactivityModal } from '../components/InactivityModal';
+
 const Stack = createNativeStackNavigator();
 
 export const AppNavigator: React.FC = () => {
-  const { user, loading, isRecoveringPassword, setIsRecoveringPassword } = useAuthContext();
+  const { 
+    user, 
+    loading, 
+    isRecoveringPassword, 
+    setIsRecoveringPassword,
+    signOut,
+    showInactivityWarning,
+    resetInactivityTimeout
+  } = useAuthContext();
   const navigationRef = useRef<any>(null);
   const previousUserRef = useRef<typeof user>(user);
 
@@ -176,6 +186,13 @@ export const AppNavigator: React.FC = () => {
           }}
         />
       </Stack.Navigator>
+
+      {/* Modal de Inatividade Global */}
+      <InactivityModal 
+        visible={showInactivityWarning}
+        onStayConnected={resetInactivityTimeout}
+        onLogout={signOut}
+      />
     </NavigationContainer>
   );
 };

@@ -142,7 +142,6 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
               style={styles.cancelButton}
               onPress={onCancel}
               activeOpacity={0.6}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <FontAwesome5 name="times" size={14} color="#fff" style={styles.buttonIcon} />
               <Text style={styles.cancelButtonText}>Fechar</Text>
@@ -298,11 +297,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
     borderRadius: 14,
     backgroundColor: '#ef4444',
     minHeight: 48,
-    borderWidth: 0,
     ...Platform.select({
       web: {
         // @ts-ignore
@@ -315,7 +313,7 @@ const styles = StyleSheet.create({
     })
   },
   buttonIcon: {
-    marginRight: 8, // Espaço entre ícone e texto conforme modelo
+    marginRight: 8,
   },
   cancelButtonText: {
     fontSize: 16,

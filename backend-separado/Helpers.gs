@@ -305,6 +305,7 @@ function mapearCargoParaContagem(cargoOriginal) {
   if (cLower.includes('medic')) return 'Médico (a)';
   if (cLower.includes('enfermeir')) return 'Enfermeiro (a)';
   if (cLower.includes('irma')) return 'Irmandade';
+  if (cLower.includes('musico')) return 'Músico';
   
   return null;
 }
@@ -790,6 +791,24 @@ function sincronizarMestreParaRegionais() {
         const inseridos = syncToSpreadsheet(regionalId, registros, 'Registros');
         totalNovos += inseridos;
 
+        // 🚨 NOVO: Após sincronizar registros, atualiza Dashboard e Listas automaticamente
+        if (inseridos > 0) {
+           console.log(`📊 [AUTO-SYNC] Atualizando painel completo para regional ${regionalId}...`);
+           const ssReg = SpreadsheetApp.openById(regionalId);
+           const localName = ssReg.getName().split(' - ')[0];
+           const shReg = ssReg.getSheetByName('Registros');
+           
+           // Atualiza Resumo
+           const shResumo = ssReg.getSheetByName('Resumo');
+           if (shResumo) atualizarResumoContadorIncremental(shResumo, null, ssReg);
+           
+           // Atualiza Listas (Organistas e Ministério)
+           if (shReg) {
+             alimentarAbaOrganistasDestino(localName, ssReg, localName, shReg);
+             alimentarAbaMinisterioDestino(localName, ssReg, localName, shReg);
+           }
+         }
+
         // 🚨 NOVO: Se a regional for Itapevi, espelhar também na Planilha do Cardoso
         if (regionalId === ITAPEVI_SHEET_ID) {
           try {
@@ -840,6 +859,7 @@ function syncToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
     });
   }
   
+    let inseridos = 0;
     const loteNovasLinhas = [];
     
     for (const item of registros) {
@@ -863,6 +883,9 @@ function syncToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
     if (loteNovasLinhas.length > 0) {
       const startRow = regLastRow + 1;
       sh.getRange(startRow, 1, loteNovasLinhas.length, regHeaders.length).setValues(loteNovasLinhas);
+      
+      // 🚨 CRÍTICO: Força a gravação física na Regional para que o Resumo possa "ver" o novo dado
+      SpreadsheetApp.flush();
       
       // Aplicar bordas e formatação em lote
       try {
@@ -2056,8 +2079,9 @@ function limparContadoresResumo(sheet, linhasComFormulas = [28, 41, 48, 50]) {
     const maxCols = sheet.getLastColumn();
     if (lastRow < 2) return;
     
-    // Colunas de valores: B=2, E=5, H=8 (1-indexed para getRange, mas aqui usamos 0-indexed para o array de values)
-    const colunasValores = [1, 4, 7].filter(c => c < maxCols);
+    // 🚨 SEGURANÇA MÁXIMA: Apenas Coluna B (index 1) deve ser limpa.
+    // O usuário solicitou explicitamente NÃO mexer nas colunas D até H.
+    const colunasValores = [1]; 
     const range = sheet.getRange(1, 1, lastRow, maxCols);
     const values = range.getValues();
     const formulas = range.getFormulas();
@@ -2065,16 +2089,17 @@ function limparContadoresResumo(sheet, linhasComFormulas = [28, 41, 48, 50]) {
 
     for (let i = 1; i < values.length; i++) { // Pula cabeçalho
       const row = i + 1;
+      // 🚨 PULA COMPLETAMENTE AS LINHAS DE FÓRMULAS
       if (linhasComFormulas.includes(row)) continue;
 
       colunasValores.forEach(colIdx => {
+        // Se NÃO for fórmula e for um número, zera.
         if (!formulas[i][colIdx] && typeof values[i][colIdx] === 'number') {
-          values[i][colIdx] = 0;
+          sheet.getRange(row, colIdx + 1).setValue(0);
           limpos++;
         }
       });
     }
-    if (limpos > 0) range.setValues(values);
     console.log(`✅ Limpeza concluída: ${limpos} células zeradas.`);
   } catch (e) {
     console.error('❌ Erro na limpeza do resumo:', e.message);
@@ -2091,11 +2116,10 @@ function atualizarTodosContadoresResumoBulk(sheet, arrayDeAtualizacoes, linhasCo
     const maxCols = sheet.getLastColumn();
     if (lastRow < 2) return;
     
-    // Blocos de rótulo e valor: [A,B], [D,E], [G,H]
+    // 🚨 SEGURANÇA MÁXIMA: Apenas Coluna B (index 1) deve ser atualizada.
+    // O usuário solicitou explicitamente NÃO mexer nas colunas D até H.
     const blocos = [
-      { label: 0, val: 1 }, 
-      { label: 3, val: 4 }, 
-      { label: 6, val: 7 }
+      { label: 0, val: 1 }
     ].filter(b => b.val < maxCols);
 
     const dict = {};
@@ -2108,25 +2132,43 @@ function atualizarTodosContadoresResumoBulk(sheet, arrayDeAtualizacoes, linhasCo
     const formulas = range.getFormulas();
     let atualizados = 0;
 
+    // Cria um dicionário normalizado (tudo minúsculo) para busca segura
+    const dictNorm = {};
+    Object.keys(dict).forEach(k => {
+      dictNorm[normalizarNome(k)] = dict[k];
+    });
+
     for (let i = 0; i < values.length; i++) {
       const row = i + 1;
+      
+      // 🚨 PRESERVAÇÃO DE FÓRMULAS: Se a célula tem fórmula, mantém ela no array
+      for (let j = 0; j < values[i].length; j++) {
+        if (formulas[i][j]) {
+          values[i][j] = formulas[i][j];
+        }
+      }
+
+      // Se for linha de total, não processamos rótulos
       if (linhasComFormulas.includes(row)) continue;
 
       blocos.forEach(b => {
-        const labelText = String(values[i][b.label] || '');
+        const labelText = String(values[i][b.label] || '').trim();
         if (labelText) {
           const normLabel = normalizarNome(labelText);
-          if (dict.hasOwnProperty(normLabel) && !formulas[i][b.val]) {
-            values[i][b.val] = dict[normLabel];
+          if (dictNorm.hasOwnProperty(normLabel) && !formulas[i][b.val]) {
+            values[i][b.val] = dictNorm[normLabel];
             atualizados++;
           }
         }
       });
     }
+    
+    // Escrita em bloco (Alta Performance)
     range.setValues(values);
-    console.log(`✅ Dashboard atualizado: ${atualizados} campos modificados.`);
+    SpreadsheetApp.flush();
+    console.log(`✅ Dashboard restaurado e atualizado: ${atualizados} campos.`);
   } catch (e) {
-    console.error('❌ Erro na atualização bulk do dashboard:', e.message);
+    console.error('❌ Erro na restauração do dashboard:', e.message);
   }
 }
 
@@ -2716,29 +2758,45 @@ function atualizarTudoRegionalIncremental(regionalId, data) {
   
   try {
     const ss = SpreadsheetApp.openById(regionalId);
+    SpreadsheetApp.flush();
     
-    // 1. Atualizar Dashboard (Resumo) - Agora com RECONTAGEM LOCAL (Self-healing)
-    const shResumo = ss.getSheetByName('Resumo');
-    if (shResumo) {
+    // Busca robusta de abas (case-insensitive)
+    const sheets = ss.getSheets();
+    const getSheetRobust = (name) => {
+      const target = name.toLowerCase().trim();
+      return sheets.find(s => s.getName().toLowerCase().trim() === target);
+    };
+
+    const shRegistros = getSheetRobust('Registros');
+    const shResumo = getSheetRobust('Resumo');
+    
+    // Tenta pegar o local do dado enviado, ou do nome da planilha de forma mais flexível
+    let localEnsaio = data ? (data['LOCAL_ENSAIO'] || data['local_ensaio']) : null;
+    if (!localEnsaio) {
+      const nameParts = ss.getName().trim().split(' ');
+      localEnsaio = nameParts[nameParts.length - 1]; // Pega a última palavra (ex: 'Itapevi')
+    }
+    
+    // 1. Atualizar Dashboard (Resumo)
+    if (shResumo && shRegistros) {
+      console.log('📊 [INCREMENTAL] Atualizando Resumo...');
       atualizarResumoContadorIncremental(shResumo, data, ss);
     }
     
-    // 2. Se for Organista/Feminino -> Atualizar aba Organistas
-    const tipoCargo = classificarCargo(data['CARGO'] || '');
-    if (tipoCargo === 'organista') {
-      adicionarOrganistaIncremental(ss, data);
+    // 2. Sincronizar Abas de Registros (Organistas e Ministério)
+    if (shRegistros) {
+      console.log('🎹 [INCREMENTAL] Reordenando Organistas e Ministério...');
+      alimentarAbaOrganistasDestino(localEnsaio, ss, localEnsaio, shRegistros);
+      alimentarAbaMinisterioDestino(localEnsaio, ss, localEnsaio, shRegistros);
     }
     
-    // 3. Se for Ministério -> Atualizar aba Ministério
-    if (tipoCargo === 'ministerio') {
-      adicionarMinisterioIncremental(ss, data);
-    }
-    
+    SpreadsheetApp.flush();
     console.log('✅ [INCREMENTAL] Atualização concluída com sucesso!');
   } catch (e) {
     console.error('❌ [INCREMENTAL] Erro na atualização:', e.message);
   }
 }
+
 
 /**
  * RECONTAGEM LOCAL (Real-time & Auto-corretiva)
@@ -2748,86 +2806,107 @@ function atualizarTudoRegionalIncremental(regionalId, data) {
 function atualizarResumoContadorIncremental(shResumo, data, ss) {
   console.log('🔄 [REAL-TIME] Iniciando recontagem local para o Dashboard...');
   
-  const shRegistros = ss.getSheetByName('Registros');
-  if (!shRegistros) return;
+  // Busca a aba de registros de forma insensível a maiúsculas/minúsculas
+  let shRegistros = ss.getSheetByName('Registros');
+  if (!shRegistros) shRegistros = ss.getSheetByName('registros');
+  if (!shRegistros) shRegistros = ss.getSheets().find(s => s.getName().toUpperCase() === 'REGISTROS');
+  
+  if (!shRegistros) {
+    console.warn('⚠️ Aba de Registros não encontrada na regional.');
+    return { membros: 0, organistas: 0, ministerio: 0 };
+  }
 
-  const dataLocal = shRegistros.getDataRange().getValues();
+  // 🚨 NUCLEAR FLUSH: Força o Google a "ver" os dados recém-chegados
+  SpreadsheetApp.flush();
+  
+  let dataLocal = shRegistros.getDataRange().getValues();
+  
+  // TENTATIVA DE RECUPERAÇÃO: Se o Google retornar vazio mas sabemos que há dados
+  if (dataLocal.length < 2 && shRegistros.getLastRow() > 1) {
+    console.warn('⏳ Latência detectada. Tentando nova leitura...');
+    Utilities.sleep(1000);
+    SpreadsheetApp.flush();
+    dataLocal = shRegistros.getDataRange().getValues();
+  }
+
   if (dataLocal.length < 2) {
+    console.warn('ℹ️ Aba de registros está realmente vazia.');
     limparContadoresResumo(shResumo);
-    return;
+    return { membros: 0, organistas: 0, ministerio: 0 };
   }
 
   const headers = dataLocal[0].map(h => (h || '').toString().trim().toUpperCase());
-  const idxCargo = headers.indexOf('CARGO');
-  const idxInstr = headers.indexOf('INSTRUMENTO');
-  const idxVaiTocar = headers.indexOf('VAI_TOCAR');
+  
+  // Busca flexível de cabeçalhos para evitar erros entre regionais
+  const findIdx = (names) => {
+    for (let name of names) {
+      let idx = headers.indexOf(name.toUpperCase());
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+
+  const idxCargo = findIdx(['CARGO', 'FUNÇÃO', 'OFÍCIO', 'CARGO/OFÍCIO']);
+  const idxInstr = findIdx(['INSTRUMENTO', 'INSTRUMENTOS', 'INSTR.', 'FAMILIA']);
+
+  if (idxCargo === -1) {
+    console.warn(`⚠️ [RESUMO] Coluna de CARGO não encontrada.`);
+    return { membros: dataLocal.length - 1 };
+  }
 
   const contadores = {};
-  let totalOrganistas = 0;
 
-  // Processa os registros locais (rápido, pois são poucos na regional)
+  // Processa os registros locais
   for (let i = 1; i < dataLocal.length; i++) {
     const row = dataLocal[i];
-    const cargo = (row[idxCargo] || '').toString();
-    const instr = (row[idxInstr] || '').toString();
+    const cargo = (row[idxCargo] || '').toString().trim();
+    const instr = idxInstr >= 0 ? (row[idxInstr] || '').toString().trim() : '';
     
     const cargoMapeado = mapearCargoParaContagem(cargo);
     const instrMapeado = mapearInstrumento(instr);
-    const tCargo = classificarCargo(cargo);
 
-    // Contagem de Cargos (Bulk)
+    // 1. Conta o Cargo (Sempre)
     if (cargoMapeado) {
       contadores[cargoMapeado] = (contadores[cargoMapeado] || 0) + 1;
     }
-
-    // Lógica para contagem de Organistas (Célula B2 do Resumo)
-    // Usamos normalizarNome para ignorar acentos (ex: Secretária vira SECRETARIA)
-    const cargoNorm = normalizarNome(cargo);
     
-    // Verifica se o cargo é EXCLUSIVAMENTE de organista
-    // Se contiver Examinadora, Instrutora ou Secretária, NÃO conta aqui (vai para outro campo)
-    const isCargoOrganistaPuro = cargoNorm.includes('ORGANISTA') && 
-                                 !cargoNorm.includes('EXAMINADORA') && 
-                                 !cargoNorm.includes('INSTRUTORA') && 
-                                 !cargoNorm.includes('SECRETARIA');
-    
-    if (isCargoOrganistaPuro) {
-      totalOrganistas++;
-    }
+    // 2. Regra Especial: Secretários da Música não contam instrumento (Exclusivo)
+    const isSecretario = cargoMapeado === 'Secretário da Música' || cargoMapeado === 'Secretária da Música';
 
-    // Contagem de Instrumentos
-    if (instrMapeado && instrMapeado !== 'Organista') {
+    // 3. Conta o Instrumento (Exceto se for secretário ou se já for organista contada acima)
+    if (instrMapeado && instrMapeado !== 'Organista' && !isSecretario) {
       contadores[instrMapeado] = (contadores[instrMapeado] || 0) + 1;
     }
   }
 
-  // Prepara o lote de atualização para o Dashboard
+  // Insere a fórmula de comparativo de pessoas reais na coluna C50
+  try {
+    shResumo.getRange('C50').setFormula('=COUNTA(Registros!C2:C)');
+  } catch (e) {
+    console.warn('⚠️ Não foi possível inserir a fórmula em C50');
+  }
+
   const arrayUpdates = [];
-  Object.keys(contadores).forEach(k => arrayUpdates.push({ rotulo: k, valor: contadores[k] }));
-  
-  // Totais principais
-  const totalMembros = dataLocal.length - 1;
-  const totalMinisterio = (contadores['Ancião'] || 0) + (contadores['Diácono'] || 0) + 
-                          (contadores['Cooperador do Ofício'] || 0) + (contadores['Cooperador de Jovens'] || 0);
+  Object.keys(contadores).forEach(k => {
+    const label = k.trim();
+    if (label !== 'Total' && label !== 'TOTAL GERAL' && label !== 'Ministério' && label !== 'Organistas') {
+      arrayUpdates.push({ rotulo: label, valor: contadores[label] });
+    }
+  });
 
-  arrayUpdates.push({ rotulo: 'Organista', valor: totalOrganistas });
-  arrayUpdates.push({ rotulo: 'Organistas', valor: totalOrganistas });
-  arrayUpdates.push({ rotulo: 'Ministério', valor: totalMinisterio });
-  arrayUpdates.push({ rotulo: 'Membros', valor: totalMembros });
-
-  // Aplica ao Dashboard (Limpa e escreve os novos valores reais)
-  limparContadoresResumo(shResumo);
-  atualizarTodosContadoresResumoBulk(shResumo, arrayUpdates);
+  // Aplica ao Resumo (Respeitando as linhas com fórmulas: 28, 41, 48, 50)
+  // 🚨 PROTEÇÃO EXTRA: B28, B41, B48, B50 SÃO FÓRMULAS E NÃO PODEM SER TOCADOS
+  const linhasProtegidas = [28, 41, 48, 50];
+  limparContadoresResumo(shResumo, linhasProtegidas);
+  atualizarTodosContadoresResumoBulk(shResumo, arrayUpdates, linhasProtegidas);
   
-  console.log('✅ [REAL-TIME] Dashboard auto-corrigido com sucesso!');
+  console.log(`✅ [REAL-TIME] Resumo atualizado na planilha.`);
   
-  // Retorna os dados para o modal de sucesso
-  return {
-    membros: totalMembros,
-    organistas: totalOrganistas,
-    ministerio: totalMinisterio
-  };
+  return { sucesso: true };
 }
+
+
+
 
 /**
  * Adiciona uma organista na lista e reordena mantendo a prioridade
@@ -2948,9 +3027,9 @@ function obterPrioridadeMinisterioIncremental(cargo) {
   const c = String(cargo || '').toUpperCase();
   if (c === 'ANCIÃO') return 1;
   if (c === 'DIÁCONO') return 2;
-  if (c === 'COOPERADOR DO OFÍCIO') return 3;
-  if (c === 'COOPERADOR DE JOVENS') return 4;
-  if (c === 'ENCARREGADO REGIONAL') return 5;
+  if (c === 'ENCARREGADO REGIONAL') return 3;
+  if (c === 'COOPERADOR DO OFÍCIO') return 4;
+  if (c === 'COOPERADOR DE JOVENS') return 5;
   return 999;
 }
 

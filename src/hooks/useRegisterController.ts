@@ -40,7 +40,7 @@ import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
 import { formatRegistradoPor } from '../utils/userNameUtils';
-import { generateExternalUUID } from '../utils/uuid';
+import { generateExternalUUID, generateDeterministicUUID } from '../utils/uuid';
 
 import { isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
 
@@ -929,9 +929,12 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         }
       }
 
+        const comumIdFinal = isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum;
+        const dataHoraFinal = getCurrentDateTimeISO();
+
         const registro: RegistroPresenca = {
           pessoa_id: pessoaIdFinal,
-          comum_id: isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum,
+          comum_id: comumIdFinal,
           cargo_id: cargoIdFinal,
           instrumento_id: isCandidato
             ? instrumentoCandidato
@@ -940,11 +943,16 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
               : (selectedPessoaData?.instrumento_id || selectedInstrumento || null),
           classe_organista: classeOrganistaFinal,
           local_ensaio: localEnsaio || 'Não definido',
-          data_hora_registro: getCurrentDateTimeISO(),
+          data_hora_registro: dataHoraFinal,
           usuario_responsavel: nomeUsuario,
           status_sincronizacao: 'pending',
           is_offline_manual: isNomeManual && !isOnline, // 🚨 NOVO: Marcar se foi manual por falta de rede
-          id: generateExternalUUID(), // Garantir UUID único para a fila
+          id: (() => {
+            // Gerar um UUID determinístico para evitar duplicidade acidental no mesmo dia (race conditions)
+            const dataSimples = dataHoraFinal.split('T')[0];
+            const seed = `${pessoaIdFinal}|${comumIdFinal}|${dataSimples}`;
+            return generateDeterministicUUID(seed);
+          })(),
         };
 
         // 2. Trava de Segurança: Verificar duplicata na fila local (rápido)

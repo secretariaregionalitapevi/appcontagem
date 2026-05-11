@@ -3536,7 +3536,12 @@ export const supabaseDataService = {
       const dataFim = new Date(dataInicio);
       dataFim.setDate(dataFim.getDate() + 1);
 
-      console.log('🔍 [checkDuplicataRemota] Verificando no Supabase (Exact Match):', {
+      // 🚨 NOVO: Safety Jitter
+      // Pequeno atraso aleatório para desincronizar requisições simultâneas
+      const jitter = Math.floor(Math.random() * 600); // 0-600ms
+      await new Promise(resolve => setTimeout(resolve, jitter));
+
+      console.log(`🔍 [checkDuplicataRemota] Verificando no Supabase (Exact Match) - Jitter: ${jitter}ms:`, {
         nome: nomeBusca,
         comum: comumBusca,
         range: `${dataInicio.toISOString()} até ${dataFim.toISOString()}`

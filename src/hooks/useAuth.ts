@@ -15,7 +15,7 @@ export const useAuth = () => {
     await signOut();
   };
 
-  useInactivityTimeout({
+  const { showWarning, resetTimeout } = useInactivityTimeout({
     timeout: 3600000, // 1 hora
     onTimeout: handleInactivityTimeout,
     enabled: !!user, // Só ativar se houver usuário logado
@@ -136,5 +136,7 @@ export const useAuth = () => {
     isRecoveringPassword,
     setIsRecoveringPassword,
     isAuthenticated: !!user,
+    showInactivityWarning: showWarning,
+    resetInactivityTimeout: resetTimeout,
   };
 };

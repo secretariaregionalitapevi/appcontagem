@@ -386,11 +386,19 @@ function doPost(e) {
             
             // 🚨 NOVO: Atualização Incremental (Real-time) das outras abas (Resumo, Organistas, Ministério)
             if (!isDuplicate) {
+              // 🚨 SEGURANÇA: Lock para evitar atropelamento de processos em Itapevi
+              const lockRegional = LockService.getScriptLock();
               try {
-                console.log('🔄 [REAL-TIME] Iniciando atualização incremental das abas da regional...');
-                atualizarTudoRegionalIncremental(regionalId, data);
+                if (lockRegional.tryLock(5000)) {
+                  console.log('🔄 [REAL-TIME] Iniciando atualização incremental da regional...');
+                  SpreadsheetApp.flush(); 
+                  Utilities.sleep(1500); 
+                  atualizarTudoRegionalIncremental(regionalId, data);
+                }
               } catch (incErr) {
-                console.error('❌ Erro na atualização incremental:', incErr.message);
+                console.error('❌ Erro na atualização regional:', incErr.message);
+              } finally {
+                lockRegional.releaseLock();
               }
             }
           } else {
@@ -421,7 +429,7 @@ function doPost(e) {
       return jsonResponse({ 
         ok: true, 
         op: 'append', 
-        version: '1.4.0_realtime',
+        version: '1.4.7_stable',
         uuid: data['UUID'],
         diag: diag
       });
@@ -455,10 +463,16 @@ function doPost(e) {
       
       if (!shMaster) return jsonResponse({ ok: false, error: 'Aba de dados não encontrada ou sem coluna UUID' });
 
+      const htmlOutput = HtmlService.createHtmlOutput(htmlContent)
+    .setWidth(350)
+    .setHeight(320)
+    .setTitle('Versão 1.4.7');
+
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, titulo);
+      let details = `TargetSheet=${shMaster.getName()}, LastRow=${lastRow}`;
       const lastRow = shMaster.getLastRow();
       let affectedMaster = 0;
       let regionalId = null;
-      let details = `TargetSheet=${shMaster.getName()}, LastRow=${lastRow}`;
 
       if (lastRow > 1) {
         const headers = shMaster.getRange(1, 1, 1, shMaster.getLastColumn()).getValues()[0].map(h => (h || '').toString().trim().toUpperCase());

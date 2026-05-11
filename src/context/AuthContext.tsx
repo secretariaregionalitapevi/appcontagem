@@ -20,6 +20,8 @@ interface AuthContextType {
   isRecoveringPassword: boolean;
   setIsRecoveringPassword: (value: boolean) => void;
   isAuthenticated: boolean;
+  showInactivityWarning: boolean;
+  resetInactivityTimeout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

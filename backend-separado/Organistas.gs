@@ -686,6 +686,8 @@ function listarLocaisEnsaio() {
       };
 
       if (estevePresente(linha)) {
+        // Normaliza os locais para comparação 100% segura
+        const localEnsaioBusca = (localEnsaio || '').toString().trim().toLowerCase();
         locaisSet.add(localEnsaio);
         if (!locaisComContagem[localEnsaio]) {
           locaisComContagem[localEnsaio] = 0;
@@ -806,7 +808,8 @@ function alimentarAbaOrganistasDestino(localEnsaio, ssDestino, nomePlanilha, shS
                          cargoLower.includes('instrutora') ||
                          isSecretariaMusica;
       
-      const isLocalCorreto = compararLocaisEnsaio(localEnsaioRow, localEnsaio);
+      // Na planilha regional (shSource fornecido), ignoramos o filtro de local
+      const isLocalCorreto = shSource ? true : compararLocaisEnsaio(localEnsaioRow, localEnsaio);
       
       if (isOrganista && isLocalCorreto) {
         organistas.push({

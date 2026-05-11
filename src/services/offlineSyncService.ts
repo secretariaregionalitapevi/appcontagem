@@ -235,101 +235,83 @@ export const offlineSyncService = {
             continue;
           }
 
-          // Tenta enviar para Google Sheets primeiro (mais crítico)
+          // 🚨 NOVO FLUXO: Enviar para Supabase PRIMEIRO (Trava de integridade)
+          // Se o Supabase bloquear por duplicidade, não enviamos para o Google Sheets.
+          let supabaseSuccess = false;
+          let isDuplicate = false;
+
+          try {
+            await supabaseDataService.createRegistroPresenca(item, false); // false = check duplicates
+            console.log(`✅ Item ${i + 1}: Supabase OK`);
+            supabaseSuccess = true;
+          } catch (e: any) {
+            // Verificar se é erro de duplicata ou constraint
+            const isConstraintError =
+              e.code === '23505' ||
+              e.message?.includes('duplicate key') ||
+              e.message?.includes('already exists') ||
+              e.message?.includes('pessoas_pkey') ||
+              e.message?.includes('presencas_pkey') ||
+              e.message?.includes('DUPLICATA');
+
+            if (isConstraintError) {
+              console.log(`✅ Item ${i + 1}: Registro já existe no Supabase (duplicata detectada) - removendo da fila e pulando Sheets`);
+              isDuplicate = true;
+            } else {
+              console.warn(`⚠️ Item ${i + 1}: Erro no Supabase (não crítico, prosseguindo para Sheets):`, e.message);
+              // supabaseSuccess continua false, mas isDuplicate também é false
+            }
+          }
+
+          // Se for duplicata, removemos da fila e pulamos para o próximo item
+          if (isDuplicate) {
+            if (item.id) {
+              await supabaseDataService.deleteRegistroFromLocal(item.id);
+            }
+            itensProcessados.push(item);
+            continue;
+          }
+
+          // 2. Enviar para Google Sheets (Garantia do Usuário)
+          // Mesmo que o Supabase tenha falhado (por conexão), tentamos o Sheets.
           const sheetsResult = await googleSheetsService.sendRegistroToSheet(item);
           if (sheetsResult.success) {
             console.log(`✅ Item ${i + 1}: Google Sheets OK`);
-
-            // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE após sucesso no Google Sheets
-            // Isso previne que o mesmo registro seja processado novamente em caso de retry ou erro subsequente
+            
+            // Se chegou aqui, o registro foi salvo em pelo menos um lugar (ou ambos)
             if (item.id) {
               try {
                 await supabaseDataService.deleteRegistroFromLocal(item.id);
-                console.log(`🗑️ Item ${i + 1}: Removido da fila imediatamente após sucesso no Google Sheets`);
+                console.log(`🗑️ Item ${i + 1}: Removido da fila com sucesso`);
               } catch (deleteError) {
                 console.warn(`⚠️ Item ${i + 1}: Erro ao remover da fila (não crítico):`, deleteError);
               }
             }
-
-            // Tenta enviar para Supabase (secundário, não bloqueia)
-            try {
-              await supabaseDataService.createRegistroPresenca(item, true);
-              console.log(`✅ Item ${i + 1}: Supabase OK`);
-            } catch (e: any) {
-              // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
-              const isConstraintError =
-                e.code === '23505' ||
-                e.message?.includes('duplicate key') ||
-                e.message?.includes('already exists') ||
-                e.message?.includes('pessoas_pkey') ||
-                e.message?.includes('presencas_pkey');
-
-              if (isConstraintError) {
-                console.log(`✅ Item ${i + 1}: Registro já existe no Supabase (constraint) - tratado como sucesso`);
-              } else {
-                console.warn(`⚠️ Item ${i + 1}: Erro no Supabase (não crítico):`, e.message);
-              }
-              // Continua mesmo se Supabase falhar (Google Sheets já salvou e registro já foi removido da fila)
-            }
-
             itensProcessados.push(item);
           } else {
-            // Verificar se é erro de rede ou erro de dados
+            // Google Sheets falhou - verificar se é erro de rede
             const isNetworkError =
               sheetsResult.error?.includes('Failed to fetch') ||
               sheetsResult.error?.includes('Timeout') ||
               sheetsResult.error?.includes('Network') ||
               sheetsResult.error?.includes('AbortError');
 
-            if (isNetworkError) {
-              // Erro de rede - manter na fila
-              throw new Error('Erro de rede ao enviar para Google Sheets');
+            if (isNetworkError && !supabaseSuccess) {
+              // Ambos falharam por rede - manter na fila
+              throw new Error('Erro de rede total ao enviar registro');
+            } else if (sheetsResult.error?.includes('DUPLICATA') || sheetsResult.error?.includes('duplicat')) {
+               // Sheets também detectou duplicata (raro mas possível)
+               console.log(`✅ Item ${i + 1}: Registro já existe no Sheets - removendo da fila`);
+               if (item.id) await supabaseDataService.deleteRegistroFromLocal(item.id);
+               itensProcessados.push(item);
+            } else if (supabaseSuccess) {
+               // Supabase salvou, mas Sheets falhou por algo não-rede. 
+               // Manter na fila para tentar o Sheets novamente, ou considerar sucesso parcial?
+               // O usuário quer GARANTIA do Sheets, então mantemos na fila se o Sheets falhar.
+               throw new Error(`Erro no Google Sheets: ${sheetsResult.error}`);
             } else {
-              // Erro de dados - tentar Supabase como fallback
-              console.warn(`⚠️ Item ${i + 1}: Erro no Google Sheets, tentando Supabase...`);
-              try {
-                await supabaseDataService.createRegistroPresenca(item, true);
-                console.log(`✅ Item ${i + 1}: Supabase OK (fallback)`);
-
-                // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE após sucesso no Supabase (fallback)
-                if (item.id) {
-                  try {
-                    await supabaseDataService.deleteRegistroFromLocal(item.id);
-                    console.log(`🗑️ Item ${i + 1}: Removido da fila após sucesso no Supabase (fallback)`);
-                  } catch (deleteError) {
-                    console.warn(`⚠️ Item ${i + 1}: Erro ao remover da fila (não crítico):`, deleteError);
-                  }
-                }
-
-                itensProcessados.push(item);
-              } catch (supabaseError: any) {
-                // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
-                const isConstraintError =
-                  supabaseError.code === '23505' ||
-                  supabaseError.message?.includes('duplicate key') ||
-                  supabaseError.message?.includes('already exists') ||
-                  supabaseError.message?.includes('pessoas_pkey') ||
-                  supabaseError.message?.includes('presencas_pkey');
-
-                // Verificar se é duplicata ou constraint
-                if (supabaseError.message?.includes('DUPLICATA') || supabaseError.message?.includes('duplicat') || isConstraintError) {
-                  console.log(`✅ Item ${i + 1}: Registro já existe (duplicata/constraint) - removendo da fila`);
-
-                  // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE quando duplicata/constraint detectada
-                  if (item.id) {
-                    try {
-                      await supabaseDataService.deleteRegistroFromLocal(item.id);
-                      console.log(`🗑️ Item ${i + 1}: Removido da fila (duplicata/constraint detectada)`);
-                    } catch (deleteError) {
-                      console.warn(`⚠️ Item ${i + 1}: Erro ao remover duplicata da fila:`, deleteError);
-                    }
-                  }
-
-                  itensProcessados.push(item); // Remover da fila
-                } else {
-                  throw supabaseError;
-                }
-              }
+               // Outro erro qualquer
+               throw new Error(sheetsResult.error || 'Erro desconhecido no sincronismo');
             }
           }
 

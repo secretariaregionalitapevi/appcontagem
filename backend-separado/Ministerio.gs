@@ -74,8 +74,10 @@ function alimentarAbaMinisterioDestino(localEnsaio, ssDestino, nomePlanilha, shS
     const ehCargoMinisterial = (cargo) => {
       if (!cargo) return false;
       const cargoUpper = cargo.toUpperCase();
-      return cargoUpper === 'ANCIÃO' || cargoUpper === 'DIÁCONO' || cargoUpper === 'COOPERADOR DO OFÍCIO' ||
-             cargoUpper === 'COOPERADOR DE JOVENS' || cargoUpper === 'ENCARREGADO REGIONAL';
+      const cargosMin = [
+        'ANCIÃO', 'DIÁCONO', 'ENCARREGADO REGIONAL', 'COOPERADOR DO OFÍCIO', 'COOPERADOR DE JOVENS'
+      ];
+      return cargosMin.includes(cargoUpper);
     };
     
     const ordemCargoMinisterial = (cargo) => {
@@ -83,11 +85,12 @@ function alimentarAbaMinisterioDestino(localEnsaio, ssDestino, nomePlanilha, shS
       const cargoUpper = cargo.toUpperCase();
       if (cargoUpper === 'ANCIÃO') return 1;
       if (cargoUpper === 'DIÁCONO') return 2;
-      if (cargoUpper === 'COOPERADOR DO OFÍCIO') return 3;
-      if (cargoUpper === 'COOPERADOR DE JOVENS') return 4;
-      if (cargoUpper === 'ENCARREGADO REGIONAL') return 5;
+      if (cargoUpper === 'ENCARREGADO REGIONAL') return 3;
+      if (cargoUpper === 'COOPERADOR DO OFÍCIO') return 4;
+      if (cargoUpper === 'COOPERADOR DE JOVENS') return 5;
       return 999;
     };
+
     
     const estevePresenteMin = (row) => {
       const vaiTocar = norm(row[idxVaiTocar] || '');
@@ -107,7 +110,8 @@ function alimentarAbaMinisterioDestino(localEnsaio, ssDestino, nomePlanilha, shS
       const cidade = norm(row[idxCidade] || '') || localEnsaio;
       const localEnsaioRow = norm(row[idxLocalEnsaio] || '') || '(Sem local definido)';
       
-      const isLocalCorreto = compararLocaisEnsaio(localEnsaioRow, localEnsaio);
+      // Na planilha regional (shSource fornecido), ignoramos o filtro de local
+      const isLocalCorreto = shSource ? true : compararLocaisEnsaio(localEnsaioRow, localEnsaio);
       
       if (ehCargoMinisterial(cargo) && estevePresenteMin(row) && isLocalCorreto) {
         ministerio.push({ nome, cargo, comum, cidade, localEnsaio: localEnsaioRow, _ord: i });

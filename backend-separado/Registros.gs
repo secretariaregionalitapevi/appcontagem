@@ -391,6 +391,16 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
       }
     });
     
+    // 🚨 NOVO: Atualiza Organistas e Ministério também na exportação otimizada
+    try {
+      console.log(`🎹 Atualizando listas auxiliares para ${planilhaNome}...`);
+      const shReg = ssExterna.getSheetByName('Registros');
+      alimentarAbaOrganistasDestino(localEnsaio, ssExterna, localEnsaio, shReg);
+      alimentarAbaMinisterioDestino(localEnsaio, ssExterna, localEnsaio, shReg);
+    } catch (e) {
+      console.warn(`⚠️ Erro ao atualizar listas em ${planilhaNome}: ${e.message}`);
+    }
+    
     return {
       totalMembros: linhasLocal.length,
       instrumentos: Object.keys(contadores.instrumentos).length,
@@ -578,7 +588,58 @@ function exportarParaPlanilhaDestinoCompleta(localEnsaio, ssDestino, nomePlanilh
       APOIO_LABEL_SYNONYMS[canonical].forEach(rot => arrayAtualizacoes.push({ rotulo: rot, valor: val }));
     });
     
+    
+    // 🚨 NOVO: GARANTIA DE FIDELIDADE TOTAL (Mirroring Registros)
+    // Antes de atualizar o Resumo, vamos garantir que a aba Registros da Regional seja IDÊNTICA à da Matriz para este local.
+    console.log(`📥 [MIRROR] Espelhando aba 'Registros' para garantir fidelidade total...`);
+    const shRegDestino = ssDestino.getSheetByName('Registros');
+    if (shRegDestino) {
+      // Prepara os dados para a aba Registros (formato padronizado)
+      const headersReg = ['UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÍVEL','INSTRUMENTO','NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO','REGISTRADO_POR','SYNC_STATUS','SYNCED_AT','ANOTACOES','DUPLICATA'];
+      const dataMirror = [];
+      
+      // Busca dados brutos da mestre para este local para evitar perdas na normalização
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const localEnsaioRow = row[headerMap['LOCAL_ENSAIO']] || '';
+        if (compararLocaisEnsaio(localEnsaioRow, localEnsaio)) {
+          dataMirror.push(headersReg.map(h => {
+             const idx = headerMap[h.toUpperCase().replace('_', ' ')]; // Tenta buscar com e sem underscore
+             const idxDirect = headerMap[h.toUpperCase()];
+             const finalIdx = idxDirect !== undefined ? idxDirect : idx;
+             return finalIdx !== undefined ? row[finalIdx] : '';
+          }));
+        }
+      }
+
+      if (dataMirror.length > 0) {
+        // Limpa e sobrescreve
+        const lr = shRegDestino.getLastRow();
+        if (lr > 1) shRegDestino.getRange(2, 1, lr - 1, shRegDestino.getLastColumn()).clearContent();
+        shRegDestino.getRange(1, 1, 1, headersReg.length).setValues([headersReg]).setFontWeight('bold');
+        shRegDestino.getRange(2, 1, dataMirror.length, headersReg.length).setValues(dataMirror);
+        // Força a gravação física antes de processar Organistas/Ministério
+        SpreadsheetApp.flush(); 
+        console.log(`✅ [MIRROR] ${dataMirror.length} registros espelhados com sucesso.`);
+      }
+    }
+
+    // Prossiga com a atualização do Dashboard usando a lógica incremental mas com recontagem total
     atualizarTodosContadoresResumoBulk(shResumo, arrayAtualizacoes, [28, 41, 48, 50]);
+
+    // 🚨 NOVO: Atualiza Organistas e Ministério também na exportação completa
+    try {
+      console.log(`🎹 Atualizando listas auxiliares para ${nomePlanilha}...`);
+      // Força nova leitura para garantir que o mirror foi consolidado
+      SpreadsheetApp.flush();
+      Utilities.sleep(1000); 
+      alimentarAbaOrganistasDestino(localEnsaio, ssDestino, localEnsaio, shRegDestino);
+      alimentarAbaMinisterioDestino(localEnsaio, ssDestino, localEnsaio, shRegDestino);
+      SpreadsheetApp.flush();
+    } catch (e) {
+      console.warn(`⚠️ Erro ao atualizar listas em ${nomePlanilha}: ${e.message}`);
+    }
+
 
     console.log(`✅ Aba Resumo atualizada com sucesso em ${nomePlanilha}`);
     return {
