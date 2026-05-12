@@ -1731,13 +1731,27 @@ export const supabaseDataService = {
         .select('id, nome, comum, cidade, instrumento, cargo, nivel');
 
       if (comumNome) {
-        query = query.ilike('comum', `%${comumNome}%`);
+        // 🚀 OTIMIZAÇÃO: Busca robusta a acentos usando wildcard _
+        const comumBusca = comumNome.trim().toUpperCase();
+        const comumWildcard = buildAccentWildcard(comumBusca);
+        
+        if (comumWildcard !== comumBusca) {
+          query = query.or(`comum.ilike.%${comumBusca}%,comum.ilike.%${comumWildcard}%`);
+        } else {
+          query = query.ilike('comum', `%${comumBusca}%`);
+        }
       }
 
       if (cargoNome) {
-        // Normalizar cargo para busca
+        // 🚀 OTIMIZAÇÃO: Busca robusta a acentos para cargo
         const cargoBusca = cargoNome.trim().toUpperCase();
-        query = query.ilike('cargo', `%${cargoBusca}%`);
+        const cargoWildcard = buildAccentWildcard(cargoBusca);
+        
+        if (cargoWildcard !== cargoBusca) {
+          query = query.or(`cargo.ilike.%${cargoBusca}%,cargo.ilike.%${cargoWildcard}%`);
+        } else {
+          query = query.ilike('cargo', `%${cargoBusca}%`);
+        }
       }
 
       if (instrumentoNome) {
@@ -2206,6 +2220,40 @@ export const supabaseDataService = {
         } catch (candError) {
           console.warn('⚠️ Erro ao buscar candidatos para lista de músicos:', candError);
           // Se falhar a busca de candidatos, retorna apenas as pessoas oficiais
+        }
+      }
+
+      // 🚀 NOVO: Se não encontrou ninguém na regional e NÃO estamos no modo manual,
+      // tentar buscar na tabela de fora da regional como fallback automático.
+      // Isso permite que o sistema encontre Anciães de fora da regional mesmo na tela principal.
+      if (pessoas.length === 0 && !isForaRegional && !comumId.startsWith('manual_')) {
+        try {
+          console.log('🔍 [getPessoasFromLocal] Ninguém encontrado na regional, tentando fallback em cadastro_fora_regional...');
+          const foraData = await this.fetchPessoasForaRegional(comumNome, cargoNome, instrumentoNome);
+          
+          if (foraData.length > 0) {
+            console.log(`✅ [getPessoasFromLocal] Fallback SUCESSO: ${foraData.length} pessoas encontradas fora da regional`);
+            
+            const pessoasFora: Pessoa[] = foraData.map((p) => ({
+              id: p.id || `fora_fb_${p.nome.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
+              nome: p.nome.split(' ')[0] || '',
+              sobrenome: p.nome.split(' ').slice(1).join(' ') || '',
+              nome_completo: p.nome,
+              comum_id: comumId || '',
+              cargo_id: cargoId || '',
+              cargo_real: (p.cargo || '').toUpperCase().trim(),
+              instrumento_id: instrumentoId || null,
+              cidade: (p.cidade || '').toUpperCase().trim(),
+              nivel: (p.nivel || '').trim().toUpperCase() || null,
+              ativo: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }));
+            
+            return pessoasFora;
+          }
+        } catch (foraError) {
+          console.warn('⚠️ [getPessoasFromLocal] Erro no fallback fora regional:', foraError);
         }
       }
 
