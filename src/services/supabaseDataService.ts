@@ -1792,8 +1792,20 @@ export const supabaseDataService = {
         const original = record.comum;
         const cidade = record.cidade || '';
         if (original && typeof original === 'string') {
-          // Extrair nome da comum, removendo o padrão "BR-XX-XXXX " se existir para a exibição
-          const display = original.replace(/^(?:BR-)?\d{2}-\d{4}\s+/, '').trim();
+          // Extrair nome da comum, removendo o código regional e o separador (ex: BR-22-1234 - Nome -> Nome)
+          let display = original.trim();
+          const regexCodigo = /^(?:BR-)?\d{2}-\d{3,6}/i;
+          
+          if (regexCodigo.test(display)) {
+            // Se tem " - ", o nome real vem depois do primeiro separador
+            if (display.includes(' - ')) {
+              const partes = display.split(' - ');
+              display = partes.slice(1).join(' - ').trim();
+            } else {
+              // Caso contrário, apenas remove o código e trimma
+              display = display.replace(regexCodigo, '').trim();
+            }
+          }
           const key = normalizeString(display.toUpperCase());
 
           if (key && !mapComuns.has(key)) {
