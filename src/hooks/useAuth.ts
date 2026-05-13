@@ -3,7 +3,7 @@ import { authService } from '../services/authService';
 import { userProfileService } from '../services/userProfileService';
 import { Usuario } from '../types/models';
 import { useInactivityTimeout } from './useInactivityTimeout';
-import { robustRemoveItem } from '../utils/robustStorage';
+import { robustRemoveItem, robustSetItem } from '../utils/robustStorage';
 
 export const useAuth = () => {
   const [user, setUser] = useState<Usuario | null>(null);
