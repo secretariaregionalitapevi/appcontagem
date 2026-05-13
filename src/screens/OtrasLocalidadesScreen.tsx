@@ -133,11 +133,13 @@ export const OtrasLocalidadesScreen: React.FC = () => {
     // Após envio bem-sucedido, volta para a tela anterior
     const handleSubmit = async () => {
         try {
-            await originalHandleSubmit();
+            const saved = await originalHandleSubmit();
             // Se chegou aqui sem erro, envio foi OK → voltar
-            setTimeout(() => {
-                navigation.goBack();
-            }, 500);
+            if (saved === true) {
+                setTimeout(() => {
+                    navigation.goBack();
+                }, 500);
+            }
         } catch (error) {
             console.error('❌ [OtrasLocalidades] Erro no handleSubmit:', error);
             showToast.error('Erro', 'Erro ao processar registro. Tente novamente.');
@@ -266,10 +268,19 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                         if (controller.isComumManual) {
                                             const query = normalize(text);
                                             const hasMatches = comunsOptions.some(opt => {
+                                                const queryNorm = normalize(text);
+                                                const queryWords = queryNorm.split(/\s+/).filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w));
+                                                
                                                 const labelNorm = normalize(opt.label);
                                                 // @ts-ignore
                                                 const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
-                                                return labelNorm.includes(query) || nomeNorm.includes(query);
+                                                // @ts-ignore
+                                                const cidadeNorm = opt.cidade ? normalize(opt.cidade) : '';
+                                                
+                                                const combined = `${labelNorm} ${nomeNorm} ${cidadeNorm}`;
+                                                
+                                                if (queryWords.length === 0) return combined.includes(queryNorm);
+                                                return queryWords.every(word => combined.includes(word));
                                             });
                                             if (hasMatches || text.trim() === '') {
                                                 controller.setIsComumManual(false);
@@ -430,42 +441,13 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                 </View>
                             )}
 
-                            {/* INSTRUMENTO */}
-                            {showInstrumento && (
-                                <View
-                                    style={[
-                                        styles.field,
-                                        Platform.OS === 'web'
-                                            ? {
-                                                position: 'relative' as const,
-                                                zIndex: 80,
-                                                overflow: 'visible' as const,
-                                            }
-                                            : {},
-                                    ]}
-                                >
-                                    <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
-                                    <SimpleSelectField
-                                        label=""
-                                        value={selectedInstrumento}
-                                        options={instrumentosOptions}
-                                        onSelect={(option: any) => {
-                                            setSelectedInstrumento(String(option.value));
-                                            setSelectedPessoa('');
-                                            setIsNomeManual(false);
-                                        }}
-                                        placeholder="Selecione o instrumento..."
-                                    />
-                                </View>
-                            )}
-
                             {/* NOME */}
                             <View
                                 style={
                                     Platform.OS === 'web'
                                         ? {
                                             position: 'relative' as const,
-                                            zIndex: 70,
+                                            zIndex: 80, // NOME deve ser maior que INSTRUMENTO (70)
                                             overflow: 'visible' as const,
                                         }
                                         : {}
@@ -486,6 +468,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                             }
                                             setSelectedPessoa(option.value.trim());
                                             setIsNomeManual(true);
+                                            setSelectedInstrumento('');
                                         } else {
                                             if (!option.value || option.value === '' || !option.id || option.id === '') {
                                                 setSelectedPessoa('');
@@ -507,12 +490,41 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                     }}
                                     placeholder="Selecione o nome..."
                                     loading={loadingPessoas}
+                                    onSubmit={handleSubmit}
+                                    showOptionsOnFocus={pessoasOptions.length > 0}
                                 />
                             </View>
 
                             <Text style={styles.hint}>
                                 Selecione na lista ou digite o nome completo se não encontrar.
                             </Text>
+
+                            {/* INSTRUMENTO */}
+                            {showInstrumento && (
+                                <View
+                                    style={[
+                                        styles.field,
+                                        Platform.OS === 'web'
+                                            ? {
+                                                position: 'relative' as const,
+                                                zIndex: 70, // INSTRUMENTO menor que NOME (80)
+                                                overflow: 'visible' as const,
+                                            }
+                                            : {},
+                                    ]}
+                                >
+                                    <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
+                                    <SimpleSelectField
+                                        label=""
+                                        value={selectedInstrumento}
+                                        options={instrumentosOptions}
+                                        onSelect={(option: any) => {
+                                            setSelectedInstrumento(String(option.value));
+                                        }}
+                                        placeholder="Selecione o instrumento..."
+                                    />
+                                </View>
+                            )}
 
                             <PrimaryButton
                                 title="ENVIAR REGISTRO"

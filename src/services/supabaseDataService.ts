@@ -40,6 +40,45 @@ const buildAccentWildcard = (str: string): string => {
   return str.replace(/[AEIOUÁÉÍÓÚÂÊÎÔÛÃÕÄËÏÖÜCÇaeiouáéíóúâêîôûãõäëïöücç]/g, '_');
 };
 
+const normalizeCargoForMatch = (cargo?: string): string => {
+  return normalizeString((cargo || '').toUpperCase()).replace(/\s+/g, ' ').trim();
+};
+
+const cargoMatchesForaRegional = (cargoRegistro: string | null | undefined, cargoBusca: string): boolean => {
+  const registroNorm = normalizeCargoForMatch(cargoRegistro);
+  const buscaNorm = normalizeCargoForMatch(cargoBusca);
+
+  if (!buscaNorm) return true;
+
+  const aliasesByCargo: Record<string, string[]> = {
+    MUSICO: ['MUSICO'],
+    ORGANISTA: ['ORGANISTA'],
+    INSTRUTOR: ['INSTRUTOR'],
+    INSTRUTORA: ['INSTRUTORA'],
+    EXAMINADORA: ['EXAMINADORA'],
+    'ENCARREGADO LOCAL': ['ENCARREGADO LOCAL', 'ENC LOCAL'],
+    'ENCARREGADO REGIONAL': ['ENCARREGADO REGIONAL', 'ENC REGIONAL'],
+    'SECRETARIO DA MUSICA': ['SECRETARIO DA MUSICA', 'SECRETARIA DA MUSICA', 'SECRETARIO MUSICA'],
+    IRMANDADE: ['IRMANDADE'],
+    ANCIAO: ['ANCIAO', 'ANCIAES'],
+    DIACONO: ['DIACONO', 'DIACONOS'],
+    'COOPERADOR DO OFICIO': ['COOPERADOR DO OFICIO', 'COOPERADOR OFICIO'],
+    'COOPERADOR DE JOVENS': ['COOPERADOR DE JOVENS', 'COOPERADOR JOVENS', 'COOPERADOR DE JOVEM'],
+    'PORTEIRO (A)': ['PORTEIRO', 'PORTEIRA'],
+    'BOMBEIRO (A)': ['BOMBEIRO', 'BOMBEIRA'],
+    'MEDICO (A)': ['MEDICO', 'MEDICA'],
+    'ENFERMEIRO (A)': ['ENFERMEIRO', 'ENFERMEIRA'],
+  };
+
+  const aliases = aliasesByCargo[buscaNorm] || [buscaNorm];
+
+  if (!registroNorm) {
+    return buscaNorm === 'MUSICO' || buscaNorm === 'ENCARREGADO LOCAL';
+  }
+
+  return aliases.some(alias => registroNorm.includes(alias) || alias.includes(registroNorm));
+};
+
 // 🚨 FUNÇÃO AUXILIAR: Verificar se é Secretário da Música (excluir) vs Secretário do GEM (incluir como instrutor)
 const isSecretarioDaMusica = (cargo: string | undefined): boolean => {
   if (!cargo) return false;
@@ -343,8 +382,8 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v7', JSON.stringify(comuns));
-        console.log('✅ Comuns salvas no cache V7');
+        await robustSetItem('cache_comuns_v8', JSON.stringify(comuns));
+        console.log('✅ Comuns salvas no cache V8');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
       }
@@ -383,7 +422,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v7');
+        const cached = await robustGetItem('cache_comuns_v8');
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -395,7 +434,7 @@ export const supabaseDataService = {
             }));
 
           memoryCache.comuns = validComuns;
-          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V7`);
+          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V8`);
           return validComuns;
         }
       } catch (error) {
@@ -1724,33 +1763,25 @@ export const supabaseDataService = {
     }
 
     try {
-      console.log('📚 Buscando pessoas da tabela cadastro_fora_regional...');
+      console.log(`📚 [fetchPessoasForaRegional] Buscando: Comum="${comumNome}", Cargo="${cargoNome}", Instr="${instrumentoNome}"`);
 
       let query = supabase
         .from('cadastro_fora_regional')
         .select('id, nome, comum, cidade, instrumento, cargo, nivel');
 
       if (comumNome) {
-        // 🚀 OTIMIZAÇÃO: Busca robusta a acentos usando wildcard _
-        const comumBusca = comumNome.trim().toUpperCase();
-        const comumWildcard = buildAccentWildcard(comumBusca);
+        // Busca inteligente para Comum: todas as palavras devem estar presentes
+        const comumWords = comumNome.trim().toUpperCase()
+          .replace(/[()\-|]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length > 2 && w !== 'BR' && !/^\d+$/.test(w));
         
-        if (comumWildcard !== comumBusca) {
-          query = query.or(`comum.ilike.%${comumBusca}%,comum.ilike.%${comumWildcard}%`);
+        if (comumWords.length > 0) {
+          comumWords.forEach(word => {
+            query = query.ilike('comum', `%${word}%`);
+          });
         } else {
-          query = query.ilike('comum', `%${comumBusca}%`);
-        }
-      }
-
-      if (cargoNome) {
-        // 🚀 OTIMIZAÇÃO: Busca robusta a acentos para cargo
-        const cargoBusca = cargoNome.trim().toUpperCase();
-        const cargoWildcard = buildAccentWildcard(cargoBusca);
-        
-        if (cargoWildcard !== cargoBusca) {
-          query = query.or(`cargo.ilike.%${cargoBusca}%,cargo.ilike.%${cargoWildcard}%`);
-        } else {
-          query = query.ilike('cargo', `%${cargoBusca}%`);
+          query = query.ilike('comum', `%${comumNome.trim().toUpperCase()}%`);
         }
       }
 
@@ -1765,8 +1796,40 @@ export const supabaseDataService = {
         throw error;
       }
 
-      console.log(`✅ ${data?.length || 0} registros encontrados em cadastro_fora_regional`);
-      return data || [];
+      let filteredData = data || [];
+      if (cargoNome) {
+        const beforeCargoFilter = filteredData.length;
+        filteredData = filteredData.filter(item => cargoMatchesForaRegional(item.cargo, cargoNome));
+        console.log(
+          `🔎 [fetchPessoasForaRegional] Filtro de cargo normalizado: ${beforeCargoFilter} -> ${filteredData.length}`
+        );
+      }
+
+      // Se não encontrou nada com o filtro de cargo, tentar buscar APENAS por comum e instrumento (fallback)
+      if ((!filteredData || filteredData.length === 0) && comumNome && (cargoNome || instrumentoNome)) {
+        console.log('⚠️ [fetchPessoasForaRegional] Nenhum resultado com cargo, tentando busca relaxada...');
+        let fallbackQuery = supabase
+          .from('cadastro_fora_regional')
+          .select('id, nome, comum, cidade, instrumento, cargo, nivel');
+        
+        const firstWord = comumNome.split(' ')[0].replace(/[()\-|]/g, '');
+        fallbackQuery = fallbackQuery.ilike('comum', `%${firstWord}%`);
+        if (instrumentoNome) {
+            fallbackQuery = fallbackQuery.ilike('instrumento', `%${instrumentoNome}%`);
+        }
+        
+        const { data: fallbackData } = await fallbackQuery.limit(100);
+        if (fallbackData && fallbackData.length > 0) {
+            const fallbackFiltered = cargoNome
+              ? fallbackData.filter(item => cargoMatchesForaRegional(item.cargo, cargoNome))
+              : fallbackData;
+            console.log(`✅ [fetchPessoasForaRegional] Fallback encontrou ${fallbackFiltered.length} registros`);
+            return fallbackFiltered;
+        }
+      }
+
+      console.log(`✅ [fetchPessoasForaRegional] ${filteredData.length} registros encontrados`);
+      return filteredData;
     } catch (error) {
       console.error('❌ Erro ao buscar pessoas fora regional:', error);
       throw error;
@@ -1780,24 +1843,53 @@ export const supabaseDataService = {
     }
 
     try {
-      console.log('📚 Buscando comuns da tabela cadastro_fora_regional...');
+      console.log('📚 Buscando comuns da tabela cadastro_fora_regional com paginação...');
 
-      const { data, error } = await supabase
-        .from('cadastro_fora_regional')
-        .select('comum, cidade')
-        .not('comum', 'is', null)
-        .neq('comum', '')
-        .order('comum', { ascending: true });
+      let allData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('❌ Erro ao buscar comuns de fora da regional:', error);
-        throw error;
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        const { data, error } = await supabase
+          .from('cadastro_fora_regional')
+          .select('comum, cidade')
+          .not('comum', 'is', null)
+          .neq('comum', '')
+          .order('comum', { ascending: true })
+          .range(from, to);
+
+        if (error) {
+          console.error('❌ Erro ao buscar página de comuns:', error);
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          console.log(`📄 Carregados ${data.length} registros (total acumulado: ${allData.length})`);
+          
+          if (data.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+
+        // Proteção contra loop infinito
+        if (page > 10) break; // Limite de 10k comuns
       }
 
-      if (!data || data.length === 0) {
+      if (allData.length === 0) {
         console.log('⚠️ Nenhuma comum encontrada em cadastro_fora_regional');
         return [];
       }
+
+      const data = allData;
 
       // Remover duplicatas e formatar
       const mapComuns = new Map<string, { original: string; display: string; cidade: string }>();
@@ -1811,16 +1903,14 @@ export const supabaseDataService = {
           const regexCodigo = /^(?:BR-)?\d{2}-\d{3,6}/i;
           
           if (regexCodigo.test(display)) {
-            // Se tem " - ", o nome real vem depois do primeiro separador
-            if (display.includes(' - ')) {
-              const partes = display.split(' - ');
-              display = partes.slice(1).join(' - ').trim();
-            } else {
-              // Caso contrário, apenas remove o código e trimma
-              display = display.replace(regexCodigo, '').trim();
-            }
+            // 🚀 OTIMIZAÇÃO: Remover o código regional e limpar o que sobrar
+            display = display.replace(regexCodigo, '').trim();
+            
+            // Se sobrar algo começando com " - " ou " : ", remove também
+            if (display.startsWith('-')) display = display.substring(1).trim();
+            if (display.startsWith(':')) display = display.substring(1).trim();
           }
-          const key = normalizeString(display.toUpperCase());
+          const key = `${normalizeString(display.toUpperCase())}_${normalizeString(cidade.toUpperCase())}`;
 
           if (key && !mapComuns.has(key)) {
             mapComuns.set(key, { original, display, cidade });
@@ -1875,9 +1965,13 @@ export const supabaseDataService = {
 
     if (comumId) {
       if (comumId.startsWith('manual_')) {
-        // Extrair nome da comum do ID manual (manual_NomeComum|Cidade)
         const partes = comumId.replace(/^manual_/, '').split('|');
         comumNome = partes[0] || 'Manual';
+      } else if (comumId.startsWith('comum_fora_')) {
+        // 🚀 OTIMIZAÇÃO: Extrair nome original do ID (formato: ...|cidade|NOME_ORIGINAL)
+        const partes = comumId.split('|');
+        comumNome = partes[partes.length - 1];
+        console.log(`🔍 [getPessoasFromLocal] Resolvido Fora Regional: "${comumNome}"`);
       } else {
         const comum = comuns.find(c => c.id === comumId);
         comumNome = comum?.nome;
@@ -1893,20 +1987,24 @@ export const supabaseDataService = {
       }
     }
 
-    if (instrumentoId) {
+    // 🚨 CORREÇÃO CRÍTICA: Se for Fora Regional, IGNORAR o filtro de instrumento
+    // Isso evita que o nome selecionado suma da lista quando o usuário escolhe um instrumento manualmente
+    if (instrumentoId && !isForaRegional) {
       const instrumento = instrumentos.find(i => i.id === instrumentoId);
       instrumentoNome = instrumento?.nome;
     }
 
-    // Se não encontrou os nomes, retornar vazio
+    // Se não encontrou os nomes, logar aviso e tentar fallback se possível
     if (!comumNome || !cargoNome) {
-      console.warn('⚠️ [getPessoasFromLocal] comumNome ou cargoNome não encontrados:', {
+      console.warn('⚠️ [getPessoasFromLocal] Nomes não resolvidos:', {
         comumId,
         cargoId,
         comumNome,
         cargoNome,
       });
-      return [];
+      
+      // Se for comum_fora_, pelo menos o cargo deve ser resolvido para prosseguir
+      if (!comumNome || !cargoNome) return [];
     }
 
     // 🚨 NOVO: Se for Fora Regional, buscar da tabela específica
@@ -1917,21 +2015,31 @@ export const supabaseDataService = {
 
         console.log(`✅ [getPessoasFromLocal] Retornando ${pessoasData.length} pessoas de cadastro_fora_regional`);
 
-        return pessoasData.map((p) => ({
-          id: p.id || `fora_${p.nome.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
-          nome: p.nome.split(' ')[0] || '',
-          sobrenome: p.nome.split(' ').slice(1).join(' ') || '',
-          nome_completo: p.nome,
-          comum_id: comumId || '',
-          cargo_id: cargoId || '',
-          cargo_real: (p.cargo || '').toUpperCase().trim(),
-          instrumento_id: instrumentoId || null,
-          cidade: (p.cidade || '').toUpperCase().trim(),
-          nivel: (p.nivel || '').trim().toUpperCase() || null,
-          ativo: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }));
+        return pessoasData.map((p) => {
+          // Tentar encontrar o instrumento_id real baseado no nome do instrumento da tabela
+          let realInstrumentoId = instrumentoId || null;
+          if (p.instrumento && instrumentos.length > 0) {
+            const instrNorm = normalizeString(p.instrumento.toUpperCase());
+            const instr = instrumentos.find(i => normalizeString(i.nome.toUpperCase()) === instrNorm);
+            if (instr) realInstrumentoId = instr.id;
+          }
+
+          return {
+            id: p.id || `fora_${p.nome.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
+            nome: p.nome.split(' ')[0] || '',
+            sobrenome: p.nome.split(' ').slice(1).join(' ') || '',
+            nome_completo: p.nome,
+            comum_id: comumId || '',
+            cargo_id: cargoId || '',
+            cargo_real: (p.cargo || '').toUpperCase().trim(),
+            instrumento_id: realInstrumentoId,
+            cidade: (p.cidade || '').toUpperCase().trim(),
+            nivel: (p.nivel || '').trim().toUpperCase() || null,
+            ativo: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+        });
       } catch (error) {
         console.error('❌ Erro ao buscar pessoas fora regional:', error);
         return [];
@@ -2235,7 +2343,7 @@ export const supabaseDataService = {
             console.log(`✅ [getPessoasFromLocal] Fallback SUCESSO: ${foraData.length} pessoas encontradas fora da regional`);
             
             const pessoasFora: Pessoa[] = foraData.map((p) => ({
-              id: p.id || `fora_fb_${p.nome.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
+              id: p.id || `fora_${p.nome.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
               nome: p.nome.split(' ')[0] || '',
               sobrenome: p.nome.split(' ').slice(1).join(' ') || '',
               nome_completo: p.nome,
@@ -2422,11 +2530,15 @@ export const supabaseDataService = {
       // Para nomes manuais, usar cargo selecionado diretamente
       cargoReal = cargoSelecionado.nome;
     } else {
+      // 🚀 NOVO: Identificar se é Fora Regional pelo comum_id
+      const isForaRegionalContext = registro.comum_id.startsWith('comum_fora_');
+      
       // Buscar pessoa pelo ID (precisamos buscar da lista de pessoas carregadas)
       const pessoas = await this.getPessoasFromLocal(
         registro.comum_id,
         registro.cargo_id,
-        registro.instrumento_id || undefined
+        registro.instrumento_id || undefined,
+        isForaRegionalContext // Passar o contexto correto
       );
       pessoa = pessoas.find(p => p.id === registro.pessoa_id) || null;
 

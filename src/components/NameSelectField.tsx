@@ -44,9 +44,11 @@ interface NameSelectFieldProps {
   style?: ViewStyle;
   loading?: boolean;
   onSubmit?: () => void;
+  showOptionsOnFocus?: boolean;
 }
 
 const MANUAL_INPUT_OPTION_ID = '__MANUAL_INPUT__';
+const MIN_MANUAL_DETECTION_CHARS = 4;
 
 export interface NameSelectFieldRef {
   focus: () => void;
@@ -65,6 +67,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       style,
       loading = false,
       onSubmit,
+      showOptionsOnFocus = true,
     },
     ref
   ) => {
@@ -117,6 +120,10 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       return [];
     }
 
+    if (!showOptionsOnFocus && !searchText.trim()) {
+      return [];
+    }
+
     // Se não há opções, não mostrar dropdown (já está em modo manual automaticamente)
     if (!options || options.length === 0) {
       return []; // Não mostrar dropdown - modo manual será ativado automaticamente
@@ -166,7 +173,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     return result;
-  }, [searchText, options, isManualMode, value]);
+  }, [searchText, options, isManualMode, value, showOptionsOnFocus]);
 
   // 🚨 CRÍTICO: Quando não há opções, entrar automaticamente em modo manual
   // 🚨 CORREÇÃO: NÃO mudar para modo manual enquanto está carregando - aguardar carregamento terminar
@@ -285,6 +292,12 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       return;
     }
 
+    if (isManualMode) {
+      onSelect({ id: 'manual', label: text, value: text, data: null });
+      setShowList(false);
+      return;
+    }
+
     // 🚨 LÓGICA SEM FISSURAS: Verificar se o que foi digitado resultaria em algum item na lista
     const query = normalize(text);
     const queryWords = query.split(' ').filter(word => word.length > 0);
@@ -293,7 +306,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       return queryWords.every(word => labelNorm.includes(word));
     });
 
-    if (!hasMatches && text.trim().length > 0) {
+    if (!hasMatches && text.trim().length >= MIN_MANUAL_DETECTION_CHARS) {
       // Se não há combinações, entra em modo manual AUTOMATICAMENTE
       if (!isManualMode) {
         console.log('✏️ [NameSelectField] Sem correspondências - ativando modo manual automático');
@@ -301,6 +314,9 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       }
       onSelect({ id: 'manual', label: text, value: text, data: null });
       setShowList(false);
+    } else if (!hasMatches) {
+      setShowList(false);
+      onSelect({ id: '', label: text, value: '' });
     } else {
       // Se há combinações, garante que NÃO está em modo manual
       if (isManualMode) {
@@ -323,6 +339,11 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     if (isManualMode) {
+      return;
+    }
+
+    if (!showOptionsOnFocus && !searchText.trim()) {
+      setShowList(false);
       return;
     }
 
@@ -527,6 +548,19 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      isFocused &&
+      showOptionsOnFocus &&
+      !isManualMode &&
+      !searchText.trim() &&
+      options &&
+      options.length > 0
+    ) {
+      setShowList(true);
+    }
+  }, [isFocused, showOptionsOnFocus, isManualMode, searchText, options]);
+
   // Z-index para aparecer acima de outros elementos
   const containerZIndex = isFocused ? 99999 : 1;
 
@@ -599,7 +633,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
               returnKeyType="done"
               onSubmitEditing={handleEnterPress}
               autoCapitalize="words"
-              editable={!loading}
+              editable={!loading || isManualMode}
               onKeyPress={e => {
                 // Suporte para Android/iOS com teclado físico ou virtual
                 if (Platform.OS !== 'web') {
@@ -657,7 +691,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
                 }
                 : {})}
             />
-            {loading && (
+            {loading && !isManualMode && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={theme.colors.primary} />
                 <Text style={styles.loadingText}>Carregando...</Text>
@@ -932,19 +966,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
                     </View>
                   )}
 
-                  {/* Mensagem quando não há resultados */}
-                  {showList &&
-                    filtered.length === 0 &&
-                    searchText.trim().length > 0 &&
-                    isFocused && (
-                      <View style={styles.webDropdownContainer}>
-                        <View style={styles.dropdown}>
-                          <View style={styles.emptyContainer}>
-                            <Text style={styles.emptyText}>Nenhum resultado encontrado</Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
+                  {/* Sem resultados: o campo vira manual; nao desenhar caixa vazia. */}
                 </>
               )}
             </>

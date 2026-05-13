@@ -612,6 +612,7 @@ export const googleSheetsService = {
 
       // Verificar se é registro externo (do modal de novo registro)
       const isExternalRegistro = registro.comum_id.startsWith('external_');
+      const isForaRegionalRegistro = registro.comum_id.startsWith('comum_fora_');
 
       // 🚨 CORREÇÃO: Verificar se é nome manual de uma comum da regional (não do modal)
       // Nomes manuais de comuns da regional indicam que o cadastro está desatualizado
@@ -700,7 +701,8 @@ export const googleSheetsService = {
         const pessoas = await supabaseDataService.getPessoasFromLocal(
           registro.comum_id,
           registro.cargo_id,
-          registro.instrumento_id || undefined
+          registro.instrumento_id || undefined,
+          isForaRegionalRegistro
         );
         pessoa = pessoas.find(p => p.id === registro.pessoa_id);
 

@@ -139,7 +139,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   }, [selectedPessoa, isNomeManual, pessoas]);
 
   const showInstrumento = !isOrganista && !isCandidato && isMusicalCargo && (
-    isForaRegional || 
+    (isForaRegional && !selectedPessoaData?.instrumento_id) || 
     isNomeManual
   );
 
@@ -433,6 +433,19 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     // 🚨 NOVO FLUXO: Não bloquear busca de pessoas se o instrumento não estiver selecionado
     // Isso permite que o sistema busque todos os músicos da comum/cargo primeiro
     if (selectedComum && selectedCargo) {
+      if (isNomeManual) {
+        setLoadingPessoas(false);
+        setPessoas([]);
+        console.log('⏭️ [RegisterController] Nome manual ativo - busca de pessoas pausada');
+        return;
+      }
+
+      // 🚨 CORREÇÃO: Não recarregar se o instrumento mudar mas já tivermos uma pessoa selecionada (Fora Regional)
+      // Isso evita que o nome selecionado "suma" da lista quando o usuário escolhe um instrumento manualmente
+      if (isForaRegional && selectedPessoa && !isNomeManual && selectedInstrumento) {
+        console.log('⏭️ [RegisterController] Pulando loadPessoas (pessoa já selecionada)');
+        return;
+      }
 
       // 🚀 OTIMIZAÇÃO: Debounce de 300ms (aumentado de 100ms) para evitar múltiplas chamadas rápidas
       // Reduz significativamente a carga no Supabase durante a seleção de campos
@@ -450,7 +463,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         clearTimeout(loadPessoasTimeoutRef.current);
       }
     };
-  }, [selectedComum, selectedCargo, selectedInstrumento, cargos]);
+  }, [selectedComum, selectedCargo, selectedInstrumento, cargos, isForaRegional, selectedPessoa, isNomeManual]);
 
   const loadInitialData = async (isRefresh = false) => {
     try {
@@ -631,7 +644,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       cargoNome = cargos.find(c => c.id === selectedCargo)?.nome;
     }
 
-    if (selectedInstrumento) {
+    if (selectedInstrumento && !isForaRegional) {
       instrumentoNome = instrumentos.find(i => i.id === selectedInstrumento)?.nome;
     }
 
@@ -641,7 +654,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     }
 
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
-    const CACHE_VERSION = 'v5'; // Bust cache to ensure new mapping logic is applied
+    const CACHE_VERSION = 'v6'; // Bust cache to ensure new fora-regional ministry mapping is applied
     const cacheKey = `pessoas_${CACHE_VERSION}_${isForaRegional ? 'fora_' : ''}${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
 
     try {
@@ -796,13 +809,13 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       );
       setLoading(false);
       isSubmittingRef.current = false;
-      return;
+      return false;
     }
 
     // 🚨 BLOQUEIO SÍNCRONO: Se já estiver submetendo, bloquear imediatamente (mesmo se React state 'loading' não atualizou ainda)
     if (isSubmittingRef.current || loading) {
       console.warn('⚠️ [SUBMIT] Submissão bloqueada: já em andamento (duplo-clique detectado)');
-      return;
+      return false;
     }
 
     isSubmittingRef.current = true;
@@ -826,7 +839,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
         showToast.error('Erro', 'Preencha todos os campos obrigatórios');
         isSubmittingRef.current = false;
-        return;
+        return false;
       }
 
       // 🚨 CORREÇÃO CRÍTICA: Se selectedPessoa está vazio mas há pessoas carregadas,
@@ -843,7 +856,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         });
         Alert.alert('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
         isSubmittingRef.current = false;
-        return;
+        return false;
       }
 
       // Verificar se é nome manual e se tem valor válido
@@ -855,7 +868,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         });
         Alert.alert('Erro', 'O nome deve ter pelo menos 3 caracteres');
         isSubmittingRef.current = false;
-        return;
+        return false;
       }
 
       // Validar instrumento apenas para Músico e Instrutor
@@ -869,14 +882,14 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         console.warn('⚠️ [SUBMIT] Instrumento não selecionado para entrada manual');
         Alert.alert('Erro', 'Selecione o instrumento');
         isSubmittingRef.current = false;
-        return;
+        return false;
       }
 
       if (!user) {
         console.error('❌ [SUBMIT] Usuário não autenticado');
-        Alert.alert('Erro', 'Usuário não autenticado');
+        showToast.error('Erro', 'Sessão expirada. Por favor, faça login novamente.');
         isSubmittingRef.current = false;
-        return;
+        return false;
       }
 
       console.log('✅ [SUBMIT] Validações passaram, iniciando processamento otimista...');
@@ -986,7 +999,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           setDuplicateModalVisible(true);
           setLoading(false);
           isSubmittingRef.current = false;
-          return;
+          return false;
         }
 
         // 3. Trava de Segurança: Verificar duplicata remota (rápido - 3s timeout) - SOMENTE SE ONLINE
@@ -1040,7 +1053,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
               setDuplicateModalVisible(true);
               setLoading(false);
               isSubmittingRef.current = false;
-              return;
+              return false;
             }
           }
         }
@@ -1077,11 +1090,14 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
             refreshCount(); // Atualizar contagem final
           });
 
+        return true;
+
       } catch (error) {
         console.error('❌ [SUBMIT] Erro no processamento otimista:', error);
         showToast.error('Erro', 'Ocorreu um erro ao salvar o registro localmente.');
         setLoading(false);
         isSubmittingRef.current = false;
+        return false;
       }
     } finally {
       // Garantia final
@@ -1097,11 +1113,15 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     return comuns.map(c => {
       // Priorizar displayName (já limpo no fetching)
       const nomeExibicao = c.displayName || (supabaseDataService as any).extrairNomeComum(c.nome);
+      // Incluir cidade no label para facilitar busca e identificação
+      const labelFinal = c.cidade ? `${nomeExibicao || c.nome} (${c.cidade})` : (nomeExibicao || c.nome);
+      
       return {
         id: c.id,
-        label: nomeExibicao || c.nome, // Nome sem código para exibição
+        label: labelFinal,
         value: c.id,
-        nomeCompleto: c.nome, // Manter nome completo (com código) para registro
+        nomeCompleto: c.nome,
+        cidade: c.cidade || '',
       };
     });
   }, [comuns]);

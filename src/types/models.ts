@@ -2,6 +2,7 @@ export interface Comum {
   id: string;
   nome: string;
   displayName?: string; // Nome limpo para exibição
+  cidade?: string;      // Cidade da comum
   created_at?: string;
   updated_at?: string;
 }

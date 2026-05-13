@@ -449,6 +449,7 @@ export const offlineSyncService = {
           supabaseDataService.getCargosFromLocal(),
         ]);
 
+        const isForaRegionalRegistro = registro.comum_id.startsWith('comum_fora_');
         const comumObj = comuns.find(c => c.id === registro.comum_id);
         const cargoObj = cargos.find(c => c.id === registro.cargo_id);
 
@@ -462,7 +463,8 @@ export const offlineSyncService = {
             const pessoas = await supabaseDataService.getPessoasFromLocal(
               registro.comum_id,
               registro.cargo_id,
-              registro.instrumento_id || undefined
+              registro.instrumento_id || undefined,
+              isForaRegionalRegistro
             );
             const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
             if (pessoa) {
@@ -529,7 +531,8 @@ export const offlineSyncService = {
             supabaseDataService.getPessoasFromLocal(
               registro.comum_id,
               registro.cargo_id,
-              registro.instrumento_id || undefined
+              registro.instrumento_id || undefined,
+              registro.comum_id.startsWith('comum_fora_')
             ),
           ]);
 

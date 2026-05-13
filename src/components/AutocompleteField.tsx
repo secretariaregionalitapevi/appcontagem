@@ -104,15 +104,26 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
       }
 
       // Mostrar resultados mesmo com 1 caractere para melhor UX
-      const query = normalize(searchText);
+      const queryNorm = normalize(searchText);
+      const queryWords = queryNorm.split(/\s+/).filter(w => w.length > 0);
+
       const results = options.filter(opt => {
         const labelNorm = normalize(opt.label);
         const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
-        return labelNorm.includes(query) || nomeNorm.includes(query);
+        
+        // Busca inteligente: todas as palavras da busca devem estar presentes (em qualquer ordem)
+        // Mas ignorar palavras de ligação muito curtas se houver outras palavras maiores
+        const wordsToMatch = queryWords.length > 1 
+          ? queryWords.filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w))
+          : queryWords;
+          
+        if (wordsToMatch.length === 0) return labelNorm.includes(queryNorm) || nomeNorm.includes(queryNorm);
+
+        return wordsToMatch.every(word => labelNorm.includes(word) || nomeNorm.includes(word));
       });
       console.log('🔍 AutocompleteField - Filtro:', {
         searchText,
-        query,
+        queryNorm,
         totalOptions: options.length,
         filteredCount: results.length,
         firstResults: results.slice(0, 5).map(r => r.label),
@@ -154,11 +165,15 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
 
         // 🚨 Lógica de autoManualEntry - Threshold de 4 caracteres
         if (autoManualEntry && onManualEntry && text.trim().length >= 4) {
-          const query = normalize(text);
+          const queryNorm = normalize(text);
+          const queryWords = queryNorm.split(/\s+/).filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w));
+          
           const hasMatches = options.some(opt => {
             const labelNorm = normalize(opt.label);
             const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
-            return labelNorm.includes(query) || nomeNorm.includes(query);
+            
+            if (queryWords.length === 0) return labelNorm.includes(queryNorm) || nomeNorm.includes(queryNorm);
+            return queryWords.every(word => labelNorm.includes(word) || nomeNorm.includes(word));
           });
 
           if (!hasMatches) {
