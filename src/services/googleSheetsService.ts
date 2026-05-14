@@ -1190,13 +1190,7 @@ export const googleSheetsService = {
       }
       if (updateData.data_ensaio) {
         // Formatar data se necessário
-        const data = new Date(updateData.data_ensaio);
-        const dia = String(data.getDate()).padStart(2, '0');
-        const mes = String(data.getMonth() + 1).padStart(2, '0');
-        const ano = data.getFullYear();
-        const horas = String(data.getHours()).padStart(2, '0');
-        const minutos = String(data.getMinutes()).padStart(2, '0');
-        sheetData['DATA_ENSAIO'] = `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+        sheetData['DATA_ENSAIO'] = formatDateTimeManual(updateData.data_ensaio);
       }
       if (updateData.anotacoes !== undefined) {
         sheetData['ANOTACOES'] = updateData.anotacoes.toUpperCase();

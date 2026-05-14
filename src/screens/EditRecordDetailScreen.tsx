@@ -62,7 +62,6 @@ export const EditRecordDetailScreen: React.FC = () => {
     const [instrumento, setInstrumento] = useState(registro.instrumento || '');
     const [naipe, setNaipe] = useState(registro.naipe_instrumento || '');
     const [classe, setClasse] = useState(registro.classe_organista || '');
-    const [dataEnsaio, setDataEnsaio] = useState(registro.data_ensaio || '');
     const [anotacoes, setAnotacoes] = useState(registro.anotacoes || '');
 
     useEffect(() => {
@@ -137,7 +136,6 @@ export const EditRecordDetailScreen: React.FC = () => {
                 instrumento: instrumento.trim() ? instrumento.trim().toUpperCase() : undefined,
                 naipe_instrumento: naipe.trim() ? naipe.trim().toUpperCase() : undefined,
                 classe_organista: classe.trim() ? classe.trim().toUpperCase() : undefined,
-                data_ensaio: dataEnsaio || undefined,
                 anotacoes: anotacoes.trim() ? anotacoes.trim().toUpperCase() : undefined,
             };
 

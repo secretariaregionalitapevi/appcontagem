@@ -33,7 +33,8 @@ function onOpen() {
  * Função unificada: Atualiza Dashboards e Listas.
  */
 function atualizarPainel() {
-  exibirModalSincronizacao('LOCAL');
+  updateLocalProgress(5, 'Iniciando...', 'Preparando atualização');
+  exibirModalSincronizacao('PULL');
 }
 
 /**
@@ -90,6 +91,31 @@ function exibirModalSincronizacao(tipo) {
           width: 85%;
           max-width: 280px;
         }
+        .progress-wrap {
+          width: 76%;
+          max-width: 260px;
+          height: 6px;
+          background: #edf0f2;
+          border-radius: 999px;
+          overflow: hidden;
+          margin-top: 18px;
+        }
+        #progressBar {
+          width: 5%;
+          height: 100%;
+          background: #005ea2;
+          border-radius: 999px;
+          transition: width .35s ease;
+        }
+        #percentText {
+          margin-top: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #005ea2;
+        }
+        #stepText {
+          min-height: 16px;
+        }
       </style>
     </head>
     <body>
@@ -97,7 +123,9 @@ function exibirModalSincronizacao(tipo) {
         <div id="statusBox">
           <div class="spinner"></div>
           <h2>${desc}</h2>
-          <p>Localidade: <b>${LOCAL_ENSAIO}</b></p>
+          <p id="stepText">Localidade: <b>${LOCAL_ENSAIO}</b></p>
+          <div class="progress-wrap"><div id="progressBar"></div></div>
+          <p id="percentText">5%</p>
           <p style="font-size: 11px; margin-top: 5px; color: #999;">Aguarde alguns segundos...</p>
         </div>
 
@@ -112,11 +140,56 @@ function exibirModalSincronizacao(tipo) {
       <script>
         window.onload = function() {
           const tipoSync = '${tipo}';
+          const progressBar = document.getElementById('progressBar');
+          const percentText = document.getElementById('percentText');
+          const stepText = document.getElementById('stepText');
+          let currentPercent = 5;
+          let serverPercent = 5;
+
+          function paintProgress(value, allowComplete) {
+            const limit = allowComplete ? 100 : 98;
+            const next = Math.max(currentPercent, Math.min(limit, Number(value) || 5));
+            currentPercent = next;
+            progressBar.style.width = next + '%';
+            percentText.textContent = Math.round(next) + '%';
+          }
+
+          const motionTimer = setInterval(function() {
+            let ceiling = 28;
+            if (serverPercent >= 82) {
+              ceiling = 96;
+            } else if (serverPercent >= 62) {
+              ceiling = 78;
+            } else if (serverPercent >= 42) {
+              ceiling = 58;
+            }
+            if (currentPercent < ceiling) {
+              const step = Math.max(0.25, (ceiling - currentPercent) * 0.04);
+              paintProgress(currentPercent + step, false);
+            }
+          }, 450);
+
+          const pollTimer = setInterval(function() {
+            google.script.run
+              .withSuccessHandler(function(progress) {
+                if (!progress) return;
+                const percent = Math.max(5, Math.min(100, progress.percent || 5));
+                serverPercent = percent;
+                paintProgress(percent, percent >= 100);
+                if (progress.status) {
+                  stepText.textContent = progress.status;
+                }
+              })
+              .getLocalProgressUpdate();
+          }, 650);
           
           google.script.run
             .withSuccessHandler(function(resJson) {
+              clearInterval(pollTimer);
+              clearInterval(motionTimer);
               const res = JSON.parse(resJson);
               if(res.sucesso) {
+                paintProgress(100, true);
                 document.getElementById('statusBox').style.display = 'none';
                 document.getElementById('sucessoBox').style.display = 'flex';
                 
@@ -127,6 +200,8 @@ function exibirModalSincronizacao(tipo) {
               }
             })
             .withFailureHandler(function(err) {
+              clearInterval(pollTimer);
+              clearInterval(motionTimer);
               alert('Erro crítico: ' + err);
               google.script.host.close();
             })
@@ -145,6 +220,34 @@ function exibirModalSincronizacao(tipo) {
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, titulo);
 }
 
+function updateLocalProgress(percent, status, timeInfo) {
+  try {
+    SistemaSAM_Biblioteca.updateExportProgress(percent, status, timeInfo);
+  } catch(e) {}
+
+  try {
+    CacheService.getScriptCache().put('SAM_LOCAL_PROGRESS', JSON.stringify({
+      percent: percent,
+      status: status,
+      timeInfo: timeInfo
+    }), 300);
+  } catch(e) {}
+}
+
+function getLocalProgressUpdate() {
+  try {
+    const fromLibrary = SistemaSAM_Biblioteca.getProgressUpdate();
+    if (fromLibrary && fromLibrary.percent != null) return fromLibrary;
+  } catch(e) {}
+
+  try {
+    const cached = CacheService.getScriptCache().get('SAM_LOCAL_PROGRESS');
+    return cached ? JSON.parse(cached) : { percent: 5, status: 'Iniciando...' };
+  } catch(e) {
+    return { percent: 5, status: 'Iniciando...' };
+  }
+}
+
 
 /**
  * Função de ponte para execução segura
@@ -154,12 +257,9 @@ function executarAcaoSincronizacao(tipo) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let resultado;
     
-    if (tipo === 'LOCAL') {
-      resultado = SistemaSAM_Biblioteca.sincronizarLocalmenteDesdeRegistros(ss);
-    } else {
-      // MODO PULL: Busca da matriz e depois atualiza local
-      resultado = SistemaSAM_Biblioteca.processarDadosRegionaisCentral(LOCAL_ENSAIO, ss);
-    }
+    // MODO PULL: a planilha local busca a fonte remota, espelha a aba Registros
+    // e depois recalcula Resumo, Organistas e Ministerio.
+    resultado = SistemaSAM_Biblioteca.processarDadosRegionaisCentral(LOCAL_ENSAIO, ss);
     
     return JSON.stringify(resultado);
   } catch(e) {

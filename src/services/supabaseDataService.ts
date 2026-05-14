@@ -18,7 +18,7 @@ import {
   initializeStorage,
   robustGetAllKeys,
 } from '../utils/robustStorage';
-import { formatDate, formatTime, getCurrentDateTimeISO } from '../utils/dateUtils';
+import { formatDate, formatTime, getCurrentDateTimeISO, isDateOnlyString } from '../utils/dateUtils';
 import { localStorageService } from './localStorageService';
 import {
   normalizeForSearch,
@@ -3463,51 +3463,36 @@ export const supabaseDataService = {
       }
 
       const searchTermTrimmed = searchTerm.trim();
-      console.log(`🔍 [Supabase] Executando queries para: "${searchTermTrimmed}" no local: "${localTrimmed}"`);
+      const normalizedSearchTerm = normalizeForSearch(searchTermTrimmed);
+      console.log(
+        `🔍 [Supabase] Executando busca normalizada para: "${searchTermTrimmed}" no local: "${localTrimmed}"`
+      );
 
-      const promises = [
-        supabase
-          .from('presencas')
-          .select('*')
-          .ilike('local_ensaio', `%${localTrimmed}%`)
-          .ilike('nome_completo', `%${searchTermTrimmed}%`)
-          .order('created_at', { ascending: false })
-          .limit(500),
-        supabase
-          .from('presencas')
-          .select('*')
-          .ilike('local_ensaio', `%${localTrimmed}%`)
-          .ilike('cargo', `%${searchTermTrimmed}%`)
-          .order('created_at', { ascending: false })
-          .limit(500),
-        supabase
-          .from('presencas')
-          .select('*')
-          .ilike('local_ensaio', `%${localTrimmed}%`)
-          .ilike('comum', `%${searchTermTrimmed}%`)
-          .order('created_at', { ascending: false })
-          .limit(500),
-      ];
+      const { data, error } = await supabase
+        .from('presencas')
+        .select('*')
+        .ilike('local_ensaio', `%${localTrimmed}%`)
+        .order('created_at', { ascending: false })
+        .limit(1000);
 
-      const results = await Promise.all(promises);
-      const allData: any[] = [];
-      const seenUUIDs = new Set<string>();
+      if (error) {
+        console.error('❌ Erro ao buscar registros:', error);
+        throw error;
+      }
 
-      // Combinar resultados removendo duplicatas
-      results.forEach((result, idx) => {
-        if (result && result.data && Array.isArray(result.data)) {
-          console.log(`🔍 Resultado da query ${idx + 1}:`, result.data.length, 'registros');
-          result.data.forEach(item => {
-            const uuid =
-              item.uuid || item.UUID || `${item.nome_completo || ''}_${item.comum || ''}`;
-            if (!seenUUIDs.has(uuid)) {
-              seenUUIDs.add(uuid);
-              allData.push(item);
-            }
-          });
-        } else if (result && result.error) {
-          console.error(`❌ Erro na query ${idx + 1}:`, result.error);
-        }
+      const allData = (data || []).filter(item => {
+        const searchableText = [
+          item.nome_completo,
+          item.comum,
+          item.cargo,
+          item.cidade,
+          item.instrumento,
+          item.classe_organista,
+        ]
+          .map(value => normalizeForSearch(String(value || '')))
+          .join(' ');
+
+        return searchableText.includes(normalizedSearchTerm);
       });
 
       // Ordenar por data de criação (mais recente primeiro)
@@ -3751,8 +3736,14 @@ export const supabaseDataService = {
 
       if (!nomeBusca || !comumBusca) return;
 
-      // 🚨 CORREÇÃO: Usar data local para evitar erros de fuso horário
-      const dataRegistro = new Date(params.dataIso);
+      // Tratar YYYY-MM-DD como data local. new Date('YYYY-MM-DD') vira UTC
+      // e em Sao Paulo cai no dia anterior às 21:00.
+      const dataRegistro = isDateOnlyString(params.dataIso)
+        ? (() => {
+            const [ano, mes, dia] = params.dataIso.split('-').map(Number);
+            return new Date(ano, mes - 1, dia);
+          })()
+        : new Date(params.dataIso);
       
       // Início do dia local (00:00:00)
       const dataInicio = new Date(

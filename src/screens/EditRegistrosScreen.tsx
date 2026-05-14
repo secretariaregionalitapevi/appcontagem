@@ -24,6 +24,7 @@ import { localStorageService } from '../services/localStorageService';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Cargo } from '../types/models';
 import { handleHardReset } from '../utils/appActions';
+import { formatRegistroDateTime } from '../utils/dateUtils';
 
 interface RegistroPresencaSupabase {
   uuid?: string;
@@ -259,21 +260,6 @@ export const EditRegistrosScreen: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
   // Se não é master, mostrar mensagem
   if (!isMaster) {
     return (
@@ -489,7 +475,7 @@ export const EditRegistrosScreen: React.FC = () => {
                       <View style={styles.detailRow}>
                         <FontAwesome5 name="clock" size={12} color={theme.colors.textSecondary} />
                         <Text style={styles.detailText}>
-                          {formatDate(registro.data_ensaio || registro.created_at || '')}
+                          {formatRegistroDateTime(registro.data_ensaio, registro.created_at)}
                         </Text>
                       </View>
 

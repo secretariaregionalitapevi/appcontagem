@@ -10,20 +10,19 @@
 function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
   try {
     console.log("🚀 Iniciando Sincronização para: " + localEnsaio);
+    updateExportProgress(8, 'Conectando à matriz...', 'Preparando atualização local');
     
     // 1. Busca os registros diretamente no Supabase
+    updateExportProgress(22, 'Buscando registros de ' + localEnsaio + '...', 'Lendo fonte');
     var registros = buscarRegistrosSupabase(localEnsaio);
     
-    if (!registros || registros.length === 0) {
-      console.log('ℹ️ Nenhum dado encontrado.');
-      return { 
-        sucesso: true, 
-        mensagem: "Nenhum dado encontrado no banco de dados para este local.",
-        detalhes: { total: 0 }
-      };
+    if (!registros) registros = [];
+    if (registros.length === 0) {
+      console.log('Nenhum dado encontrado; limpando a aba local antes da recontagem.');
     }
 
     // 2. Atualiza a aba 'Registros'
+    updateExportProgress(42, 'Atualizando aba Registros...', 'Recebendo dados');
     var shRegistros = ssDestino.getSheetByName('Registros');
     if (shRegistros) {
       ssDestino.toast("📥 Recebendo dados de " + localEnsaio + "...", 'Sincronização', 5);
@@ -32,6 +31,7 @@ function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
     }
     
     // 3. Atualiza Dashboard
+    updateExportProgress(62, 'Atualizando dashboard...', 'Recontando painel');
     ssDestino.toast('📊 Atualizando Dashboard...', 'Sincronização', 5);
     var resumoExecucao = { membros: 0, organistas: 0, ministry: 0 };
     var shResumo = ssDestino.getSheetByName('Resumo');
@@ -41,6 +41,7 @@ function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
     
     // 4. Atualiza Organistas e Ministério
     try {
+      updateExportProgress(82, 'Atualizando listas auxiliares...', 'Organistas e Ministério');
       ssDestino.toast('🎹 Atualizando listas auxiliares...', 'Sincronização', 5);
       alimentarAbaOrganistasDestino(localEnsaio, ssDestino, localEnsaio, shRegistros);
       alimentarAbaMinisterioDestino(localEnsaio, ssDestino, localEnsaio, shRegistros);
@@ -49,12 +50,13 @@ function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
     }
     
     ssDestino.toast('✅ Sincronização concluída!', 'Sucesso', 5);
+    updateExportProgress(100, 'Painel atualizado com sucesso.', 'Concluído');
     
     return {
       sucesso: true,
       mensagem: "Sincronização concluída com sucesso.",
       detalhes: {
-        total: registros.length,
+        total: registros ? registros.length : 0,
         resumo: {
           totalMembros: resumoExecucao.membros,
           totalOrganistas: resumoExecucao.organistas,
@@ -64,6 +66,7 @@ function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
     };
   } catch (err) {
     console.error("❌ Erro crítico: " + err.message);
+    updateExportProgress(100, 'Falha na atualização local.', 'Erro');
     return { sucesso: false, mensagem: err.message };
   }
 }
@@ -76,8 +79,9 @@ function processarDadosRegionaisCentral(localEnsaio, ssDestino) {
  */
 function sincronizarLocalmenteDesdeRegistros(ssDestino, silencioso = false) {
   try {
-    const shRegistros = ssDestino.getSheetByName('Registros');
-    if (!shRegistros || shRegistros.getLastRow() < 2) {
+    updateExportProgress(8, 'Identificando localidade...', 'Preparando atualização local');
+    let shRegistros = ssDestino.getSheetByName('Registros');
+    if (false && shRegistros) {
       return { sucesso: false, mensagem: "A aba 'Registros' está vazia. Importe dados primeiro." };
     }
 
@@ -94,7 +98,24 @@ function sincronizarLocalmenteDesdeRegistros(ssDestino, silencioso = false) {
       const shResumo = ssDestino.getSheetByName('Resumo');
       if (shResumo) localEnsaio = shResumo.getRange('B2').getValue();
     }
+
+    if (!localEnsaio || String(localEnsaio).trim() === '') {
+      return { sucesso: false, mensagem: 'Nao foi possivel identificar o local de ensaio desta planilha.' };
+    }
+
+    if (!shRegistros) {
+      shRegistros = ssDestino.insertSheet('Registros');
+    }
+
+    updateExportProgress(24, 'Puxando registros atualizados...', 'Lendo fonte');
+    if (!silencioso) ssDestino.toast('Puxando registros atualizados...', 'Sincronizacao Local', 3);
+    let registrosRemotos = buscarRegistrosSupabase(localEnsaio);
+    if (!registrosRemotos) registrosRemotos = [];
+    updateExportProgress(42, 'Atualizando aba Registros...', 'Recebendo dados');
+    atualizarAbaRegistrosLocalBulk(shRegistros, registrosRemotos);
+    SpreadsheetApp.flush();
     
+    updateExportProgress(55, 'Aplicando travas de segurança...', 'Conferindo registros');
     if (!silencioso) ssDestino.toast('🛡️ Aplicando travas de segurança...', 'Sincronização Local', 3);
 
     // --- TRAVA DE SEGURANÇA 1 & 2: Limpeza de Duplicatas e Localidade ---
@@ -104,6 +125,7 @@ function sincronizarLocalmenteDesdeRegistros(ssDestino, silencioso = false) {
     }
 
     // 2. Atualiza Dashboard (Resumo)
+    updateExportProgress(68, 'Atualizando dashboard...', 'Recontando painel');
     ssDestino.toast('📊 Atualizando Dashboard...', 'Sincronização Local', 3);
     const shResumo = ssDestino.getSheetByName('Resumo');
     let resumoExecucao = { membros: 0, organistas: 0, ministerio: 0 };
@@ -113,6 +135,7 @@ function sincronizarLocalmenteDesdeRegistros(ssDestino, silencioso = false) {
     
     // 3. Atualiza Organistas e Ministério (Alimentação Automática)
     try {
+      updateExportProgress(84, 'Atualizando listas auxiliares...', 'Organistas e Ministério');
       ssDestino.toast('🎹 Atualizando listas auxiliares...', 'Sincronização Local', 3);
       // Passamos shRegistros como fonte para garantir fidelidade total ao que foi limpo
       alimentarAbaOrganistasDestino(localEnsaio, ssDestino, localEnsaio, shRegistros);
@@ -122,12 +145,19 @@ function sincronizarLocalmenteDesdeRegistros(ssDestino, silencioso = false) {
     }
 
     if (!silencioso) ssDestino.toast('✅ Painel atualizado com sucesso!', 'Sucesso', 5);
+    updateExportProgress(100, 'Painel atualizado com sucesso.', 'Concluído');
     return { 
       sucesso: true, 
-      mensagem: 'Painel atualizado com sucesso.'
+      mensagem: 'Painel atualizado com sucesso.',
+      detalhes: {
+        localEnsaio: localEnsaio,
+        registrosRecebidos: registrosRemotos.length,
+        removidosTravas: totalRemovidos
+      }
     };
   } catch (err) {
     console.error("❌ Erro no sincronismo local: " + err.message);
+    updateExportProgress(100, 'Falha na atualização local.', 'Erro');
     return { sucesso: false, mensagem: err.message };
   }
 }
@@ -146,10 +176,14 @@ function aplicarTravasSegurancaRegistros(shRegistros, localReferencia) {
   const idxUuid = headers.indexOf('UUID');
   const idxNome = headers.indexOf('NOME COMPLETO');
   const idxComum = headers.indexOf('COMUM');
+  const idxCidade = headers.indexOf('CIDADE');
+  const idxCargo = headers.indexOf('CARGO');
+  const idxInstrumento = headers.indexOf('INSTRUMENTO');
   const idxData = headers.indexOf('DATA_ENSAIO');
   const idxLocal = headers.indexOf('LOCAL_ENSAIO');
 
-  const vists = new Set();
+  const vistosUuid = new Set();
+  const vistosSemUuid = new Set();
   const rowsToDelete = [];
   let countRemovidos = 0;
 
@@ -159,6 +193,9 @@ function aplicarTravasSegurancaRegistros(shRegistros, localReferencia) {
     const uuid = idxUuid >= 0 ? (row[idxUuid] || '').toString().trim() : '';
     const nome = idxNome >= 0 ? (row[idxNome] || '').toString().trim().toUpperCase() : '';
     const comum = idxComum >= 0 ? (row[idxComum] || '').toString().trim().toUpperCase() : '';
+    const cidade = idxCidade >= 0 ? (row[idxCidade] || '').toString().trim().toUpperCase() : '';
+    const cargo = idxCargo >= 0 ? (row[idxCargo] || '').toString().trim().toUpperCase() : '';
+    const instrumento = idxInstrumento >= 0 ? (row[idxInstrumento] || '').toString().trim().toUpperCase() : '';
     const local = idxLocal >= 0 ? (row[idxLocal] || '').toString().trim() : '';
     
     let dataStr = '';
@@ -170,7 +207,10 @@ function aplicarTravasSegurancaRegistros(shRegistros, localReferencia) {
 
     // TRAVA 1: Duplicidade
     const keyUuid = uuid ? `UUID:${uuid}` : '';
-    const keyLogic = `${nome}|${comum}|${dataStr}`;
+    // Se existe UUID, ele e a identidade principal do registro.
+    // A chave logica so vale para linhas antigas/sem UUID e precisa ser completa
+    // para nao apagar pessoas diferentes com o mesmo nome na mesma comum.
+    const keySemUuid = `${nome}|${comum}|${cidade}|${local}|${cargo}|${instrumento}|${dataStr}`;
     
     // TRAVA 2: Localidade (Filtro rigoroso)
     const isLocalDiferente = localReferencia && local && !compararLocaisEnsaio(local, localReferencia);
@@ -178,12 +218,18 @@ function aplicarTravasSegurancaRegistros(shRegistros, localReferencia) {
     // TRAVA 3: Integridade (Nome vazio)
     const isInvalido = !nome;
 
-    if (isInvalido || isLocalDiferente || (keyUuid && vists.has(keyUuid)) || vists.has(keyLogic)) {
+    const isDuplicadoUuid = keyUuid && vistosUuid.has(keyUuid);
+    const isDuplicadoSemUuid = !keyUuid && vistosSemUuid.has(keySemUuid);
+
+    if (isInvalido || isLocalDiferente || isDuplicadoUuid || isDuplicadoSemUuid) {
       rowsToDelete.push(i + 1);
       countRemovidos++;
     } else {
-      if (keyUuid) vists.add(keyUuid);
-      vists.add(keyLogic);
+      if (keyUuid) {
+        vistosUuid.add(keyUuid);
+      } else {
+        vistosSemUuid.add(keySemUuid);
+      }
     }
   }
 
@@ -194,5 +240,3 @@ function aplicarTravasSegurancaRegistros(shRegistros, localReferencia) {
 
   return countRemovidos;
 }
-
-

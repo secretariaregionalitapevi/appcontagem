@@ -17,6 +17,11 @@ export const formatDateTime = (date?: Date | string): string => {
  * @returns String formatada: "dd/mm/aaaa"
  */
 export const formatDate = (date?: Date | string): string => {
+  if (typeof date === 'string' && isDateOnlyString(date)) {
+    const [ano, mes, dia] = date.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
   const d = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
 
   const timeZone = 'America/Sao_Paulo';
@@ -35,6 +40,10 @@ export const formatDate = (date?: Date | string): string => {
  * @returns String formatada: "HH:mm:ss"
  */
 export const formatTime = (date?: Date | string): string => {
+  if (typeof date === 'string' && isDateOnlyString(date)) {
+    return '';
+  }
+
   const d = date ? (typeof date === 'string' ? new Date(date) : date) : new Date();
 
   const timeZone = 'America/Sao_Paulo';
@@ -55,6 +64,11 @@ export const formatTime = (date?: Date | string): string => {
  * @returns String formatada: "dd/mm/aaaa HH:mm"
  */
 export const formatDateTimeManual = (dateISO?: string): string => {
+  if (dateISO && /^\d{4}-\d{2}-\d{2}$/.test(dateISO.trim())) {
+    const [ano, mes, dia] = dateISO.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
   const data = dateISO ? new Date(dateISO) : new Date();
 
   // Formatar usando toLocaleString com timezone de São Paulo, depois extrair componentes
@@ -82,4 +96,35 @@ export const formatDateTimeManual = (dateISO?: string): string => {
 
 export const getCurrentDateTimeISO = (): string => {
   return new Date().toISOString();
+};
+
+export const isDateOnlyString = (value?: string): boolean => {
+  return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+};
+
+export const formatRegistroDateTime = (
+  dataEnsaio?: string,
+  createdAt?: string
+): string => {
+  const primary = dataEnsaio || createdAt || '';
+  if (!primary) return '';
+
+  if (isDateOnlyString(primary)) {
+    if (createdAt && !isDateOnlyString(createdAt)) {
+      const data = new Date(createdAt);
+      const [ano, mes, dia] = primary.split('-');
+      const hora = data.toLocaleTimeString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      return `${dia}/${mes}/${ano} ${hora}`;
+    }
+
+    const [ano, mes, dia] = primary.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  return formatDateTimeManual(primary);
 };

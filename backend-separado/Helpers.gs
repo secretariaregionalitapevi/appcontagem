@@ -782,17 +782,36 @@ function sincronizarMestreParaRegionais() {
       porRegional[regionalId].push({ uuid, record });
     }
     
+    const todasRegionais = [
+      COTIA_SHEET_ID,
+      ITAPEVI_SHEET_ID,
+      CAUCAIA_SHEET_ID,
+      JANDIRA_SHEET_ID,
+      FAZENDINHA_SHEET_ID,
+      PIRAPORA_SHEET_ID,
+      VARGEMGRANDE_SHEET_ID
+    ].filter(id => !!id);
+
     let totalNovos = 0;
     
     // Para cada regional, verificar UUIDs existentes e inserir apenas novos
-    for (const [regionalId, registros] of Object.entries(porRegional)) {
+    for (let idxRegional = 0; idxRegional < todasRegionais.length; idxRegional++) {
+      const regionalId = todasRegionais[idxRegional];
+      const registros = porRegional[regionalId] || [];
        try {
+        const progressoRegional = 62 + Math.round((idxRegional / Math.max(todasRegionais.length, 1)) * 28);
+        updateExportProgress(
+          progressoRegional,
+          `Espelhando regional ${idxRegional + 1}/${todasRegionais.length}...`,
+          'Atualizando destinos'
+        );
+
         // Sync padrão para a regional
-        const inseridos = syncToSpreadsheet(regionalId, registros, 'Registros');
+        const inseridos = mirrorToSpreadsheet(regionalId, registros, 'Registros');
         totalNovos += inseridos;
 
         // 🚨 NOVO: Após sincronizar registros, atualiza Dashboard e Listas automaticamente
-        if (inseridos > 0) {
+        {
            console.log(`📊 [AUTO-SYNC] Atualizando painel completo para regional ${regionalId}...`);
            const ssReg = SpreadsheetApp.openById(regionalId);
            const localName = ssReg.getName().split(' - ')[0];
@@ -813,7 +832,7 @@ function sincronizarMestreParaRegionais() {
         if (regionalId === ITAPEVI_SHEET_ID) {
           try {
             console.log('📋 [MIRROR] Espelhando dados de Itapevi na Planilha do Cardoso...');
-            syncToSpreadsheet(CARDOSO_SHEET_ID, registros, 'registros');
+            mirrorToSpreadsheet(CARDOSO_SHEET_ID, registros, 'registros');
           } catch (mirrorErr) {
             console.error(`❌ [MIRROR] Erro ao espelhar para Cardoso: ${mirrorErr.message}`);
           }
@@ -824,7 +843,7 @@ function sincronizarMestreParaRegionais() {
       }
     }
     
-    console.log(`✅ [AUTO-SYNC] Concluído. ${totalNovos} novo(s) registro(s) sincronizado(s).`);
+    console.log(`✅ [AUTO-SYNC] Concluído. ${totalNovos} registro(s) espelhado(s).`);
     
   } catch (e) {
     console.error(`❌ [AUTO-SYNC] Erro geral: ${e.message}`);
@@ -872,6 +891,7 @@ function syncToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
       
       const novaLinha = regHeaders.map(h => {
         const val = recordUp[h];
+        if (h === 'REGISTRADO_POR') return normalizarRegistradoPor(val);
         return val != null ? val : '';
       });
       
@@ -904,30 +924,329 @@ function syncToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
 }
 
 /**
+ * Espelha completamente um conjunto de registros em uma planilha.
+ * Diferente de syncToSpreadsheet, esta funcao remove do destino qualquer linha
+ * que nao exista mais na fonte recebida.
+ */
+function mirrorToSpreadsheet(spreadsheetId, registros, sheetName = 'Registros') {
+  if (!spreadsheetId) return 0;
+  
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const sh = openOrCreateSheet(sheetName, spreadsheetId);
+  ensureHeaders(sh);
+  
+  const lastCol = Math.max(sh.getLastColumn(), REQUIRED_HEADERS.length);
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0]
+    .map(h => (h || '').toString().trim().toUpperCase());
+  const effectiveHeaders = headers.filter(h => h);
+  const values = (registros || []).map(item => {
+    const record = item.record || item || {};
+    const recordUp = {};
+    Object.keys(record).forEach(k => {
+      recordUp[String(k || '').toUpperCase()] = record[k];
+    });
+    return effectiveHeaders.map(h => {
+      const val = recordUp[h];
+      if (h === 'REGISTRADO_POR') return normalizarRegistradoPor(val);
+      return val != null ? val : '';
+    });
+  });
+
+  const lastRow = sh.getLastRow();
+  if (lastRow > 1) {
+    sh.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+  }
+
+  if (values.length > 0) {
+    sh.getRange(2, 1, values.length, effectiveHeaders.length).setValues(values);
+  }
+
+  SpreadsheetApp.flush();
+  console.log(`OK [MIRROR] ${values.length} registro(s) espelhado(s) em [${ss.getName()}] Aba: ${sheetName}`);
+  return values.length;
+}
+
+/**
  * Execute esta função UMA VEZ para ativar a sincronização automática a cada 5 minutos.
  * Não precisa executar novamente após configurar.
  */
 
 function atualizarSistemaCompleto() {
+  updateExportProgress(5, 'Iniciando...', 'Preparando atualização');
+  exibirModalAtualizacaoSistema();
+}
+
+function executarAtualizacaoCompletaSistema() {
   try {
-    console.log('🚀 Iniciando atualização completa do sistema...');
+    console.log('🚀 Iniciando atualização completa: Supabase -> Matriz -> Regionais...');
+    updateExportProgress(8, 'Conectando ao Supabase...', 'Preparando leitura');
+    try { SpreadsheetApp.getActiveSpreadsheet().toast('Puxando estado atual do Supabase...', 'Atualização', 5); } catch(e) {}
     
-    const resultado = processarPresentesPorLocalidade();
+    updateExportProgress(30, 'Lendo estado atual do Supabase...', 'Sincronizando fonte');
+    const resultadoMatriz = atualizarMatrizDesdeSupabase();
+    updateExportProgress(62, 'Matriz atualizada. Espelhando regionais...', 'Atualizando destinos');
+    try { SpreadsheetApp.getActiveSpreadsheet().toast('Matriz atualizada. Espelhando regionais...', 'Atualização', 5); } catch(e) {}
+    sincronizarMestreParaRegionais();
+    updateExportProgress(92, 'Conferindo atualização final...', 'Finalizando');
     
-    console.log('✅ Sistema atualizado com sucesso!');
+    console.log('✅ Sistema reconciliado com sucesso!');
+    try { SpreadsheetApp.getActiveSpreadsheet().toast('Matriz e regionais reconciliadas com sucesso.', 'Concluído', 5); } catch(e) {}
+    updateExportProgress(100, 'Atualização concluída.', 'Concluído');
     return {
       ok: true,
       timestamp: new Date().toISOString(),
-      resultado: resultado
+      resultado: resultadoMatriz
     };
 
   } catch (error) {
     console.error('❌ Erro na atualização completa:', error);
+    updateExportProgress(100, 'Falha na atualização.', 'Erro');
     return {
       ok: false,
       error: error.message
     };
   }
+}
+
+function exibirModalAtualizacaoSistema() {
+  const titulo = 'Atualização do Sistema';
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <base target="_top">
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: Arial, 'Helvetica Neue', sans-serif;
+          overflow: hidden;
+          background: #fff;
+          color: #202124;
+        }
+        .card {
+          width: 100%;
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
+          box-sizing: border-box;
+          padding: 28px;
+        }
+        .spinner {
+          width: 44px;
+          height: 44px;
+          border: 4px solid #f1f3f4;
+          border-top: 4px solid #005ea2;
+          border-radius: 50%;
+          animation: spin .75s linear infinite;
+          margin: 0 auto 22px auto;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        h2 {
+          margin: 0 0 10px 0;
+          font-size: 18px;
+          color: #1f2933;
+          font-weight: 600;
+        }
+        p {
+          margin: 0;
+          font-size: 13px;
+          color: #5f6368;
+        }
+        .hint {
+          font-size: 11px;
+          margin-top: 6px;
+          color: #9aa0a6;
+        }
+        #statusBox,
+        #sucessoBox,
+        #erroBox {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        #sucessoBox,
+        #erroBox {
+          display: none;
+        }
+        .success-icon,
+        .error-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+          font-weight: 600;
+          margin-bottom: 18px;
+        }
+        .success-icon {
+          background: #e6f4ea;
+          color: #188038;
+        }
+        .error-icon {
+          background: #fce8e6;
+          color: #d93025;
+        }
+        .summary {
+          margin-top: 14px;
+          padding: 10px 12px;
+          width: 86%;
+          max-width: 280px;
+          border-radius: 10px;
+          background: #f8f9fa;
+          border: 1px solid #edf0f2;
+          font-size: 12px;
+          color: #3c4043;
+          box-sizing: border-box;
+        }
+        .progress-wrap {
+          width: 76%;
+          max-width: 260px;
+          height: 6px;
+          background: #edf0f2;
+          border-radius: 999px;
+          overflow: hidden;
+          margin-top: 18px;
+        }
+        #progressBar {
+          width: 5%;
+          height: 100%;
+          background: #005ea2;
+          border-radius: 999px;
+          transition: width .35s ease;
+        }
+        #stepText {
+          min-height: 16px;
+        }
+        #percentText {
+          margin-top: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #005ea2;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div id="statusBox">
+          <div class="spinner"></div>
+          <h2>Atualizando Sistema...</h2>
+          <p id="stepText">Fonte: <b>Supabase</b> → Matriz → Regionais</p>
+          <div class="progress-wrap"><div id="progressBar"></div></div>
+          <p id="percentText">5%</p>
+          <p class="hint">Aguarde alguns segundos...</p>
+        </div>
+
+        <div id="sucessoBox">
+          <div class="success-icon">✓</div>
+          <h2>Concluído!</h2>
+          <p>Matriz e planilhas regionais atualizadas.</p>
+          <div id="resultado" class="summary"></div>
+          <p class="hint">Esta janela fechará sozinha.</p>
+        </div>
+
+        <div id="erroBox">
+          <div class="error-icon">!</div>
+          <h2>Falha na atualização</h2>
+          <p id="erroMensagem"></p>
+          <p class="hint">A matriz não foi sobrescrita se a leitura falhou.</p>
+        </div>
+      </div>
+
+      <script>
+        window.onload = function() {
+          const progressBar = document.getElementById('progressBar');
+          const percentText = document.getElementById('percentText');
+          const stepText = document.getElementById('stepText');
+          let currentPercent = 5;
+          let serverPercent = 5;
+
+          function paintProgress(value, allowComplete) {
+            const limit = allowComplete ? 100 : 98;
+            const next = Math.max(currentPercent, Math.min(limit, Number(value) || 5));
+            currentPercent = next;
+            progressBar.style.width = next + '%';
+            percentText.textContent = Math.round(next) + '%';
+          }
+
+          const motionTimer = setInterval(function() {
+            let ceiling = 28;
+            if (serverPercent >= 90) {
+              ceiling = 97;
+            } else if (serverPercent >= 62) {
+              ceiling = 88;
+            } else if (serverPercent >= 30) {
+              ceiling = 58;
+            }
+            if (currentPercent < ceiling) {
+              const step = Math.max(0.25, (ceiling - currentPercent) * 0.035);
+              paintProgress(currentPercent + step, false);
+            }
+          }, 450);
+
+          let pollTimer = setInterval(function() {
+            google.script.run
+              .withSuccessHandler(function(progress) {
+                if (!progress) return;
+                const percent = Math.max(8, Math.min(100, progress.percent || 8));
+                serverPercent = percent;
+                paintProgress(percent, percent >= 100);
+                if (progress.status) {
+                  stepText.textContent = progress.status;
+                }
+              })
+              .getProgressUpdate();
+          }, 650);
+
+          google.script.run
+            .withSuccessHandler(function(res) {
+              clearInterval(pollTimer);
+              clearInterval(motionTimer);
+              if (res && res.ok) {
+                paintProgress(100, true);
+                document.getElementById('statusBox').style.display = 'none';
+                document.getElementById('sucessoBox').style.display = 'flex';
+                const total = res.resultado && res.resultado.totalRegistros != null
+                  ? res.resultado.totalRegistros
+                  : 0;
+                document.getElementById('resultado').textContent = total + ' registro(s) sincronizado(s).';
+                setTimeout(function() { google.script.host.close(); }, 1600);
+              } else {
+                document.getElementById('statusBox').style.display = 'none';
+                document.getElementById('erroBox').style.display = 'flex';
+                document.getElementById('erroMensagem').textContent = (res && res.error) ? res.error : 'Erro desconhecido.';
+              }
+            })
+            .withFailureHandler(function(err) {
+              clearInterval(pollTimer);
+              clearInterval(motionTimer);
+              document.getElementById('statusBox').style.display = 'none';
+              document.getElementById('erroBox').style.display = 'flex';
+              document.getElementById('erroMensagem').textContent = err && err.message ? err.message : String(err);
+            })
+            .executarAtualizacaoCompletaSistema();
+        };
+      </script>
+    </body>
+    </html>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(htmlContent)
+    .setWidth(400)
+    .setHeight(400)
+    .setTitle('Sistema SAM');
+
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, titulo);
 }
 
 
@@ -937,7 +1256,7 @@ function atualizarSistemaCompleto() {
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('🔄 Atualizar Dados')
-    .addItem('🚀 Atualização Completa do Sistema', 'atualizarSistemaCompleto')
+    .addItem('🔁 Atualizar Supabase', 'atualizarSistemaCompleto')
     .addSeparator()
     .addItem('📤 Exportar para Cotia', 'executarExportarCotia')
     .addItem('📤 Exportar para Itapevi', 'executarExportarItapevi')
@@ -1430,8 +1749,31 @@ function diagnosticarSecretarioMusica() {
 
 // Função para listar locais de ensaio
 
+function getProgressCacheKey_() {
+  return 'ATUALIZACAO_SISTEMA_PROGRESS';
+}
+
+function salvarProgressSnapshot_(progress) {
+  try {
+    CacheService.getScriptCache().put(getProgressCacheKey_(), JSON.stringify(progress), 300);
+  } catch (e) {
+    console.warn('Não foi possível salvar progresso no cache:', e.message);
+  }
+}
+
+function lerProgressSnapshot_() {
+  try {
+    const cached = CacheService.getScriptCache().get(getProgressCacheKey_());
+    return cached ? JSON.parse(cached) : null;
+  } catch (e) {
+    console.warn('Não foi possível ler progresso do cache:', e.message);
+    return null;
+  }
+}
+
 function getProgressUpdate() {
-  const result = {
+  const cached = lerProgressSnapshot_();
+  const result = cached || {
     percent: EXPORT_PROGRESS.percent,
     status: EXPORT_PROGRESS.status,
     timeInfo: EXPORT_PROGRESS.timeInfo,
@@ -1464,6 +1806,7 @@ function updateExportProgress(percent, status, timeInfo, logEntry = null, logTyp
     }
   }
   
+  salvarProgressSnapshot_(EXPORT_PROGRESS);
   return EXPORT_PROGRESS;
 }
 
@@ -3041,35 +3384,175 @@ function buscarRegistrosSupabase(localEnsaio) {
   
   const localBusca = String(localEnsaio).toUpperCase().trim();
   // 🚨 CORREÇÃO CRÍTICA: O nome da tabela no Supabase é 'presencas', não 'registros'
-  const url = SUPABASE_URL + '/rest/v1/presencas?local_ensaio=ilike.%2A' + encodeURIComponent(localBusca) + '%2A&order=data_ensaio.desc';
+  const baseUrl = SUPABASE_URL + '/rest/v1/presencas?select=*&local_ensaio=ilike.%2A' + encodeURIComponent(localBusca) + '%2A&order=data_ensaio.desc';
   
   const options = {
     'method': 'get',
     'headers': {
       'apikey': SUPABASE_ANON_KEY,
       'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Prefer': 'count=exact'
     },
     'muteHttpExceptions': true
   };
   
   try {
-    const response = UrlFetchApp.fetch(url, options);
-    if (response.getResponseCode() === 200) {
-      return JSON.parse(response.getContentText());
+    const todos = [];
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (true) {
+      const response = UrlFetchApp.fetch(baseUrl + '&limit=' + pageSize + '&offset=' + offset, options);
+      const code = response.getResponseCode();
+      if (code !== 200 && code !== 206) {
+        console.error('Erro ao buscar no Supabase. HTTP ' + code + ': ' + response.getContentText());
+        break;
+      }
+
+      const pagina = JSON.parse(response.getContentText());
+      todos.push.apply(todos, pagina);
+
+      if (pagina.length < pageSize) break;
+      offset += pageSize;
     }
+
+    return todos;
   } catch (e) {
     console.error('Erro ao buscar no Supabase:', e.message);
   }
   return [];
 }
 
+function buscarTodosRegistrosSupabase() {
+  const baseUrl = SUPABASE_URL + '/rest/v1/presencas?select=*&order=data_ensaio.asc';
+  const options = {
+    'method': 'get',
+    'headers': {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'count=exact'
+    },
+    'muteHttpExceptions': true
+  };
+
+  const todos = [];
+  const pageSize = 1000;
+  let offset = 0;
+
+  while (true) {
+    const response = UrlFetchApp.fetch(baseUrl + '&limit=' + pageSize + '&offset=' + offset, options);
+    const code = response.getResponseCode();
+    if (code !== 200 && code !== 206) {
+      throw new Error('Erro ao buscar todos os registros no Supabase. HTTP ' + code + ': ' + response.getContentText());
+    }
+
+    const pagina = JSON.parse(response.getContentText());
+    todos.push.apply(todos, pagina);
+
+    if (pagina.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return todos;
+}
+
+function atualizarMatrizDesdeSupabase() {
+  console.log('📥 [MATRIZ] Lendo estado atual do Supabase...');
+
+  const registros = buscarTodosRegistrosSupabase();
+  const ss = SpreadsheetApp.openById(DEFAULT_SHEET_ID);
+  let shMatriz = ss.getSheetByName(SHEET_NAME);
+  if (!shMatriz) shMatriz = ss.insertSheet(SHEET_NAME);
+
+  atualizarAbaRegistrosLocalBulk(shMatriz, registros);
+  SpreadsheetApp.flush();
+
+  console.log(`✅ [MATRIZ] ${registros.length} registro(s) reconciliado(s) a partir do Supabase.`);
+  return {
+    sucesso: true,
+    fonte: 'Supabase',
+    destino: SHEET_NAME,
+    totalRegistros: registros.length
+  };
+}
+
+function parseDataHoraRegistro(valor) {
+  if (!valor) return null;
+  if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) return valor;
+
+  const texto = String(valor).trim();
+  if (!texto) return null;
+
+  const br = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (br) {
+    return new Date(
+      Number(br[3]),
+      Number(br[2]) - 1,
+      Number(br[1]),
+      Number(br[4] || 0),
+      Number(br[5] || 0),
+      Number(br[6] || 0)
+    );
+  }
+
+  const isoDateOnly = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDateOnly) {
+    return new Date(Number(isoDateOnly[1]), Number(isoDateOnly[2]) - 1, Number(isoDateOnly[3]), 0, 0, 0);
+  }
+
+  const parsed = new Date(texto);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalizarRegistradoPor(valor) {
+  return valor ? String(valor).trim().toUpperCase() : '';
+}
+
+function ehDataSemHora(valor) {
+  if (!valor) return true;
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    return valor.getHours() === 0 && valor.getMinutes() === 0 && valor.getSeconds() === 0;
+  }
+
+  const texto = String(valor).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(texto) || /^\d{2}\/\d{2}\/\d{4}$/.test(texto);
+}
+
+function combinarDataComHora(dataBase, horaBase) {
+  if (!dataBase || !horaBase) return dataBase || horaBase || null;
+  return new Date(
+    dataBase.getFullYear(),
+    dataBase.getMonth(),
+    dataBase.getDate(),
+    horaBase.getHours(),
+    horaBase.getMinutes(),
+    horaBase.getSeconds()
+  );
+}
+
+function obterDataHoraRegistro(reg) {
+  if (!reg) return null;
+
+  const dataPrincipal = parseDataHoraRegistro(reg.data_ensaio);
+  if (dataPrincipal && !ehDataSemHora(reg.data_ensaio)) return dataPrincipal;
+
+  const createdAt = parseDataHoraRegistro(reg.created_at);
+  if (dataPrincipal && createdAt) return combinarDataComHora(dataPrincipal, createdAt);
+  if (createdAt) return createdAt;
+
+  const syncedAt = parseDataHoraRegistro(reg.synced_at);
+  if (dataPrincipal && syncedAt) return combinarDataComHora(dataPrincipal, syncedAt);
+  if (syncedAt) return syncedAt;
+
+  return dataPrincipal;
+}
+
 /**
  * Atualiza a aba Registros local de uma planilha regional de uma vez (Bulk)
  */
 function atualizarAbaRegistrosLocalBulk(sheet, registros) {
-  if (!registros || registros.length === 0) return;
-
   const headers = [
     'UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÍVEL','INSTRUMENTO',
     'NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO',
@@ -3078,8 +3561,16 @@ function atualizarAbaRegistrosLocalBulk(sheet, registros) {
   
   // Garante cabeçalho
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+
+  const registrosOrdenados = (registros || []).slice().sort((a, b) => {
+    const dataA = obterDataHoraRegistro(a);
+    const dataB = obterDataHoraRegistro(b);
+    const tsA = dataA ? dataA.getTime() : 0;
+    const tsB = dataB ? dataB.getTime() : 0;
+    return tsA - tsB;
+  });
   
-  const values = registros.map(reg => [
+  const values = registrosOrdenados.map(reg => [
     reg.uuid || '',
     reg.nome_completo || '',
     reg.comum || '',
@@ -3090,22 +3581,23 @@ function atualizarAbaRegistrosLocalBulk(sheet, registros) {
     reg.naipe_instrumento || '',
     reg.classe_organista || '',
     reg.local_ensaio || '',
-    reg.data_ensaio || '',
-    reg.registrado_por || '',
+    obterDataHoraRegistro(reg) || reg.data_ensaio || '',
+    normalizarRegistradoPor(reg.registrado_por),
     'SYNCED',
     reg.synced_at || '',
     reg.anotacoes || '',
     reg.duplicata || ''
   ]);
 
+  const lastRow = sheet.getLastRow();
+  const lastCol = Math.max(sheet.getLastColumn(), headers.length);
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+  }
+
   if (values.length > 0) {
-    // Limpa dados antigos (preservando cabeçalho)
-    const lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      sheet.getRange(2, 1, lastRow - 1, headers.length).clearContent();
-    }
-    // Insere novos
     sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+    sheet.getRange(2, headers.indexOf('DATA_ENSAIO') + 1, values.length, 1).setNumberFormat('dd/MM/yyyy HH:mm');
   }
 }
 /**

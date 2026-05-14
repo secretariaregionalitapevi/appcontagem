@@ -392,6 +392,47 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
     });
     
     // 🚨 NOVO: Atualiza Organistas e Ministério também na exportação otimizada
+    const shRegMirror = ssExterna.getSheetByName('Registros');
+    if (shRegMirror) {
+      const headersReg = ['UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÃVEL','INSTRUMENTO','NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO','REGISTRADO_POR','SYNC_STATUS','SYNCED_AT','ANOTACOES','DUPLICATA'];
+      const dataMirror = [];
+      const findMirrorIdx = (header) => {
+        const h = String(header || '').toUpperCase();
+        const variants = [
+          h,
+          h.replace(/_/g, ' '),
+          h.replace(/\s+/g, '_')
+        ];
+        for (const variant of variants) {
+          if (headerMap[variant] !== undefined) return headerMap[variant];
+        }
+        return undefined;
+      };
+
+      const idxLocalMirror = findMirrorIdx('LOCAL_ENSAIO');
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const localEnsaioRow = idxLocalMirror !== undefined ? row[idxLocalMirror] : '';
+        if (compararLocaisEnsaio(localEnsaioRow, localEnsaio)) {
+          dataMirror.push(headersReg.map(h => {
+            const finalIdx = findMirrorIdx(h);
+            const val = finalIdx !== undefined ? row[finalIdx] : '';
+            return h === 'REGISTRADO_POR' ? normalizarRegistradoPor(val) : val;
+          }));
+        }
+      }
+
+      const lr = shRegMirror.getLastRow();
+      const lc = Math.max(shRegMirror.getLastColumn(), headersReg.length);
+      if (lr > 1) shRegMirror.getRange(2, 1, lr - 1, lc).clearContent();
+      shRegMirror.getRange(1, 1, 1, headersReg.length).setValues([headersReg]).setFontWeight('bold');
+      if (dataMirror.length > 0) {
+        shRegMirror.getRange(2, 1, dataMirror.length, headersReg.length).setValues(dataMirror);
+      }
+      SpreadsheetApp.flush();
+      console.log(`âœ… [MIRROR/OTIMIZADA] ${dataMirror.length} registros espelhados em ${planilhaNome}.`);
+    }
+
     try {
       console.log(`🎹 Atualizando listas auxiliares para ${planilhaNome}...`);
       const shReg = ssExterna.getSheetByName('Registros');
@@ -599,18 +640,36 @@ function exportarParaPlanilhaDestinoCompleta(localEnsaio, ssDestino, nomePlanilh
       const dataMirror = [];
       
       // Busca dados brutos da mestre para este local para evitar perdas na normalização
-      for (let i = 1; i < data.length; i++) {
+      const findMirrorIdx = (header) => {
+        const h = String(header || '').toUpperCase();
+        const variants = [
+          h,
+          h.replace(/_/g, ' '),
+          h.replace(/\s+/g, '_')
+        ];
+        for (const variant of variants) {
+          if (headerMap[variant] !== undefined) return headerMap[variant];
+        }
+        return undefined;
+      };
+
+      for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        const localEnsaioRow = row[headerMap['LOCAL_ENSAIO']] || '';
+        const idxLocalMirror = findMirrorIdx('LOCAL_ENSAIO');
+        const localEnsaioRow = idxLocalMirror !== undefined ? row[idxLocalMirror] : '';
         if (compararLocaisEnsaio(localEnsaioRow, localEnsaio)) {
           dataMirror.push(headersReg.map(h => {
-             const idx = headerMap[h.toUpperCase().replace('_', ' ')]; // Tenta buscar com e sem underscore
-             const idxDirect = headerMap[h.toUpperCase()];
-             const finalIdx = idxDirect !== undefined ? idxDirect : idx;
-             return finalIdx !== undefined ? row[finalIdx] : '';
+             const finalIdx = findMirrorIdx(h);
+             const val = finalIdx !== undefined ? row[finalIdx] : '';
+             return h === 'REGISTRADO_POR' ? normalizarRegistradoPor(val) : val;
           }));
         }
       }
+
+      const lrMirror = shRegDestino.getLastRow();
+      const lcMirror = Math.max(shRegDestino.getLastColumn(), headersReg.length);
+      if (lrMirror > 1) shRegDestino.getRange(2, 1, lrMirror - 1, lcMirror).clearContent();
+      shRegDestino.getRange(1, 1, 1, headersReg.length).setValues([headersReg]).setFontWeight('bold');
 
       if (dataMirror.length > 0) {
         // Limpa e sobrescreve

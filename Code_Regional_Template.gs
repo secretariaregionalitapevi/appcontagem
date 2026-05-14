@@ -910,12 +910,23 @@ function registroPertenceAoDestino(registro, regional) {
   var destino = normalizarNome(regional.nome);
   if (destino === 'SAOCARLOS') destino = 'SAO CARLOS';
 
-  var localEnsaio = normalizarNome(registro['LOCAL ENSAIO'] || registro['LOCAL_ENSAIO'] || '');
+  var getValRegistro = function(obj, key) {
+    var kNorm = String(key || '').toUpperCase().replace(/[\s_]/g, '');
+    for (var k in obj) {
+      if (String(k || '').toUpperCase().replace(/[\s_]/g, '') === kNorm) return obj[k];
+    }
+    return '';
+  };
+
+  var localEnsaio = normalizarNome(getValRegistro(registro, 'LOCAL_ENSAIO') || getValRegistro(registro, 'LOCAL ENSAIO'));
   var cidade = normalizarNome(registro['CIDADE'] || '');
   var comum = normalizarNome(registro['COMUM'] || '');
 
-  return localEnsaio.indexOf(destino) !== -1 ||
-    cidade.indexOf(destino) !== -1 ||
+  if (localEnsaio) {
+    return localEnsaio.indexOf(destino) !== -1;
+  }
+
+  return cidade.indexOf(destino) !== -1 ||
     comum.indexOf(destino) !== -1;
 }
 
@@ -1083,48 +1094,80 @@ function sincronizarRegistrosDaPlanilhaAtual(destinoIds) {
 }
 
 function sincronizarRegistrosParaDestinos(registros, destinoIds, sheetName) {
-  var inserted = 0;
-  var skipped = 0;
+  var mirrored = 0;
   var resultados = [];
   var ids = uniqueNonEmptyValues(destinoIds || []);
 
   ids.forEach(function(destinoId) {
     var regional = getRegionalById(destinoId);
     var shDestino = openOrCreateSheet(sheetName || 'Registros', destinoId);
-    var inseridosDestino = 0;
-    var ignoradosDestino = 0;
     var registrosDestino = registros.filter(function(registro) {
       return registroPertenceAoDestino(registro, regional);
     });
 
-    registrosDestino.forEach(function(registro) {
-      if (isDuplicate(shDestino, registro)) {
-        skipped++;
-        ignoradosDestino++;
-        return;
-      }
-
-      appendRowToSheet(shDestino, registro);
-      inserted++;
-      inseridosDestino++;
-    });
+    var totalDestino = espelharRegistrosNoDestino(shDestino, registrosDestino);
+    mirrored += totalDestino;
 
     resultados.push({
       spreadsheetId: destinoId,
       nome: regional ? regional.nome : '',
       encontrados: registrosDestino.length,
-      inserted: inseridosDestino,
-      skipped: ignoradosDestino
+      mirrored: totalDestino
     });
   });
 
   return {
     ok: true,
-    inserted: inserted,
-    skipped: skipped,
+    inserted: mirrored,
+    skipped: 0,
+    mirrored: mirrored,
     destinos: resultados
   };
 }
 
+function espelharRegistrosNoDestino(sheet, registros) {
+  var dados = registros || [];
+  var headers = [];
 
+  dados.forEach(function(registro) {
+    Object.keys(registro || {}).forEach(function(header) {
+      if (headers.indexOf(header) === -1) headers.push(header);
+    });
+  });
 
+  if (headers.length === 0) {
+    var lastColAtual = sheet.getLastColumn();
+    if (lastColAtual > 0) {
+      headers = sheet.getRange(1, 1, 1, lastColAtual).getValues()[0].filter(function(header) {
+        return String(header || '').trim() !== '';
+      });
+    }
+  }
+
+  if (headers.length === 0) {
+    headers = ['UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÍVEL','INSTRUMENTO','NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO','REGISTRADO_POR','SYNC_STATUS','SYNCED_AT','ANOTACOES','DUPLICATA'];
+  }
+
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+
+  var lastRow = sheet.getLastRow();
+  var lastCol = Math.max(sheet.getLastColumn(), headers.length);
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+  }
+
+  if (dados.length === 0) return 0;
+
+  var values = dados.map(function(registro) {
+    return headers.map(function(header) {
+      var val = registro[header];
+      if (val instanceof Date) {
+        return Utilities.formatDate(val, Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+      }
+      return val !== undefined ? val : '';
+    });
+  });
+
+  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+  return values.length;
+}
