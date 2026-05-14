@@ -24,6 +24,7 @@ import { useRegisterController } from '../hooks/useRegisterController';
 import { offlineSyncService } from '../services/offlineSyncService';
 import { showToast } from '../utils/toast';
 import { Cargo } from '../types/models';
+import { generateExternalUUID } from '../utils/uuid';
 
 const FIXED_CARGOS = [
     'Músico',
@@ -143,6 +144,48 @@ export const OtrasLocalidadesScreen: React.FC = () => {
         } catch (error) {
             console.error('❌ [OtrasLocalidades] Erro no handleSubmit:', error);
             showToast.error('Erro', 'Erro ao processar registro. Tente novamente.');
+            setLoading(false);
+        }
+    };
+
+    const handleConfirmDuplicate = async () => {
+        if (!pendingRegistro) {
+            setDuplicateModalVisible(false);
+            setDuplicateInfo(null);
+            return;
+        }
+
+        try {
+            setDuplicateModalVisible(false);
+            setLoading(true);
+
+            const result = await offlineSyncService.createRegistro(
+                { ...pendingRegistro, id: generateExternalUUID() },
+                true
+            );
+            if (!result.success) {
+                showToast.error('Erro', result.error || 'Nao foi possivel cadastrar o registro.');
+                setDuplicateModalVisible(true);
+                return;
+            }
+
+            showToast.success('Registro Salvo!', 'Cadastro realizado mesmo com alerta de duplicidade.', 1500);
+            setDuplicateInfo(null);
+            setPendingRegistro(null);
+            setSelectedComum('');
+            setSelectedCargo('');
+            setSelectedInstrumento('');
+            setSelectedPessoa('');
+            setIsNomeManual(false);
+
+            setTimeout(() => {
+                navigation.goBack();
+            }, 500);
+        } catch (error) {
+            console.error('Erro ao cadastrar mesmo assim:', error);
+            showToast.error('Erro', 'Erro ao processar registro. Tente novamente.');
+            setDuplicateModalVisible(true);
+        } finally {
             setLoading(false);
         }
     };
@@ -491,7 +534,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                                     placeholder="Selecione o nome..."
                                     loading={loadingPessoas}
                                     onSubmit={handleSubmit}
-                                    showOptionsOnFocus={pessoasOptions.length > 0}
+                                    showOptionsOnFocus={pessoasOptions.some((option: any) => String(option?.label || '').trim().length > 0)}
                                 />
                             </View>
 
@@ -556,6 +599,7 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                     visible={duplicateModalVisible}
                     nome={duplicateInfo.nome}
                     comum={duplicateInfo.comum}
+                    detalhe={duplicateInfo.detalhe}
                     data={duplicateInfo.data}
                     horario={duplicateInfo.horario}
                     onCancel={() => {
@@ -568,6 +612,8 @@ export const OtrasLocalidadesScreen: React.FC = () => {
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                     }}
+                    onConfirm={handleConfirmDuplicate}
+                    confirmLabel="Cadastrar mesmo assim"
                 />
             )}
         </View>

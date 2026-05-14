@@ -16,18 +16,24 @@ interface DuplicateModalProps {
   visible: boolean;
   nome: string;
   comum: string;
+  detalhe?: string;
   data: string;
   horario: string;
   onCancel: () => void;
+  onConfirm?: () => void;
+  confirmLabel?: string;
 }
 
 export const DuplicateModal: React.FC<DuplicateModalProps> = ({
   visible,
   nome,
   comum,
+  detalhe,
   data,
   horario,
   onCancel,
+  onConfirm,
+  confirmLabel = 'Cadastrar mesmo assim',
 }) => {
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
@@ -106,7 +112,9 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           <View style={styles.messageContainer}>
             <Text style={styles.nomeText}>{nome || 'Nome não encontrado'}</Text>
             <Text style={styles.comumText}>de {comum || 'Comum não encontrada'}</Text>
-            <Text style={styles.messageSuffix}>já foi cadastrado(a).</Text>
+            <Text style={styles.messageSuffix}>
+              {detalhe ? `ja temos um registro ${detalhe}.` : 'ja foi cadastrado(a).'}
+            </Text>
           </View>
 
           {/* Box de Detalhes (Elaborado) */}
@@ -146,6 +154,16 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
               <FontAwesome5 name="times" size={14} color="#fff" style={styles.buttonIcon} />
               <Text style={styles.cancelButtonText}>Fechar</Text>
             </TouchableOpacity>
+            {onConfirm ? (
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={onConfirm}
+                activeOpacity={0.6}
+              >
+                <FontAwesome5 name="check" size={14} color="#fff" style={styles.buttonIcon} />
+                <Text style={styles.cancelButtonText}>{confirmLabel}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </Animated.View>
       </Animated.View>
@@ -300,6 +318,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     borderRadius: 14,
     backgroundColor: '#ef4444',
+    minHeight: 48,
+    ...Platform.select({
+      web: {
+        // @ts-ignore
+        outlineStyle: 'none',
+        cursor: 'pointer',
+      },
+      default: {
+        elevation: 4,
+      }
+    })
+  },
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    backgroundColor: '#255ec8',
     minHeight: 48,
     ...Platform.select({
       web: {

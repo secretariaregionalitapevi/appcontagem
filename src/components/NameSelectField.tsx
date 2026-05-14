@@ -107,6 +107,14 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       .trim();
   };
 
+  const displayableOptions = useMemo(() => {
+    return (options || []).filter(opt => {
+      const label = typeof opt?.label === 'string' ? opt.label.trim() : '';
+      const id = typeof opt?.id === 'string' ? opt.id.trim() : '';
+      return label.length > 0 && id.length > 0;
+    });
+  }, [options]);
+
   // REMOVIDO: Conversão automática para modo manual
   // O campo sempre inicia como select normal
   // Só converte para modo manual quando o usuário clicar em "Adicionar novo nome manualmente"
@@ -125,12 +133,12 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     // Se não há opções, não mostrar dropdown (já está em modo manual automaticamente)
-    if (!options || options.length === 0) {
+    if (displayableOptions.length === 0) {
       return []; // Não mostrar dropdown - modo manual será ativado automaticamente
     }
 
     // Verificar se já há um nome selecionado válido (que está na lista de opções)
-    const hasValidSelection = value && options.some(opt => opt.id === value || opt.value === value);
+    const hasValidSelection = value && displayableOptions.some(opt => opt.id === value || opt.value === value);
 
     // Verificar se o valor atual é uma entrada manual (começa com "manual_")
     const isManualValue = value && typeof value === 'string' && value.startsWith('manual_');
@@ -139,7 +147,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     const query = normalize(searchText);
     const queryWords = query.split(' ').filter(word => word.length > 0);
 
-    const filteredOptions = options.filter(opt => {
+    const filteredOptions = displayableOptions.filter(opt => {
       const labelNorm = normalize(opt.label);
       // Deve conter TODAS as palavras digitadas (em qualquer ordem)
       return queryWords.every(word => labelNorm.includes(word));
@@ -149,7 +157,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     // (ou seja, searchText corresponde ao nome selecionado), NÃO mostrar opção manual
     if (hasValidSelection && !isManualValue) {
       // Se o texto digitado corresponde ao nome selecionado, não mostrar manual
-      const selectedOption = options.find(opt => opt.id === value || opt.value === value);
+      const selectedOption = displayableOptions.find(opt => opt.id === value || opt.value === value);
       if (selectedOption && normalize(selectedOption.label) === normalize(searchText)) {
         // Usuário está vendo o nome selecionado, não mostrar manual
         if (!searchText.trim()) {
@@ -173,7 +181,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     return result;
-  }, [searchText, options, isManualMode, value, showOptionsOnFocus]);
+  }, [searchText, displayableOptions, isManualMode, value, showOptionsOnFocus]);
 
   // 🚨 CRÍTICO: Quando não há opções, entrar automaticamente em modo manual
   // 🚨 CORREÇÃO: NÃO mudar para modo manual enquanto está carregando - aguardar carregamento terminar
@@ -188,7 +196,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
 
     // 🚨 CORREÇÃO CRÍTICA: Só entrar em modo manual se NÃO está carregando E não há opções
     // Isso evita mudar para manual enquanto a lista ainda está carregando
-    if (!loading && (!options || options.length === 0)) {
+    if (!loading && displayableOptions.length === 0) {
       if (!isManualMode) {
         setIsManualMode(true);
         // Se há um valor manual anterior, manter
@@ -219,7 +227,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       }
       // Se o valor não é manual, verificar se corresponde a uma opção da lista
       if (value) {
-        const matchesOption = options.some(opt => opt.id === value || opt.value === value);
+        const matchesOption = displayableOptions.some(opt => opt.id === value || opt.value === value);
         if (matchesOption) {
           // Valor corresponde a uma opção, sair do modo manual
           setIsManualMode(false);
@@ -244,12 +252,12 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     // Se não há opções, já foi convertido para manual no useEffect anterior
-    if (!options || options.length === 0) {
+    if (displayableOptions.length === 0) {
       return;
     }
 
     // Buscar opção correspondente ao value
-    const currentOption = options.find(opt => opt.id === value || opt.value === value);
+    const currentOption = displayableOptions.find(opt => opt.id === value || opt.value === value);
     if (currentOption) {
       setSearchText(currentOption.label);
     } else if (!value) {
@@ -301,7 +309,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     // 🚨 LÓGICA SEM FISSURAS: Verificar se o que foi digitado resultaria em algum item na lista
     const query = normalize(text);
     const queryWords = query.split(' ').filter(word => word.length > 0);
-    const hasMatches = options.some(opt => {
+    const hasMatches = displayableOptions.some(opt => {
       const labelNorm = normalize(opt.label);
       return queryWords.every(word => labelNorm.includes(word));
     });
@@ -348,7 +356,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     // Se não há opções, não abrir dropdown (já está em modo manual automaticamente)
-    if (!options || options.length === 0) {
+    if (displayableOptions.length === 0) {
       setShowList(false);
       return;
     }
@@ -554,12 +562,11 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       showOptionsOnFocus &&
       !isManualMode &&
       !searchText.trim() &&
-      options &&
-      options.length > 0
+      displayableOptions.length > 0
     ) {
       setShowList(true);
     }
-  }, [isFocused, showOptionsOnFocus, isManualMode, searchText, options]);
+  }, [isFocused, showOptionsOnFocus, isManualMode, searchText, displayableOptions]);
 
   // Z-index para aparecer acima de outros elementos
   const containerZIndex = isFocused ? 99999 : 1;

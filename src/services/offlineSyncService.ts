@@ -444,18 +444,26 @@ export const offlineSyncService = {
       try {
         // 1. Resolver dados para a busca (Nome, Comum, Cargo Real)
         const isNomeManual = registro.pessoa_id.startsWith('manual_');
-        const [comuns, cargos] = await Promise.all([
+        const [comuns, cargos, instrumentos] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
           supabaseDataService.getCargosFromLocal(),
+          supabaseDataService.getInstrumentosFromLocal(),
         ]);
 
-        const isForaRegionalRegistro = registro.comum_id.startsWith('comum_fora_');
+        const isForaRegionalRegistro =
+          registro.comum_id.startsWith('comum_fora_') ||
+          registro.comum_id.startsWith('manual_') ||
+          registro.comum_id.startsWith('external_');
         const comumObj = comuns.find(c => c.id === registro.comum_id);
         const cargoObj = cargos.find(c => c.id === registro.cargo_id);
+        const instrumentoObj = registro.instrumento_id
+          ? instrumentos.find(i => i.id === registro.instrumento_id)
+          : null;
 
         if (comumObj && cargoObj) {
           let nomeCompleto = '';
           let cargoReal = cargoObj.nome;
+          let cidadeReal = registro.cidade || '';
 
           if (isNomeManual) {
             nomeCompleto = registro.pessoa_id.replace(/^manual_/, '').toUpperCase();
@@ -470,6 +478,7 @@ export const offlineSyncService = {
             if (pessoa) {
               nomeCompleto = (pessoa.nome_completo || `${pessoa.nome} ${pessoa.sobrenome}`).trim().toUpperCase();
               cargoReal = pessoa.cargo_real || cargoObj.nome;
+              cidadeReal = pessoa.cidade || cidadeReal;
             }
           }
 
@@ -478,6 +487,11 @@ export const offlineSyncService = {
             nome: nomeCompleto,
             comum: comumObj.nome,
             cargo: cargoReal,
+            instrumento: instrumentoObj?.nome || '',
+            cidade: cidadeReal,
+            uuid: registro.id,
+            pessoaId: registro.pessoa_id,
+            isForaRegional: isForaRegionalRegistro,
             dataIso: registro.data_hora_registro
           });
         }

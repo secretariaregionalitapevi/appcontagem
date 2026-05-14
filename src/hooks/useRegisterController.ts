@@ -52,6 +52,18 @@ const obterNomeCurto = (nc: string): string => {
   return `${pedacos[0]} ${pedacos[pedacos.length - 1]}`;
 };
 
+const obterDetalheDuplicata = (cargo?: string, instrumento?: string): string | undefined => {
+  const cargoLimpo = (cargo || '').trim().toUpperCase();
+  const instrumentoLimpo = (instrumento || '').trim().toUpperCase();
+  const cargoNormalizado = normalizeString(cargoLimpo);
+
+  if (cargoNormalizado.includes('MUSICO') && instrumentoLimpo) {
+    return `com ${instrumentoLimpo}`;
+  }
+
+  return cargoLimpo ? `como ${cargoLimpo}` : undefined;
+};
+
 export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const { user } = useAuthContext();
 
@@ -94,6 +106,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const [duplicateInfo, setDuplicateInfo] = useState<{
     nome: string;
     comum: string;
+    detalhe?: string;
     data: string;
     horario: string;
   } | null>(null);
@@ -945,15 +958,17 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         const comumIdFinal = isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum;
         const dataHoraFinal = getCurrentDateTimeISO();
 
+        const instrumentoIdFinal = isCandidato
+          ? instrumentoCandidato
+          : isNomeManual || isForaRegional
+            ? selectedInstrumento || null
+            : (selectedPessoaData?.instrumento_id || selectedInstrumento || null);
+
         const registro: RegistroPresenca = {
           pessoa_id: pessoaIdFinal,
           comum_id: comumIdFinal,
           cargo_id: cargoIdFinal,
-          instrumento_id: isCandidato
-            ? instrumentoCandidato
-            : isNomeManual || isForaRegional
-              ? selectedInstrumento || null
-              : (selectedPessoaData?.instrumento_id || selectedInstrumento || null),
+          instrumento_id: instrumentoIdFinal,
           classe_organista: classeOrganistaFinal,
           local_ensaio: localEnsaio || 'Não definido',
           data_hora_registro: dataHoraFinal,
@@ -963,7 +978,11 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           id: (() => {
             // Gerar um UUID determinístico para evitar duplicidade acidental no mesmo dia (race conditions)
             const dataSimples = dataHoraFinal.split('T')[0];
-            const seed = `${pessoaIdFinal}|${comumIdFinal}|${dataSimples}`;
+            const seedParts = [pessoaIdFinal, comumIdFinal, dataSimples];
+            if (isForaRegional) {
+              seedParts.push(cargoIdFinal, instrumentoIdFinal || '');
+            }
+            const seed = seedParts.join('|');
             return generateDeterministicUUID(seed);
           })(),
         };
@@ -973,6 +992,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           pessoaId: registro.pessoa_id,
           comumId: registro.comum_id,
           cargoId: registro.cargo_id, // 🚨 CORREÇÃO: Usar cargoId
+          instrumentoId: registro.instrumento_id,
+          isForaRegional,
           dataIso: registro.data_hora_registro
         });
 
@@ -988,10 +1009,13 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           }
 
           const nomeComum = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+          const cargoDuplicata = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+          const instrumentoDuplicata = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
           
           setDuplicateInfo({ 
             nome: obterNomeCurto(nomePessoa), // Usar nome curto conforme backup
             comum: nomeComum, 
+            detalhe: obterDetalheDuplicata(cargoDuplicata, instrumentoDuplicata),
             data: dupLocal.data, 
             horario: dupLocal.horario 
           });
@@ -1007,11 +1031,18 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         if (isOnlineNow) {
           try {
             const cargoNomeParaCheck = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+            const instrumentoNomeParaCheck = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+            const pessoaParaCheck = pessoas.find(p => p.id === registro.pessoa_id);
             
             await supabaseDataService.checkDuplicataRemota({
               nome: registro.pessoa_id.startsWith('manual_') ? registro.pessoa_id.replace('manual_', '') : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || ''),
               comum: (comuns.find(c => c.id === registro.comum_id)?.nome || ''),
               cargo: cargoNomeParaCheck, // 🚨 CORREÇÃO: Travar por Cargo, não por Instrumento
+              instrumento: instrumentoNomeParaCheck,
+              cidade: pessoaParaCheck?.cidade || cidadeManual || '',
+              uuid: registro.id,
+              pessoaId: registro.pessoa_id,
+              isForaRegional,
               dataIso: registro.data_hora_registro
             });
           } catch (dupError: any) {
@@ -1033,6 +1064,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
                 setDuplicateInfo({ 
                   nome: obterNomeCurto(details[0]), 
                   comum: details[1], 
+                  detalhe: obterDetalheDuplicata(details[4], details[5]),
                   data: details[2], 
                   horario: details[3] 
                 });
@@ -1044,6 +1076,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
                 setDuplicateInfo({ 
                   nome: obterNomeCurto(nomeFallback), 
                   comum: comumFallback, 
+                  detalhe: obterDetalheDuplicata(cargoNomeParaCheck, instrumentoNomeParaCheck),
                   data: '--/--/----', 
                   horario: '--:--:--' 
                 });
@@ -1167,7 +1200,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const pessoasOptions = useMemo(() => {
     return pessoas.map(p => {
       // 🚨 NOVO FLUXO: Incluir instrumento no label para diferenciar músicos
-      const nomeBase = p.nome_completo || `${p.nome} ${p.sobrenome}`;
+      const nomeBase = (p.nome_completo || `${p.nome || ''} ${p.sobrenome || ''}`).trim();
+      if (!nomeBase) return null;
       const instrumento = p.instrumento_id ? ` (${p.instrumento_id.replace(/^instrumento_(\d+_)?/gi, '').replace(/_/g, ' ').toUpperCase()})` : '';
       
       return {
@@ -1176,7 +1210,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         value: p.id,
         data: p, // 🚨 CRÍTICO: Passar objeto original para capturar instrumento no onSelect
       };
-    });
+    }).filter(Boolean) as any[];
   }, [pessoas]);
 
   const handleEditRegistros = () => {
@@ -1311,15 +1345,19 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       const dupLocal = await supabaseDataService.checkDuplicataLocal({
         pessoaId: registro.pessoa_id,
         comumId: registro.comum_id,
+        cargoId: registro.cargo_id,
         instrumentoId: registro.instrumento_id,
+        isForaRegional: true,
         dataIso: registro.data_hora_registro
       });
 
       if (dupLocal) {
         console.warn('🚨 Duplicata detectada no modal (fila local)');
+        const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
         setDuplicateInfo({ 
           nome: obterNomeCurto(data.nome.toUpperCase()), 
           comum: data.comum.toUpperCase(), 
+          detalhe: obterDetalheDuplicata(cargoObj.nome, instrumentoNome),
           data: dupLocal.data, 
           horario: dupLocal.horario 
         });
@@ -1338,7 +1376,12 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           await supabaseDataService.checkDuplicataRemota({
             nome: data.nome.toUpperCase(),
             comum: data.comum.toUpperCase(),
+            cargo: cargoObj.nome,
             instrumento: (instrumentos.find(i => i.id === registro.instrumento_id)?.nome || ''), // Passar instrumento
+            cidade: data.cidade || '',
+            uuid: registro.id,
+            pessoaId: registro.pessoa_id,
+            isForaRegional: true,
             dataIso: registro.data_hora_registro
           });
         } catch (dupError: any) {
@@ -1359,13 +1402,16 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
               setDuplicateInfo({ 
                 nome: obterNomeCurto(details[0]), 
                 comum: details[1], 
+                detalhe: obterDetalheDuplicata(details[4], details[5]),
                 data: details[2], 
                 horario: details[3] 
               });
             } else {
+              const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
               setDuplicateInfo({ 
                 nome: obterNomeCurto(data.nome.toUpperCase()), 
                 comum: data.comum.toUpperCase(), 
+                detalhe: obterDetalheDuplicata(cargoObj.nome, instrumentoNome),
                 data: '--/--/----', 
                 horario: '--:--:--' 
               });

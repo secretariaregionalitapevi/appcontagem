@@ -2771,6 +2771,14 @@ export const supabaseDataService = {
         nome: row.nome_completo,
         comum: row.comum,
         cargo: row.cargo,
+        instrumento: row.instrumento || '',
+        cidade: row.cidade || '',
+        uuid,
+        pessoaId: registro.pessoa_id,
+        isForaRegional:
+          registro.comum_id.startsWith('comum_fora_') ||
+          registro.comum_id.startsWith('manual_') ||
+          registro.comum_id.startsWith('external_'),
         dataIso: row.data_ensaio
       });
     }
@@ -2819,6 +2827,12 @@ export const supabaseDataService = {
             error.message?.includes('presencas_pkey');
 
           if (isConstraintError) {
+            if (skipDuplicateCheck && tentativas < maxTentativas) {
+              uuid = uuidv4();
+              row.uuid = uuid;
+              console.warn('UUID em conflito ao forcar duplicata; tentando novamente com novo UUID:', uuid);
+              continue;
+            }
             console.log(
               `✅ Registro já existe no Supabase (constraint ${error.code}) - tratado como sucesso`
             );
@@ -3642,20 +3656,50 @@ export const supabaseDataService = {
     pessoaId: string;
     comumId: string;
     cargoId?: string;
+    instrumentoId?: string | null;
+    isForaRegional?: boolean;
     dataIso: string;
   }): Promise<{ nome: string; comum: string; data: string; horario: string } | null> {
     try {
       const fila = await this.getRegistrosPendentesFromLocal();
       const dataBuscaStr = params.dataIso.split('T')[0];
+      const normalizeComumDuplicateKey = (comumId: string) => {
+        if (!params.isForaRegional) return comumId;
+        if (comumId.startsWith('external_')) {
+          return comumId.replace(/^external_/, '').replace(/_\d+$/, '').toUpperCase();
+        }
+        if (comumId.startsWith('manual_')) {
+          return comumId.replace(/^manual_/, '').split('|')[0].toUpperCase();
+        }
+        if (comumId.startsWith('comum_fora_')) {
+          const partes = comumId.split('|');
+          return (partes[partes.length - 1] || comumId).toUpperCase();
+        }
+        return comumId.toUpperCase();
+      };
 
       const duplicata = fila.find(r => {
         const rDataStr = r.data_hora_registro.split('T')[0];
+        const comumMatch = params.isForaRegional
+          ? normalizeComumDuplicateKey(r.comum_id) === normalizeComumDuplicateKey(params.comumId)
+          : r.comum_id === params.comumId;
+
+        const baseMatch =
+          r.pessoa_id === params.pessoaId &&
+          comumMatch &&
+          rDataStr === dataBuscaStr &&
+          r.status_sincronizacao === 'pending';
+
+        if (!baseMatch) return false;
+
+        if (!params.isForaRegional) return true;
+
+        const isPessoaManual = params.pessoaId.startsWith('manual_');
+        if (!isPessoaManual) return true;
 
         return (
-          r.pessoa_id === params.pessoaId &&
-          r.comum_id === params.comumId &&
-          rDataStr === dataBuscaStr &&
-          r.status_sincronizacao === 'pending'
+          (!params.cargoId || r.cargo_id === params.cargoId) &&
+          (!params.instrumentoId || r.instrumento_id === params.instrumentoId)
         );
       });
 
@@ -3682,6 +3726,11 @@ export const supabaseDataService = {
     nome: string;
     comum: string;
     cargo?: string;
+    instrumento?: string;
+    cidade?: string;
+    uuid?: string;
+    pessoaId?: string;
+    isForaRegional?: boolean;
     dataIso: string;
   }): Promise<void> {
     if (!isSupabaseConfigured() || !supabase) return;
@@ -3690,6 +3739,15 @@ export const supabaseDataService = {
       const nomeBusca = (params.nome || '').trim().toUpperCase();
       const comumBusca = (params.comum || '').trim().toUpperCase();
       const cargoBusca = (params.cargo || '').trim().toUpperCase();
+      const instrumentoBusca = (params.instrumento || '').trim().toUpperCase();
+      const cidadeBusca = (params.cidade || '').trim().toUpperCase();
+      const uuidBusca = (params.uuid || '').trim();
+      const pessoaIdBusca = (params.pessoaId || '').trim();
+      const isPessoaRealForaRegional =
+        !!params.isForaRegional &&
+        !!uuidBusca &&
+        !!pessoaIdBusca &&
+        !pessoaIdBusca.startsWith('manual_');
 
       if (!nomeBusca || !comumBusca) return;
 
@@ -3720,14 +3778,41 @@ export const supabaseDataService = {
       });
 
       // 🚨 CRÍTICO: Usar matching exato para Nome e Comum (como solicitado)
-      const duplicataPromise = supabase
-        .from('presencas')
-        .select('uuid, nome_completo, comum, cargo, data_ensaio, created_at')
-        .ilike('nome_completo', nomeBusca)
-        .ilike('comum', comumBusca)
-        .gte('data_ensaio', dataInicio.toISOString())
-        .lt('data_ensaio', dataFim.toISOString())
-        .limit(1);
+      let duplicataPromise;
+
+      if (isPessoaRealForaRegional) {
+        // Fora da regional: mesmo com pessoa_id diferente, nomes comuns podem ser a
+        // mesma pessoa retornando ao ponto de contagem. Alertamos e deixamos o usuario decidir.
+        let query = supabase
+          .from('presencas')
+          .select('uuid, nome_completo, comum, cargo, instrumento, cidade, data_ensaio, created_at')
+          .ilike('nome_completo', nomeBusca)
+          .ilike('comum', comumBusca)
+          .gte('data_ensaio', dataInicio.toISOString())
+          .lt('data_ensaio', dataFim.toISOString());
+
+        if (cargoBusca) query = query.ilike('cargo', cargoBusca);
+        if (instrumentoBusca) query = query.ilike('instrumento', instrumentoBusca);
+        if (cidadeBusca) query = query.ilike('cidade', cidadeBusca);
+
+        duplicataPromise = query.limit(1);
+      } else {
+        let query = supabase
+          .from('presencas')
+          .select('uuid, nome_completo, comum, cargo, instrumento, cidade, data_ensaio, created_at')
+          .ilike('nome_completo', nomeBusca)
+          .ilike('comum', comumBusca)
+          .gte('data_ensaio', dataInicio.toISOString())
+          .lt('data_ensaio', dataFim.toISOString());
+
+        if (params.isForaRegional) {
+          if (cargoBusca) query = query.ilike('cargo', cargoBusca);
+          if (instrumentoBusca) query = query.ilike('instrumento', instrumentoBusca);
+          if (cidadeBusca) query = query.ilike('cidade', cidadeBusca);
+        }
+
+        duplicataPromise = query.limit(1);
+      }
 
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Timeout na verificação de duplicatas')), 5000)
@@ -3752,9 +3837,11 @@ export const supabaseDataService = {
         const dateSource = duplicata.created_at || duplicata.data_ensaio;
         const dataFormatada = formatDate(dateSource);
         const horarioFormatado = formatTime(duplicata.created_at || dateSource);
+        const cargoDuplicata = (duplicata.cargo || '').trim().toUpperCase();
+        const instrumentoDuplicata = (duplicata.instrumento || '').trim().toUpperCase();
 
         throw new Error(
-          `DUPLICATA_BLOQUEADA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}`
+          `DUPLICATA_BLOQUEADA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}|${cargoDuplicata}|${instrumentoDuplicata}`
         );
       }
     } catch (error) {

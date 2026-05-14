@@ -492,6 +492,7 @@ export const RegisterScreen: React.FC = () => {
           visible={duplicateModalVisible}
           nome={duplicateInfo.nome}
           comum={duplicateInfo.comum}
+          detalhe={duplicateInfo.detalhe}
           data={duplicateInfo.data}
           horario={duplicateInfo.horario}
           onCancel={() => {

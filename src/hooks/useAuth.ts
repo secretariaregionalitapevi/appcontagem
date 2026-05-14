@@ -3,7 +3,7 @@ import { authService } from '../services/authService';
 import { userProfileService } from '../services/userProfileService';
 import { Usuario } from '../types/models';
 import { useInactivityTimeout } from './useInactivityTimeout';
-import { robustRemoveItem, robustSetItem } from '../utils/robustStorage';
+import * as robustStorage from '../utils/robustStorage';
 
 export const useAuth = () => {
   const [user, setUser] = useState<Usuario | null>(null);
@@ -92,7 +92,7 @@ export const useAuth = () => {
     if (signedUser) {
       // 🚀 NOVO: Resetar o timer de inatividade ANTES de setar o usuário
       // Isso evita que o hook de inatividade detecte o estado antigo no primeiro render
-      await robustSetItem('@last_activity_timestamp', Date.now().toString()).catch(() => {});
+      await robustStorage.robustSetItem('@last_activity_timestamp', Date.now().toString()).catch(() => {});
       setUser(signedUser);
       setIsRecoveringPassword(false);
       resetTimeout();
@@ -104,7 +104,7 @@ export const useAuth = () => {
     const { user: signedUser, error } = await authService.signUp(email, password, nome);
     if (signedUser) {
       // 🚀 NOVO: Resetar o timer de inatividade ANTES de setar o usuário
-      await robustSetItem('@last_activity_timestamp', Date.now().toString()).catch(() => {});
+      await robustStorage.robustSetItem('@last_activity_timestamp', Date.now().toString()).catch(() => {});
       setUser(signedUser);
       setIsRecoveringPassword(false);
       resetTimeout();
@@ -115,7 +115,7 @@ export const useAuth = () => {
   const signOut = async () => {
     try {
       // 🚀 NOVO: Limpar o timestamp de inatividade ao deslogar
-      await robustRemoveItem('@last_activity_timestamp');
+      await robustStorage.robustRemoveItem('@last_activity_timestamp');
       await authService.signOut();
       setUser(null);
       setIsRecoveringPassword(false);
