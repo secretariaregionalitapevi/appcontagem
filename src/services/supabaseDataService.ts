@@ -44,6 +44,28 @@ const normalizeCargoForMatch = (cargo?: string): string => {
   return normalizeString((cargo || '').toUpperCase()).replace(/\s+/g, ' ').trim();
 };
 
+const normalizeComumForExactMatch = (comum?: string): string => {
+  if (!comum) return '';
+
+  let comumSemCodigo = comum.trim();
+  comumSemCodigo = comumSemCodigo.replace(/^(?:BR-)?\d{2}-\d{3,6}\s*-?\s*/i, '');
+  comumSemCodigo = comumSemCodigo.replace(/\s+/g, ' ').trim();
+
+  return normalizeString(comumSemCodigo.toUpperCase()).replace(/\s+/g, ' ').trim();
+};
+
+const filterByExactComumForaRegional = <T extends { comum?: string | null }>(
+  registros: T[],
+  comumBusca?: string
+): T[] => {
+  const comumBuscaNorm = normalizeComumForExactMatch(comumBusca);
+  if (!comumBuscaNorm || registros.length === 0) return registros;
+
+  const exactMatches = registros.filter(item => normalizeComumForExactMatch(item.comum || '') === comumBuscaNorm);
+
+  return exactMatches;
+};
+
 const cargoMatchesForaRegional = (cargoRegistro: string | null | undefined, cargoBusca: string): boolean => {
   const registroNorm = normalizeCargoForMatch(cargoRegistro);
   const buscaNorm = normalizeCargoForMatch(cargoBusca);
@@ -125,6 +147,25 @@ const normalizeComumDuplicateKey = (comumId: string) => {
     return (partes[partes.length - 1] || comumId).toUpperCase();
   }
   return comumId.toUpperCase();
+};
+
+const SAME_SUBMISSION_WINDOW_MS = 2 * 60 * 1000;
+
+const isSameSubmissionAttempt = (
+  existingUuid?: string | null,
+  currentUuid?: string | null,
+  existingDateIso?: string | null,
+  currentDateIso?: string | null
+): boolean => {
+  if (!existingUuid || !currentUuid || existingUuid !== currentUuid) return false;
+  if (!existingDateIso || !currentDateIso) return true;
+
+  const existingTime = new Date(existingDateIso).getTime();
+  const currentTime = new Date(currentDateIso).getTime();
+
+  if (Number.isNaN(existingTime) || Number.isNaN(currentTime)) return false;
+
+  return Math.abs(existingTime - currentTime) <= SAME_SUBMISSION_WINDOW_MS;
 };
 
 const getDuplicateBlockKey = (registro: RegistroPresenca) => [
@@ -1818,7 +1859,11 @@ export const supabaseDataService = {
         throw error;
       }
 
-      let filteredData = data || [];
+      let filteredData = filterByExactComumForaRegional(data || [], comumNome);
+      console.log(
+        `🔎 [fetchPessoasForaRegional] Filtro de comum exata: ${(data || []).length} -> ${filteredData.length}`
+      );
+
       if (cargoNome) {
         const beforeCargoFilter = filteredData.length;
         filteredData = filteredData.filter(item => cargoMatchesForaRegional(item.cargo, cargoNome));
@@ -1842,9 +1887,10 @@ export const supabaseDataService = {
         
         const { data: fallbackData } = await fallbackQuery.limit(100);
         if (fallbackData && fallbackData.length > 0) {
+            const fallbackExactData = filterByExactComumForaRegional(fallbackData, comumNome);
             const fallbackFiltered = cargoNome
-              ? fallbackData.filter(item => cargoMatchesForaRegional(item.cargo, cargoNome))
-              : fallbackData;
+              ? fallbackExactData.filter(item => cargoMatchesForaRegional(item.cargo, cargoNome))
+              : fallbackExactData;
             console.log(`✅ [fetchPessoasForaRegional] Fallback encontrou ${fallbackFiltered.length} registros`);
             return fallbackFiltered;
         }
@@ -2855,6 +2901,28 @@ export const supabaseDataService = {
               console.warn('UUID em conflito ao forcar duplicata; tentando novamente com novo UUID:', uuid);
               continue;
             }
+            const { data: existingByUuid } = await supabase
+              .from('presencas')
+              .select('uuid, data_ensaio')
+              .eq('uuid', row.uuid)
+              .maybeSingle();
+
+            if (
+              isSameSubmissionAttempt(
+                existingByUuid?.uuid,
+                row.uuid,
+                existingByUuid?.data_ensaio,
+                row.data_ensaio
+              )
+            ) {
+              console.log('✅ Supabase já possuía este mesmo registro; seguindo como envio idempotente.');
+              return {
+                ...registro,
+                id: row.uuid,
+                status_sincronizacao: 'synced',
+              };
+            }
+
             console.warn(`Duplicata bloqueada pelo Supabase (constraint ${error.code})`);
             throw new Error(
               `DUPLICATA_BLOQUEADA:${row.nome_completo}|${row.comum}|${formatDate(row.data_ensaio)}|${formatTime(row.created_at || row.data_ensaio)}|${row.cargo}|${row.instrumento || ''}`
@@ -2917,6 +2985,28 @@ export const supabaseDataService = {
           error?.message?.includes('presencas_pkey');
 
         if (isConstraintError) {
+          const { data: existingByUuid } = await supabase
+            .from('presencas')
+            .select('uuid, data_ensaio')
+            .eq('uuid', row.uuid)
+            .maybeSingle();
+
+          if (
+            isSameSubmissionAttempt(
+              existingByUuid?.uuid,
+              row.uuid,
+              existingByUuid?.data_ensaio,
+              row.data_ensaio
+            )
+          ) {
+            console.log('✅ Supabase já possuía este mesmo registro; seguindo como envio idempotente.');
+            return {
+              ...registro,
+              id: row.uuid,
+              status_sincronizacao: 'synced',
+            };
+          }
+
           console.warn(`Duplicata bloqueada pelo Supabase (constraint)`);
           throw new Error(
             `DUPLICATA_BLOQUEADA:${row.nome_completo}|${row.comum}|${formatDate(row.data_ensaio)}|${formatTime(row.created_at || row.data_ensaio)}|${row.cargo}|${row.instrumento || ''}`
@@ -3886,6 +3976,18 @@ export const supabaseDataService = {
 
       if (duplicatas && duplicatas.length > 0) {
         const duplicata = duplicatas[0];
+
+        if (
+          isSameSubmissionAttempt(
+            duplicata.uuid,
+            uuidBusca,
+            duplicata.data_ensaio,
+            params.dataIso
+          )
+        ) {
+          console.log('✅ [checkDuplicataRemota] Registro já existe com o mesmo UUID; tratando como continuação do envio atual.');
+          return;
+        }
         
         // Usar utils centralizados com timezone America/Sao_Paulo
         const dateSource = duplicata.created_at || duplicata.data_ensaio;

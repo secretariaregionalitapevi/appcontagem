@@ -102,6 +102,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   const comumFieldRef = useRef<AutocompleteFieldRef>(null); // 🚀 REF: Para focar no campo de comum após registro
   const cargoFieldRef = useRef<any>(null); // 🚀 REF: Para focar no cargo (Web: select, Mobile: SimpleSelectField)
   const nomeFieldRef = useRef<NameSelectFieldRef>(null); // 🚀 REF: Para focar no nome após cargo selecionado
+  const suppressSyncSuccessToastUntilRef = useRef<number>(0);
   const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{
     nome: string;
@@ -152,8 +153,8 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
   }, [selectedPessoa, isNomeManual, pessoas]);
 
   const showInstrumento = !isOrganista && !isCandidato && isMusicalCargo && (
-    (isForaRegional && !selectedPessoaData?.instrumento_id) || 
-    isNomeManual
+    isNomeManual ||
+    (isForaRegional && !!selectedPessoa && !selectedPessoaData?.instrumento_id)
   );
 
   // DEBUGGING VISIBILIDADE INSTRUMENTO
@@ -213,7 +214,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       await refreshCount();
 
       // Mostrar toast se registros foram sincronizados (igual ao contpedras)
-      if (result.successCount > 0) {
+      if (result.successCount > 0 && Date.now() > suppressSyncSuccessToastUntilRef.current) {
         const mensagem =
           result.successCount === 1
             ? '1 item sincronizado'
@@ -245,7 +246,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       const result = await offlineSyncService.syncAllData({ fastSync: true });
       await refreshCount();
       const successCount = result.syncResult?.successCount || 0;
-      if (successCount > 0) {
+      if (successCount > 0 && Date.now() > suppressSyncSuccessToastUntilRef.current) {
         showToast.success(`${successCount} item(s) sincronizado(s)`);
       }
     } catch (error) {
@@ -668,7 +669,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     }
 
     // 🚀 OTIMIZAÇÃO: Verificar cache ANTES de mostrar loading
-    const CACHE_VERSION = 'v6'; // Bust cache to ensure new fora-regional ministry mapping is applied
+    const CACHE_VERSION = 'v7'; // Bust cache to apply exact common matching for fora-regional names
     const cacheKey = `pessoas_${CACHE_VERSION}_${isForaRegional ? 'fora_' : ''}${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
 
     try {
@@ -1105,19 +1106,34 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         const feedbackMsg = isOnlineNow 
           ? 'O registro foi realizado com sucesso!' 
           : 'Salvo localmente! Será enviado em breve.';
-        if (!isOnlineNow) {
-          showToast.success('Registro Salvo!', feedbackMsg, 1500);
-        }
+        suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
+        showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsg, 5000);
         
         // Limpar campos imediatamente
-        if (!isOnlineNow) {
-          clearAllFields();
-        }
+        clearAllFields();
         await refreshCount();
 
         // 5. Encerrar estado de loading e trava de submissão
         setLoading(false);
         isSubmittingRef.current = false;
+
+        if (isOnlineNow) {
+          offlineSyncService.processarFilaLocal(true)
+            .then(async syncResult => {
+              if (syncResult.duplicateCount > 0) {
+                console.warn(
+                  '⚠️ [SUBMIT] Duplicidade detectada no processamento em background; retorno otimista ja foi exibido.',
+                  syncResult.duplicateError
+                );
+              }
+              await refreshCount();
+            })
+            .catch(err => {
+              console.error('[SUBMIT] Erro na sincronizacao em background:', err);
+            });
+
+          return true;
+        }
 
         // 6. Disparar sincronização em segundo plano (SEM AWAIT)
         // 🚨 SILENCIO NO ONLINE: Não setar 'syncing' para não aparecer no badge enquanto online
@@ -1468,27 +1484,27 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       console.log('💾 [MODAL] Salvando registro externo na fila...');
       await supabaseDataService.saveRegistroToLocal(registro);
 
+      const feedbackMsgModal = isOnlineNow
+        ? 'O registro foi realizado com sucesso!'
+        : 'Salvo localmente! Será enviado em breve.';
+      suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
+      showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsgModal, 5000);
+
+      setNewRegistrationModalVisible(false);
+      setSelectedComum('');
+      setSelectedCargo('');
+      setSelectedInstrumento('');
+      setSelectedPessoa('');
+      setIsNomeManual(false);
+      await refreshCount();
+
       if (isOnlineNow) {
-        const syncResult = await offlineSyncService.processarFilaLocal(true);
-        if (syncResult.duplicateCount > 0) {
-          const infoStr = syncResult.duplicateError?.split('DUPLICATA_BLOQUEADA:')[1] || '';
-          const details = infoStr ? infoStr.split('|') : [];
-          const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-          setDuplicateInfo({
-            nome: obterNomeCurto(details[0] || data.nome.toUpperCase()),
-            comum: details[1] || data.comum.toUpperCase(),
-            detalhe: obterDetalheDuplicata(details[4] || cargoObj.nome, details[5] || instrumentoNome),
-            data: details[2] || '--/--/----',
-            horario: details[3] || '--:--:--'
-          });
-          setPendingRegistro(registro);
-          setDuplicateModalVisible(true);
-          setNewRegistrationModalVisible(false);
-          await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
-          await refreshCount();
-          return;
-        }
+        offlineSyncService.processarFilaLocal(true).catch(err => {
+          console.error('[MODAL] Erro na sincronizacao em background:', err);
+        });
       }
+
+      return;
 
       // 3. Feedback imediato ao usuário
       const feedbackMsg = isOnlineNow 
