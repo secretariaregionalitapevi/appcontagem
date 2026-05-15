@@ -81,6 +81,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
   const inputRef = useRef<TextInput>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const isUserTypingRef = useRef<boolean>(false);
   const isSelectingRef = useRef<boolean>(false); // Flag para evitar interferência do blur durante seleção
 
   // 🚀 EXPOR MÉTODOS VIA REF
@@ -242,11 +243,21 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
   // Sincronizar searchText com value quando muda externamente
   useEffect(() => {
     if (isManualMode) {
+      if (isUserTypingRef.current && isFocused && searchText.trim()) {
+        return;
+      }
+
       // Em modo manual, searchText é o próprio value (sem prefixo manual_)
       if (value && typeof value === 'string' && value.startsWith('manual_')) {
-        setSearchText(value.replace('manual_', ''));
+        const manualText = value.replace('manual_', '');
+        if (searchText !== manualText) {
+          setSearchText(manualText);
+        }
       } else {
-        setSearchText(value || '');
+        const nextText = value || '';
+        if (searchText !== nextText) {
+          setSearchText(nextText);
+        }
       }
       return;
     }
@@ -259,12 +270,19 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     // Buscar opção correspondente ao value
     const currentOption = displayableOptions.find(opt => opt.id === value || opt.value === value);
     if (currentOption) {
-      setSearchText(currentOption.label);
+      isUserTypingRef.current = false;
+      if (searchText !== currentOption.label) {
+        setSearchText(currentOption.label);
+      }
     } else if (!value) {
       // 🚨 CORREÇÃO CRÍTICA: Só limpar o searchText se NÃO estiver focado.
       // Se estiver focado, o usuário está digitando e não queremos limpar o que ele escreveu
       // só porque o valor no componente pai ainda está vazio (estado de busca).
-      if (!isFocused) {
+      if (isUserTypingRef.current && searchText.trim()) {
+        return;
+      }
+
+      if (!isFocused && searchText !== '') {
         setSearchText('');
       }
     } else {
@@ -281,18 +299,22 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
         }
       } else {
         // Se for valor manual real (ou apenas texto), manter como está
-        setSearchText(value);
+        if (searchText !== value) {
+          setSearchText(value);
+        }
       }
     }
   }, [value, options, isManualMode, isFocused]); // 🚨 ADICIONADO isFocused como dependência
 
   // Quando o usuário digita
   const handleChange = (text: string) => {
+    isUserTypingRef.current = true;
     setSearchText(text);
     setSelectedIndex(-1);
 
     // 🚨 CORREÇÃO CRÍTICA: Se o texto foi apagado totalmente, sair do modo manual
     if (text === '') {
+      isUserTypingRef.current = false;
       console.log('🧹 [NameSelectField] Campo limpo - saindo do modo manual e voltando para busca');
       setIsManualMode(false);
       setShowList(true);
@@ -430,6 +452,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
 
     // Marcar que está selecionando para evitar interferência do blur
     isSelectingRef.current = true;
+    isUserTypingRef.current = false;
 
     // Cancelar blur pendente IMEDIATAMENTE
     if (blurTimeoutRef.current) {

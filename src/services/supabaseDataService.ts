@@ -3205,6 +3205,7 @@ export const supabaseDataService = {
 
       // Também remover fallback individual se existir
       try {
+        await robustRemoveItem(`registro_fallback_${id}`);
         await robustRemoveItem(`registro_fallback_${id} `);
         // Também tentar deletar na web Storage caso exista (resquício)
         if (typeof localStorage !== 'undefined') {

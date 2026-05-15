@@ -1107,7 +1107,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           ? 'O registro foi realizado com sucesso!' 
           : 'Salvo localmente! Será enviado em breve.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-        showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsg, 5000);
+        showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsg, 2500);
         
         // Limpar campos imediatamente
         clearAllFields();
@@ -1488,7 +1488,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         ? 'O registro foi realizado com sucesso!'
         : 'Salvo localmente! Será enviado em breve.';
       suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-      showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsgModal, 5000);
+      showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsgModal, 2500);
 
       setNewRegistrationModalVisible(false);
       setSelectedComum('');

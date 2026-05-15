@@ -587,7 +587,7 @@ export const googleSheetsService = {
           '⚠️ [EXTERNAL] Erro de rede detectado, mas pode ser no-cors - assumindo sucesso'
         );
         console.warn('⚠️ [EXTERNAL] Cargo:', data?.cargo);
-        return { success: true };
+        return { success: false, error: error.message };
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1107,6 +1107,16 @@ export const googleSheetsService = {
 
       return { success: true };
     } catch (error: any) {
+      if (
+        error?.message &&
+        (error.message.includes('Failed to fetch') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('Network request failed'))
+      ) {
+        console.warn('Erro de rede ao enviar para Google Sheets - mantendo na fila para nova tentativa');
+        return { success: false, error: error.message };
+      }
+
       if (error instanceof Error && error.name === 'AbortError') {
         console.warn('⚠️ Timeout ao enviar para Google Sheets');
         return {
