@@ -1022,6 +1022,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           });
           setPendingRegistro(registro);
           setDuplicateModalVisible(true);
+          await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
           setLoading(false);
           isSubmittingRef.current = false;
           return false;
@@ -1087,6 +1088,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
               
               setPendingRegistro(registro);
               setDuplicateModalVisible(true);
+              await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
               setLoading(false);
               isSubmittingRef.current = false;
               return false;
@@ -1396,6 +1398,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         });
         setPendingRegistro(registro);
         setDuplicateModalVisible(true);
+        await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
         setNewRegistrationModalVisible(false);
         setLoading(false);
         isSubmittingRef.current = false;
@@ -1452,6 +1455,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
             
             setPendingRegistro(registro);
             setDuplicateModalVisible(true);
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
             setNewRegistrationModalVisible(false);
             setLoading(false);
             isSubmittingRef.current = false;
@@ -1463,6 +1467,28 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       // 4. Salvar localmente (quase instantâneo)
       console.log('💾 [MODAL] Salvando registro externo na fila...');
       await supabaseDataService.saveRegistroToLocal(registro);
+
+      if (isOnlineNow) {
+        const syncResult = await offlineSyncService.processarFilaLocal(true);
+        if (syncResult.duplicateCount > 0) {
+          const infoStr = syncResult.duplicateError?.split('DUPLICATA_BLOQUEADA:')[1] || '';
+          const details = infoStr ? infoStr.split('|') : [];
+          const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+          setDuplicateInfo({
+            nome: obterNomeCurto(details[0] || data.nome.toUpperCase()),
+            comum: details[1] || data.comum.toUpperCase(),
+            detalhe: obterDetalheDuplicata(details[4] || cargoObj.nome, details[5] || instrumentoNome),
+            data: details[2] || '--/--/----',
+            horario: details[3] || '--:--:--'
+          });
+          setPendingRegistro(registro);
+          setDuplicateModalVisible(true);
+          setNewRegistrationModalVisible(false);
+          await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
+          await refreshCount();
+          return;
+        }
+      }
 
       // 3. Feedback imediato ao usuário
       const feedbackMsg = isOnlineNow 

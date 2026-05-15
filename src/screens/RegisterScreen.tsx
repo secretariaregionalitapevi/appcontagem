@@ -23,6 +23,7 @@ import { NewRegistrationModal } from '../components/NewRegistrationModal';
 import { Skeleton } from '../components/Skeleton';
 import { theme } from '../theme';
 import { useRegisterController } from '../hooks/useRegisterController';
+import { supabaseDataService } from '../services/supabaseDataService';
 import { showToast } from '../utils/toast';
 
 export const RegisterScreen: React.FC = () => {
@@ -495,6 +496,11 @@ export const RegisterScreen: React.FC = () => {
           data={duplicateInfo.data}
           horario={duplicateInfo.horario}
           onCancel={() => {
+            if (pendingRegistro) {
+              supabaseDataService.deleteRegistrosDuplicadosFromLocal(pendingRegistro).catch(error => {
+                console.warn('Erro ao limpar duplicata pendente:', error);
+              });
+            }
             setDuplicateModalVisible(false);
             setDuplicateInfo(null);
             setPendingRegistro(null);

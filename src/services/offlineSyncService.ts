@@ -245,6 +245,13 @@ export const offlineSyncService = {
 
           // 🚨 NOVO FLUXO: Enviar para Supabase PRIMEIRO (Trava de integridade)
           // Se o Supabase bloquear por duplicidade, não enviamos para o Google Sheets.
+          if (supabaseDataService.isRegistroBloqueadoPorDuplicidade(item)) {
+            console.warn(`Item ${i + 1}: bloqueado por trava de duplicidade - pulando Supabase e Sheets`);
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(item);
+            itensDuplicados.push(item);
+            continue;
+          }
+
           let supabaseSuccess = false;
           let isDuplicate = false;
 
@@ -284,6 +291,13 @@ export const offlineSyncService = {
 
           // 2. Enviar para Google Sheets (Garantia do Usuário)
           // Mesmo que o Supabase tenha falhado (por conexão), tentamos o Sheets.
+          if (supabaseDataService.isRegistroBloqueadoPorDuplicidade(item)) {
+            console.warn(`Item ${i + 1}: bloqueado por trava de duplicidade antes do Sheets`);
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(item);
+            itensDuplicados.push(item);
+            continue;
+          }
+
           const sheetsResult = await googleSheetsService.sendRegistroToSheet(item);
           if (sheetsResult.success) {
             console.log(`✅ Item ${i + 1}: Google Sheets OK`);

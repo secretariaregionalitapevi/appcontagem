@@ -111,6 +111,28 @@ const memoryCache: {
 let savingLock = false;
 let lastSaveTimestamp = 0;
 let lastSaveKey = '';
+const blockedDuplicateKeys = new Set<string>();
+
+const normalizeComumDuplicateKey = (comumId: string) => {
+  if (comumId.startsWith('external_')) {
+    return comumId.replace(/^external_/, '').replace(/_\d+$/, '').toUpperCase();
+  }
+  if (comumId.startsWith('manual_')) {
+    return comumId.replace(/^manual_/, '').split('|')[0].toUpperCase();
+  }
+  if (comumId.startsWith('comum_fora_')) {
+    const partes = comumId.split('|');
+    return (partes[partes.length - 1] || comumId).toUpperCase();
+  }
+  return comumId.toUpperCase();
+};
+
+const getDuplicateBlockKey = (registro: RegistroPresenca) => [
+  registro.pessoa_id,
+  normalizeComumDuplicateKey(registro.comum_id),
+  registro.cargo_id,
+  registro.data_hora_registro?.split('T')[0] || '',
+].join('|');
 
 // Lista fixa de instrumentos do backup.js
 const INSTRUMENTS_FIXED = [
@@ -3112,12 +3134,15 @@ export const supabaseDataService = {
   },
 
   async deleteRegistrosDuplicadosFromLocal(registro: RegistroPresenca): Promise<void> {
+    blockedDuplicateKeys.add(getDuplicateBlockKey(registro));
     const dataRegistro = registro.data_hora_registro?.split('T')[0] || '';
+    const comumRegistro = normalizeComumDuplicateKey(registro.comum_id);
+
     const isSameRegistro = (r: RegistroPresenca) => {
       const data = r.data_hora_registro?.split('T')[0] || '';
       return (
         r.pessoa_id === registro.pessoa_id &&
-        r.comum_id === registro.comum_id &&
+        normalizeComumDuplicateKey(r.comum_id) === comumRegistro &&
         r.cargo_id === registro.cargo_id &&
         data === dataRegistro
       );
@@ -3147,6 +3172,10 @@ export const supabaseDataService = {
         await robustRemoveItem(key);
       }
     }
+  },
+
+  isRegistroBloqueadoPorDuplicidade(registro: RegistroPresenca): boolean {
+    return blockedDuplicateKeys.has(getDuplicateBlockKey(registro));
   },
 
   async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
