@@ -2833,15 +2833,10 @@ export const supabaseDataService = {
               console.warn('UUID em conflito ao forcar duplicata; tentando novamente com novo UUID:', uuid);
               continue;
             }
-            console.log(
-              `✅ Registro já existe no Supabase (constraint ${error.code}) - tratado como sucesso`
+            console.warn(`Duplicata bloqueada pelo Supabase (constraint ${error.code})`);
+            throw new Error(
+              `DUPLICATA_BLOQUEADA:${row.nome_completo}|${row.comum}|${formatDate(row.data_ensaio)}|${formatTime(row.created_at || row.data_ensaio)}|${row.cargo}|${row.instrumento || ''}`
             );
-            // Retornar registro como se tivesse sido inserido com sucesso
-            return {
-              ...registro,
-              id: uuid,
-              status_sincronizacao: 'synced',
-            };
           }
 
           console.error(`❌ Erro ao inserir no Supabase (tentativa ${tentativas}):`, {
@@ -2887,7 +2882,11 @@ export const supabaseDataService = {
       } catch (error: any) {
         ultimoErro = error;
 
-        // 🚨 CORREÇÃO: Tratar erro de constraint (23505) como sucesso - registro já existe
+        // Constraint de UUID/duplicidade não pode liberar envio para o Sheets.
+        if (error?.message?.includes('DUPLICATA_BLOQUEADA')) {
+          throw error;
+        }
+
         const isConstraintError =
           error?.code === '23505' ||
           error?.message?.includes('duplicate key') ||
@@ -2896,13 +2895,10 @@ export const supabaseDataService = {
           error?.message?.includes('presencas_pkey');
 
         if (isConstraintError) {
-          console.log(`✅ Registro já existe no Supabase (constraint) - tratado como sucesso`);
-          // Retornar registro como se tivesse sido inserido com sucesso
-          return {
-            ...registro,
-            id: uuid,
-            status_sincronizacao: 'synced',
-          };
+          console.warn(`Duplicata bloqueada pelo Supabase (constraint)`);
+          throw new Error(
+            `DUPLICATA_BLOQUEADA:${row.nome_completo}|${row.comum}|${formatDate(row.data_ensaio)}|${formatTime(row.created_at || row.data_ensaio)}|${row.cargo}|${row.instrumento || ''}`
+          );
         }
 
         console.error(`❌ Exceção ao inserir no Supabase (tentativa ${tentativas}):`, error);
@@ -3112,6 +3108,44 @@ export const supabaseDataService = {
       }
     } catch (error) {
       console.warn('⚠️ Erro ao remover registro do AsyncStorage:', error);
+    }
+  },
+
+  async deleteRegistrosDuplicadosFromLocal(registro: RegistroPresenca): Promise<void> {
+    const dataRegistro = registro.data_hora_registro?.split('T')[0] || '';
+    const isSameRegistro = (r: RegistroPresenca) => {
+      const data = r.data_hora_registro?.split('T')[0] || '';
+      return (
+        r.pessoa_id === registro.pessoa_id &&
+        r.comum_id === registro.comum_id &&
+        r.cargo_id === registro.cargo_id &&
+        data === dataRegistro
+      );
+    };
+
+    memoryCache.registros = memoryCache.registros.filter(r => !isSameRegistro(r));
+    await robustSetItem('cached_registros', JSON.stringify(memoryCache.registros));
+
+    const filaKey = 'fila_registros_presenca';
+    const filaData = await robustGetItem(filaKey);
+    if (filaData) {
+      const fila: RegistroPresenca[] = JSON.parse(filaData);
+      await robustSetItem(filaKey, JSON.stringify(fila.filter(r => !isSameRegistro(r))));
+    }
+
+    const allKeys = await robustGetAllKeys();
+    const fallbackKeys = allKeys.filter(key => key.startsWith('registro_fallback_'));
+    for (const key of fallbackKeys) {
+      const data = await robustGetItem(key);
+      if (!data) continue;
+      try {
+        const fallbackRegistro = JSON.parse(data);
+        if (isSameRegistro(fallbackRegistro)) {
+          await robustRemoveItem(key);
+        }
+      } catch {
+        await robustRemoveItem(key);
+      }
     }
   },
 

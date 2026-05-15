@@ -18,6 +18,12 @@ const PROCESS_COOLDOWN = 2000; // 2 segundos de cooldown entre processamentos
 // 🌐 CACHE DE CONECTIVIDADE: Evitar pings excessivos
 let lastOnlineCheck = 0;
 let lastOnlineResult = true;
+type QueueProcessResult = {
+  successCount: number;
+  errorCount: number;
+  duplicateCount: number;
+  duplicateError?: string;
+};
 const ONLINE_CACHE_MS = 1000; // Cache reduzido para 1 segundo (mais resiliência no mobile)
 
 
@@ -167,19 +173,19 @@ export const offlineSyncService = {
   },
 
   // 🚨 FUNÇÃO MELHORADA: processarFilaLocal com retry e validação robusta
-  async processarFilaLocal(silent: boolean = false): Promise<{ successCount: number; errorCount: number }> {
+  async processarFilaLocal(silent: boolean = false): Promise<QueueProcessResult> {
     // 🚨 PROTEÇÃO: Evitar processamento duplicado simultâneo (ex: F5, múltiplos eventos online)
     const now = Date.now();
     if (isProcessingQueue) {
       console.log('⚠️ Processamento da fila já em andamento, ignorando chamada duplicada');
-      return { successCount: 0, errorCount: 0 };
+      return { successCount: 0, errorCount: 0, duplicateCount: 0 };
     }
 
     // Verificar cooldown para evitar processamento muito frequente (ex: F5 repetido)
     if (now - lastProcessTimestamp < PROCESS_COOLDOWN) {
       const remainingCooldown = PROCESS_COOLDOWN - (now - lastProcessTimestamp);
       console.log(`⚠️ Processamento muito recente, aguardando ${remainingCooldown}ms antes de processar novamente`);
-      return { successCount: 0, errorCount: 0 };
+      return { successCount: 0, errorCount: 0, duplicateCount: 0 };
     }
 
     // Marcar como processando
@@ -192,7 +198,7 @@ export const offlineSyncService = {
 
       if (registros.length === 0) {
         console.log('📭 Fila vazia, nada para processar');
-        return { successCount: 0, errorCount: 0 };
+        return { successCount: 0, errorCount: 0, duplicateCount: 0 };
       }
 
       // Testa conectividade antes de processar (com retry)
@@ -210,13 +216,15 @@ export const offlineSyncService = {
 
       if (!conectividadeOK) {
         console.log('⚠️ Conectividade não estável após 3 tentativas, mantendo itens na fila');
-        return { successCount: 0, errorCount: 0 };
+        return { successCount: 0, errorCount: 0, duplicateCount: 0 };
       }
 
       console.log(`🔄 Processando fila local: ${registros.length} item(s)`);
 
       const itensProcessados: RegistroPresenca[] = [];
       const itensComErro: RegistroPresenca[] = [];
+      const itensDuplicados: RegistroPresenca[] = [];
+      let duplicateError: string | undefined;
 
       for (let i = 0; i < registros.length; i++) {
         const item = registros[i];
@@ -257,6 +265,7 @@ export const offlineSyncService = {
             if (isConstraintError) {
               console.log(`✅ Item ${i + 1}: Registro já existe no Supabase (duplicata detectada) - removendo da fila e pulando Sheets`);
               isDuplicate = true;
+              duplicateError = e.message || duplicateError;
             } else {
               console.warn(`⚠️ Item ${i + 1}: Erro no Supabase (não crítico, prosseguindo para Sheets):`, e.message);
               // supabaseSuccess continua false, mas isDuplicate também é false
@@ -265,10 +274,11 @@ export const offlineSyncService = {
 
           // Se for duplicata, removemos da fila e pulamos para o próximo item
           if (isDuplicate) {
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(item);
             if (item.id) {
               await supabaseDataService.deleteRegistroFromLocal(item.id);
             }
-            itensProcessados.push(item);
+            itensDuplicados.push(item);
             continue;
           }
 
@@ -370,9 +380,21 @@ export const offlineSyncService = {
         }
       }
 
+      for (const item of itensDuplicados) {
+        if (item.id) {
+          try {
+            await supabaseDataService.deleteRegistroFromLocal(item.id);
+          } catch (error) {
+            console.warn(`Erro ao remover duplicata ${item.id} do storage local:`, error);
+          }
+        }
+      }
+
       const result = {
         successCount: itensProcessados.length,
         errorCount: itensComErro.length,
+        duplicateCount: itensDuplicados.length,
+        duplicateError,
       };
 
       console.log(`✅ Fila processada: ${result.successCount} enviados, ${result.errorCount} com erro`);
@@ -396,7 +418,7 @@ export const offlineSyncService = {
 
     } catch (error) {
       console.error('❌ Erro ao processar fila local:', error);
-      return { successCount: 0, errorCount: 0 };
+      return { successCount: 0, errorCount: 0, duplicateCount: 0 };
     } finally {
       // 🚨 PROTEÇÃO: Sempre liberar flag de processamento, mesmo em caso de erro
       isProcessingQueue = false;

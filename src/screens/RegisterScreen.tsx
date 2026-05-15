@@ -23,7 +23,6 @@ import { NewRegistrationModal } from '../components/NewRegistrationModal';
 import { Skeleton } from '../components/Skeleton';
 import { theme } from '../theme';
 import { useRegisterController } from '../hooks/useRegisterController';
-import { offlineSyncService } from '../services/offlineSyncService';
 import { showToast } from '../utils/toast';
 
 export const RegisterScreen: React.FC = () => {

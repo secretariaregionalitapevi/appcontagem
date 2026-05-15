@@ -76,6 +76,8 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
   // Como agora usamos o nome do cargo diretamente como valor, não precisamos buscar no array de cargos
   const cargoNome = selectedCargo || '';
   const isMusico = cargoNome.toLowerCase().includes('músico');
+  const isInstrutor = cargoNome.toLowerCase().includes('instrutor');
+  const isOrganista = cargoNome.toLowerCase().includes('organista');
   const isEncarregado = cargoNome.toLowerCase().includes('encarregado');
   // Mostrar instrumento para Músico, Instrutor (masculino) e Encarregados (opcional)
   const showInstrumento = (isMusico || isInstrutor || isEncarregado) && !isOrganista;

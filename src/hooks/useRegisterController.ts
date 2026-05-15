@@ -244,8 +244,9 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     try {
       const result = await offlineSyncService.syncAllData({ fastSync: true });
       await refreshCount();
-      if (result.successCount > 0) {
-        showToast.success(`${result.successCount} item(s) sincronizado(s)`);
+      const successCount = result.syncResult?.successCount || 0;
+      if (successCount > 0) {
+        showToast.success(`${successCount} item(s) sincronizado(s)`);
       }
     } catch (error) {
       console.log('📴 [SYNC FAST] Erro:', error);
@@ -1029,9 +1030,11 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         // 3. Trava de Segurança: Verificar duplicata remota (rápido - 3s timeout) - SOMENTE SE ONLINE
         const isOnlineNow = await offlineSyncService.isOnline();
         if (isOnlineNow) {
+          let cargoNomeParaCheck = '';
+          let instrumentoNomeParaCheck = '';
           try {
-            const cargoNomeParaCheck = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
-            const instrumentoNomeParaCheck = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+            cargoNomeParaCheck = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+            instrumentoNomeParaCheck = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
             const pessoaParaCheck = pessoas.find(p => p.id === registro.pessoa_id);
             
             await supabaseDataService.checkDuplicataRemota({
@@ -1100,10 +1103,14 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         const feedbackMsg = isOnlineNow 
           ? 'O registro foi realizado com sucesso!' 
           : 'Salvo localmente! Será enviado em breve.';
-        showToast.success('Registro Salvo!', feedbackMsg, 1500);
+        if (!isOnlineNow) {
+          showToast.success('Registro Salvo!', feedbackMsg, 1500);
+        }
         
         // Limpar campos imediatamente
-        clearAllFields();
+        if (!isOnlineNow) {
+          clearAllFields();
+        }
         await refreshCount();
 
         // 5. Encerrar estado de loading e trava de submissão
@@ -1113,15 +1120,41 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         // 6. Disparar sincronização em segundo plano (SEM AWAIT)
         // 🚨 SILENCIO NO ONLINE: Não setar 'syncing' para não aparecer no badge enquanto online
         console.log('🔄 [SUBMIT] Disparando sincronização silenciosa em background...');
-        offlineSyncService
-          .processarFilaLocal(true) // 🚨 MODO SILENCIOSO: Não mostrar alerta de fila processada no online
-          .catch(err => {
+        if (isOnlineNow) {
+          const syncResult = await offlineSyncService.processarFilaLocal(true);
 
-            console.error('❌ [SUBMIT] Erro na sincronização em background:', err);
-          })
-          .finally(() => {
-            refreshCount(); // Atualizar contagem final
-          });
+          if (syncResult.duplicateCount > 0) {
+            const infoStr = syncResult.duplicateError?.split('DUPLICATA_BLOQUEADA:')[1] || '';
+            const details = infoStr ? infoStr.split('|') : [];
+            const nomeFallback = registro.pessoa_id.startsWith('manual_')
+              ? registro.pessoa_id.replace('manual_', '')
+              : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
+            const comumFallback = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+            const cargoFallback = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+            const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+
+            setDuplicateInfo({
+              nome: obterNomeCurto(details[0] || nomeFallback),
+              comum: details[1] || comumFallback,
+              detalhe: obterDetalheDuplicata(details[4] || cargoFallback, details[5] || instrumentoFallback),
+              data: details[2] || '--/--/----',
+              horario: details[3] || '--:--:--'
+            });
+            setPendingRegistro(null);
+            setDuplicateModalVisible(true);
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
+            await refreshCount();
+            return false;
+          }
+
+          if (syncResult.successCount > 0) {
+            showToast.success('Registro enviado!', 'O registro foi realizado com sucesso!', 1500);
+            clearAllFields();
+            await refreshCount();
+          } else if (syncResult.errorCount > 0) {
+            showToast.warning('Atenção', 'Registro mantido na fila. Tente novamente em instantes.');
+          }
+        }
 
         return true;
 
