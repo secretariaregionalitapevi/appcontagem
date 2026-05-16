@@ -49,6 +49,7 @@ interface NameSelectFieldProps {
 
 const MANUAL_INPUT_OPTION_ID = '__MANUAL_INPUT__';
 const MIN_MANUAL_DETECTION_CHARS = 4;
+const MIN_MOBILE_SEARCH_CHARS = 2;
 
 export interface NameSelectFieldRef {
   focus: () => void;
@@ -130,6 +131,10 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     if (!showOptionsOnFocus && !searchText.trim()) {
+      return [];
+    }
+
+    if (Platform.OS !== 'web' && searchText.trim().length < MIN_MOBILE_SEARCH_CHARS) {
       return [];
     }
 
@@ -349,12 +354,13 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       const labelNorm = normalize(opt.label);
       return queryWords.every(word => labelNorm.includes(word));
     });
+    const canShowList = Platform.OS === 'web' || text.trim().length >= MIN_MOBILE_SEARCH_CHARS;
 
     if (isManualMode) {
       if (hasMatches) {
         console.log('🔍 [NameSelectField] Correspondências encontradas - voltando para modo busca');
         setIsManualMode(false);
-        setShowList(true);
+        setShowList(canShowList);
         onSelect({ id: '', label: text, value: '' });
         return;
       }
@@ -381,7 +387,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
         console.log('🔍 [NameSelectField] Correspondências encontradas - voltando para modo busca');
         setIsManualMode(false);
       }
-      setShowList(true);
+      setShowList(canShowList);
       // Opcional: Notificar o pai que o valor está "em aberto" na busca
       onSelect({ id: '', label: text, value: '' });
     }
@@ -401,6 +407,11 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     if (!showOptionsOnFocus && !searchText.trim()) {
+      setShowList(false);
+      return;
+    }
+
+    if (Platform.OS !== 'web' && searchText.trim().length < MIN_MOBILE_SEARCH_CHARS) {
       setShowList(false);
       return;
     }
@@ -613,6 +624,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       showOptionsOnFocus &&
       !isManualMode &&
       !searchText.trim() &&
+      Platform.OS === 'web' &&
       displayableOptions.length > 0
     ) {
       setShowList(true);
