@@ -8,6 +8,7 @@ import {
   Platform,
   Animated,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -35,6 +36,8 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
   onConfirm,
   confirmLabel = 'Cadastrar mesmo assim',
 }) => {
+  const { width } = useWindowDimensions();
+  const compactActions = width < 380;
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -118,25 +121,25 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           </View>
 
           {/* Box de Detalhes (Elaborado) */}
-          <View style={styles.detailsContainer}>
-            <View style={styles.detailBox}>
+          <View style={[styles.detailsContainer, compactActions && styles.detailsContainerCompact]}>
+            <View style={[styles.detailBox, compactActions && styles.detailBoxCompact]}>
               <View style={styles.detailItem}>
                 <View style={styles.detailIconWrapper}>
                    <FontAwesome5 name="calendar-alt" size={16} color="#255ec8" />
                 </View>
-                <View>
+                <View style={styles.detailTextContainer}>
                   <Text style={styles.detailLabel}>Data</Text>
                   <Text style={styles.detailValue}>{data || '--/--/----'}</Text>
                 </View>
               </View>
               
-              <View style={styles.detailDivider} />
+              <View style={[styles.detailDivider, compactActions && styles.detailDividerCompact]} />
 
               <View style={styles.detailItem}>
                 <View style={styles.detailIconWrapper}>
                    <FontAwesome5 name="clock" size={16} color="#255ec8" />
                 </View>
-                <View>
+                <View style={styles.detailTextContainer}>
                   <Text style={styles.detailLabel}>Horário</Text>
                   <Text style={styles.detailValue}>{horario || '--:--'}</Text>
                 </View>
@@ -145,23 +148,27 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           </View>
 
           {/* Botões */}
-          <View style={styles.buttonsContainer}>
+          <View style={[styles.buttonsContainer, compactActions && styles.buttonsContainerCompact]}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[styles.actionButton, styles.cancelButton, compactActions && styles.actionButtonCompact]}
               onPress={onCancel}
               activeOpacity={0.6}
             >
               <FontAwesome5 name="times" size={14} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.cancelButtonText}>Fechar</Text>
+              <Text style={[styles.cancelButtonText, compactActions && styles.actionButtonTextCompact]}>
+                Fechar
+              </Text>
             </TouchableOpacity>
             {onConfirm ? (
               <TouchableOpacity
-                style={styles.confirmButton}
+                style={[styles.actionButton, styles.confirmButton, compactActions && styles.actionButtonCompact]}
                 onPress={onConfirm}
                 activeOpacity={0.6}
               >
                 <FontAwesome5 name="check" size={14} color="#fff" style={styles.buttonIcon} />
-                <Text style={styles.cancelButtonText}>{confirmLabel}</Text>
+                <Text style={[styles.cancelButtonText, compactActions && styles.actionButtonTextCompact]}>
+                  {confirmLabel}
+                </Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -260,6 +267,9 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
   },
+  detailsContainerCompact: {
+    marginHorizontal: theme.spacing.lg,
+  },
   detailBox: {
     backgroundColor: '#f8fafc',
     borderRadius: 16,
@@ -270,10 +280,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  detailBoxCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 10,
+  },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    minWidth: 0,
+  },
+  detailTextContainer: {
+    flex: 1,
+    minWidth: 0,
   },
   detailIconWrapper: {
     width: 36,
@@ -295,6 +315,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#334155',
+    flexShrink: 1,
   },
   detailDivider: {
     width: 1,
@@ -302,23 +323,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
     marginHorizontal: 12,
   },
+  detailDividerCompact: {
+    width: '100%',
+    height: 1,
+    marginHorizontal: 0,
+  },
   buttonsContainer: {
     flexDirection: 'row',
     gap: 12,
-    padding: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
     justifyContent: 'center',
     backgroundColor: '#ffffff',
     alignItems: 'center',
   },
-  cancelButton: {
+  buttonsContainerCompact: {
+    flexDirection: 'column',
+    paddingHorizontal: theme.spacing.md,
+    alignItems: 'stretch',
+  },
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 40,
+    paddingHorizontal: 14,
     borderRadius: 14,
-    backgroundColor: '#ef4444',
     minHeight: 48,
+    minWidth: 0,
+    flex: 1,
     ...Platform.select({
       web: {
         // @ts-ignore
@@ -330,25 +363,16 @@ const styles = StyleSheet.create({
       }
     })
   },
+  actionButtonCompact: {
+    width: '100%',
+    flex: 0,
+  },
+  cancelButton: {
+    backgroundColor: '#ef4444',
+  },
   confirmButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 14,
     backgroundColor: '#255ec8',
-    minHeight: 48,
-    ...Platform.select({
-      web: {
-        // @ts-ignore
-        outlineStyle: 'none',
-        cursor: 'pointer',
-      },
-      default: {
-        elevation: 4,
-      }
-    })
+    flex: 1.45,
   },
   buttonIcon: {
     marginRight: 8,
@@ -358,5 +382,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
     textAlign: 'center',
+    flexShrink: 1,
+  },
+  actionButtonTextCompact: {
+    fontSize: 15,
   },
 });
