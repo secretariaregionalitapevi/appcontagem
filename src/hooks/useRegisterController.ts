@@ -448,13 +448,6 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
     // 🚨 NOVO FLUXO: Não bloquear busca de pessoas se o instrumento não estiver selecionado
     // Isso permite que o sistema busque todos os músicos da comum/cargo primeiro
     if (selectedComum && selectedCargo) {
-      if (isNomeManual) {
-        setLoadingPessoas(false);
-        setPessoas([]);
-        console.log('⏭️ [RegisterController] Nome manual ativo - busca de pessoas pausada');
-        return;
-      }
-
       // 🚨 CORREÇÃO: Não recarregar se o instrumento mudar mas já tivermos uma pessoa selecionada (Fora Regional)
       // Isso evita que o nome selecionado "suma" da lista quando o usuário escolhe um instrumento manualmente
       if (isForaRegional && selectedPessoa && !isNomeManual && selectedInstrumento) {
@@ -1107,7 +1100,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           ? 'O registro foi realizado com sucesso!' 
           : 'Salvo localmente! Será enviado em breve.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-        showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsg, 2500);
+        showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsg, 2000);
         
         // Limpar campos imediatamente
         clearAllFields();
@@ -1488,7 +1481,7 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         ? 'O registro foi realizado com sucesso!'
         : 'Salvo localmente! Será enviado em breve.';
       suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-      showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsgModal, 2500);
+      showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsgModal, 2000);
 
       setNewRegistrationModalVisible(false);
       setSelectedComum('');

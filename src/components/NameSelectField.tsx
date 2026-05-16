@@ -240,6 +240,26 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
   }, [options, isManualMode, value, loading]); // 🚨 CORREÇÃO: Adicionar loading como dependência
 
+  useEffect(() => {
+    if (!isManualMode || loading || !searchText.trim() || displayableOptions.length === 0) {
+      return;
+    }
+
+    const query = normalize(searchText);
+    const queryWords = query.split(' ').filter(word => word.length > 0);
+    const hasMatches = displayableOptions.some(opt => {
+      const labelNorm = normalize(opt.label);
+      return queryWords.every(word => labelNorm.includes(word));
+    });
+
+    if (hasMatches) {
+      console.log('🔍 [NameSelectField] Lista atualizada com correspondências - voltando para modo busca');
+      setIsManualMode(false);
+      setShowList(isFocused);
+      onSelect({ id: '', label: searchText, value: '' });
+    }
+  }, [displayableOptions, isManualMode, loading, searchText, isFocused, onSelect]);
+
   // Sincronizar searchText com value quando muda externamente
   useEffect(() => {
     if (isManualMode) {
@@ -322,12 +342,6 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       return;
     }
 
-    if (isManualMode) {
-      onSelect({ id: 'manual', label: text, value: text, data: null });
-      setShowList(false);
-      return;
-    }
-
     // 🚨 LÓGICA SEM FISSURAS: Verificar se o que foi digitado resultaria em algum item na lista
     const query = normalize(text);
     const queryWords = query.split(' ').filter(word => word.length > 0);
@@ -335,6 +349,20 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       const labelNorm = normalize(opt.label);
       return queryWords.every(word => labelNorm.includes(word));
     });
+
+    if (isManualMode) {
+      if (hasMatches) {
+        console.log('🔍 [NameSelectField] Correspondências encontradas - voltando para modo busca');
+        setIsManualMode(false);
+        setShowList(true);
+        onSelect({ id: '', label: text, value: '' });
+        return;
+      }
+
+      onSelect({ id: 'manual', label: text, value: text, data: null });
+      setShowList(false);
+      return;
+    }
 
     if (!hasMatches && text.trim().length >= MIN_MANUAL_DETECTION_CHARS) {
       // Se não há combinações, entra em modo manual AUTOMATICAMENTE
