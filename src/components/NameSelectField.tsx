@@ -49,11 +49,11 @@ interface NameSelectFieldProps {
 
 const MANUAL_INPUT_OPTION_ID = '__MANUAL_INPUT__';
 const MIN_MANUAL_DETECTION_CHARS = 4;
-const MIN_MOBILE_SEARCH_CHARS = 2;
 
 export interface NameSelectFieldRef {
   focus: () => void;
   blur: () => void;
+  getText: () => string;
 }
 
 export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFieldProps>(
@@ -97,6 +97,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
         inputRef.current.blur();
       }
     },
+    getText: () => searchText,
   }));
 
   // Normalizar texto (remove acentos, converte para minúscula)
@@ -131,10 +132,6 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     if (!showOptionsOnFocus && !searchText.trim()) {
-      return [];
-    }
-
-    if (Platform.OS !== 'web' && searchText.trim().length < MIN_MOBILE_SEARCH_CHARS) {
       return [];
     }
 
@@ -354,13 +351,12 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       const labelNorm = normalize(opt.label);
       return queryWords.every(word => labelNorm.includes(word));
     });
-    const canShowList = Platform.OS === 'web' || text.trim().length >= MIN_MOBILE_SEARCH_CHARS;
 
     if (isManualMode) {
       if (hasMatches) {
         console.log('🔍 [NameSelectField] Correspondências encontradas - voltando para modo busca');
         setIsManualMode(false);
-        setShowList(canShowList);
+        setShowList(true);
         onSelect({ id: '', label: text, value: '' });
         return;
       }
@@ -387,7 +383,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
         console.log('🔍 [NameSelectField] Correspondências encontradas - voltando para modo busca');
         setIsManualMode(false);
       }
-      setShowList(canShowList);
+      setShowList(true);
       // Opcional: Notificar o pai que o valor está "em aberto" na busca
       onSelect({ id: '', label: text, value: '' });
     }
@@ -407,11 +403,6 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     if (!showOptionsOnFocus && !searchText.trim()) {
-      setShowList(false);
-      return;
-    }
-
-    if (Platform.OS !== 'web' && searchText.trim().length < MIN_MOBILE_SEARCH_CHARS) {
       setShowList(false);
       return;
     }
@@ -479,6 +470,19 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       setShowList(false);
       blurTimeoutRef.current = null;
     }, delay);
+  };
+
+  const handleEndEditing = (event: any) => {
+    const finalText = String(event?.nativeEvent?.text || '').trim();
+
+    if (!finalText) {
+      return;
+    }
+
+    if (isManualMode) {
+      setSearchText(finalText);
+      onSelect({ id: 'manual', label: finalText, value: finalText, data: null });
+    }
   };
 
   // Quando seleciona um item
@@ -624,7 +628,6 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
       showOptionsOnFocus &&
       !isManualMode &&
       !searchText.trim() &&
-      Platform.OS === 'web' &&
       displayableOptions.length > 0
     ) {
       setShowList(true);
@@ -692,6 +695,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
               onChangeText={handleChange}
               onFocus={handleFocus}
               onBlur={handleBlur}
+              onEndEditing={handleEndEditing}
               placeholder={
                 loading
                   ? 'Carregando nomes...'

@@ -842,6 +842,10 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
         selectedPessoaValue: selectedPessoa,
       });
 
+      const nomeDigitadoAtual = nomeFieldRef.current?.getText?.().trim() || '';
+      const selectedPessoaParaEnvio =
+        isNomeManual && nomeDigitadoAtual ? nomeDigitadoAtual : selectedPessoa;
+
       // Validar campos obrigatórios (permitir nome manual para candidatos também)
       if (!selectedComum || !selectedCargo) {
         console.warn('⚠️ [SUBMIT] Campos obrigatórios não preenchidos');
@@ -853,13 +857,15 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       // 🚨 CORREÇÃO CRÍTICA: Se selectedPessoa está vazio mas há pessoas carregadas,
       // verificar se o texto digitado no campo corresponde a alguma opção
       // Se não corresponder, tratar como nome manual
-      if (!selectedPessoa || selectedPessoa.trim() === '') {
+      if (!selectedPessoaParaEnvio || selectedPessoaParaEnvio.trim() === '') {
         // Tentar buscar o texto do campo NameSelectField através do ref ou estado
         // Por enquanto, apenas mostrar erro - o handleBlur deve ter tratado isso
         console.warn('⚠️ [SUBMIT] Nome não selecionado', {
           selectedPessoa,
+          selectedPessoaParaEnvio,
+          nomeDigitadoAtual,
           isNomeManual,
-          selectedPessoaTrimmed: selectedPessoa?.trim(),
+          selectedPessoaTrimmed: selectedPessoaParaEnvio?.trim(),
           pessoasCount: pessoas.length,
         });
         Alert.alert('Erro', 'Selecione um nome da lista ou digite o nome completo manualmente.');
@@ -868,11 +874,13 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
       }
 
       // Verificar se é nome manual e se tem valor válido
-      if (isNomeManual && (!selectedPessoa || selectedPessoa.trim().length < 3)) {
+      if (isNomeManual && (!selectedPessoaParaEnvio || selectedPessoaParaEnvio.trim().length < 3)) {
         console.warn('⚠️ [SUBMIT] Nome manual muito curto', {
           selectedPessoa,
+          selectedPessoaParaEnvio,
+          nomeDigitadoAtual,
           isNomeManual,
-          length: selectedPessoa?.trim().length,
+          length: selectedPessoaParaEnvio?.trim().length,
         });
         Alert.alert('Erro', 'O nome deve ter pelo menos 3 caracteres');
         isSubmittingRef.current = false;
@@ -938,7 +946,9 @@ export const useRegisterController = ({ isForaRegional = false } = {}) => {
           }
         }
 
-        const pessoaIdFinal = isNomeManual ? `manual_${selectedPessoa}` : selectedPessoa;
+        const pessoaIdFinal = isNomeManual
+          ? `manual_${selectedPessoaParaEnvio.trim()}`
+          : selectedPessoaParaEnvio;
       // 🚨 NOVO FLUXO: Garantir que se uma pessoa foi selecionada da lista, 
       // usamos o cargo REAL dela ao invés do selecionado no dropdown (que pode ser genérico)
       let cargoIdFinal = selectedCargo;
