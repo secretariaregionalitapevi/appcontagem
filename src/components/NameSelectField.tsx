@@ -265,7 +265,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
   // Sincronizar searchText com value quando muda externamente
   useEffect(() => {
     if (isManualMode) {
-      if (isUserTypingRef.current && isFocused && searchText.trim()) {
+      if (isUserTypingRef.current && searchText.trim()) {
         return;
       }
 
@@ -480,6 +480,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
     }
 
     if (isManualMode) {
+      isUserTypingRef.current = true;
       setSearchText(finalText);
       onSelect({ id: 'manual', label: finalText, value: finalText, data: null });
     }
@@ -1074,6 +1075,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'relative' as ViewStyle['position'],
+    width: '100%',
     ...(Platform.OS === 'web'
       ? {
         backgroundColor: '#ffffff',
@@ -1082,6 +1084,7 @@ const styles = StyleSheet.create({
       : {}),
   },
   input: {
+    width: '100%',
     borderWidth: 1.5,
     borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.md,
