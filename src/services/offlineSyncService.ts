@@ -7,7 +7,7 @@ import { authService } from './authService';
 import { uuidv4 } from '../utils/uuid';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { formatDate, formatTime } from '../utils/dateUtils';
-import { robustSetItem, robustRemoveItem } from '../utils/robustStorage';
+import { robustRemoveItem, robustSetCriticalItem } from '../utils/robustStorage';
 import { showToast } from '../utils/toast';
 
 // 🚨 PROTEÇÃO: Flag global para evitar processamento duplicado simultâneo
@@ -228,142 +228,141 @@ export const offlineSyncService = {
 
       for (let i = 0; i < registros.length; i++) {
         const item = registros[i];
+        const itemEmProcessamento: RegistroPresenca = {
+          ...item,
+          sync_attempts: (item.sync_attempts || (item as any).tentativas || 0) + 1,
+          sync_last_error: undefined,
+        };
 
         // 🚀 OTIMIZAÇÃO: Não verificar isOnline() para cada item para não saturar a rede
         // A falha do fetch individual em createRegistro já tratará a volta para a fila
 
 
         try {
-          console.log(`📤 Processando item ${i + 1}/${registros.length}: ${item.pessoa_id}`);
+          console.log(`📤 Processando item ${i + 1}/${registros.length}: ${itemEmProcessamento.pessoa_id}`);
 
           // Validar item antes de processar
-          if (!item.pessoa_id || !item.comum_id || !item.cargo_id) {
+          if (!itemEmProcessamento.pessoa_id || !itemEmProcessamento.comum_id || !itemEmProcessamento.cargo_id) {
             console.warn(`⚠️ Item ${i + 1}: Dados incompletos, removendo da fila`);
-            itensProcessados.push(item); // Remover da fila
+            itensProcessados.push(itemEmProcessamento); // Remover da fila
             continue;
           }
 
           // 🚨 NOVO FLUXO: Enviar para Supabase PRIMEIRO (Trava de integridade)
           // Se o Supabase bloquear por duplicidade, não enviamos para o Google Sheets.
-          if (supabaseDataService.isRegistroBloqueadoPorDuplicidade(item)) {
+          if (supabaseDataService.isRegistroBloqueadoPorDuplicidade(itemEmProcessamento)) {
             console.warn(`Item ${i + 1}: bloqueado por trava de duplicidade - pulando Supabase e Sheets`);
-            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(item);
-            itensDuplicados.push(item);
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(itemEmProcessamento);
+            itensDuplicados.push(itemEmProcessamento);
             continue;
           }
 
-          let supabaseSuccess = false;
-          let isDuplicate = false;
+          let supabaseSuccess = itemEmProcessamento.sync_supabase_ok === true;
+          let sheetsSuccess = itemEmProcessamento.sync_sheets_ok === true;
+          let isBusinessDuplicate = false;
 
-          try {
-            await supabaseDataService.createRegistroPresenca(item, false); // false = check duplicates
-            console.log(`✅ Item ${i + 1}: Supabase OK`);
-            supabaseSuccess = true;
-          } catch (e: any) {
-            // Verificar se é erro de duplicata ou constraint
-            const isConstraintError =
-              e.code === '23505' ||
-              e.message?.includes('duplicate key') ||
-              e.message?.includes('already exists') ||
-              e.message?.includes('pessoas_pkey') ||
-              e.message?.includes('presencas_pkey') ||
-              e.message?.includes('DUPLICATA');
+          if (supabaseSuccess) {
+            console.log(`✅ Item ${i + 1}: Supabase já confirmado anteriormente`);
+          } else {
+            try {
+              await supabaseDataService.createRegistroPresenca(itemEmProcessamento, false);
+              console.log(`✅ Item ${i + 1}: Supabase OK`);
+              supabaseSuccess = true;
+              itemEmProcessamento.sync_supabase_ok = true;
+            } catch (e: any) {
+              const message = e?.message || String(e);
+              const isDuplicateBlock = message.includes('DUPLICATA_BLOQUEADA');
+              const isIdempotentConstraint =
+                e.code === '23505' ||
+                message.includes('duplicate key') ||
+                message.includes('already exists') ||
+                message.includes('pessoas_pkey') ||
+                message.includes('presencas_pkey');
 
-            if (isConstraintError) {
-              console.log(`✅ Item ${i + 1}: Registro já existe no Supabase (duplicata detectada) - removendo da fila e pulando Sheets`);
-              isDuplicate = true;
-              duplicateError = e.message || duplicateError;
-            } else {
-              console.warn(`⚠️ Item ${i + 1}: Erro no Supabase (não crítico, prosseguindo para Sheets):`, e.message);
-              // supabaseSuccess continua false, mas isDuplicate também é false
+              if (isDuplicateBlock) {
+                console.warn(`Item ${i + 1}: duplicidade real bloqueada no Supabase`);
+                isBusinessDuplicate = true;
+                duplicateError = message || duplicateError;
+              } else if (isIdempotentConstraint) {
+                console.warn(
+                  `Item ${i + 1}: Supabase indicou registro já existente; mantendo fluxo para garantir Sheets`
+                );
+                supabaseSuccess = true;
+                itemEmProcessamento.sync_supabase_ok = true;
+              } else {
+                console.warn(
+                  `⚠️ Item ${i + 1}: Erro no Supabase; mantendo pendente e tentando Sheets se necessario:`,
+                  message
+                );
+                itemEmProcessamento.sync_last_error = `Supabase: ${message}`;
+              }
             }
           }
 
-          // Se for duplicata, removemos da fila e pulamos para o próximo item
-          if (isDuplicate) {
-            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(item);
-            if (item.id) {
-              await supabaseDataService.deleteRegistroFromLocal(item.id);
+          if (isBusinessDuplicate) {
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(itemEmProcessamento);
+            if (itemEmProcessamento.id) {
+              await supabaseDataService.deleteRegistroFromLocal(itemEmProcessamento.id);
             }
-            itensDuplicados.push(item);
+            itensDuplicados.push(itemEmProcessamento);
             continue;
           }
 
           // 2. Enviar para Google Sheets (Garantia do Usuário)
           // Mesmo que o Supabase tenha falhado (por conexão), tentamos o Sheets.
-          if (supabaseDataService.isRegistroBloqueadoPorDuplicidade(item)) {
+          if (supabaseDataService.isRegistroBloqueadoPorDuplicidade(itemEmProcessamento)) {
             console.warn(`Item ${i + 1}: bloqueado por trava de duplicidade antes do Sheets`);
-            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(item);
-            itensDuplicados.push(item);
+            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(itemEmProcessamento);
+            itensDuplicados.push(itemEmProcessamento);
             continue;
           }
 
-          const sheetsResult = await googleSheetsService.sendRegistroToSheet(item);
-          if (sheetsResult.success) {
-            console.log(`✅ Item ${i + 1}: Google Sheets OK`);
-            
-            // Se chegou aqui, o registro foi salvo em pelo menos um lugar (ou ambos)
-            if (item.id) {
+          if (sheetsSuccess) {
+            console.log(`✅ Item ${i + 1}: Google Sheets já confirmado anteriormente`);
+          } else {
+            const sheetsResult = await googleSheetsService.sendRegistroToSheet(itemEmProcessamento);
+            if (sheetsResult.success) {
+              console.log(`✅ Item ${i + 1}: Google Sheets OK`);
+              sheetsSuccess = true;
+              itemEmProcessamento.sync_sheets_ok = true;
+            } else if (sheetsResult.error?.includes('DUPLICATA') || sheetsResult.error?.includes('duplicat')) {
+              console.log(`✅ Item ${i + 1}: Registro já existe no Sheets`);
+              sheetsSuccess = true;
+              itemEmProcessamento.sync_sheets_ok = true;
+            } else {
+              itemEmProcessamento.sync_last_error = `Google Sheets: ${sheetsResult.error || 'Erro desconhecido'}`;
+            }
+          }
+
+          if (supabaseSuccess && sheetsSuccess) {
+            if (itemEmProcessamento.id) {
               try {
-                await supabaseDataService.deleteRegistroFromLocal(item.id);
+                await supabaseDataService.deleteRegistroFromLocal(itemEmProcessamento.id);
                 console.log(`🗑️ Item ${i + 1}: Removido da fila com sucesso`);
               } catch (deleteError) {
                 console.warn(`⚠️ Item ${i + 1}: Erro ao remover da fila (não crítico):`, deleteError);
               }
             }
-            itensProcessados.push(item);
+            itensProcessados.push(itemEmProcessamento);
           } else {
-            // Google Sheets falhou - verificar se é erro de rede
-            const isNetworkError =
-              sheetsResult.error?.includes('Failed to fetch') ||
-              sheetsResult.error?.includes('Timeout') ||
-              sheetsResult.error?.includes('Network') ||
-              sheetsResult.error?.includes('AbortError');
-
-            if (isNetworkError && !supabaseSuccess) {
-              // Ambos falharam por rede - manter na fila
-              throw new Error('Erro de rede total ao enviar registro');
-            } else if (sheetsResult.error?.includes('DUPLICATA') || sheetsResult.error?.includes('duplicat')) {
-               // Sheets também detectou duplicata (raro mas possível)
-               console.log(`✅ Item ${i + 1}: Registro já existe no Sheets - removendo da fila`);
-               if (item.id) await supabaseDataService.deleteRegistroFromLocal(item.id);
-               itensProcessados.push(item);
-            } else if (supabaseSuccess) {
-               // Supabase salvou, mas Sheets falhou por algo não-rede. 
-               // Manter na fila para tentar o Sheets novamente, ou considerar sucesso parcial?
-               // O usuário quer GARANTIA do Sheets, então mantemos na fila se o Sheets falhar.
-               throw new Error(`Erro no Google Sheets: ${sheetsResult.error}`);
-            } else {
-               // Outro erro qualquer
-               throw new Error(sheetsResult.error || 'Erro desconhecido no sincronismo');
-            }
+            const missingTargets = [
+              supabaseSuccess ? null : 'Supabase',
+              sheetsSuccess ? null : 'Google Sheets',
+            ].filter(Boolean).join(' e ');
+            throw new Error(`Registro ainda pendente em: ${missingTargets}`);
           }
 
         } catch (error: any) {
           console.error(`❌ Item ${i + 1}: Erro:`, error.message);
 
-          // Incrementa tentativas
-          const tentativas = (item as any).tentativas || 0;
-          (item as any).tentativas = tentativas + 1;
-
-          // Se já tentou 3 vezes, remove da fila
-          if ((item as any).tentativas >= 3) {
-            console.log(`🗑️ Item ${i + 1}: Removido após 3 tentativas`);
-
-            // 🚨 CORREÇÃO CRÍTICA: Remover da fila IMEDIATAMENTE após 3 tentativas
-            if (item.id) {
-              try {
-                await supabaseDataService.deleteRegistroFromLocal(item.id);
-                console.log(`🗑️ Item ${i + 1}: Removido da fila após 3 tentativas`);
-              } catch (deleteError) {
-                console.warn(`⚠️ Item ${i + 1}: Erro ao remover da fila após 3 tentativas:`, deleteError);
-              }
-            }
-
-            itensProcessados.push(item); // Remover da fila
-          } else {
-            itensComErro.push(item); // Manter na fila para retry
-          }
+          // Em evento ao vivo, falha repetida quase sempre e rede instavel.
+          // Nunca descartar registro por limite de tentativas: manter na fila
+          // ate enviar ou ate uma duplicidade real ser confirmada.
+          itensComErro.push({
+            ...itemEmProcessamento,
+            sync_last_error: itemEmProcessamento.sync_last_error || error?.message || String(error),
+            tentativas: itemEmProcessamento.sync_attempts,
+          } as any);
         }
 
         // Pequena pausa entre itens para não sobrecarregar
@@ -376,7 +375,12 @@ export const offlineSyncService = {
       // Salvar apenas itens com erro de volta na fila
       if (itensComErro.length > 0) {
         const filaKey = 'fila_registros_presenca';
-        await robustSetItem(filaKey, JSON.stringify(itensComErro));
+        for (const item of itensComErro) {
+          if (item.id) {
+            await supabaseDataService.deleteRegistroFromLocal(item.id);
+          }
+        }
+        await robustSetCriticalItem(filaKey, JSON.stringify(itensComErro));
       } else {
         // Se não há erros, limpar fila completamente
         const filaKey = 'fila_registros_presenca';
@@ -490,16 +494,17 @@ export const offlineSyncService = {
           registro.comum_id.startsWith('comum_fora_') ||
           registro.comum_id.startsWith('manual_') ||
           registro.comum_id.startsWith('external_');
-        const comumObj = comuns.find(c => c.id === registro.comum_id);
-        const cargoObj = cargos.find(c => c.id === registro.cargo_id);
+        const comumObj = comuns.find(c => String(c.id) === String(registro.comum_id));
+        const cargoObj = cargos.find(c => String(c.id) === String(registro.cargo_id));
         const instrumentoObj = registro.instrumento_id
-          ? instrumentos.find(i => i.id === registro.instrumento_id)
+          ? instrumentos.find(i => String(i.id) === String(registro.instrumento_id))
           : null;
 
-        if (comumObj && cargoObj) {
+        if ((comumObj || isForaRegionalRegistro) && cargoObj) {
           let nomeCompleto = '';
           let cargoReal = cargoObj.nome;
           let cidadeReal = registro.cidade || '';
+          let comumNomeReal = comumObj ? comumObj.nome : (registro.comum_id.startsWith('manual_') ? registro.comum_id.replace('manual_', '').split('|')[0] : registro.comum_id);
 
           if (isNomeManual) {
             nomeCompleto = registro.pessoa_id.replace(/^manual_/, '').toUpperCase();
@@ -521,7 +526,7 @@ export const offlineSyncService = {
           // 2. Executar verificação remota centralizada
           await supabaseDataService.checkDuplicataRemota({
             nome: nomeCompleto,
-            comum: comumObj.nome,
+            comum: comumNomeReal,
             cargo: cargoReal,
             instrumento: instrumentoObj?.nome || '',
             cidade: cidadeReal,
@@ -568,6 +573,7 @@ export const offlineSyncService = {
             r.pessoa_id === registro.pessoa_id &&
             r.comum_id === registro.comum_id &&
             r.cargo_id === registro.cargo_id &&
+            (r.instrumento_id || null) === (registro.instrumento_id || null) &&
             rDataStr === dataRegistroStr &&
             r.status_sincronizacao === 'pending'
           );

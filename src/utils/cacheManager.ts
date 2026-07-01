@@ -5,7 +5,7 @@
  * com TTL configurável para reduzir queries desnecessárias ao Supabase
  */
 
-import { robustGetItem, robustSetItem } from './robustStorage';
+import { robustGetItem, robustSetItem, robustRemoveItem } from './robustStorage';
 import { Platform } from 'react-native';
 
 interface CacheEntry<T> {
@@ -48,19 +48,34 @@ class CacheManager {
     // 🚀 OTIMIZAÇÃO: Suportar mobile também (AsyncStorage via robustGetItem)
     try {
       const cached = await robustGetItem(`cache_${key}`);
-      if (cached) {
-        const entry: CacheEntry<T> = JSON.parse(cached);
-        const now = Date.now();
-        const age = now - entry.timestamp;
+      if (cached && cached !== 'null') {
+        try {
+          const entry: CacheEntry<T> = JSON.parse(cached);
+          
+          // Verificar se o objeto JSON é válido e tem a estrutura esperada
+          if (entry && typeof entry.timestamp === 'number') {
+            const now = Date.now();
+            const age = now - entry.timestamp;
 
-        if (age < entry.ttl) {
-          // Cache válido, também salvar em memória
-          this.memoryCache.set(key, entry);
-          return entry.data;
-        } else {
-          // Cache expirado, remover
-          await robustSetItem(`cache_${key}`, null);
+            if (age < entry.ttl) {
+              // Cache válido, também salvar em memória
+              this.memoryCache.set(key, entry);
+              return entry.data;
+            } else {
+              // Cache expirado, remover
+              await robustRemoveItem(`cache_${key}`);
+            }
+          } else {
+            // Formato inválido, remover
+            await robustRemoveItem(`cache_${key}`);
+          }
+        } catch (e) {
+          // Erro de parse, remover
+          await robustRemoveItem(`cache_${key}`);
         }
+      } else if (cached === 'null') {
+        // Remover "null" stringificado que corrompeu o cache anteriormente
+        await robustRemoveItem(`cache_${key}`);
       }
     } catch (error) {
       console.warn(`⚠️ Erro ao ler cache ${key}:`, error);
@@ -99,7 +114,7 @@ class CacheManager {
     this.memoryCache.delete(key);
     // 🚀 OTIMIZAÇÃO: Suportar mobile também
     try {
-      await robustSetItem(`cache_${key}`, null);
+      await robustRemoveItem(`cache_${key}`);
     } catch (error) {
       console.warn(`⚠️ Erro ao invalidar cache ${key}:`, error);
     }

@@ -394,7 +394,7 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
     // 🚨 NOVO: Atualiza Organistas e Ministério também na exportação otimizada
     const shRegMirror = ssExterna.getSheetByName('Registros');
     if (shRegMirror) {
-      const headersReg = ['UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÃVEL','INSTRUMENTO','NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO','REGISTRADO_POR','SYNC_STATUS','SYNCED_AT','ANOTACOES','DUPLICATA'];
+      const headersReg = ['UUID','NOME COMPLETO','COMUM','CIDADE','CARGO','NÍVEL','INSTRUMENTO','NAIPE_INSTRUMENTO','CLASSE_ORGANISTA','LOCAL_ENSAIO','DATA_ENSAIO','REGISTRADO_POR','SYNC_STATUS','SYNCED_AT','ANOTACOES','DUPLICATA'];
       const dataMirror = [];
       const findMirrorIdx = (header) => {
         const h = String(header || '').toUpperCase();

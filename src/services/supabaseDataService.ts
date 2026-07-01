@@ -13,6 +13,7 @@ import { extractFirstAndLastName } from '../utils/userNameUtils';
 import { normalizarNivel } from '../utils/normalizeNivel';
 import {
   robustGetItem,
+  robustSetCriticalItem,
   robustSetItem,
   robustRemoveItem,
   initializeStorage,
@@ -2518,6 +2519,15 @@ export const supabaseDataService = {
         console.warn('⚠️ Cargo encontrado por nome, mas deveria ser por ID:', registro.cargo_id);
       }
     }
+    if (!cargoSelecionado && registro.cargo_id.startsWith('manual_')) {
+      const cargoManualNome = registro.cargo_id.replace(/^manual_/, '').trim();
+      cargoSelecionado = {
+        id: registro.cargo_id,
+        nome: cargoManualNome,
+        is_musical: normalizeString(cargoManualNome.toUpperCase()).includes('MUSICO'),
+      };
+      console.warn('⚠️ Cargo manual usado como fallback:', cargoManualNome);
+    }
 
     if (isExternalRegistro) {
       // Para registros externos, extrair nome da comum do ID
@@ -3323,6 +3333,8 @@ export const supabaseDataService = {
         return (
           r.pessoa_id === registro.pessoa_id &&
           r.comum_id === registro.comum_id &&
+          r.cargo_id === registro.cargo_id &&
+          (r.instrumento_id || null) === (registro.instrumento_id || null) &&
           rDataStr === dataRegistroStr &&
           r.status_sincronizacao === 'pending'
         );
@@ -3341,6 +3353,8 @@ export const supabaseDataService = {
           return (
             r.pessoa_id === registro.pessoa_id &&
             r.comum_id === registro.comum_id &&
+            r.cargo_id === registro.cargo_id &&
+            (r.instrumento_id || null) === (registro.instrumento_id || null) &&
             rDataStr === dataRegistroStr &&
             r.status_sincronizacao === 'pending' &&
             r.id !== registro.id // Não é o mesmo registro
@@ -3400,7 +3414,7 @@ export const supabaseDataService = {
         }
 
         try {
-          await robustSetItem('cached_registros', JSON.stringify(memoryCache.registros));
+          await robustSetCriticalItem('cached_registros', JSON.stringify(memoryCache.registros));
         } catch (error) {
           console.error('❌ Erro ao salvar no cache web:', error);
           // Tentar salvar novamente
@@ -3408,7 +3422,7 @@ export const supabaseDataService = {
             const registrosExistentes = await robustGetItem('cached_registros');
             const registros = registrosExistentes ? JSON.parse(registrosExistentes) : [];
             registros.push(registroCompleto);
-            await robustSetItem('cached_registros', JSON.stringify(registros));
+            await robustSetCriticalItem('cached_registros', JSON.stringify(registros));
           } catch (retryError) {
             console.error('❌ Erro crítico ao salvar:', retryError);
             throw retryError;
@@ -3452,7 +3466,7 @@ export const supabaseDataService = {
         fila.push(registroParaFila as any);
 
         // Salvar fila atualizada (exatamente como BACKUPCONT)
-        await robustSetItem(filaKey, JSON.stringify(fila));
+        await robustSetCriticalItem(filaKey, JSON.stringify(fila));
 
         console.log('✅ Registro salvo na fila (mobile):', {
           totalItens: fila.length,
@@ -3471,7 +3485,7 @@ export const supabaseDataService = {
               tentativas: 0,
             },
           ] as any[];
-          await robustSetItem(filaKey, JSON.stringify(filaFallback));
+          await robustSetCriticalItem(filaKey, JSON.stringify(filaFallback));
           console.log('✅ Registro salvo na fila (fallback):', registroCompleto.pessoa_id);
         } catch (fallbackError) {
           console.error('❌ Erro crítico ao salvar na fila (fallback):', fallbackError);
@@ -3497,7 +3511,7 @@ export const supabaseDataService = {
           ...registroCompletoFallback,
           _fallback: true, // Marcar como fallback para sincronizar depois
         };
-        await robustSetItem(`registro_fallback_${idFinal} `, JSON.stringify(fallbackData));
+        await robustSetCriticalItem(`registro_fallback_${idFinal}`, JSON.stringify(fallbackData));
         console.log('✅ Registro salvo em AsyncStorage como último recurso (ID:', idFinal, ')');
         // Não lançar erro - o registro foi salvo no fallback
         return; // Retornar sem erro para não bloquear o usuário
@@ -3831,7 +3845,12 @@ export const supabaseDataService = {
 
         if (!baseMatch) return false;
 
-        if (!params.isForaRegional) return true;
+        if (!params.isForaRegional) {
+          return (
+            (!params.cargoId || r.cargo_id === params.cargoId) &&
+            (!params.instrumentoId || r.instrumento_id === params.instrumentoId)
+          );
+        }
 
         const isPessoaManual = params.pessoaId.startsWith('manual_');
         if (!isPessoaManual) return true;

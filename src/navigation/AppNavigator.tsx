@@ -7,7 +7,6 @@ import { RegisterScreen } from '../screens/RegisterScreen';
 import { EditRegistrosScreen } from '../screens/EditRegistrosScreen';
 import { EditRecordDetailScreen } from '../screens/EditRecordDetailScreen';
 import { OrganistasEnsaioScreen } from '../screens/OrganistasEnsaioScreen';
-import { OtrasLocalidadesScreen } from '../screens/OtrasLocalidadesScreen';
 import { ForgotPasswordScreen } from '../screens/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { useAuthContext } from '../context/AuthContext';
@@ -176,14 +175,6 @@ export const AppNavigator: React.FC = () => {
           name="OrganistasEnsaio"
           component={OrganistasEnsaioScreen}
           options={{ title: 'CCB | Organistas no Ensaio' }}
-        />
-        <Stack.Screen
-          name="OtrasLocalidades"
-          component={OtrasLocalidadesScreen}
-          options={{
-            title: 'CCB | Outras Localidades',
-            animation: 'slide_from_right',
-          }}
         />
       </Stack.Navigator>
 

@@ -3,13 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   TouchableOpacity,
-  RefreshControl,
   Switch,
   TextInput,
 } from 'react-native';
@@ -18,6 +16,7 @@ import { NameSelectField } from '../components/NameSelectField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { AppHeader } from '../components/AppHeader';
 import { OfflineBadge } from '../components/OfflineBadge';
+import { RefreshableScrollView } from '../components/RefreshableScrollView';
 import { theme } from '../theme';
 import { RegistrationSuccessModal } from '../components/RegistrationSuccessModal';
 import { organistasEnsaioService } from '../services/organistasEnsaioService';
@@ -28,7 +27,6 @@ import { formatDate } from '../utils/dateUtils';
 import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
 import { formatRegistradoPor } from '../utils/userNameUtils';
-import { handleHardReset } from '../utils/appActions';
 import { AutocompleteField } from '../components/AutocompleteField';
 import { SimpleSelectField } from '../components/SimpleSelectField';
 import { supabaseDataService } from '../services/supabaseDataService';
@@ -488,16 +486,15 @@ export const OrganistasEnsaioScreen: React.FC = () => {
       <AppHeader 
         title="Organistas no Ensaio" 
         onBackPress={handleBack} 
-        onRefresh={onRefresh}
-        onHardReset={handleHardReset}
       />
 
       {!isOnline && <OfflineBadge count={0} />}
 
-      <ScrollView
+      <RefreshableScrollView
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.content}>
           {/* Informações do Ensaio */}
@@ -686,7 +683,7 @@ export const OrganistasEnsaioScreen: React.FC = () => {
             )}
           </View>
         </View>
-      </ScrollView>
+      </RefreshableScrollView>
 
       <RegistrationSuccessModal
         visible={successModalVisible}

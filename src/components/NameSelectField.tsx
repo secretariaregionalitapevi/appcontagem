@@ -605,11 +605,12 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
         if (inputRef.current) {
           inputRef.current.blur();
         }
-      } else if (loading || !options || options.length === 0) {
-        // Se ainda está carregando ou não há opções, não fazer nada - aguardar carregamento
-        console.log(
-          '⏳ [NameSelectField] Enter pressionado mas lista ainda carregando, aguardando...'
-        );
+      } else if (!encontrouNaLista && (!options || options.length === 0)) {
+        setIsManualMode(true);
+        onSelect({ id: 'manual', label: searchText.trim(), value: searchText.trim(), data: null });
+        if (inputRef.current) {
+          inputRef.current.blur();
+        }
       }
     }
   };
@@ -708,7 +709,7 @@ export const NameSelectField = React.forwardRef<NameSelectFieldRef, NameSelectFi
               returnKeyType="done"
               onSubmitEditing={handleEnterPress}
               autoCapitalize="words"
-              editable={!loading || isManualMode}
+              editable={true}
               onKeyPress={e => {
                 // Suporte para Android/iOS com teclado físico ou virtual
                 if (Platform.OS !== 'web') {

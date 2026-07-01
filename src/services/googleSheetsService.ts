@@ -630,6 +630,15 @@ export const googleSheetsService = {
           console.warn('⚠️ Cargo encontrado por nome, mas deveria ser por ID:', registro.cargo_id);
         }
       }
+      if (!cargoSelecionado && registro.cargo_id.startsWith('manual_')) {
+        const cargoManualNome = registro.cargo_id.replace(/^manual_/, '').trim();
+        cargoSelecionado = {
+          id: registro.cargo_id,
+          nome: cargoManualNome,
+          is_musical: false,
+        };
+        console.warn('⚠️ Cargo manual usado como fallback no Sheets:', cargoManualNome);
+      }
 
       if (isExternalRegistro) {
         // Para registros externos, extrair nome da comum do ID

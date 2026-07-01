@@ -1,6 +1,36 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../config/env';
 
+// 🚀 OTIMIZAÇÃO: Wrapper de fetch com timeout para evitar travamentos de rede (NetworkError/Timeout)
+// Isso impede que requisições do Supabase fiquem presas infinitamente quando a rede oscila (ex: Wifi -> 4G)
+const fetchWithTimeout = async (url: RequestInfo | URL, options?: RequestInit) => {
+  const timeoutMs = 15000; // 15 segundos de timeout global para o Supabase
+  
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  if (controller) {
+    setTimeout(() => controller.abort(), timeoutMs);
+  }
+  
+  const fetchOptions = {
+    ...options,
+    signal: options?.signal || controller?.signal,
+  };
+  
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Network request failed: Timeout')), timeoutMs);
+  });
+
+  try {
+    const response = await Promise.race([fetch(url, fetchOptions), timeoutPromise]);
+    return response as Response;
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Network request failed: Timeout');
+    }
+    throw err;
+  }
+};
+
 // Criar cliente Supabase apenas se as variáveis estiverem configuradas
 let supabase: SupabaseClient | null = null;
 
@@ -8,10 +38,13 @@ try {
   if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
     supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
       auth: {
-        persistSession: true,        // ✅ Deixar Supabase gerenciar sessão automaticamente
-        autoRefreshToken: true,      // ✅ Renovar token antes de expirar
-        detectSessionInUrl: true,    // ✅ Restaurar sessão de URL (OAuth callbacks)
+        persistSession: true, // ✅ Deixar Supabase gerenciar sessão automaticamente
+        autoRefreshToken: true, // ✅ Renovar token antes de expirar
+        detectSessionInUrl: true, // ✅ Restaurar sessão de URL (OAuth callbacks)
         storageKey: 'supabase-auth', // Chave estável no localStorage/AsyncStorage
+      },
+      global: {
+        fetch: fetchWithTimeout, // ✅ Aplicar timeout global em todas as queries e auth
       },
     });
   } else {
@@ -41,8 +74,11 @@ export const ensureSessionRestored = async (): Promise<boolean> => {
     try {
       // 1. Verificar se já existe sessão ativa
       // getSession() é local e rápido. Se autoRefreshToken estiver ligado, Supabase cuidará do resto.
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
       if (session && session.user && !error) {
         // ou deixar o autoRefreshToken agir. Evitamos refreshSession manual pra não causar conflito de token reuse.
         console.log('🔄 Sessão próxima da expiração, notificando Supabase...');

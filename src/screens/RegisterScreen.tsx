@@ -1,14 +1,12 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   TouchableOpacity,
-  RefreshControl,
   useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -20,11 +18,22 @@ import { OfflineBadge } from '../components/OfflineBadge';
 import { AppHeader } from '../components/AppHeader';
 import { DuplicateModal } from '../components/DuplicateModal';
 import { NewRegistrationModal } from '../components/NewRegistrationModal';
+import { RefreshableScrollView } from '../components/RefreshableScrollView';
 import { Skeleton } from '../components/Skeleton';
 import { theme } from '../theme';
 import { useRegisterController } from '../hooks/useRegisterController';
 import { supabaseDataService } from '../services/supabaseDataService';
 import { showToast } from '../utils/toast';
+import { offlineSyncService } from '../services/offlineSyncService';
+import { generateExternalUUID } from '../utils/uuid';
+
+const ORGANISTA_CLASSES = [
+  { id: 'Ensaio', label: 'Ensaio', value: 'Ensaio' },
+  { id: 'Meia-Hora', label: 'Meia-Hora', value: 'Meia-Hora' },
+  { id: 'RDJM', label: 'RDJM', value: 'RDJM' },
+  { id: 'Culto a Noite', label: 'Culto a Noite', value: 'Culto a Noite' },
+  { id: 'Oficializada', label: 'Oficializada', value: 'Oficializada' },
+];
 
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -40,6 +49,10 @@ export const RegisterScreen: React.FC = () => {
     loadingPessoas,
     selectedComum,
     setSelectedComum,
+    isComumManual,
+    setIsComumManual,
+    cidadeManual,
+    setCidadeManual,
     selectedCargo,
     setSelectedCargo,
     selectedInstrumento,
@@ -80,13 +93,52 @@ export const RegisterScreen: React.FC = () => {
     handleEditRegistros,
     handleOrganistasEnsaio,
     handleSaveNewRegistration,
-    handleHardReset,
     selectedClasseOrganista,
     setSelectedClasseOrganista,
+    showClasseOrganista,
+    isForaRegional,
   } = controller;
 
   const { width } = useWindowDimensions();
   const isMobile = width <= 768;
+
+  const handleConfirmDuplicate = async () => {
+    if (!controller.pendingRegistro) {
+      controller.setDuplicateModalVisible(false);
+      controller.setDuplicateInfo(null);
+      return;
+    }
+
+    try {
+      controller.setDuplicateModalVisible(false);
+      controller.setLoading(true);
+
+      const result = await offlineSyncService.createRegistro(
+        { ...controller.pendingRegistro, id: generateExternalUUID() },
+        true // skipDuplicateCheck
+      );
+
+      if (!result.success) {
+        showToast.error('Erro', result.error || 'Nao foi possivel cadastrar o registro.');
+        controller.setDuplicateModalVisible(true);
+        return;
+      }
+
+      showToast.success('Registro Salvo!', 'Cadastro realizado mesmo com alerta de duplicidade.', 1500);
+      controller.setDuplicateInfo(null);
+      controller.setPendingRegistro(null);
+
+      setTimeout(() => {
+        controller.clearAllFields();
+      }, 300);
+    } catch (error) {
+      console.error('Erro ao cadastrar mesmo assim:', error);
+      showToast.error('Erro', 'Erro ao processar registro. Tente novamente.');
+      controller.setDuplicateModalVisible(true);
+    } finally {
+      controller.setLoading(false);
+    }
+  };
 
   if (initialLoading) {
     return (
@@ -125,8 +177,6 @@ export const RegisterScreen: React.FC = () => {
       <AppHeader
         onEditRegistrosPress={handleEditRegistros}
         onOrganistasEnsaioPress={handleOrganistasEnsaio}
-        onRefresh={onRefresh}
-        onHardReset={handleHardReset}
       />
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -134,25 +184,27 @@ export const RegisterScreen: React.FC = () => {
         keyboardVerticalOffset={0}
         enabled={Platform.OS === 'ios'}
       >
-        <ScrollView
+        <RefreshableScrollView
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           collapsable={false}
           nestedScrollEnabled={true}
           showsVerticalScrollIndicator={true}
           scrollEnabled={true}
-          // 🚨 CRÍTICO: Habilitar bounces para permitir pull-to-refresh no mobile
+          // 🚨 CRÃTICO: Habilitar bounces para permitir pull-to-refresh no mobile
           bounces={Platform.OS !== 'web'}
           alwaysBounceVertical={Platform.OS === 'ios'}
-          // 🚨 CRÍTICO: Garantir que o scroll funcione corretamente no mobile
+          // 🚨 CRÃTICO: Garantir que o scroll funcione corretamente no mobile
           scrollEventThrottle={16}
           removeClippedSubviews={false}
-          // 🚨 CRÍTICO: Permitir scroll mesmo quando há elementos com z-index alto
+          // 🚨 CRÃTICO: Permitir scroll mesmo quando há elementos com z-index alto
           overScrollMode={Platform.OS === 'android' ? 'always' : undefined}
-          // 🚨 CRÍTICO: Garantir que o conteúdo possa ser puxado para cima (pull-to-refresh)
+          // 🚨 CRÃTICO: Garantir que o conteúdo possa ser puxado para cima (pull-to-refresh)
           contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
           automaticallyAdjustContentInsets={false}
-          // 🚨 CRÍTICO: Permitir que o scroll comece do topo
+          // 🚨 CRÃTICO: Permitir que o scroll comece do topo
           contentOffset={Platform.OS !== 'web' ? { x: 0, y: 0 } : undefined}
           style={
             Platform.OS === 'web'
@@ -169,28 +221,6 @@ export const RegisterScreen: React.FC = () => {
                 flex: 1,
                 backgroundColor: theme.colors.background,
               }
-          }
-          refreshControl={
-            Platform.OS !== 'web' ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                // 🚨 CRÍTICO: Cores específicas para cada plataforma
-                colors={Platform.OS === 'android' ? [theme.colors.primary] : undefined}
-                tintColor={Platform.OS === 'ios' ? theme.colors.primary : undefined}
-                // 🚨 CRÍTICO: Android precisa de offset para não sobrepor o header
-                progressViewOffset={Platform.OS === 'android' ? 0 : 0}
-                // 🚨 CRÍTICO: Título apenas no Android (iOS não mostra)
-                title={Platform.OS === 'android' ? 'Puxe para atualizar' : undefined}
-                titleColor={Platform.OS === 'android' ? theme.colors.textSecondary : undefined}
-                progressBackgroundColor={
-                  Platform.OS === 'android' ? theme.colors.surface : undefined
-                }
-                enabled={true}
-                // 🚨 CRÍTICO: Android precisa de size default
-                size={Platform.OS === 'android' ? 0 : undefined} // 0 is default
-              />
-            ) : undefined
           }
         >
           <View style={styles.card}>
@@ -214,42 +244,18 @@ export const RegisterScreen: React.FC = () => {
                     : {}
                 }
               >
-                {/* Label COMUM + botão elegante 'Novo registro' ao lado */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={styles.label}>COMUM CONGREGAÇÃO *</Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      navigation.navigate('OtrasLocalidades');
-                    }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: '#22c55e',
-                      borderRadius: 20,
-                      paddingVertical: 5,
-                      paddingHorizontal: 12,
-                      gap: 4,
-                      shadowColor: '#16a34a',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 4,
-                      elevation: 3,
-                    }}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', lineHeight: 20 }}>+</Text>
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Outras Localidades</Text>
-                  </TouchableOpacity>
-                </View>
+                <Text style={styles.label}>COMUM CONGREGAÇÃO *</Text>
                 <AutocompleteField
                   ref={comumFieldRef}
                   label=""
-                  value={selectedComum}
+                  value={isComumManual ? undefined : selectedComum}
                   options={comunsOptions}
                   onSelect={option => {
                     setSelectedComum(String(option.value));
                     setSelectedPessoa('');
                     setIsNomeManual(false);
+                    setIsComumManual(false);
+                    setCidadeManual('');
                     
                     // 🚀 SEQUENCIAL: Focar no Cargo após selecionar Comum
                     setTimeout(() => {
@@ -258,8 +264,66 @@ export const RegisterScreen: React.FC = () => {
                       }
                     }, 100);
                   }}
-                  placeholder="Selecione a comum..."
+                  placeholder={isComumManual ? `"${selectedComum.replace(/^manual_/, '')}" (manual)` : 'Selecione a comum...'}
+                  allowManualEntry={true}
+                  onManualEntry={text => {
+                    const manualValue = `manual_${text}`;
+                    setSelectedComum(manualValue);
+                    setIsComumManual(true);
+                    setSelectedPessoa('');
+                  }}
+                  autoManualEntry={true}
+                  onChangeText={text => {
+                    if (isComumManual) {
+                      const queryNorm = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                      const queryWords = queryNorm.split(/\s+/).filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w));
+                      const hasMatches = comunsOptions.some(opt => {
+                        const labelNorm = opt.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                        // @ts-ignore
+                        const nomeNorm = opt.nomeCompleto ? opt.nomeCompleto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '';
+                        // @ts-ignore
+                        const cidadeNorm = opt.cidade ? opt.cidade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '';
+                        const combined = `${labelNorm} ${nomeNorm} ${cidadeNorm}`;
+                        if (queryWords.length === 0) return combined.includes(queryNorm);
+                        return queryWords.every(word => combined.includes(word));
+                      });
+                      if (hasMatches || text.trim() === '') {
+                        setIsComumManual(false);
+                      }
+                    }
+                    if (isComumManual || !comunsOptions.some(opt => opt.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim())) {
+                      setSelectedComum(`manual_${text}`);
+                    }
+                  }}
                 />
+
+                {/* Campo CIDADE - aparece quando comum é manual */}
+                {isComumManual && (
+                  <View style={{ marginTop: 8, marginBottom: 12 }}>
+                    <View style={styles.manualBadge}>
+                      <Text style={styles.manualBadgeText}>✏️ Comum manual: "{selectedComum.replace(/^manual_/, '')}"</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setIsComumManual(false);
+                          setSelectedComum('');
+                          setCidadeManual('');
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ color: '#ef4444', fontSize: 13, fontWeight: '700' }}>✕ Limpar</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.label}>CIDADE *</Text>
+                    <TextInput
+                      style={styles.cityInput}
+                      value={cidadeManual}
+                      onChangeText={setCidadeManual}
+                      placeholder="Digite a cidade..."
+                      placeholderTextColor={theme.colors.textSecondary}
+                      returnKeyType="done"
+                    />
+                  </View>
+                )}
               </View>
 
               <View
@@ -292,6 +356,7 @@ export const RegisterScreen: React.FC = () => {
                       setSelectedCargo(e.target.value);
                       setSelectedInstrumento('');
                       setSelectedPessoa('');
+                      setSelectedClasseOrganista('');
                       setIsNomeManual(false);
 
                       // 🚀 SEQUENCIAL: No Web, focar no Nome após selecionar Cargo
@@ -322,6 +387,7 @@ export const RegisterScreen: React.FC = () => {
                       setSelectedCargo(String(option.value));
                       setSelectedInstrumento('');
                       setSelectedPessoa('');
+                      setSelectedClasseOrganista('');
                       setIsNomeManual(false);
 
                       // 🚀 SEQUENCIAL: No Mobile, focar no Nome após selecionar Cargo
@@ -335,7 +401,6 @@ export const RegisterScreen: React.FC = () => {
                   />
                 )}
               </View>
-
               <View
                 style={
                   Platform.OS === 'web'
@@ -356,16 +421,10 @@ export const RegisterScreen: React.FC = () => {
                   value={selectedPessoa}
                   options={pessoasOptions}
                   onSelect={(option: any) => {
-                    console.log('📝📝📝 [RegisterScreen] onSelect CHAMADO:', {
-                      id: option.id,
-                      label: option.label,
-                      value: option.value,
-                      isManual: option.id === 'manual',
-                      hasData: !!option.data,
-                    });
-
                     if (option.id === 'manual') {
-                      if (loadingPessoas) return;
+                      if (loadingPessoas) {
+                        return;
+                      }
 
                       if (!option.value || option.value === '' || !option.value.trim()) {
                         setSelectedPessoa('');
@@ -391,18 +450,15 @@ export const RegisterScreen: React.FC = () => {
                       // 🚨 NOVO FLUXO: Capturar cargo, instrumento e classe automaticamente dos dados da pessoa
                       if (option.data) {
                         const p = option.data;
-                        console.log('✅ [RegisterScreen] Autopreenchimento detectado para:', p.nome_completo);
                         
                         // 1. Definir instrumento automaticamente
                         if (p.instrumento_id) {
-                          console.log('🎸 Definindo instrumento automático:', p.instrumento_id);
                           setSelectedInstrumento(p.instrumento_id);
                         }
                         
                         // 2. Definir classe automaticamente
                         if (p.classe_organista || p.nivel) {
                           const classe = p.classe_organista || p.nivel;
-                          console.log('🎓 Definindo classe automática:', classe);
                           setSelectedClasseOrganista(classe);
                         }
                       }
@@ -413,6 +469,74 @@ export const RegisterScreen: React.FC = () => {
                   onSubmit={handleSubmit}
                 />
               </View>
+
+              {/* CLASSE DA ORGANISTA (Condicional: Somente para Cargo Organista) */}
+              {showClasseOrganista && (
+                <View
+                  style={[
+                    styles.field,
+                    Platform.OS === 'web'
+                      ? {
+                        position: 'relative' as const,
+                        zIndex: 100, // Z-index menor que o do nome para o dropdown do nome sobrepor este campo
+                        overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
+                        marginTop: theme.spacing.md,
+                        marginBottom: theme.spacing.md,
+                      }
+                      : {
+                        marginTop: theme.spacing.md,
+                      },
+                  ]}
+                >
+                  <Text style={styles.label}>CLASSE DA ORGANISTA *</Text>
+                  {Platform.OS === 'web' ? (
+                    <select
+                      style={
+                        {
+                          ...styles.selectWeb,
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none',
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right center',
+                          backgroundSize: '10px 10px',
+                          paddingRight: '35px',
+                          borderWidth: 1,
+                          borderColor: '#3b82f6',
+                          backgroundColor: '#eff6ff',
+                        } as any
+                      }
+                      value={selectedClasseOrganista}
+                      onChange={e => setSelectedClasseOrganista(e.target.value)}
+                      required
+                    >
+                      <option value="">Selecione a classe...</option>
+                      {ORGANISTA_CLASSES.map(cls => (
+                        <option key={cls.value} value={cls.value}>
+                          {cls.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <SimpleSelectField
+                      label=""
+                      value={selectedClasseOrganista}
+                      options={ORGANISTA_CLASSES}
+                      onSelect={option => setSelectedClasseOrganista(String(option.value))}
+                      placeholder="Selecione a classe..."
+                      style={{
+                        borderWidth: 1,
+                        borderColor: '#3b82f6',
+                        backgroundColor: '#eff6ff',
+                        borderRadius: theme.borderRadius.md,
+                      }}
+                    />
+                  )}
+                </View>
+              )}
 
               {showInstrumento && (
                 <View
@@ -434,15 +558,43 @@ export const RegisterScreen: React.FC = () => {
                   ]}
                 >
                   <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
-                  <SimpleSelectField
-                    label=""
-                    value={selectedInstrumento}
-                    options={instrumentosOptions}
-                    onSelect={(option: any) => {
-                      setSelectedInstrumento(String(option.value));
-                    }}
-                    placeholder="Selecione o instrumento..."
-                  />
+                  {Platform.OS === 'web' ? (
+                    <select
+                      style={
+                        {
+                          ...styles.selectWeb,
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none',
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right center',
+                          backgroundSize: '10px 10px',
+                          paddingRight: '35px',
+                        } as any
+                      }
+                      value={selectedInstrumento}
+                      onChange={e => setSelectedInstrumento(e.target.value)}
+                      required
+                    >
+                      <option value="">Selecione o instrumento...</option>
+                      {instrumentosOptions.map(inst => (
+                        <option key={inst.id} value={inst.value}>
+                          {inst.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <SimpleSelectField
+                      label=""
+                      value={selectedInstrumento}
+                      options={instrumentosOptions}
+                      onSelect={(option: any) => {
+                        setSelectedInstrumento(String(option.value));
+                      }}
+                      placeholder="Selecione o instrumento..."
+                    />
+                  )}
                 </View>
               )}
 
@@ -463,12 +615,12 @@ export const RegisterScreen: React.FC = () => {
                     newRegistrationModalVisible,
                   });
 
-                  // 🚨 CORREÇÃO: Não fechar modal automaticamente - usuário pode estar usando o modal
+                  // 🚨 CORREÇÃƒO: Não fechar modal automaticamente - usuário pode estar usando o modal
 
                   try {
                     await handleSubmit();
                   } catch (error) {
-                    console.error('❌ [BUTTON] Erro não tratado no handleSubmit:', error);
+                    console.error('âŒ [BUTTON] Erro não tratado no handleSubmit:', error);
                     setLoading(false);
                     showToast.error('Erro', 'Erro ao processar registro. Tente novamente.');
                   }
@@ -483,7 +635,7 @@ export const RegisterScreen: React.FC = () => {
           <View style={styles.footer}>
             <OfflineBadge count={pendingCount} syncing={syncing} />
           </View>
-        </ScrollView>
+        </RefreshableScrollView>
       </KeyboardAvoidingView>
 
       {/* Modal de Duplicata */}
@@ -509,13 +661,18 @@ export const RegisterScreen: React.FC = () => {
             setSelectedCargo('');
             setSelectedInstrumento('');
             setSelectedPessoa('');
+            setSelectedClasseOrganista('');
             setIsNomeManual(false);
+            setIsComumManual(false);
+            setCidadeManual('');
           }}
+          onConfirm={duplicateInfo.isForaRegional ? handleConfirmDuplicate : undefined}
+          confirmLabel="Cadastrar mesmo assim"
         />
       )}
 
       {/* Modal de Novo Registro (para visitas de outras cidades) */}
-      {/* 🚨 CORREÇÃO: Permitir modal funcionar offline - handleSaveNewRegistration já salva na fila quando offline */}
+      {/* 🚨 CORREÇÃƒO: Permitir modal funcionar offline - handleSaveNewRegistration já salva na fila quando offline */}
       {newRegistrationModalVisible && (
         <NewRegistrationModal
           visible={newRegistrationModalVisible}
@@ -562,11 +719,11 @@ const styles = StyleSheet.create({
         position: 'relative' as const,
       }
       : {
-        // 🚨 CRÍTICO: Para mobile, NÃO usar padding no contentContainerStyle
+        // 🚨 CRÃTICO: Para mobile, NÃƒO usar padding no contentContainerStyle
         // Isso permite que o pull-to-refresh funcione corretamente
         // O padding será aplicado no card em vez disso
         paddingHorizontal: theme.spacing.md,
-        paddingTop: 0, // CRÍTICO: Sem paddingTop para permitir pull-to-refresh
+        paddingTop: 0, // CRÃTICO: Sem paddingTop para permitir pull-to-refresh
         paddingBottom: theme.spacing.xl * 2,
         minHeight: '100%',
         overflow: 'visible' as const,
@@ -587,7 +744,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.lg,
-    // 🚨 CRÍTICO: Adicionar marginTop e paddingTop no mobile para compensar remoção do paddingTop do scrollContent
+    // 🚨 CRÃTICO: Adicionar marginTop e paddingTop no mobile para compensar remoção do paddingTop do scrollContent
     // Isso permite que o pull-to-refresh funcione corretamente
     ...(Platform.OS !== 'web'
       ? {
@@ -733,4 +890,36 @@ const styles = StyleSheet.create({
     outlineWidth: 0,
     cursor: 'pointer',
   } as any,
+  cityInput: {
+    borderWidth: 1,
+    borderColor: '#22c55e',
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    minHeight: 48,
+    marginBottom: theme.spacing.sm,
+  },
+  manualBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fefce8',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#fde047',
+  },
+  manualBadgeText: {
+    fontSize: 12,
+    color: '#854d0e',
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
 });
+

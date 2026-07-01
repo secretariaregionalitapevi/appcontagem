@@ -3,10 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
   TextInput,
   Platform,
   Alert,
@@ -14,6 +12,7 @@ import {
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AppHeader } from '../components/AppHeader';
 import { AutocompleteField } from '../components/AutocompleteField';
+import { RefreshableScrollView } from '../components/RefreshableScrollView';
 import { theme } from '../theme';
 import { supabaseDataService } from '../services/supabaseDataService';
 import { googleSheetsService } from '../services/googleSheetsService';
@@ -23,7 +22,6 @@ import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Cargo } from '../types/models';
-import { handleHardReset } from '../utils/appActions';
 import { formatRegistroDateTime } from '../utils/dateUtils';
 
 interface RegistroPresencaSupabase {
@@ -314,11 +312,10 @@ export const EditRegistrosScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader 
+      <AppHeader />
+      <RefreshableScrollView
+        refreshing={refreshing}
         onRefresh={onRefresh}
-        onHardReset={handleHardReset}
-      />
-      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -329,7 +326,6 @@ export const EditRegistrosScreen: React.FC = () => {
         alwaysBounceVertical={false}
         scrollEventThrottle={16}
         removeClippedSubviews={Platform.OS === 'android'}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -496,7 +492,7 @@ export const EditRegistrosScreen: React.FC = () => {
             </View>
           )}
         </View>
-      </ScrollView>
+      </RefreshableScrollView>
     </View>
   );
 };

@@ -51,7 +51,12 @@ export interface RegistroPresenca {
   usuario_responsavel: string;
   status_sincronizacao: 'pending' | 'synced';
   cidade?: string; // Cidade para registros externos ou manuais
+  is_fora_regional?: boolean; // 🚨 NOVO: Identificar se o registro foi feito "fora da regional"
   is_offline_manual?: boolean; // 🚨 NOVO: Identificar se foi manual porque estava offline
+  sync_supabase_ok?: boolean;
+  sync_sheets_ok?: boolean;
+  sync_last_error?: string;
+  sync_attempts?: number;
   created_at?: string;
   updated_at?: string;
 }

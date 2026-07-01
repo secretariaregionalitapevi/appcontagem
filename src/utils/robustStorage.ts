@@ -11,6 +11,26 @@ import { isXiaomiDevice, getDeviceInfo } from './deviceDetection';
 const memoryStorage: { [key: string]: string } = {};
 let useMemoryStorage = false;
 
+const isQuotaError = (error: any): boolean =>
+  error?.name === 'QuotaExceededError' || error?.code === 22;
+
+const writePersistentItem = async (key: string, value: string): Promise<void> => {
+  if (Platform.OS === 'web') {
+    localStorage.setItem(key, value);
+    const persisted = localStorage.getItem(key);
+    if (persisted !== value) {
+      throw new Error(`Falha ao verificar persistencia de ${key}`);
+    }
+    return;
+  }
+
+  await AsyncStorage.setItem(key, value);
+  const persisted = await AsyncStorage.getItem(key);
+  if (persisted !== value) {
+    throw new Error(`Falha ao verificar persistencia de ${key}`);
+  }
+};
+
 /**
  * Testa se localStorage/AsyncStorage está funcionando corretamente
  */
@@ -180,6 +200,34 @@ export const robustSetItem = async (key: string, value: string): Promise<void> =
       useMemoryStorage = true;
       console.warn('⚠️ Ativando modo memória devido a falhas no storage (Xiaomi)');
     }
+  }
+};
+
+/**
+ * Salva dados criticos que nao podem ficar apenas em memoria.
+ * Use para fila de presenca: se nao persistir no dispositivo/navegador,
+ * a funcao falha para a UI nao exibir sucesso falso.
+ */
+export const robustSetCriticalItem = async (key: string, value: string): Promise<void> => {
+  if (useMemoryStorage) {
+    throw new Error(`Storage persistente indisponivel para ${key}`);
+  }
+
+  try {
+    await writePersistentItem(key, value);
+    memoryStorage[key] = value;
+    return;
+  } catch (error: any) {
+    console.warn(`Erro ao salvar dado critico ${key}:`, error);
+
+    if (isQuotaError(error)) {
+      await clearOldCache();
+      await writePersistentItem(key, value);
+      memoryStorage[key] = value;
+      return;
+    }
+
+    throw error;
   }
 };
 

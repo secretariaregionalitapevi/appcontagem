@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    ScrollView,
     TouchableOpacity,
     TextInput,
     Platform,
@@ -15,6 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { AppHeader } from '../components/AppHeader';
 import { AutocompleteField } from '../components/AutocompleteField';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { RefreshableScrollView } from '../components/RefreshableScrollView';
 import { theme } from '../theme';
 import { supabaseDataService } from '../services/supabaseDataService';
 import { googleSheetsService } from '../services/googleSheetsService';
@@ -52,6 +52,7 @@ export const EditRecordDetailScreen: React.FC = () => {
     const [cargos, setCargos] = useState<Cargo[]>([]);
     const [instrumentos, setInstrumentos] = useState<{ id: string; nome: string }[]>([]);
     const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Estados do formulário
@@ -71,9 +72,11 @@ export const EditRecordDetailScreen: React.FC = () => {
         loadData();
     }, []);
 
-    const loadData = async () => {
+    const loadData = async (showFullScreenLoading = true) => {
         try {
-            setLoading(true);
+            if (showFullScreenLoading) {
+                setLoading(true);
+            }
             const [cargosData, instrumentosData] = await Promise.all([
                 supabaseDataService.getCargosFromLocal(),
                 supabaseDataService.getInstrumentosFromLocal()
@@ -92,7 +95,18 @@ export const EditRecordDetailScreen: React.FC = () => {
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
         } finally {
-            setLoading(false);
+            if (showFullScreenLoading) {
+                setLoading(false);
+            }
+        }
+    };
+
+    const onRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadData(false);
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -186,10 +200,20 @@ export const EditRecordDetailScreen: React.FC = () => {
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                <ScrollView
+                <RefreshableScrollView
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled={true}
+                    showsVerticalScrollIndicator={true}
+                    bounces={Platform.OS !== 'web'}
+                    alwaysBounceVertical={Platform.OS === 'ios'}
+                    scrollEventThrottle={16}
+                    removeClippedSubviews={false}
+                    overScrollMode={Platform.OS === 'android' ? 'always' : undefined}
+                    contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'automatic' : undefined}
                 >
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
@@ -328,7 +352,7 @@ export const EditRecordDetailScreen: React.FC = () => {
                             </View>
                         </View>
                     </View>
-                </ScrollView>
+                </RefreshableScrollView>
             </KeyboardAvoidingView>
         </View>
     );

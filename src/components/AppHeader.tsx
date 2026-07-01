@@ -11,7 +11,6 @@ import {
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { useAuthContext } from '../context/AuthContext';
 import { localStorageService } from '../services/localStorageService';
-import { showToast } from '../utils/toast';
 import { theme } from '../theme';
 import { triggerHaptic } from '../utils/haptics';
 import { LocalEnsaio } from '../types/models';
@@ -25,8 +24,6 @@ interface AppHeaderProps {
   onLogoutPress?: () => void;
   onEditRegistrosPress?: () => void;
   onOrganistasEnsaioPress?: () => void;
-  onRefresh?: () => void;
-  onHardReset?: () => void;
   onBackPress?: () => void;
   onNewRegistroPress?: () => void;
   title?: string;
@@ -40,8 +37,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogoutPress,
   onEditRegistrosPress,
   onOrganistasEnsaioPress,
-  onRefresh,
-  onHardReset,
   onBackPress,
   onNewRegistroPress,
   title,
@@ -57,12 +52,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     try {
       const localId = await localStorageService.getLocalEnsaio();
       console.log('📍 [AppHeader] LocalId carregado do storage:', localId);
-      
+
       if (localId) {
         // Buscar nome do local a partir da configuração global
-        const appConfig = (typeof window !== 'undefined' && (window as any).APP_CONFIG);
+        const appConfig = typeof window !== 'undefined' && (window as any).APP_CONFIG;
         console.log('📍 [AppHeader] APP_CONFIG disponível:', !!appConfig);
-        
+
         const locais: LocalEnsaio[] = appConfig?.LOCAIS_ENSAIO || [
           { id: '1', nome: 'Cotia' },
           { id: '2', nome: 'Caucaia do Alto' },
@@ -72,13 +67,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           { id: '6', nome: 'Pirapora' },
           { id: '7', nome: 'Vargem Grande' },
         ];
-        
+
         console.log('📍 [AppHeader] Lista de locais para busca:', locais);
         const localEncontrado = locais.find(l => String(l.id) === String(localId));
         console.log('📍 [AppHeader] Local encontrado:', localEncontrado);
-        
+
         if (!localEncontrado && locais.length > 0) {
-          console.warn('⚠️ [AppHeader] LocalId atual não existe nesta regional. Resetando para o primeiro disponível.');
+          console.warn(
+            '⚠️ [AppHeader] LocalId atual não existe nesta regional. Resetando para o primeiro disponível.'
+          );
           const primeiroLocal = locais[0];
           await localStorageService.setLocalEnsaio(primeiroLocal.id);
           setLocalEnsaio(primeiroLocal.nome);
@@ -139,9 +136,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const userName = getUserDisplayName();
 
   // Helper para feedback tátil universal
-  const handlePressWithHaptic = (action: () => void) => {
+  const handlePressWithHaptic = (action: () => void | Promise<void>) => {
     triggerHaptic('light');
-    action();
+    void action();
   };
 
   return (
@@ -151,11 +148,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <View style={styles.headerLeftSection}>
           <View style={styles.brandSection}>
             <View style={[styles.brandLogo, IS_SMALL_SCREEN && styles.brandLogoSmall]}>
-              <Image
-                source={ccbLogo}
-                style={styles.brandLogoImage}
-                resizeMode="contain"
-              />
+              <Image source={ccbLogo} style={styles.brandLogoImage} resizeMode="contain" />
             </View>
             <View style={styles.brandText}>
               <Text
@@ -183,7 +176,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <View style={[styles.headerActions, IS_SMALL_SCREEN && styles.headerActionsSmall]}>
           {onBackPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[
+                styles.actionBtn,
+                styles.defaultBtn,
+                IS_SMALL_SCREEN && styles.actionBtnSmall,
+              ]}
               onPress={() => handlePressWithHaptic(onBackPress)}
               activeOpacity={0.7}
             >
@@ -192,7 +189,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           {isMaster && onEditRegistrosPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[
+                styles.actionBtn,
+                styles.defaultBtn,
+                IS_SMALL_SCREEN && styles.actionBtnSmall,
+              ]}
               onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
               activeOpacity={0.7}
             >
@@ -234,28 +235,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <Ionicons name="musical-notes" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
             </TouchableOpacity>
           )}
-          {onHardReset && (
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-              onPress={async () => {
-                triggerHaptic('warning');
-                const confirmed = await showToast.confirm(
-                  'Reiniciar Aplicativo',
-                  'Deseja reiniciar o aplicativo e limpar o cache?',
-                  'generic'
-                );
-                if (confirmed) {
-                  onHardReset();
-                }
-              }}
-              activeOpacity={0.7}
-            >
-              <FontAwesome5 name="sync-alt" size={IS_SMALL_SCREEN ? 16 : 18} color="#ffffff" />
-            </TouchableOpacity>
-          )}
           {onSettingsPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[
+                styles.actionBtn,
+                styles.defaultBtn,
+                IS_SMALL_SCREEN && styles.actionBtnSmall,
+              ]}
               onPress={() => handlePressWithHaptic(onSettingsPress)}
               activeOpacity={0.7}
             >
@@ -264,13 +250,37 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           {onNewRegistroPress && (
             <TouchableOpacity
-              style={[styles.actionBtn, styles.newRegistroBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+              style={[
+                styles.actionBtn,
+                styles.newRegistroBtn,
+                IS_SMALL_SCREEN && styles.actionBtnSmall,
+              ]}
               onPress={() => handlePressWithHaptic(onNewRegistroPress)}
               activeOpacity={0.7}
             >
               <Ionicons name="add" size={IS_SMALL_SCREEN ? 20 : 24} color="#ffffff" />
             </TouchableOpacity>
           )}
+
+          {/* Botão de Refresh (Pânico) para destravar o app */}
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
+            onPress={() =>
+              handlePressWithHaptic(() => {
+                if (Platform.OS === 'web') {
+                  window.location.reload();
+                } else {
+                  alert(
+                    'Para atualizar no celular, feche o aplicativo deslizando para cima e abra novamente.'
+                  );
+                }
+              })
+            }
+            activeOpacity={0.6}
+          >
+            <Ionicons name="refresh" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
             onPress={() => handlePressWithHaptic(handleLogout)}
@@ -471,21 +481,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#863b4b',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore
-        cursor: 'pointer',
-        // @ts-ignore
-        userSelect: 'none',
-        // @ts-ignore
-        WebkitUserSelect: 'none',
-        // @ts-ignore
-        MozUserSelect: 'none',
-        // @ts-ignore
-        msUserSelect: 'none',
-        // @ts-ignore
-        pointerEvents: 'auto',
-        // @ts-ignore
-        zIndex: 1000,
-      }
+          // @ts-ignore
+          cursor: 'pointer',
+          // @ts-ignore
+          userSelect: 'none',
+          // @ts-ignore
+          WebkitUserSelect: 'none',
+          // @ts-ignore
+          MozUserSelect: 'none',
+          // @ts-ignore
+          msUserSelect: 'none',
+          // @ts-ignore
+          pointerEvents: 'auto',
+          // @ts-ignore
+          zIndex: 1000,
+        }
       : {}),
   },
   resetBtn: {

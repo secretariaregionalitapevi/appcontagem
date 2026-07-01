@@ -9,6 +9,7 @@ import {
   Animated,
   ViewStyle,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -36,18 +37,18 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
   onConfirm,
   confirmLabel = 'Cadastrar mesmo assim',
 }) => {
-  const { width } = useWindowDimensions();
-  const compactActions = width < 380;
+  const { width, height } = useWindowDimensions();
+  const isSmall = width < 380;
+  // Em telas muito pequenas de altura (ex: iPhone SE), compactar ainda mais
+  const isTiny = height < 680;
+
   const scaleAnim = React.useRef(new Animated.Value(0)).current;
   const opacityAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     if (visible) {
-      // Definir valores imediatamente para garantir visibilidade
       scaleAnim.setValue(1);
       opacityAnim.setValue(1);
-
-      // Animar suavemente
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -66,6 +67,11 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
       opacityAnim.setValue(0);
     }
   }, [visible]);
+
+  // Altura máxima da parte scrollável:
+  // deixa espaço para os botões (≈72px linha ou ≈130px coluna) + borda
+  const buttonsEstimatedHeight = onConfirm && isSmall ? 140 : 80;
+  const maxScrollHeight = height * 0.85 - buttonsEstimatedHeight;
 
   return (
     <Modal
@@ -98,77 +104,92 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
             styles.modal,
             {
               transform: [{ scale: scaleAnim }],
+              maxHeight: height * 0.92,
             },
           ]}
         >
-          {/* Ícone de alerta no topo */}
-          <View style={styles.iconContainer}>
-            <View style={styles.iconCircle}>
-              <FontAwesome5 name="copy" size={36} color="#255ec8" />
+          {/* ── Conteúdo scrollável ── */}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            style={{ maxHeight: maxScrollHeight }}
+            bounces={false}
+          >
+            {/* Ícone no topo */}
+            <View style={[styles.iconContainer, isTiny && styles.iconContainerTiny]}>
+              <View style={[styles.iconCircle, isTiny && styles.iconCircleTiny]}>
+                <FontAwesome5 name="copy" size={isTiny ? 22 : 36} color="#255ec8" />
+              </View>
             </View>
-          </View>
 
-          {/* Título */}
-          <Text style={styles.title}>Cadastro Duplicado!</Text>
-
-          {/* Mensagem principal estilo EnR */}
-          <View style={styles.messageContainer}>
-            <Text style={styles.nomeText}>{nome || 'Nome não encontrado'}</Text>
-            <Text style={styles.comumText}>de {comum || 'Comum não encontrada'}</Text>
-            <Text style={styles.messageSuffix}>
-              {detalhe ? `ja temos um registro ${detalhe}.` : 'ja foi cadastrado(a).'}
+            {/* Título */}
+            <Text style={[styles.title, isTiny && styles.titleTiny]}>
+              Cadastro Duplicado!
             </Text>
-          </View>
 
-          {/* Box de Detalhes (Elaborado) */}
-          <View style={[styles.detailsContainer, compactActions && styles.detailsContainerCompact]}>
-            <View style={[styles.detailBox, compactActions && styles.detailBoxCompact]}>
-              <View style={styles.detailItem}>
-                <View style={styles.detailIconWrapper}>
-                   <FontAwesome5 name="calendar-alt" size={16} color="#255ec8" />
-                </View>
-                <View style={styles.detailTextContainer}>
-                  <Text style={styles.detailLabel}>Data</Text>
-                  <Text style={styles.detailValue}>{data || '--/--/----'}</Text>
-                </View>
-              </View>
-              
-              <View style={[styles.detailDivider, compactActions && styles.detailDividerCompact]} />
+            {/* Mensagem principal */}
+            <View style={[styles.messageContainer, isTiny && styles.messageContainerTiny]}>
+              <Text style={styles.nomeText}>{nome || 'Nome não encontrado'}</Text>
+              <Text style={styles.comumText}>de {comum || 'Comum não encontrada'}</Text>
+              <Text style={styles.messageSuffix}>
+                {detalhe ? `ja temos um registro ${detalhe}.` : 'ja foi cadastrado(a).'}
+              </Text>
+            </View>
 
-              <View style={styles.detailItem}>
-                <View style={styles.detailIconWrapper}>
-                   <FontAwesome5 name="clock" size={16} color="#255ec8" />
+            {/* Box de data e horário */}
+            <View style={[styles.detailsContainer, isSmall && styles.detailsContainerCompact]}>
+              <View style={[styles.detailBox, isSmall && styles.detailBoxCompact]}>
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconWrapper}>
+                    <FontAwesome5 name="calendar-alt" size={16} color="#255ec8" />
+                  </View>
+                  <View style={styles.detailTextContainer}>
+                    <Text style={styles.detailLabel}>Data</Text>
+                    <Text style={styles.detailValue}>{data || '--/--/----'}</Text>
+                  </View>
                 </View>
-                <View style={styles.detailTextContainer}>
-                  <Text style={styles.detailLabel}>Horário</Text>
-                  <Text style={styles.detailValue}>{horario || '--:--'}</Text>
+
+                <View style={[styles.detailDivider, isSmall && styles.detailDividerCompact]} />
+
+                <View style={styles.detailItem}>
+                  <View style={styles.detailIconWrapper}>
+                    <FontAwesome5 name="clock" size={16} color="#255ec8" />
+                  </View>
+                  <View style={styles.detailTextContainer}>
+                    <Text style={styles.detailLabel}>Horário</Text>
+                    <Text style={styles.detailValue}>{horario || '--:--'}</Text>
+                  </View>
                 </View>
               </View>
             </View>
-          </View>
+          </ScrollView>
 
-          {/* Botões */}
-          <View style={[styles.buttonsContainer, compactActions && styles.buttonsContainerCompact]}>
+          {/* ── Botões — SEMPRE fixos no rodapé, nunca cortados ── */}
+          <View
+            style={[
+              styles.buttonsContainer,
+              onConfirm && isSmall && styles.buttonsContainerColumn,
+            ]}
+          >
+            {/* Botão Fechar (vermelho) */}
             <TouchableOpacity
-              style={[styles.actionButton, styles.cancelButton, compactActions && styles.actionButtonCompact]}
+              style={[styles.actionButton, styles.cancelButton]}
               onPress={onCancel}
               activeOpacity={0.6}
             >
               <FontAwesome5 name="times" size={14} color="#fff" style={styles.buttonIcon} />
-              <Text style={[styles.cancelButtonText, compactActions && styles.actionButtonTextCompact]}>
-                Fechar
-              </Text>
+              <Text style={styles.buttonText}>Fechar</Text>
             </TouchableOpacity>
+
+            {/* Botão Confirmar (azul) — só aparece quando onConfirm é fornecido */}
             {onConfirm ? (
               <TouchableOpacity
-                style={[styles.actionButton, styles.confirmButton, compactActions && styles.actionButtonCompact]}
+                style={[styles.actionButton, styles.confirmButton]}
                 onPress={onConfirm}
                 activeOpacity={0.6}
               >
                 <FontAwesome5 name="check" size={14} color="#fff" style={styles.buttonIcon} />
-                <Text style={[styles.cancelButtonText, compactActions && styles.actionButtonTextCompact]}>
-                  {confirmLabel}
-                </Text>
+                <Text style={styles.buttonText}>{confirmLabel}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -187,6 +208,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
+          // @ts-ignore
           backdropFilter: 'blur(4px)',
         }
       : {}),
@@ -196,7 +218,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: '100%',
     maxWidth: 440,
-    padding: 0,
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
@@ -212,10 +233,18 @@ const styles = StyleSheet.create({
           elevation: 20,
         }),
   },
+  scrollContent: {
+    paddingBottom: 4,
+  },
+  // ── Ícone ──
   iconContainer: {
     alignItems: 'center',
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.md,
+  },
+  iconContainerTiny: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.xs ?? 4,
   },
   iconCircle: {
     width: 80,
@@ -227,6 +256,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  iconCircleTiny: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 3,
+  },
+  // ── Título ──
   title: {
     fontSize: 26,
     fontWeight: '600',
@@ -235,10 +271,19 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     paddingHorizontal: theme.spacing.xl,
   },
+  titleTiny: {
+    fontSize: 20,
+    marginBottom: theme.spacing.sm,
+  },
+  // ── Mensagem ──
   messageContainer: {
     marginBottom: theme.spacing.lg,
     paddingHorizontal: theme.spacing.xl,
     alignItems: 'center',
+  },
+  messageContainerTiny: {
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
   },
   nomeText: {
     fontSize: 20,
@@ -259,16 +304,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  bold: {
-    fontWeight: '700',
-    color: '#545454',
-  },
+  // ── Detalhes ──
   detailsContainer: {
     marginHorizontal: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   detailsContainerCompact: {
-    marginHorizontal: theme.spacing.lg,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
   detailBox: {
     backgroundColor: '#f8fafc',
@@ -328,29 +371,29 @@ const styles = StyleSheet.create({
     height: 1,
     marginHorizontal: 0,
   },
+  // ── Botões (sempre no rodapé) ──
   buttonsContainer: {
     flexDirection: 'row',
-    gap: 12,
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-  },
-  buttonsContainerCompact: {
-    flexDirection: 'column',
+    gap: 10,
+    paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.md,
+    backgroundColor: '#ffffff',
     alignItems: 'stretch',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  buttonsContainerColumn: {
+    flexDirection: 'column',
+    gap: 8,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
     borderRadius: 14,
     minHeight: 48,
-    minWidth: 0,
     flex: 1,
     ...Platform.select({
       web: {
@@ -360,31 +403,24 @@ const styles = StyleSheet.create({
       },
       default: {
         elevation: 4,
-      }
-    })
-  },
-  actionButtonCompact: {
-    width: '100%',
-    flex: 0,
+      },
+    }),
   },
   cancelButton: {
     backgroundColor: '#ef4444',
   },
   confirmButton: {
     backgroundColor: '#255ec8',
-    flex: 1.45,
+    flex: 1.5,
   },
   buttonIcon: {
-    marginRight: 8,
+    marginRight: 7,
   },
-  cancelButtonText: {
-    fontSize: 16,
+  buttonText: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#ffffff',
     textAlign: 'center',
     flexShrink: 1,
-  },
-  actionButtonTextCompact: {
-    fontSize: 15,
   },
 });
