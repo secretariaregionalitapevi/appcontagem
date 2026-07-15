@@ -510,6 +510,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: theme.spacing.lg,
+    flexGrow: 1,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -519,7 +520,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    overflow: 'hidden',
   },
   cardHeader: {
     padding: theme.spacing.lg,

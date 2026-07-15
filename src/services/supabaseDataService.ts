@@ -3648,8 +3648,10 @@ export const supabaseDataService = {
         throw error;
       }
 
+      const searchTerms = normalizedSearchTerm.split(' ').filter(Boolean);
+
       const allData = (data || []).filter(item => {
-        const searchableText = [
+        const searchableWords = [
           item.nome_completo,
           item.comum,
           item.cargo,
@@ -3658,9 +3660,21 @@ export const supabaseDataService = {
           item.classe_organista,
         ]
           .map(value => normalizeForSearch(String(value || '')))
-          .join(' ');
+          .join(' ')
+          .split(' ')
+          .filter(Boolean);
 
-        return searchableText.includes(normalizedSearchTerm);
+        // Para buscas muito curtas (1 ou 2 letras), exigir que alguma palavra comece com o termo
+        // Isso evita que buscar por "A" retorne registros apenas porque a cidade tem "A" no meio.
+        if (normalizedSearchTerm.length <= 2) {
+          return searchTerms.every(term => 
+            searchableWords.some(word => word.startsWith(term))
+          );
+        }
+
+        // Para buscas maiores, permitir match de substring em qualquer lugar
+        const combinedText = searchableWords.join(' ');
+        return searchTerms.every(term => combinedText.includes(term));
       });
 
       // Ordenar por data de criação (mais recente primeiro)

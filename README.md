@@ -1,4 +1,4 @@
-# Sistema de Contagem – SAC
+po# Sistema de Contagem – SAC
 
 Aplicativo mobile para registro de participantes em eventos (ensaios) da Congregação Cristã no Brasil.
 
