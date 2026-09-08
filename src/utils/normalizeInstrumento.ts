@@ -49,6 +49,12 @@ export function normalizeInstrumentoForSearch(instrumento: string): string {
 
   let normalized = instrumento.trim().toUpperCase();
 
+  // Unificar nomes em inglês/alternativos antes de procurar o instrumento local.
+  // Sem isso, "EUPHONIUM" não encontra "EUFÔNIO" e o registro é salvo sem instrumento_id.
+  if (['EUPHONIUM', 'EUFONIO', 'BOMBARDINO'].includes(normalized)) {
+    normalized = 'EUFÔNIO';
+  }
+
   // Expandir abreviações
   normalized = expandInstrumentoAbbreviations(normalized);
 
@@ -98,9 +104,16 @@ export function expandInstrumentoSearch(instrumento: string): string[] {
   }
 
   // 🚨 CORREÇÃO: Para EUFÔNIO, adicionar variações com e sem acento
-  if (instrumentoUpper.includes('EUFÔNIO') || instrumentoUpper.includes('EUFONIO')) {
+  if (
+    instrumentoUpper.includes('EUFÔNIO') ||
+    instrumentoUpper.includes('EUFONIO') ||
+    instrumentoUpper.includes('EUPHONIUM') ||
+    instrumentoUpper.includes('BOMBARDINO')
+  ) {
     variations.push('EUFÔNIO');
     variations.push('EUFONIO');
+    variations.push('EUPHONIUM');
+    variations.push('BOMBARDINO');
   }
 
   // Se contém "RETO", adicionar variação com "RET" (para buscar no banco que pode ter abreviação)

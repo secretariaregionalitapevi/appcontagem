@@ -3489,7 +3489,8 @@ export const supabaseDataService = {
           console.log('✅ Registro salvo na fila (fallback):', registroCompleto.pessoa_id);
         } catch (fallbackError) {
           console.error('❌ Erro crítico ao salvar na fila (fallback):', fallbackError);
-          // NÃO lançar erro - apenas logar (como BACKUPCONT faz)
+          // Propagar para o fallback individual externo. Nunca confirmar um registro perdido.
+          throw fallbackError;
         }
       }
     } catch (error) {

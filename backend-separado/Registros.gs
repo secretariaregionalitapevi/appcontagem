@@ -337,6 +337,12 @@ function exportarParaPlanilhaOtimizada(sheetId, planilhaNome, localEnsaio) {
     // SINÔNIMOS para garantir que encontre os rótulos corretos na planilha (mesmo com plurais ou acentos)
     const SYNONYMS = {
       'Organista': ['Organista', 'Organistas'],
+      'Eufônio': ['Eufônio', 'Eufonio', 'Euphonium', 'Bombardino'],
+      'Clarinete baixo (clarone)': ['Clarinete baixo (clarone)', 'Clarinete baixo', 'Clarone'],
+      'Oboé': ['Oboé', 'Oboe'],
+      "Oboé d'amore": ["Oboé d'amore", "Oboe d'amore"],
+      'Saxofone barítono': ['Saxofone barítono', 'Saxofone baritono'],
+      'Barítono (pisto)': ['Barítono (pisto)', 'Baritono (pisto)', 'Barítono', 'Baritono'],
       'Examinadora': ['Examinadora', 'Examinadoras'],
       'Secretária da Música': ['Secretária da Música', 'Secretárias da Música', 'Secretaria da Música', 'Secretarias da Música'],
       'Secretário da Música': ['Secretário da Música', 'Secretários da Música', 'Secretario da Música', 'Secretarios da Música'],
@@ -574,7 +580,15 @@ function exportarParaPlanilhaDestinoCompleta(localEnsaio, ssDestino, nomePlanilh
     limparContadoresResumo(shResumo, [28, 41, 48, 50]);
     console.log(`📊 Atualizando aba Resumo da planilha externa de ${nomePlanilha}...`);
     
-    const INSTR_LABEL_SYNONYMS = { 'Organista': ['Organista','Organistas'] };
+    const INSTR_LABEL_SYNONYMS = {
+      'Organista': ['Organista','Organistas'],
+      'Eufônio': ['Eufônio', 'Eufonio', 'Euphonium', 'Bombardino'],
+      'Clarinete baixo (clarone)': ['Clarinete baixo (clarone)', 'Clarinete baixo', 'Clarone'],
+      'Oboé': ['Oboé', 'Oboe'],
+      "Oboé d'amore": ["Oboé d'amore", "Oboe d'amore"],
+      'Saxofone barítono': ['Saxofone barítono', 'Saxofone baritono'],
+      'Barítono (pisto)': ['Barítono (pisto)', 'Baritono (pisto)', 'Barítono', 'Baritono']
+    };
     const CARGO_MIN_ORD = [
       'Ancião','Diácono','Cooperador do Ofício','Cooperador de Jovens',
       'Encarregado Regional','Encarregado Local','Examinadora',
@@ -772,7 +786,7 @@ function mapearInstrumento(instrumento) {
   if (instNorm === 'violoncelo' || instNorm === 'cello') return 'Violoncelo';
   if (instNorm === 'flauta transversal' || instNorm === 'flauta') return 'Flauta transversal';
   if (instNorm === 'oboe' || instNorm === 'oboé') return 'Oboé';
-  if (instNorm.includes('clarinete')) {
+  if (instNorm.includes('clarinete') || instNorm.includes('clarone')) {
     if (instNorm.includes('alto')) return 'Clarinete alto';
     if (instNorm.includes('baixo') || instNorm.includes('clarone')) return 'Clarinete baixo (clarone)';
     return 'Clarinete';
@@ -787,7 +801,7 @@ function mapearInstrumento(instrumento) {
   if (instNorm === 'trompete' || instNorm === 'pistão') return 'Trompete';
   if (instNorm === 'trombone') return 'Trombone';
   if (instNorm === 'tuba' || instNorm === 'bombardão') return 'Tuba';
-  if (instNorm === 'eufônio' || instNorm === 'bombardino') return 'Eufônio';
+  if (['eufônio', 'eufonio', 'euphonium', 'bombardino'].includes(instNorm)) return 'Eufônio';
   
   return instrumento; // Retorna o original se não houver mapeamento específico
 }

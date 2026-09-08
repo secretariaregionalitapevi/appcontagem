@@ -514,16 +514,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         setInitialLoading(true);
       }
 
-      // Se está online, sempre tentar sincronizar primeiro (mas não travar se falhar)
-      if (isOnline) {
-        console.log('🔄 Sincronizando dados do Supabase...');
-        try {
-          await syncData();
-        } catch (syncError) {
-          console.warn('⚠️ Erro na sincronização inicial:', syncError);
-        }
-      }
-
+      // Carregar o cache primeiro. Sincronização de rede nunca bloqueia a abertura da tela.
       // Carregar do banco local/cache em paralelo (mais rápido)
       // Se formos a tela principal (initialIsForaRegional = false), carregamos comuns regionais E de fora para busca unificada
       let comunsFinal: Comum[] = [];
@@ -535,10 +526,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         console.log('🔄 [RegisterController] Carregando comuns regional e fora regional...');
         const [comunsLocal, comunsFora, cargosLocal, instrumentosLocal] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
-          supabaseDataService.fetchComunsForaRegional().catch(err => {
-            console.warn('⚠️ Erro ao carregar comuns fora regional:', err);
-            return [];
-          }),
+          // Referências externas são opcionais e não podem bloquear o atendimento.
+          Promise.resolve([] as Comum[]),
           supabaseDataService.getCargosFromLocal(),
           (supabaseDataService as any).getInstrumentosFromLocal(),
         ]);
@@ -643,8 +632,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
   // Função para pull-to-refresh (otimizada com useCallback)
   const onRefresh = useCallback(async () => {
-    if (refreshing || syncing) {
-      console.log('â³ Pull-to-refresh já em andamento, ignorando...');
+    if (refreshing) {
+      console.log('⏳ Pull-to-refresh já em andamento, ignorando...');
       return;
     }
 
@@ -659,26 +648,24 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       // Mostrar feedback visual imediato
       showToast.info('Atualizando...', 'Recarregando dados');
 
-      // 1. Primeiro, sincronizar registros pendentes se estiver online
-      if (isOnline) {
-        console.log('ðŸŒ Online - sincronizando registros pendentes primeiro...');
-        try {
-          await syncData();
-        } catch (syncError) {
-          console.warn('âš ï¸ Erro na sincronização durante pull-to-refresh:', syncError);
-        }
-      }
+      // O refresh nunca espera rede: recarrega cache e libera a interface.
+      // A fila será tentada em segundo plano ao final.
 
-      // 2. Recarregar dados iniciais (comuns, cargos, instrumentos) - passando true para isRefresh
+      // 1. Recarregar dados iniciais (comuns, cargos, instrumentos) - passando true para isRefresh
       console.log('📚 Recarregando dados iniciais...');
-      await loadInitialData(true);
+      loadInitialData(true).catch(error => console.log('📴 [REFRESH] Recarga adiada:', error));
 
       // 3. Atualizar contador da fila
       console.log('📊 Atualizando contador da fila...');
       await refreshCount();
 
+      // Sincronização desacoplada: falhas ou lentidão não prendem o refresh.
+      if (isOnline) {
+        syncData().catch(error => console.log('📴 [REFRESH] Sincronização adiada:', error));
+      }
+
       // Feedback de sucesso
-      showToast.success('Atualizado!', 'Dados recarregados e campos limpos');
+      showToast.success('Atualizado!', 'Dados locais recarregados e campos limpos');
       console.log('✅ Pull-to-refresh concluído com sucesso - campos limpos');
     } catch (error) {
       console.error('âŒ Erro ao atualizar:', error);
@@ -872,8 +859,14 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
 
   const handleSubmit = async () => {
-    // 1. Buscar local de ensaio UMA ÚNICA VEZ para todo o processo de submissão
-    // Isso evita problemas se o storage falhar intermitentemente entre verificações
+    // Bloqueio síncrono antes de qualquer await: evita dois envios durante oscilação.
+    if (isSubmittingRef.current || loading) {
+      console.warn('⚠️ [SUBMIT] Submissão bloqueada: já em andamento');
+      return false;
+    }
+    isSubmittingRef.current = true;
+
+    // Apenas armazenamento local; nenhuma rede deve bloquear o envio.
     const localEnsaioUnico = await localStorageService.getLocalEnsaio();
 
     // 2. Verificar se existe local de ensaio definido (Prevenção contra 'NÃO DEFINIDO')
@@ -888,13 +881,6 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       return false;
     }
 
-    // 🛑 BLOQUEIO SÍNCRONO: Se já estiver submetendo, bloquear imediatamente (mesmo se React state 'loading' não atualizou ainda)
-    if (isSubmittingRef.current || loading) {
-      console.warn('⚠️ [SUBMIT] Submissão bloqueada: já em andamento (duplo-clique detectado)');
-      return false;
-    }
-
-    isSubmittingRef.current = true;
 
     // 🛑 GARANTIA ABSOLUTA DE DESTRAVAMENTO: Try global da função
     try {
@@ -1101,110 +1087,28 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           return false;
         }
 
-        // 3. Trava de Segurança: Verificar duplicata remota (rápido - 3s timeout) - SOMENTE SE ONLINE
-        const isOnlineNow = await offlineSyncService.isOnline();
-        if (isOnlineNow) {
-          let cargoNomeParaCheck = '';
-          let instrumentoNomeParaCheck = '';
-          try {
-            const cargoObj = cargos.find(c => String(c.id) === String(registro.cargo_id));
-            const instrumentoObj = instrumentos.find(i => String(i.id) === String(registro.instrumento_id));
-            const pessoaObj = pessoas.find(p => String(p.id) === String(registro.pessoa_id));
-            const comumObj = comuns.find(c => String(c.id) === String(registro.comum_id));
+        // 3. A rede serve apenas para feedback; não bloqueia a gravação local.
+        const isOnlineNow = isOnline;
 
-            cargoNomeParaCheck = cargoObj?.nome || '';
-            instrumentoNomeParaCheck = instrumentoObj?.nome || '';
-            
-            const nomeReal = registro.pessoa_id.startsWith('manual_') 
-              ? registro.pessoa_id.replace('manual_', '') 
-              : (pessoaObj?.nome_completo || pessoaObj?.nome || '');
-              
-            const comumReal = registro.comum_id.startsWith('manual_') 
-              ? registro.comum_id.replace('manual_', '').split('|')[0] 
-              : (comumObj?.nome || '');
-
-            // Só executar se conseguirmos resolver o nome e comum
-            if (nomeReal && comumReal) {
-              await supabaseDataService.checkDuplicataRemota({
-                nome: nomeReal,
-                comum: comumReal,
-                cargo: cargoNomeParaCheck,
-                instrumento: instrumentoNomeParaCheck,
-                cidade: pessoaObj?.cidade || cidadeManual || '',
-                uuid: registro.id,
-                pessoaId: registro.pessoa_id,
-                isForaRegional,
-                dataIso: registro.data_hora_registro
-              });
-            }
-          } catch (dupError: any) {
-            if (dupError.message?.includes('DUPLICATA_BLOQUEADA')) {
-              console.warn('⚠️ Duplicata remota detectada:', dupError.message);
-              
-              // Parsing robusto: Ignorar prefixos e colons que fogem do padrão (ex: colons no horário)
-              const msg = dupError.message;
-              let infoStr = '';
-              if (msg.includes('DUPLICATA:')) {
-                infoStr = msg.split('DUPLICATA:')[1];
-              } else if (msg.includes('DUPLICATA_BLOQUEADA:')) {
-                infoStr = msg.split('DUPLICATA_BLOQUEADA:')[1];
-              }
-              
-              const details = infoStr ? infoStr.split('|') : [];
-              
-              if (details.length >= 4) {
-                setDuplicateInfo({ 
-                  nome: obterNomeCurto(details[0]), 
-                  comum: details[1], 
-                  detalhe: obterDetalheDuplicata(details[4], details[5]),
-                  data: details[2], 
-                  horario: details[3],
-                  isForaRegional: Boolean(registro.is_fora_regional)
-                });
-              } else {
-                console.error('❌ Falha ao parsear detalhes da duplicata remota:', infoStr);
-                // Usar dados do formulário mas marcar como desconhecido se o parsing falhar
-                const nomeFallback = registro.pessoa_id.startsWith('manual_') ? registro.pessoa_id.replace('manual_', '') : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
-                const comumFallback = comuns.find(c => c.id === registro.comum_id)?.nome || '';
-                setDuplicateInfo({ 
-                  nome: obterNomeCurto(nomeFallback), 
-                  comum: comumFallback, 
-                  detalhe: obterDetalheDuplicata(cargoNomeParaCheck, instrumentoNomeParaCheck),
-                  data: '--/--/----', 
-                  horario: '--:--:--',
-                  isForaRegional: Boolean(registro.is_fora_regional)
-                });
-              }
-              
-              setPendingRegistro(registro);
-              setDuplicateModalVisible(true);
-              await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
-              setLoading(false);
-              isSubmittingRef.current = false;
-              return false;
-            }
-          }
-        }
-
-        // 4. Salvar localmente (quase instantâneo)
+        // 4. Salvar localmente antes de qualquer operação remota
         console.log('💾 [SUBMIT] Salvando registro na fila para processamento em segundo plano...');
         await supabaseDataService.saveRegistroToLocal(registro);
         
         // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
-        const feedbackMsg = isOnlineNow 
-          ? 'O registro foi realizado com sucesso!' 
-          : 'Salvo localmente! Será enviado em breve.';
+        const feedbackMsg = isOnlineNow
+          ? 'Salvo no dispositivo; sincronização iniciada em segundo plano.'
+          : 'Salvo no dispositivo; será sincronizado quando a conexão voltar.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-        showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsg, 2500);
+        showToast.success('Registro salvo!', feedbackMsg, 2500);
         
         // Limpar campos imediatamente
         clearAllFields();
-        await refreshCount();
 
-        // 5. Encerrar estado de loading e trava de submissão
+        // 5. Encerrar imediatamente: nem o contador local deve segurar a tela.
         setLoading(false);
         isSubmittingRef.current = false;
+        refreshCount().catch(error => console.warn('[SUBMIT] Contador será atualizado depois:', error));
 
         if (isOnlineNow) {
           offlineSyncService.processarFilaLocal(true)
@@ -1507,76 +1411,18 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         return;
       }
 
-      // 3. Trava de Segurança: Verificar duplicata remota (SOMENTE SE ONLINE)
-      const isOnlineNow = await offlineSyncService.isOnline();
-      if (isOnlineNow) {
-        try {
-          await supabaseDataService.checkDuplicataRemota({
-            nome: data.nome.toUpperCase(),
-            comum: data.comum.toUpperCase(),
-            cargo: cargoObj.nome,
-            instrumento: (instrumentos.find(i => i.id === registro.instrumento_id)?.nome || ''), // Passar instrumento
-            cidade: data.cidade || '',
-            uuid: registro.id,
-            pessoaId: registro.pessoa_id,
-            isForaRegional: true,
-            dataIso: registro.data_hora_registro
-          });
-        } catch (dupError: any) {
-          if (dupError.message?.includes('DUPLICATA_BLOQUEADA')) {
-            console.warn('⚠️ Duplicata remota detectada no modal:', dupError.message);
-            
-            const msg = dupError.message;
-            let infoStr = '';
-            if (msg.includes('DUPLICATA:')) {
-              infoStr = msg.split('DUPLICATA:')[1];
-            } else if (msg.includes('DUPLICATA_BLOQUEADA:')) {
-              infoStr = msg.split('DUPLICATA_BLOQUEADA:')[1];
-            }
-            
-            const details = infoStr ? infoStr.split('|') : [];
-            
-            if (details.length >= 4) {
-              setDuplicateInfo({ 
-                nome: obterNomeCurto(details[0]), 
-                comum: details[1], 
-                detalhe: obterDetalheDuplicata(details[4], details[5]),
-                data: details[2], 
-                horario: details[3],
-                isForaRegional: true
-              });
-            } else {
-              const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-              setDuplicateInfo({ 
-                nome: obterNomeCurto(data.nome.toUpperCase()), 
-                comum: data.comum.toUpperCase(), 
-                detalhe: obterDetalheDuplicata(cargoObj.nome, instrumentoNome),
-                data: '--/--/----', 
-                horario: '--:--:--',
-                isForaRegional: true
-              });
-            }
-            
-            setPendingRegistro(registro);
-            setDuplicateModalVisible(true);
-            await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
-            setNewRegistrationModalVisible(false);
-            setLoading(false);
-            isSubmittingRef.current = false;
-            return;
-          }
-        }
-      }
+      // 3. Duplicidade remota será tratada pela fila depois da gravação local.
+      const isOnlineNow = isOnline;
 
-      // 4. Salvar localmente (quase instantâneo)
+      // 4. Salvar localmente antes de qualquer operação remota
       console.log('ðŸ’¾ [MODAL] Salvando registro externo na fila...');
       await supabaseDataService.saveRegistroToLocal(registro);
 
       const feedbackMsgModal = isOnlineNow
-        ? 'O registro foi realizado com sucesso!'
-        : 'Salvo localmente! Será enviado em breve.';
+        ? 'Salvo no dispositivo; sincronização iniciada em segundo plano.'
+        : 'Salvo no dispositivo; será sincronizado quando a conexão voltar.';
       suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-      showToast.success(isOnlineNow ? 'Registro enviado!' : 'Registro Salvo!', feedbackMsgModal, 2500);
+      showToast.success('Registro salvo!', feedbackMsgModal, 2500);
 
       setNewRegistrationModalVisible(false);
       setSelectedComum('');
@@ -1584,7 +1430,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       setSelectedInstrumento('');
       setSelectedPessoa('');
       setIsNomeManual(false);
-      await refreshCount();
+      refreshCount().catch(error => console.warn('[MODAL] Contador será atualizado depois:', error));
 
       if (isOnlineNow) {
         offlineSyncService.processarFilaLocal(true).catch(err => {
