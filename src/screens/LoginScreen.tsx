@@ -96,8 +96,8 @@ export const LoginScreen: React.FC = () => {
     const confirmed = await showToast.confirm(
       'Confirmação de Local',
       Platform.OS === 'web'
-        ? `Você confirma que está no ensaio em:<br><span style="color: #1e4b7a; font-size: 28px; font-weight: 800; display: block; margin-top: 15px; letter-spacing: -0.5px;">${localNome}</span>`
-        : `Você confirma que está no ensaio em:\n${localNome.toUpperCase()}?`,
+        ? `Você confirma que está no ensaio em:<br><span style="color: #1e4b7a; font-size: 28px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 15px; letter-spacing: -0.5px;"><i class="fas fa-map-marker-alt" style="color: #e11d2e; font-size: 25px;"></i>${localNome}</span>`
+        : `Você confirma que está no ensaio em:\n📍 ${localNome.toUpperCase()}?`,
       'generic',
       {
         confirmText: Platform.OS === 'web'
