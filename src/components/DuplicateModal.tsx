@@ -24,6 +24,7 @@ interface DuplicateModalProps {
   onCancel: () => void;
   onConfirm?: () => void;
   confirmLabel?: string;
+  isForaRegional?: boolean;
 }
 
 export const DuplicateModal: React.FC<DuplicateModalProps> = ({
@@ -36,6 +37,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
   onCancel,
   onConfirm,
   confirmLabel = 'Cadastrar mesmo assim',
+  isForaRegional = false,
 }) => {
   const { width, height } = useWindowDimensions();
   const isSmall = width < 380;
@@ -78,7 +80,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onCancel}
+      onRequestClose={isForaRegional ? onCancel : () => undefined}
       statusBarTranslucent
     >
       <Animated.View
@@ -117,14 +119,22 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           >
             {/* Ícone no topo */}
             <View style={[styles.iconContainer, isTiny && styles.iconContainerTiny]}>
-              <View style={[styles.iconCircle, isTiny && styles.iconCircleTiny]}>
-                <FontAwesome5 name="copy" size={isTiny ? 22 : 36} color="#255ec8" />
+              <View style={[styles.iconCircle, !isForaRegional && styles.warningIconCircle, isTiny && styles.iconCircleTiny]}>
+                <FontAwesome5
+                  name={isForaRegional ? 'copy' : 'exclamation-triangle'}
+                  size={isTiny ? 22 : 32}
+                  color={isForaRegional ? '#255ec8' : '#f59e0b'}
+                />
               </View>
             </View>
 
+            {!isForaRegional ? (
+              <Text style={styles.eyebrow}>PRESENÇA JÁ REGISTRADA</Text>
+            ) : null}
+
             {/* Título */}
             <Text style={[styles.title, isTiny && styles.titleTiny]}>
-              Cadastro Duplicado!
+              {isForaRegional ? 'Cadastro Duplicado!' : 'Duplicidade detectada'}
             </Text>
 
             {/* Mensagem principal */}
@@ -132,7 +142,9 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
               <Text style={styles.nomeText}>{nome || 'Nome não encontrado'}</Text>
               <Text style={styles.comumText}>de {comum || 'Comum não encontrada'}</Text>
               <Text style={styles.messageSuffix}>
-                {detalhe ? `ja temos um registro ${detalhe}.` : 'ja foi cadastrado(a).'}
+                {isForaRegional
+                  ? (detalhe ? `Já temos um registro ${detalhe}.` : 'Já foi cadastrado(a).')
+                  : `Este participante já foi registrado${detalhe ? ` ${detalhe}` : ''}. Um novo registro não é permitido.`}
               </Text>
             </View>
 
@@ -144,7 +156,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
                     <FontAwesome5 name="calendar-alt" size={16} color="#255ec8" />
                   </View>
                   <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Data</Text>
+                    <Text style={styles.detailLabel}>Registro realizado em</Text>
                     <Text style={styles.detailValue}>{data || '--/--/----'}</Text>
                   </View>
                 </View>
@@ -156,7 +168,7 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
                     <FontAwesome5 name="clock" size={16} color="#255ec8" />
                   </View>
                   <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Horário</Text>
+                    <Text style={styles.detailLabel}>Horário registrado</Text>
                     <Text style={styles.detailValue}>{horario || '--:--'}</Text>
                   </View>
                 </View>
@@ -173,12 +185,12 @@ export const DuplicateModal: React.FC<DuplicateModalProps> = ({
           >
             {/* Botão Fechar (vermelho) */}
             <TouchableOpacity
-              style={[styles.actionButton, styles.cancelButton]}
+              style={[styles.actionButton, styles.cancelButton, !isForaRegional && styles.regionalCancelButton]}
               onPress={onCancel}
               activeOpacity={0.6}
             >
               <FontAwesome5 name="times" size={14} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Fechar</Text>
+              <Text style={styles.buttonText}>{isForaRegional ? 'Fechar' : 'Cancelar'}</Text>
             </TouchableOpacity>
 
             {/* Botão Confirmar (azul) — só aparece quando onConfirm é fornecido */}
@@ -255,6 +267,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f7ff',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  eyebrow: {
+    color: '#b45309',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  warningIconCircle: {
+    borderColor: '#fde7c2',
+    backgroundColor: '#fff8eb',
   },
   iconCircleTiny: {
     width: 52,
@@ -408,6 +432,9 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#ef4444',
+  },
+  regionalCancelButton: {
+    backgroundColor: '#0b4f71',
   },
   confirmButton: {
     backgroundColor: '#255ec8',

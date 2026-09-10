@@ -1072,7 +1072,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           const instrumentoDuplicata = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
           
           setDuplicateInfo({ 
-            nome: obterNomeCurto(nomePessoa), // Usar nome curto conforme backup
+            nome: Boolean(registro.is_fora_regional) ? obterNomeCurto(nomePessoa) : nomePessoa,
             comum: nomeComum, 
             detalhe: obterDetalheDuplicata(cargoDuplicata, instrumentoDuplicata),
             data: dupLocal.data, 
@@ -1089,6 +1089,54 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
         // 3. A rede serve apenas para feedback; não bloqueia a gravação local.
         const isOnlineNow = isOnline;
+
+        // Na regional, validar no Supabase antes de salvar ou anunciar sucesso.
+        // Fora da regional continua com a confirmacao posterior, e offline continua resiliente.
+        if (isOnlineNow && !isForaRegional) {
+          const pessoaDuplicata = pessoas.find(p => p.id === registro.pessoa_id);
+          const nomeDuplicata = registro.pessoa_id.startsWith('manual_')
+            ? registro.pessoa_id.replace(/^manual_/, '')
+            : (pessoaDuplicata?.nome_completo || [pessoaDuplicata?.nome, pessoaDuplicata?.sobrenome].filter(Boolean).join(' ').trim());
+          const comumDuplicata = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+          const cargoDuplicata = pessoaDuplicata?.cargo_real || cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+          const instrumentoDuplicata = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+
+          try {
+            await supabaseDataService.checkDuplicataRemota({
+              nome: nomeDuplicata,
+              comum: comumDuplicata,
+              cargo: cargoDuplicata,
+              instrumento: instrumentoDuplicata,
+              cidade: pessoaDuplicata?.cidade || registro.cidade || '',
+              uuid: registro.id,
+              pessoaId: registro.pessoa_id,
+              isForaRegional: false,
+              dataIso: registro.data_hora_registro
+            });
+          } catch (error) {
+            if (error instanceof Error && error.message.includes('DUPLICATA_BLOQUEADA')) {
+              const infoStr = error.message.split('DUPLICATA_BLOQUEADA:')[1] || '';
+              const details = infoStr ? infoStr.split('|') : [];
+
+              setDuplicateInfo({
+                nome: details[0] || nomeDuplicata,
+                comum: details[1] || comumDuplicata,
+                detalhe: obterDetalheDuplicata(details[4] || cargoDuplicata, details[5] || instrumentoDuplicata),
+                data: details[2] || '--/--/----',
+                horario: details[3] || '--:--:--',
+                isForaRegional: false
+              });
+              setPendingRegistro(null);
+              setDuplicateModalVisible(true);
+              setLoading(false);
+              isSubmittingRef.current = false;
+              return false;
+            }
+
+            // Falhas transitórias não impedem o modo offline; a fila validará novamente ao sincronizar.
+            console.warn('[SUBMIT] Verificação prévia de duplicidade indisponível; mantendo na fila.', error);
+          }
+        }
 
         // 4. Salvar localmente antes de qualquer operação remota
         console.log('💾 [SUBMIT] Salvando registro na fila para processamento em segundo plano...');
@@ -1143,11 +1191,26 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
                   setPendingRegistro(registro);
                   setDuplicateModalVisible(true);
                 } else {
-                  // Dentro da regional: bloquear com aviso simples
-                  showToast.warning(
-                    'Duplicidade detectada',
-                    'Este participante já foi registrado hoje. O registro foi ignorado.'
-                  );
+                  // Dentro da regional: manter bloqueado e exigir fechamento explícito do modal.
+                  const infoStr = syncResult.duplicateError?.split('DUPLICATA_BLOQUEADA:')[1] || '';
+                  const details = infoStr ? infoStr.split('|') : [];
+                  const nomeFallback = registro.pessoa_id.startsWith('manual_')
+                    ? registro.pessoa_id.replace('manual_', '')
+                    : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
+                  const comumFallback = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+                  const cargoFallback = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+                  const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+
+                  setDuplicateInfo({
+                    nome: details[0] || nomeFallback,
+                    comum: details[1] || comumFallback,
+                    detalhe: obterDetalheDuplicata(details[4] || cargoFallback, details[5] || instrumentoFallback),
+                    data: details[2] || '--/--/----',
+                    horario: details[3] || '--:--:--',
+                    isForaRegional: false
+                  });
+                  setPendingRegistro(null);
+                  setDuplicateModalVisible(true);
                 }
               }
               await refreshCount();

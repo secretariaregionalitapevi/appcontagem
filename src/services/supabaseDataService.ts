@@ -265,7 +265,7 @@ export const supabaseDataService = {
           // O usuário confirmou que o banco foi limpo manualmente.
           const result = await supabase
             .from(table)
-            .select('comum')
+            .select('comum, cidade')
             .not('comum', 'is', null)
             .neq('comum', '')
             .order('comum', { ascending: true })
@@ -375,17 +375,19 @@ export const supabaseDataService = {
       // --- LÓGICA DE DEDUPLICAÇÃO ROBUSTA POR CÓDIGO REGIONAL ---
       // Usar um Map para agrupar por Código Regional (ex: BR-22-1234)
       // Se não houver código, usar nome normalizado
-      const mapComuns = new Map<string, { original: string; display: string }>();
+      const mapComuns = new Map<string, { original: string; display: string; cidade: string }>();
 
       allData.forEach((record: any) => {
         const original = record.comum;
         if (original && typeof original === 'string') {
           const display = extrairNomeComum(original);
+          const cidade = typeof record.cidade === 'string' ? record.cidade.trim() : '';
 
           // --- CORREÇÃO CRÍTICA DE DEDUPLICAÇÃO ---
           // Não unificar pelo Código Regional (codigoKey), pois Capela Velha e Alphaville dividem o mesmo!
-          // Chave de unificação: Nome Normalizado
-          const key = normalizeString(display.toUpperCase());
+          // Chave de unificação: nome normalizado + cidade
+          // Homônimos em cidades diferentes precisam permanecer como opções distintas.
+          const key = normalizeString(display.toUpperCase()) + '|' + normalizeString(cidade.toUpperCase());
 
           // 🎯 TRACE ALVO: Se for o item que estamos buscando, apenas para controle interno se necessário
           const isTarget = original.toUpperCase().includes('SURU') || original.toUpperCase().includes('CAPELA VELHA');
@@ -400,7 +402,7 @@ export const supabaseDataService = {
             // Se existisse lógica de código, faríamos aqui, mas agora priorizamos nomes únicos
 
             if (isBetter) {
-              mapComuns.set(key, { original, display });
+              mapComuns.set(key, { original, display, cidade });
             }
           }
         }
@@ -412,6 +414,7 @@ export const supabaseDataService = {
           id: `comum_${index + 1}_${item.display.toLowerCase().replace(/\s+/g, '_')}`,
           nome: item.original, // Nome completo (para o registro)
           displayName: item.display, // Nome limpo (para a lista)
+          cidade: item.cidade || undefined,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as any))
@@ -446,8 +449,8 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v8', JSON.stringify(comuns));
-        console.log('✅ Comuns salvas no cache V8');
+        await robustSetItem('cache_comuns_v9', JSON.stringify(comuns));
+        console.log('✅ Comuns salvas no cache V9');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
       }
@@ -459,8 +462,8 @@ export const supabaseDataService = {
           await db.withTransactionAsync(async () => {
             for (const comum of comuns) {
               await db.runAsync(
-                `INSERT OR REPLACE INTO comuns (id, nome, created_at, updated_at) VALUES (?, ?, ?, ?)`,
-                [comum.id, comum.nome, comum.created_at || null, comum.updated_at || null]
+                `INSERT OR REPLACE INTO comuns (id, nome, cidade, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+                [comum.id, comum.nome, comum.cidade || null, comum.created_at || null, comum.updated_at || null]
               );
             }
           });
@@ -486,7 +489,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v8');
+        const cached = await robustGetItem('cache_comuns_v9');
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -498,7 +501,7 @@ export const supabaseDataService = {
             }));
 
           memoryCache.comuns = validComuns;
-          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V8`);
+          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V9`);
           return validComuns;
         }
       } catch (error) {
@@ -1327,7 +1330,7 @@ export const supabaseDataService = {
           // Busca rápida com parte do nome (mais eficiente que buscar tudo)
           const testQuery = supabase
             .from(table)
-            .select('comum')
+            .select('comum, cidade')
             .ilike('comum', `%${comumBusca.slice(0, 10)}%`) // Primeiros 10 caracteres
             .limit(5); // Apenas 5 resultados para verificar
 

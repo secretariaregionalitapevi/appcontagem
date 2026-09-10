@@ -647,6 +647,7 @@ export const RegisterScreen: React.FC = () => {
           detalhe={duplicateInfo.detalhe}
           data={duplicateInfo.data}
           horario={duplicateInfo.horario}
+          isForaRegional={duplicateInfo.isForaRegional}
           onCancel={() => {
             if (pendingRegistro) {
               supabaseDataService.deleteRegistrosDuplicadosFromLocal(pendingRegistro).catch(error => {

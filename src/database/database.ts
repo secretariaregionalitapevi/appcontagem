@@ -415,6 +415,12 @@ const initializeDatabase = async (database: any): Promise<void> => {
     );
   `);
 
+    // Migra bancos existentes sem exigir reinstalação do aplicativo.
+    const colunasComuns = (await database.getAllAsync('PRAGMA table_info(comuns)')) as Array<{ name: string }>;
+    if (!colunasComuns.some(coluna => coluna.name === 'cidade')) {
+      await database.execAsync('ALTER TABLE comuns ADD COLUMN cidade TEXT;');
+    }
+
     // Tabela de cargos
     await database.execAsync(`
     CREATE TABLE IF NOT EXISTS cargos (
