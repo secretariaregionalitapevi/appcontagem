@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Platform } from 'react-native';
-import { showToast } from '../utils/toast';
 
 export const useOnlineStatus = () => {
   // Para web/PWA: iniciar como online (navigator.onLine é sempre mais confiável do que NetInfo na web)
@@ -42,14 +41,14 @@ export const useOnlineStatus = () => {
               const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
               if (registros.length > 0) {
                 console.log(`🌐 Sincronizando ${registros.length} registro(s) pendente(s)...`);
-                setTimeout(() => offlineSyncService.processarFilaLocal().catch(console.error), 1500);
+                setTimeout(() => offlineSyncService.processarFilaLocal(true).catch(console.error), 1500);
               }
             } catch (e) {
               console.warn('⚠️ Erro ao verificar fila:', e);
             }
           } else {
             console.log('📵 [useOnlineStatus] Conexão perdida');
-            showToast.warning('Modo offline', 'Registros serão salvos localmente');
+            // A fila local assume automaticamente durante a oscilacao.
           }
 
           if (onStatusChangeRef.current) {
@@ -95,7 +94,7 @@ export const useOnlineStatus = () => {
             console.log('🌐 [useOnlineStatus] Conexão nativa restaurada');
           } else {
             console.log('📵 [useOnlineStatus] Conexão nativa perdida');
-            showToast.warning('Modo offline', 'Registros serão salvos localmente');
+            // A fila local assume automaticamente durante a oscilacao.
           }
 
           if (onStatusChangeRef.current) {

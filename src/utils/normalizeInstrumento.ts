@@ -49,6 +49,13 @@ export function normalizeInstrumentoForSearch(instrumento: string): string {
 
   let normalized = instrumento.trim().toUpperCase();
 
+  // Clarinete baixo (clarone) e clarinete comum sao instrumentos distintos.
+  // Canonicalizar antes de qualquer busca parcial impede que CLARINETE BAIXO
+  // seja associado ao primeiro item CLARINETE da lista de instrumentos.
+  if (normalized === 'CLARONE' || normalized === 'CLARINETE BAIXO') {
+    normalized = 'CLARINETE BAIXO (CLARONE)';
+  }
+
   // Unificar nomes em inglês/alternativos antes de procurar o instrumento local.
   // Sem isso, "EUPHONIUM" não encontra "EUFÔNIO" e o registro é salvo sem instrumento_id.
   if (['EUPHONIUM', 'EUFONIO', 'BOMBARDINO'].includes(normalized)) {
@@ -82,6 +89,17 @@ export function expandInstrumentoSearch(instrumento: string): string[] {
   const variations: string[] = [];
   const instrumentoUpper = instrumento.trim().toUpperCase();
   const normalized = normalizeInstrumentoForSearch(instrumento);
+
+  // O cadastro SAM tambem pode trazer apenas um dos nomes do clarone.
+  if (
+    instrumentoUpper === 'CLARONE' ||
+    instrumentoUpper === 'CLARINETE BAIXO' ||
+    instrumentoUpper === 'CLARINETE BAIXO (CLARONE)'
+  ) {
+    variations.push('CLARINETE BAIXO (CLARONE)');
+    variations.push('CLARINETE BAIXO');
+    variations.push('CLARONE');
+  }
 
   // Adicionar versão original (pode ter abreviação)
   variations.push(instrumentoUpper);

@@ -7,6 +7,11 @@
 
 BEGIN;
 
+-- BR-22-0423 e exclusivamente CENTRAL - CAUCAIA DO ALTO.
+UPDATE public.cadastro
+SET comum = 'BR-22-0423 - CENTRAL - CAUCAIA DO ALTO'
+WHERE comum LIKE 'BR-22-0423%';
+
 UPDATE public.cadastro
 SET comum = 'BR-21-1303 - CAPELA VELHA - SURU'
 WHERE comum = 'BR-21-1251 - CAPELA VELHA - SURU';
@@ -57,7 +62,7 @@ WHERE comum = 'BR-22-3865 - JARDIM BANDEIRANTES - VOTUPARIM';
 
 UPDATE public.cadastro
 SET comum = 'BR-21-1312 - SITIO JOSÉ TEIXEIRA - ITAPEVI'
-WHERE comum = 'BR-21-1312 - SÍTIO JOSÉ TEIXEIRA';
+WHERE comum = 'BR-21-1312 - SÍTIO JOSÉ TEIXEIRA - ITAPEVI';
 
 UPDATE public.cadastro
 SET comum = 'BR-21-1481 - RECANTO DOS PASSAROS'
@@ -74,6 +79,7 @@ SELECT comum, cidade, COUNT(*) AS registros
 FROM public.cadastro
 WHERE comum ILIKE ANY (ARRAY[
   'BR-21-1251%',
+  'BR-22-0423%',
   'BR-21-1303%',
   'BR-22-0424%',
   'BR-22-2833%',

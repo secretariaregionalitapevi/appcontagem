@@ -12,6 +12,7 @@ import { formatDateTimeManual, formatTime } from '../utils/dateUtils';
 import { supabase } from './supabaseClient';
 import { sanitizeInput, sanitizeForLogging, FIELD_LIMITS } from '../utils/securityUtils';
 import { env } from '../config/env';
+import { resolveComumById } from '../utils/normalizeComum';
 
 // URL do Google Apps Script (do backupcont/config-deploy.js)
 // 🚨 ATENÇÃO: Verificando se há espaços ou quebras de linha na URL
@@ -674,7 +675,7 @@ export const googleSheetsService = {
         const nomeLimpo = limparPrefixoComum(partes[0]);
         comum = { id: registro.comum_id, nome: nomeLimpo || 'Manual', cidadeManual: partes[1] || '' };
       } else {
-        comum = comuns.find(c => c.id === registro.comum_id);
+        comum = resolveComumById(comuns, registro.comum_id);
       }
 
       const instrumentoOriginal = registro.instrumento_id

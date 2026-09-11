@@ -34,6 +34,7 @@ import {
 import { getDeviceInfo, logDeviceInfo, isXiaomiDevice } from '../utils/deviceDetection';
 import { cacheManager } from '../utils/cacheManager';
 import { authService } from './authService';
+import { canonicalizeComum, createStableComumId, isSameComum, normalizeComumDisplay, resolveComumById } from '../utils/normalizeComum';
 
 // 🚨 FUNÇÃO AUXILIAR: Substituir vogais e Ç por wildcard _ para busca robusta a acentos
 const buildAccentWildcard = (str: string): string => {
@@ -378,10 +379,11 @@ export const supabaseDataService = {
       const mapComuns = new Map<string, { original: string; display: string; cidade: string }>();
 
       allData.forEach((record: any) => {
-        const original = record.comum;
+          const original = canonicalizeComum(record.comum);
         if (original && typeof original === 'string') {
-          const display = extrairNomeComum(original);
+          const displayOriginal = extrairNomeComum(original);
           const cidade = typeof record.cidade === 'string' ? record.cidade.trim() : '';
+          const display = normalizeComumDisplay(displayOriginal, cidade);
 
           // --- CORREÇÃO CRÍTICA DE DEDUPLICAÇÃO ---
           // Não unificar pelo Código Regional (codigoKey), pois Capela Velha e Alphaville dividem o mesmo!
@@ -398,6 +400,12 @@ export const supabaseDataService = {
             // Lógica de Prioridade:
             // 1. Se não houver registro anterior, inserir.
             let isBetter = !existing;
+            // Entre variantes equivalentes, preservar o cadastro oficial com codigo BR.
+            if (existing) {
+              const atualTemCodigo = /^(?:BR-)?\d{2}-\d{3,6}/i.test(original);
+              const existenteTemCodigo = /^(?:BR-)?\d{2}-\d{3,6}/i.test(existing.original);
+              isBetter = atualTemCodigo && !existenteTemCodigo;
+            }
             // Se já existe e os nomes são idênticos, não precisamos trocar
             // Se existisse lógica de código, faríamos aqui, mas agora priorizamos nomes únicos
 
@@ -410,8 +418,8 @@ export const supabaseDataService = {
 
       // Converter Map para formato Comum[] e ordenar
       const comuns: Comum[] = Array.from(mapComuns.values())
-        .map((item, index) => ({
-          id: `comum_${index + 1}_${item.display.toLowerCase().replace(/\s+/g, '_')}`,
+        .map(item => ({
+          id: createStableComumId(item.original, item.display, item.cidade),
           nome: item.original, // Nome completo (para o registro)
           displayName: item.display, // Nome limpo (para a lista)
           cidade: item.cidade || undefined,
@@ -449,8 +457,8 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v9', JSON.stringify(comuns));
-        console.log('✅ Comuns salvas no cache V9');
+        await robustSetItem('cache_comuns_v12', JSON.stringify(comuns));
+        console.log('✅ Comuns salvas no cache V12');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
       }
@@ -460,6 +468,8 @@ export const supabaseDataService = {
         try {
           const db = await getDatabase();
           await db.withTransactionAsync(async () => {
+            // Remove variantes obsoletas que INSERT OR REPLACE nao eliminaria.
+            await db.runAsync('DELETE FROM comuns');
             for (const comum of comuns) {
               await db.runAsync(
                 `INSERT OR REPLACE INTO comuns (id, nome, cidade, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
@@ -489,7 +499,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v9');
+        const cached = await robustGetItem('cache_comuns_v12');
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -501,7 +511,7 @@ export const supabaseDataService = {
             }));
 
           memoryCache.comuns = validComuns;
-          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V9`);
+          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V12`);
           return validComuns;
         }
       } catch (error) {
@@ -914,18 +924,24 @@ export const supabaseDataService = {
 
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
     // 🚨 CORREÇÃO: Adicionar versão ao cache key para invalidar caches antigos quando a lógica mudar
-    const CACHE_VERSION = 'v4'; // Incrementar para v4 para forçar refresh total
+    const CACHE_VERSION = 'v7'; // Invalida buscas vazias de clarinete baixo
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
     const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
     if (cached) {
       console.log(`✅ [fetchPessoasFromCadastro] Retornando ${cached.length} pessoas do cache`);
+
+      // Cache antigo pode conter pessoas de outra comum cujo nome apenas comeca
+      // igual (ex.: CAUCAIA DO ALTO x CAUCAIA DO ALTO - CENTRAL).
+      const cachedDaComum = cached.filter((item: any) =>
+        isSameComum(comumNome, item.comum || '', item.cidade || '')
+      );
 
       // 🚨 CORREÇÃO CRÍTICA: Aplicar filtro de cargo também nos dados do cache
       // Isso garante que mesmo dados em cache sejam filtrados corretamente
       const cargoBusca = cargoNome.trim().toUpperCase();
       if (cargoBusca !== 'ORGANISTA' && cargoBusca !== 'MÚSICO' && !cargoBusca.includes('MÚSICO')) {
         const cargoBuscaNormalizado = normalizeString(cargoBusca.toUpperCase());
-        const filteredCached = cached.filter((item: any) => {
+        const filteredCached = cachedDaComum.filter((item: any) => {
           if (!item.cargo) return false;
           const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
 
@@ -955,7 +971,7 @@ export const supabaseDataService = {
         return filteredCached;
       }
 
-      return cached;
+      return cachedDaComum;
     }
 
     try {
@@ -1011,6 +1027,47 @@ export const supabaseDataService = {
       ): Promise<{ data: any[]; error: any; hasMore: boolean }> => {
         const from = page * pageSize;
         const to = from + pageSize - 1;
+
+        // Clarinete baixo aparece como CLARINETE BAIXO ou CLARONE. Consultas
+        // separadas evitam problemas no filtro OR e nao incluem CLARINETE comum.
+        if (instrumentoBusca === 'CLARINETE BAIXO (CLARONE)') {
+          const commonQuery = (instrumento: string) =>
+            supabase
+              .from(table)
+              .select('nome, comum, cargo, instrumento, cidade, nivel')
+              .ilike('comum', `%${buildAccentWildcard(comumBusca)}%`)
+              .ilike('instrumento', instrumento)
+              .order('nome', { ascending: true })
+              .range(from, to);
+
+          const results = await Promise.all([
+            commonQuery('%CLARINETE BAIXO%'),
+            commonQuery('%CLARONE%'),
+          ]);
+          const combinedData: any[] = [];
+          const seenPeople = new Set<string>();
+          let queryError: any = null;
+
+          results.forEach(result => {
+            if (result.error) {
+              queryError = queryError || result.error;
+              return;
+            }
+            (result.data || []).forEach((item: any) => {
+              const key = `${item.nome}_${item.comum}`.toUpperCase();
+              if (!seenPeople.has(key)) {
+                seenPeople.add(key);
+                combinedData.push(item);
+              }
+            });
+          });
+
+          return {
+            data: combinedData,
+            error: combinedData.length === 0 ? queryError : null,
+            hasMore: results.some(result => (result.data?.length || 0) === pageSize),
+          };
+        }
 
         // 🚨 CORREÇÃO CRÍTICA: Para SAXOFONE SOPRANO, fazer múltiplas queries e combinar resultados
         // (como o backupcont faz para garantir robustez)
@@ -1522,7 +1579,10 @@ export const supabaseDataService = {
           }
 
           if (pageResult.data && pageResult.data.length > 0) {
-            allData = allData.concat(pageResult.data);
+            const dadosDaComum = pageResult.data.filter((item: any) =>
+              isSameComum(comumNome, item.comum || '', item.cidade || '')
+            );
+            allData = allData.concat(dadosDaComum);
             console.log(
               `📄 Página ${currentPage + 1}: ${pageResult.data.length} registros (total: ${allData.length})`
             );
@@ -2045,7 +2105,7 @@ export const supabaseDataService = {
         comumNome = partes[partes.length - 1];
         console.log(`🔍 [getPessoasFromLocal] Resolvido Fora Regional: "${comumNome}"`);
       } else {
-        const comum = comuns.find(c => c.id === comumId);
+        const comum = resolveComumById(comuns, comumId);
         comumNome = comum?.nome;
       }
     }
@@ -2567,7 +2627,7 @@ export const supabaseDataService = {
         isExternal: true
       };
     } else {
-      comum = comuns.find(c => c.id === registro.comum_id);
+      comum = resolveComumById(comuns, registro.comum_id);
     }
 
     const instrumento = registro.instrumento_id

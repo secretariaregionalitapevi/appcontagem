@@ -26,6 +26,13 @@ export const useInactivityTimeout = ({
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastStorageUpdateRef = useRef<number>(0);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const onTimeoutRef = useRef(onTimeout);
+
+  // O callback muda a cada render do hook de autenticacao. Manter uma ref evita
+  // desmontar e recriar os timers quando apenas o aviso visual muda de estado.
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+  }, [onTimeout]);
 
   const updatePersistence = useCallback(async (timestamp: number) => {
     // Apenas atualizar storage se passou o tempo de throttle para evitar overhead
@@ -51,7 +58,7 @@ export const useInactivityTimeout = ({
 
         if (diff >= timeout) {
           console.log('⏰ Persistência: Limite de inatividade excedido');
-          onTimeout();
+          onTimeoutRef.current();
           return true; // Expirou
         } else if (diff >= timeout - WARNING_THRESHOLD) {
           console.log('⏰ Persistência: Próximo ao limite, mostrando aviso');
@@ -62,13 +69,14 @@ export const useInactivityTimeout = ({
       console.warn('⚠️ Erro ao verificar persistência de inatividade:', error);
     }
     return false;
-  }, [enabled, timeout, onTimeout]);
+  }, [enabled, timeout]);
 
   const resetTimeout = useCallback(() => {
     const now = Date.now();
     
-    // Resetar estado de aviso se estiver ativo
-    if (showWarning) setShowWarning(false);
+    // Resetar o aviso sem inclui-lo nas dependencias do callback. Se o aviso
+    // recriar este callback, o effect reinicia a contagem no minuto final.
+    setShowWarning(false);
     
     // Persistir atividade
     updatePersistence(now);
@@ -90,10 +98,10 @@ export const useInactivityTimeout = ({
       // Agendar logout final
       timeoutRef.current = setTimeout(() => {
         console.log('⏰ Timeout de inatividade atingido');
-        onTimeout();
+        onTimeoutRef.current();
       }, timeout);
     }
-  }, [timeout, onTimeout, enabled, updatePersistence, showWarning]);
+  }, [timeout, enabled, updatePersistence]);
 
   useEffect(() => {
     if (!enabled) {

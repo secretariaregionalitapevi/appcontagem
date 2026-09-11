@@ -8,7 +8,7 @@ import { uuidv4 } from '../utils/uuid';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { formatDate, formatTime } from '../utils/dateUtils';
 import { robustRemoveItem, robustSetCriticalItem } from '../utils/robustStorage';
-import { showToast } from '../utils/toast';
+import { resolveComumById } from '../utils/normalizeComum';
 
 // 🚨 PROTEÇÃO: Flag global para evitar processamento duplicado simultâneo
 let isProcessingQueue = false;
@@ -173,7 +173,7 @@ export const offlineSyncService = {
   },
 
   // 🚨 FUNÇÃO MELHORADA: processarFilaLocal com retry e validação robusta
-  async processarFilaLocal(silent: boolean = false): Promise<QueueProcessResult> {
+  async processarFilaLocal(_silent: boolean = true): Promise<QueueProcessResult> {
     // 🚨 PROTEÇÃO: Evitar processamento duplicado simultâneo (ex: F5, múltiplos eventos online)
     const now = Date.now();
     if (isProcessingQueue) {
@@ -417,19 +417,10 @@ export const offlineSyncService = {
 
       console.log(`✅ Fila processada: ${result.successCount} enviados, ${result.errorCount} com erro`);
 
-      // Mostrar toast quando processa fila (apenas se não for modo silencioso)
-      if (result.successCount > 0 && !silent) {
-        if (result.errorCount > 0) {
-          showToast.success(
-            'Fila processada',
-            `${result.successCount} enviado(s), ${result.errorCount} pendente(s)`
-          );
-        } else {
-          showToast.success('Fila processada', `${result.successCount} registro(s) enviado(s) com sucesso!`);
-        }
-        console.log(`✅ ${result.successCount} registro(s) enviado(s) com sucesso!`);
-      } else if (result.errorCount > 0 && !silent) {
-        showToast.warning('Fila não processada', `${result.errorCount} registro(s) aguardando conexão estável`);
+      // A fila roda em background. Oscilacao de rede nao deve interromper o
+      // atendimento com modal; os itens permanecem salvos para a proxima tentativa.
+      if (result.errorCount > 0) {
+        console.log(`${result.errorCount} registro(s) permanecem na fila aguardando conexao estavel`);
       }
 
       return result;
@@ -494,7 +485,7 @@ export const offlineSyncService = {
           registro.comum_id.startsWith('comum_fora_') ||
           registro.comum_id.startsWith('manual_') ||
           registro.comum_id.startsWith('external_');
-        const comumObj = comuns.find(c => String(c.id) === String(registro.comum_id));
+        const comumObj = resolveComumById(comuns, registro.comum_id);
         const cargoObj = cargos.find(c => String(c.id) === String(registro.cargo_id));
         const instrumentoObj = registro.instrumento_id
           ? instrumentos.find(i => String(i.id) === String(registro.instrumento_id))
@@ -592,7 +583,7 @@ export const offlineSyncService = {
             ),
           ]);
 
-          const comum = comuns.find(c => c.id === registro.comum_id);
+          const comum = resolveComumById(comuns, registro.comum_id);
           const cargo = cargos.find(c => c.id === registro.cargo_id);
           const pessoa = pessoas.find(p => p.id === registro.pessoa_id);
 

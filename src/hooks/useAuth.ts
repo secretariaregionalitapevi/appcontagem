@@ -10,16 +10,17 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
   const [isRecoveringPassword, setIsRecoveringPassword] = useState(false);
 
-  // Timeout de inatividade operacional: 12 horas.
-  // Em evento com fila, logout automatico de 1 hora pode derrubar atendentes
-  // e custar minutos de operacao.
+  // O ensaio tem duracao operacional de 2 horas. A sessao deve ser encerrada
+  // depois desse mesmo periodo sem qualquer atividade do usuario.
+  const INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
   const handleInactivityTimeout = async () => {
     console.log('⏰ Timeout de inatividade - fazendo logout');
     await signOut();
   };
 
   const { showWarning, resetTimeout } = useInactivityTimeout({
-    timeout: 12 * 60 * 60 * 1000,
+    timeout: INACTIVITY_TIMEOUT_MS,
     onTimeout: handleInactivityTimeout,
     enabled: !!user, // Só ativar se houver usuário logado
   });

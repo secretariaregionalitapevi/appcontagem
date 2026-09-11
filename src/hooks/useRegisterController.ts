@@ -39,8 +39,10 @@ import { handleHardReset } from '../utils/appActions';
 import { showToast } from '../utils/toast';
 import { useNavigation } from '@react-navigation/native';
 import { getNaipeByInstrumento } from '../utils/instrumentNaipe';
+import { normalizeInstrumentoForSearch } from '../utils/normalizeInstrumento';
 import { formatRegistradoPor } from '../utils/userNameUtils';
 import { generateExternalUUID, generateDeterministicUUID } from '../utils/uuid';
+import { resolveComumById } from '../utils/normalizeComum';
 
 import { isCargoFemininoOrganista } from '../utils/normalizeCargoFeminino';
 
@@ -360,8 +362,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
     const handleOffline = () => {
       console.log('📵 Conexão perdida - modo offline ativado');
-      // 🚨 MENSAGEM EXATA DO BACKUPCONT: Mostrar toast quando fica offline
-      showToast.warning('Modo offline', 'Registros serão salvos na fila');
+      // Sem modal: os registros continuam sendo salvos na fila automaticamente.
     };
 
     // Adicionar listener apenas na web (React Native usa NetInfo)
@@ -401,7 +402,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           } else {
             // Ficou offline
             console.log('📵 Conexão perdida - modo offline ativado');
-            showToast.warning('Modo offline', 'Registros serão salvos na fila');
+            // Sem modal: o badge da fila ja informa o estado ao usuario.
           }
         }
 
@@ -698,7 +699,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     if (selectedComum.startsWith('manual_')) {
       comumNome = selectedComum.replace(/^manual_/, '').split('|')[0];
     } else {
-      comumNome = comuns.find(c => c.id === selectedComum)?.nome;
+      comumNome = resolveComumById(comuns, selectedComum)?.nome;
     }
 
     if (selectedCargo.startsWith('manual_')) {
@@ -774,11 +775,11 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           // 🚨 NOVO: Mapear ID do instrumento pelo nome (mesma lógica do supabaseDataService)
           let realInstrumentoId = null;
           if (p.instrumento) {
-            const instNomeBusca = p.instrumento.trim().toUpperCase();
-            const instEncontrado = instrumentos.find(i => 
-              i.nome.toUpperCase() === instNomeBusca ||
-              i.nome.toUpperCase().includes(instNomeBusca) ||
-              instNomeBusca.includes(i.nome.toUpperCase())
+            const instNomeBusca = normalizeInstrumentoForSearch(p.instrumento);
+            // Correspondencia exata: CLARINETE nao pode capturar
+            // CLARINETE BAIXO apenas por ser um prefixo do nome.
+            const instEncontrado = instrumentos.find(
+              i => normalizeInstrumentoForSearch(i.nome) === instNomeBusca
             );
             if (instEncontrado) realInstrumentoId = instEncontrado.id;
           }
@@ -1067,7 +1068,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
             if (p) nomePessoa = `${p.nome} ${p.sobrenome || ''}`.trim();
           }
 
-          const nomeComum = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+          const nomeComum = resolveComumById(comuns, registro.comum_id)?.nome || '';
           const cargoDuplicata = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
           const instrumentoDuplicata = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
           
@@ -1097,7 +1098,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           const nomeDuplicata = registro.pessoa_id.startsWith('manual_')
             ? registro.pessoa_id.replace(/^manual_/, '')
             : (pessoaDuplicata?.nome_completo || [pessoaDuplicata?.nome, pessoaDuplicata?.sobrenome].filter(Boolean).join(' ').trim());
-          const comumDuplicata = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+          const comumDuplicata = resolveComumById(comuns, registro.comum_id)?.nome || '';
           const cargoDuplicata = pessoaDuplicata?.cargo_real || cargos.find(c => c.id === registro.cargo_id)?.nome || '';
           const instrumentoDuplicata = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
 
@@ -1175,7 +1176,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
                   const nomeFallback = registro.pessoa_id.startsWith('manual_')
                     ? registro.pessoa_id.replace('manual_', '')
                     : '';
-                  const comumFallback = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+                  const comumFallback = resolveComumById(comuns, registro.comum_id)?.nome || '';
                   const cargoFallback = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
                   const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
 
@@ -1197,7 +1198,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
                   const nomeFallback = registro.pessoa_id.startsWith('manual_')
                     ? registro.pessoa_id.replace('manual_', '')
                     : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
-                  const comumFallback = comuns.find(c => c.id === registro.comum_id)?.nome || '';
+                  const comumFallback = resolveComumById(comuns, registro.comum_id)?.nome || '';
                   const cargoFallback = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
                   const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
 
