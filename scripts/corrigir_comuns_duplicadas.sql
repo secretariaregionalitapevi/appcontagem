@@ -4,8 +4,46 @@
 -- - CAPELA VELHA - SURU permanece BR-21-1303
 -- - PEDRAS deve ficar BR-22-0424 - PEDRAS - COTIA
 -- - PARQUE SANTANA deve ficar PARQUE SANTANA I / II
+-- - FAZENDINHA (SANTANA DE PARNAIBA) deve ficar
+--   BR-22-0272 - FAZENDINHA - STNA DE PARNAIBA
+--
+-- IMPORTANTE: as comuns exibidas no aplicativo sao derivadas dos valores da
+-- coluna cadastro.comum. Nao apague registros da variante incorreta: mova os
+-- membros para a grafia oficial.
 
 BEGIN;
+
+-- Aborta se o destino oficial nao existir, evitando consolidacao acidental em
+-- um valor digitado incorretamente. U& mantem os literais Unicode portaveis.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.cadastro
+    WHERE comum = U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA'
+      AND cidade = U&'SANTANA DE PARNA\00CD BA'
+  ) THEN
+    RAISE EXCEPTION
+      'Comum oficial da Fazendinha nao encontrada; nenhuma alteracao foi aplicada';
+  END IF;
+END
+$$;
+
+-- Preserva id, nome, cargo, instrumento, nivel e todos os demais dados dos
+-- membros. Somente comum/cidade sao corrigidas nas variantes inequivocas.
+UPDATE public.cadastro
+SET comum = U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA',
+    cidade = U&'SANTANA DE PARNA\00CD BA'
+WHERE cidade ILIKE 'SANTANA DE PARNA%BA'
+  AND comum IS NOT NULL
+  AND comum <> U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA'
+  AND trim(upper(comum)) IN (
+    'FAZENDINHA',
+    'FAZENDINHA - SANTANA DE PARNAIBA',
+    'FAZENDINHA - STNA DE PARNAIBA',
+    'BR-22-0272 - FAZENDINHA',
+    'BR-22-0272 - FAZENDINHA - SANTANA DE PARNAIBA'
+  );
 
 -- BR-22-0423 e exclusivamente CENTRAL - CAUCAIA DO ALTO.
 UPDATE public.cadastro
@@ -95,7 +133,19 @@ WHERE comum ILIKE ANY (ARRAY[
   'BR-21-1312%',
   'BR-21-1481%',
   'BR-21-1463%',
-  'BR-22-3396%'
+  'BR-22-3396%',
+  'BR-22-0272%',
+  'FAZENDINHA%'
 ])
 GROUP BY comum, cidade
 ORDER BY comum, cidade;
+
+-- Deve retornar zero linhas. Se retornar algo, ha uma variante nova que deve
+-- ser analisada antes de ser consolidada; nao a apague.
+SELECT comum, cidade, COUNT(*) AS membros_a_revisar
+FROM public.cadastro
+WHERE cidade ILIKE 'SANTANA DE PARNA%BA'
+  AND comum ILIKE '%FAZENDINHA%'
+  AND comum <> U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA'
+GROUP BY comum, cidade
+ORDER BY comum;

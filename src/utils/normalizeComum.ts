@@ -2,6 +2,7 @@ import { normalizeString } from './stringNormalization';
 
 const COMUNS_CANONICAS_POR_CODIGO: Record<string, string> = {
   'BR-22-0423': 'BR-22-0423 - CENTRAL - CAUCAIA DO ALTO',
+  'BR-22-0272': 'BR-22-0272 - FAZENDINHA - STNA DE PARNA\u00cdBA',
 };
 
 export const canonicalizeComum = (comum: string): string => {

@@ -457,7 +457,7 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v12', JSON.stringify(comuns));
+        await robustSetItem('cache_comuns_v13', JSON.stringify(comuns));
         console.log('✅ Comuns salvas no cache V12');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
@@ -499,7 +499,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v12');
+        const cached = await robustGetItem('cache_comuns_v13');
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -1151,7 +1151,11 @@ export const supabaseDataService = {
         });
 
         // 🚨 CORREÇÃO: Usar comumBusca (completo com código) para ancorar a busca
-        const queryComumFilter = `%${comumBusca}%`;
+        // Quando existe codigo, buscar todas as grafias ligadas a ele. O filtro
+        // isSameComum aplicado depois impede misturar comuns diferentes e as
+        // regras canonicas consolidam variantes confirmadas (ex.: Fazendinha).
+        const codigoComum = comumNome.match(/^(?:BR-)?\d{2}-\d{3,6}/i)?.[0] || '';
+        const queryComumFilter = `%${codigoComum || comumBusca}%`;
 
         // Extrair nome sem código do nome original também (caso tenha acentos)
         let comumNomeSemCodigo = comumNome.trim();
