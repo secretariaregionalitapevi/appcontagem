@@ -2532,7 +2532,8 @@ export const supabaseDataService = {
   // Registros de Presença
   async createRegistroPresenca(
     registro: RegistroPresenca,
-    skipDuplicateCheck = false
+    skipDuplicateCheck = false,
+    prevalidated = false
   ): Promise<RegistroPresenca> {
     // 🚨 OTIMIZAÇÃO: Medir tempo de processamento
     const inicioTempo = performance.now();
@@ -2907,7 +2908,7 @@ export const supabaseDataService = {
     // IMPORTANTE: Verificar por nome + comum + cargo REAL (não importa o instrumento ou local de ensaio)
     // Baseado na lógica do backupcont/app.js
     // Pular verificação se skipDuplicateCheck = true (usuário confirmou duplicata)
-    if (!skipDuplicateCheck) {
+    if (!skipDuplicateCheck && !prevalidated) {
       await this.checkDuplicataRemota({
         nome: row.nome_completo,
         comum: row.comum,
@@ -3965,6 +3966,7 @@ export const supabaseDataService = {
     instrumento?: string;
     cidade?: string;
     uuid?: string;
+    sameUuidIsDuplicate?: boolean;
     pessoaId?: string;
     isForaRegional?: boolean;
     dataIso: string;
@@ -4007,6 +4009,28 @@ export const supabaseDataService = {
       // Fim do dia local (23:59:59)
       const dataFim = new Date(dataInicio);
       dataFim.setDate(dataFim.getDate() + 1);
+
+      // No clique do usuario, o UUID deterministico e a chave mais rapida e
+      // precisa. A consulta usa o indice/constraint e evita varrer nome/data.
+      if (uuidBusca && params.sameUuidIsDuplicate) {
+        const { data: existingByUuid, error: uuidError } = await supabase
+          .from('presencas')
+          .select('uuid, nome_completo, comum, cargo, instrumento, cidade, data_ensaio, created_at')
+          .eq('uuid', uuidBusca)
+          .maybeSingle();
+
+        if (uuidError) throw uuidError;
+        if (existingByUuid) {
+          const dateSource = existingByUuid.created_at || existingByUuid.data_ensaio;
+          throw new Error(
+            `DUPLICATA_BLOQUEADA:${(existingByUuid.nome_completo || nomeBusca).trim().toUpperCase()}|${(existingByUuid.comum || comumBusca).trim().toUpperCase()}|${formatDate(dateSource)}|${formatTime(dateSource)}|${(existingByUuid.cargo || cargoBusca).trim().toUpperCase()}|${(existingByUuid.instrumento || instrumentoBusca).trim().toUpperCase()}`
+          );
+        }
+
+        // Ausencia dessa chave garante que a pessoa ainda nao foi registrada
+        // nesta comum/data; nao executar a consulta lenta por nome e intervalo.
+        return;
+      }
 
       // 🚨 NOVO: Safety Jitter
       // Pequeno atraso aleatório para desincronizar requisições simultâneas

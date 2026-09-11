@@ -1110,6 +1110,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
               instrumento: instrumentoDuplicata,
               cidade: pessoaDuplicata?.cidade || registro.cidade || '',
               uuid: registro.id,
+              sameUuidIsDuplicate: true,
               pessoaId: registro.pessoa_id,
               isForaRegional: false,
               dataIso: registro.data_hora_registro
@@ -1141,6 +1142,57 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
         // 4. Salvar localmente antes de qualquer operação remota
         console.log('💾 [SUBMIT] Salvando registro na fila para processamento em segundo plano...');
+        // Online: concluir validacao e envio antes de anunciar sucesso.
+        // createRegistro salva na fila automaticamente se a conexao oscilar.
+        if (isOnlineNow) {
+          const envio = await offlineSyncService.createRegistro(registro, false, true);
+
+          if (!envio.success) {
+            const erroEnvio = envio.error || 'Nao foi possivel validar o registro.';
+            const payloadDuplicata = erroEnvio
+              .replace(/^DUPLICATA_BLOQUEADA:\s*/i, '')
+              .replace(/^DUPLICATA:\s*/i, '');
+            const details = payloadDuplicata.split('|');
+            const isDuplicate = /DUPLICATA/i.test(erroEnvio) || details.length >= 4;
+
+            if (isDuplicate) {
+              const pessoaDuplicata = pessoas.find(p => p.id === registro.pessoa_id);
+              const nomeFallback = registro.pessoa_id.startsWith('manual_')
+                ? registro.pessoa_id.replace(/^manual_/, '')
+                : (pessoaDuplicata?.nome_completo || '');
+              const comumFallback = resolveComumById(comuns, registro.comum_id)?.nome || '';
+              const cargoFallback = pessoaDuplicata?.cargo_real || cargos.find(c => c.id === registro.cargo_id)?.nome || '';
+              const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+
+              setDuplicateInfo({
+                nome: details[0] || nomeFallback,
+                comum: details[1] || comumFallback,
+                detalhe: obterDetalheDuplicata(details[4] || cargoFallback, details[5] || instrumentoFallback),
+                data: details[2] || '--/--/----',
+                horario: details[3] || '--:--:--',
+                isForaRegional: Boolean(registro.is_fora_regional),
+              });
+              setPendingRegistro(isForaRegional ? registro : null);
+              setDuplicateModalVisible(true);
+            } else {
+              showToast.error('Erro', erroEnvio);
+            }
+
+            setLoading(false);
+            isSubmittingRef.current = false;
+            return false;
+          }
+
+          const feedbackMsgOnline = envio.error || 'Enviado para Supabase e Google Sheets.';
+          suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
+          showToast.success('Registro salvo!', feedbackMsgOnline, 2500);
+          clearAllFields();
+          setLoading(false);
+          isSubmittingRef.current = false;
+          refreshCount().catch(error => console.warn('[SUBMIT] Contador sera atualizado depois:', error));
+          return true;
+        }
+
         await supabaseDataService.saveRegistroToLocal(registro);
         
         // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)

@@ -455,7 +455,8 @@ export const offlineSyncService = {
 
   async createRegistro(
     registro: RegistroPresenca,
-    skipDuplicateCheck = false
+    skipDuplicateCheck = false,
+    prevalidated = false
   ): Promise<{ success: boolean; error?: string }> {
     // 🚨 OTIMIZAÇÃO: Medir tempo de processamento
     const inicioTempo = performance.now();
@@ -471,7 +472,7 @@ export const offlineSyncService = {
 
     // 🛡️ VERIFICAÇÃO DE DUPLICADOS NO SUPABASE PRIMEIRO (se online)
     // 🚀 OTIMIZAÇÃO: Centralizado em supabaseDataService.checkDuplicataRemota
-    if (isOnline && !skipDuplicateCheck) {
+    if (isOnline && !skipDuplicateCheck && !prevalidated) {
       try {
         // 1. Resolver dados para a busca (Nome, Comum, Cargo Real)
         const isNomeManual = registro.pessoa_id.startsWith('manual_');
@@ -624,29 +625,11 @@ export const offlineSyncService = {
           id: uuidFinal,
         };
 
-        // Enviar ambos em paralelo - Google Sheets é crítico, Supabase é secundário
-        // 🚨 CORREÇÃO CRÍTICA: NÃO capturar erros de duplicata silenciosamente
-        const [sheetsResult, supabaseResult] = await Promise.allSettled([
-          googleSheetsService.sendRegistroToSheet(registroComId),
-          // Supabase em paralelo (não bloqueia se falhar, EXCETO duplicata)
-          supabaseDataService.createRegistroPresenca(registroComId, skipDuplicateCheck).catch(err => {
-            // 🚨 CORREÇÃO: Se for erro de duplicata, propagar o erro (não ignorar)
-            if (err instanceof Error && (
-              err.message.includes('DUPLICATA') ||
-              err.message.includes('DUPLICATA_BLOQUEADA') ||
-              err.message.includes('duplicat')
-            )) {
-              console.error('🚨 Erro de duplicata no Supabase - propagando erro:', err.message);
-              throw err; // Propagar erro de duplicata
-            }
-            // Outros erros do Supabase podem ser ignorados (não críticos)
-            console.warn('⚠️ Erro ao enviar para Supabase (não crítico):', err.message);
-            return null; // Não falhar se Supabase der erro (exceto duplicata)
-          })
+        // Supabase vem primeiro: ele é a autoridade de duplicidade. O Sheets
+        // jamais pode receber o registro antes dessa validação terminar.
+        const [supabaseResult] = await Promise.allSettled([
+          supabaseDataService.createRegistroPresenca(registroComId, skipDuplicateCheck, prevalidated),
         ]);
-
-        const sheetsSuccess = sheetsResult.status === 'fulfilled' && sheetsResult.value.success;
-        const supabaseSuccess = supabaseResult.status === 'fulfilled' && supabaseResult.value !== null;
 
         // 🚨 CORREÇÃO CRÍTICA: Verificar se Supabase retornou erro de duplicata
         // Se retornou erro de duplicata, bloquear mesmo que Google Sheets tenha sucesso
@@ -669,6 +652,12 @@ export const offlineSyncService = {
             };
           }
         }
+
+        const [sheetsResult] = await Promise.allSettled([
+          googleSheetsService.sendRegistroToSheet(registroComId),
+        ]);
+        const sheetsSuccess = sheetsResult.status === 'fulfilled' && sheetsResult.value.success;
+        const supabaseSuccess = supabaseResult.status === 'fulfilled' && supabaseResult.value !== null;
 
         if (sheetsSuccess) {
           // Sucesso - retornar imediatamente (logs reduzidos para performance)
