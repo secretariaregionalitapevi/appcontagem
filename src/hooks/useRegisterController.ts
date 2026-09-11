@@ -25,7 +25,7 @@ import { DuplicateModal } from '../components/DuplicateModal';
 import { NewRegistrationModal } from '../components/NewRegistrationModal';
 import { theme } from '../theme';
 import { supabaseDataService } from '../services/supabaseDataService';
-import { offlineSyncService } from '../services/offlineSyncService';
+import { offlineSyncService, subscribeToSyncCompleted } from '../services/offlineSyncService';
 import { googleSheetsService } from '../services/googleSheetsService';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -130,6 +130,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   const cargoFieldRef = useRef<any>(null); // 🚀 REF: Para focar no cargo (Web: select, Mobile: SimpleSelectField)
   const nomeFieldRef = useRef<NameSelectFieldRef>(null); // 🚀 REF: Para focar no nome após cargo selecionado
   const suppressSyncSuccessToastUntilRef = useRef<number>(0);
+  const notifyReconnectSyncRef = useRef(false);
   const [duplicateModalVisible, setDuplicateModalVisible] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState<{
     nome: string;
@@ -274,15 +275,22 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     }
   }, [syncing, isOnline, refreshCount]);
 
-  const syncDataFast = useCallback(async () => {
+  const syncDataFast = useCallback(async (notifyAfterReconnect = false) => {
     if (syncing) return;
     setSyncing(true);
     try {
       const result = await offlineSyncService.syncAllData({ fastSync: true });
       await refreshCount();
       const successCount = result.syncResult?.successCount || 0;
-      if (successCount > 0 && Date.now() > suppressSyncSuccessToastUntilRef.current) {
-        showToast.success(`${successCount} item(s) sincronizado(s)`);
+      if (
+        successCount > 0 &&
+        (!notifyAfterReconnect && Date.now() > suppressSyncSuccessToastUntilRef.current)
+      ) {
+        const mensagem =
+          successCount === 1
+            ? '1 registro pendente foi enviado com sucesso.'
+            : `${successCount} registros pendentes foram enviados com sucesso.`;
+        showToast.success('Sincroniza\u00e7\u00e3o conclu\u00edda!', mensagem, 3000);
       }
     } catch (error) {
       console.log('📴 [SYNC FAST] Erro:', error);
@@ -290,6 +298,21 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       setSyncing(false);
     }
   }, [syncing, refreshCount]);
+
+  // O evento vem do servico que efetivamente concluiu a fila. Assim, mesmo se
+  // outro gatilho iniciou o processamento, a reconexao sempre recebe feedback.
+  useEffect(() => {
+    return subscribeToSyncCompleted(successCount => {
+      if (!notifyReconnectSyncRef.current) return;
+      notifyReconnectSyncRef.current = false;
+      const mensagem =
+        successCount === 1
+          ? '1 registro pendente foi enviado com sucesso.'
+          : `${successCount} registros pendentes foram enviados com sucesso.`;
+      showToast.success('Sincroniza\u00e7\u00e3o conclu\u00edda!', mensagem, 3000);
+      refreshCount().catch(error => console.warn('[SYNC] Contador sera atualizado depois:', error));
+    });
+  }, [refreshCount]);
 
   useEffect(() => {
     loadInitialData(false);
@@ -299,6 +322,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   useEffect(() => {
     setOnStatusChange((newStatus: boolean) => {
       if (!newStatus) {
+        notifyReconnectSyncRef.current = true;
         // Conexão caiu - apenas logar, sem exibir alerta
         console.log('📵 Conexão perdida - modo offline ativado');
       } else {
@@ -316,7 +340,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
               // Aguardar um pouco para garantir que a conexão está estável
               setTimeout(() => {
                 if (!syncing) {
-                  syncDataFast().catch(error => {
+                  syncDataFast(true).catch(error => {
                     console.error('âŒ Erro na sincronização automática ao voltar online:', error);
                   });
                 }
@@ -338,7 +362,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           });
       }
     });
-  }, [setOnStatusChange, syncing, syncData]);
+  }, [setOnStatusChange, syncing, syncData, syncDataFast]);
 
   // 🚨 SISTEMA EXATO DO BACKUPCONT: Listener para evento online
   useEffect(() => {
@@ -351,7 +375,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           const isReallyOnline = await offlineSyncService.isOnline();
           if (isReallyOnline) {
             console.log('✅ Conectividade real confirmada - processando fila');
-            await syncDataFast();
+            await syncDataFast(true);
             console.log('✅ Fila processada automaticamente via syncDataFast');
           }
         } catch (e) {
@@ -830,6 +854,15 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     }
 
     // Se não encontrou cache, mostrar loading e buscar do banco
+    // Sem conexao e sem dados no cache, nao dispare as varias estrategias de
+    // consulta remota. O cadastro manual continua disponivel no modo offline.
+    if (!isOnline) {
+      console.log('[loadPessoas] Offline e sem cache; busca remota ignorada.');
+      setPessoas([]);
+      setLoadingPessoas(false);
+      return;
+    }
+
     setLoadingPessoas(true);
     setPessoas([]); // Limpar lista imediatamente para feedback visual
 
@@ -1183,7 +1216,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
             return false;
           }
 
-          const feedbackMsgOnline = envio.error || 'Enviado para Supabase e Google Sheets.';
+          const feedbackMsgOnline = 'Registro conclu\u00eddo com sucesso.';
           suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
           showToast.success('Registro salvo!', feedbackMsgOnline, 2500);
           clearAllFields();
@@ -1198,8 +1231,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
         const feedbackMsg = isOnlineNow
-          ? 'Salvo no dispositivo; sincronização iniciada em segundo plano.'
-          : 'Salvo no dispositivo; será sincronizado quando a conexão voltar.';
+          ? 'Registro concluído com sucesso.'
+          : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
         showToast.success('Registro salvo!', feedbackMsg, 2500);
         
@@ -1535,8 +1568,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       await supabaseDataService.saveRegistroToLocal(registro);
 
       const feedbackMsgModal = isOnlineNow
-        ? 'Salvo no dispositivo; sincronização iniciada em segundo plano.'
-        : 'Salvo no dispositivo; será sincronizado quando a conexão voltar.';
+        ? 'Registro concluído com sucesso.'
+        : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
       suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
       showToast.success('Registro salvo!', feedbackMsgModal, 2500);
 

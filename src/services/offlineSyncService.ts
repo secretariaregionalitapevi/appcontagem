@@ -24,6 +24,15 @@ type QueueProcessResult = {
   duplicateCount: number;
   duplicateError?: string;
 };
+type SyncCompletedListener = (successCount: number) => void;
+const syncCompletedListeners = new Set<SyncCompletedListener>();
+
+export const subscribeToSyncCompleted = (listener: SyncCompletedListener): (() => void) => {
+  syncCompletedListeners.add(listener);
+  return () => {
+    syncCompletedListeners.delete(listener);
+  };
+};
 const ONLINE_CACHE_MS = 1000; // Cache reduzido para 1 segundo (mais resiliência no mobile)
 
 
@@ -416,6 +425,10 @@ export const offlineSyncService = {
       };
 
       console.log(`✅ Fila processada: ${result.successCount} enviados, ${result.errorCount} com erro`);
+
+      if (result.successCount > 0) {
+        syncCompletedListeners.forEach(listener => listener(result.successCount));
+      }
 
       // A fila roda em background. Oscilacao de rede nao deve interromper o
       // atendimento com modal; os itens permanecem salvos para a proxima tentativa.

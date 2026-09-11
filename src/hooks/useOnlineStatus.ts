@@ -37,11 +37,11 @@ export const useOnlineStatus = () => {
             console.log('🌐 [useOnlineStatus] Conexão restaurada');
             try {
               const { supabaseDataService } = require('../services/supabaseDataService');
-              const { offlineSyncService } = require('../services/offlineSyncService');
               const registros = await supabaseDataService.getRegistrosPendentesFromLocal();
               if (registros.length > 0) {
                 console.log(`🌐 Sincronizando ${registros.length} registro(s) pendente(s)...`);
-                setTimeout(() => offlineSyncService.processarFilaLocal(true).catch(console.error), 1500);
+                // O controlador da tela processa a fila e exibe o resultado ao usuario.
+                // Nao sincronizar aqui para evitar corrida e sucesso sem notificacao.
               }
             } catch (e) {
               console.warn('⚠️ Erro ao verificar fila:', e);

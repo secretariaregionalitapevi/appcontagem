@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, Animated, ViewStyle } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
@@ -92,7 +91,9 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
       <View style={styles.container}>
         {showBadge && (
           <View style={getBadgeStyle()}>
-            <FontAwesome5 name={getIcon()} size={12} color={getIconColor()} style={styles.icon} />
+            <Text style={[styles.localIcon, { color: getIconColor() }]}>
+              {getIcon() === 'sync-alt' ? '\u21bb' : getIcon() === 'check-circle' ? '\u2713' : '\u231b'}
+            </Text>
             <Text style={getBadgeTextStyle()}>{getText()}</Text>
           </View>
         )}
@@ -100,12 +101,7 @@ export const OfflineBadge: React.FC<OfflineBadgeProps> = ({ count, syncing = fal
       {/* Status Online/Offline - abaixo do badge */}
 
       <View style={styles.statusIndicator}>
-        <FontAwesome5
-          name={isOnline ? 'wifi' : 'wifi'}
-          size={12}
-          color={isOnline ? '#10b981' : '#ef4444'}
-          solid={!isOnline} // Usar estilo sólido quando offline para diferenciar visualmente
-        />
+        <Text style={[styles.statusIcon, { color: isOnline ? '#10b981' : '#ef4444' }]}>\u25cf</Text>
         <Text style={styles.statusText}>{isOnline ? 'Online' : 'Offline'}</Text>
       </View>
     </View>
@@ -200,6 +196,16 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: 2,
+  },
+  localIcon: {
+    marginRight: 2,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  statusIcon: {
+    fontSize: 12,
+    lineHeight: 12,
   },
   statusIndicator: {
     flexDirection: 'row',
