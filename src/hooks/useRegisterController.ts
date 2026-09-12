@@ -31,7 +31,6 @@ import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { Comum, Cargo, Instrumento, Pessoa, RegistroPresenca } from '../types/models';
 import { normalizeString } from '../utils/stringNormalization';
-import { cacheManager } from '../utils/cacheManager';
 import { getCurrentDateTimeISO, formatDate, formatTime } from '../utils/dateUtils';
 import { localStorageService } from '../services/localStorageService';
 import { robustClear } from '../utils/robustStorage';
@@ -126,6 +125,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   const [refreshing, setRefreshing] = useState(false);
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const loadPessoasTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 🚀 OTIMIZAÇÃƒO: Ref para debounce
+  const loadPessoasRequestRef = useRef(0); // Ignora respostas antigas apos troca de filtros
   const comumFieldRef = useRef<AutocompleteFieldRef>(null); // 🚀 REF: Para focar no campo de comum após registro
   const cargoFieldRef = useRef<any>(null); // 🚀 REF: Para focar no cargo (Web: select, Mobile: SimpleSelectField)
   const nomeFieldRef = useRef<NameSelectFieldRef>(null); // 🚀 REF: Para focar no nome após cargo selecionado
@@ -521,6 +521,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         loadPessoas();
       }, 300);
     } else {
+      loadPessoasRequestRef.current += 1;
       setPessoas([]);
       setSelectedPessoa('');
     }
@@ -706,6 +707,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   }, []);
 
   const loadPessoas = async () => {
+    const requestId = ++loadPessoasRequestRef.current;
     console.log('ðŸ” [loadPessoas] Iniciando com:', {
       selectedComum,
       selectedCargo,
@@ -715,153 +717,9 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
     // 🚀 OTIMIZAÇÃƒO: Verificar cache primeiro antes de mostrar loading
     // Buscar nomes de comum e cargo rapidamente (já estão em memória)
-    // 🚀 OTIMIZAÇÃƒO: Resolver nomes mesmo que sejam manuais
-    let comumNome: string | undefined;
-    let cargoNome: string | undefined;
-    let instrumentoNome: string | undefined;
 
-    if (selectedComum.startsWith('manual_')) {
-      comumNome = selectedComum.replace(/^manual_/, '').split('|')[0];
-    } else {
-      comumNome = resolveComumById(comuns, selectedComum)?.nome;
-    }
-
-    if (selectedCargo.startsWith('manual_')) {
-      cargoNome = selectedCargo.replace(/^manual_/, '');
-    } else {
-      cargoNome = cargos.find(c => c.id === selectedCargo)?.nome;
-    }
-
-    if (selectedInstrumento && !isForaRegional) {
-      instrumentoNome = instrumentos.find(i => i.id === selectedInstrumento)?.nome;
-    }
-
-    if (!comumNome || !cargoNome) {
-      setPessoas([]);
-      return;
-    }
-
-    // 🚀 OTIMIZAÇÃƒO: Verificar cache ANTES de mostrar loading
-    const CACHE_VERSION = 'v7'; // Bust cache to apply exact common matching for fora-regional names
-    const cacheKey = `pessoas_${CACHE_VERSION}_${isForaRegional ? 'fora_' : ''}${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
-
-    try {
-      // Tentar buscar do cache primeiro (síncrono/assíncrono rápido)
-      const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
-
-      if (cached && cached.length > 0) {
-        // 🚀 Cache encontrado - aplicar filtro de cargo e converter
-        console.log(
-          `✅ [loadPessoas] Cache encontrado: ${cached.length} pessoas - aplicando filtros`
-        );
-
-        // 🚨 CORREÇÃƒO: Aplicar filtro de cargo tambÃ©m nos dados do cache (mesma lógica do fetchPessoasFromCadastro)
-        let filteredCached = cached;
-        const cargoBusca = cargoNome.trim().toUpperCase();
-        if (
-          cargoBusca !== 'ORGANISTA' &&
-          cargoBusca !== 'MÃšSICO' &&
-          !cargoBusca.includes('MÃšSICO')
-        ) {
-          const cargoBuscaNormalizado = normalizeString(cargoBusca);
-          filteredCached = cached.filter((item: any) => {
-            if (!item.cargo) return false;
-            const itemCargoNormalizado = normalizeString(item.cargo.toUpperCase());
-
-            if (itemCargoNormalizado === cargoBuscaNormalizado) return true;
-            if (itemCargoNormalizado.includes(cargoBuscaNormalizado)) {
-              const cargosConhecidos = [
-                'ORGANISTA',
-                'MÃšSICO',
-                'INSTRUTOR',
-                'INSTRUTORA',
-                'EXAMINADORA',
-              ];
-              const isSubstring = cargosConhecidos.some(
-                c => c !== cargoBuscaNormalizado && c.includes(cargoBuscaNormalizado)
-              );
-              return !isSubstring;
-            }
-            return false;
-          });
-          console.log(
-            `ðŸ” [loadPessoas] Filtro aplicado no cache: ${cached.length} â†’ ${filteredCached.length} resultados`
-          );
-        }
-
-        // Converter dados do cache para formato Pessoa[]
-        const pessoas: Pessoa[] = filteredCached.map((p: any) => {
-          const nomeCompleto = (p.nome || '').trim();
-          const partesNome = nomeCompleto.split(' ').filter((p: string) => p.trim());
-          const primeiroNome = partesNome[0] || '';
-          const ultimoNome = partesNome.length > 1 ? partesNome[partesNome.length - 1] : '';
-
-          // 🚨 NOVO: Mapear ID do instrumento pelo nome (mesma lógica do supabaseDataService)
-          let realInstrumentoId = null;
-          if (p.instrumento) {
-            const instNomeBusca = normalizeInstrumentoForSearch(p.instrumento);
-            // Correspondencia exata: CLARINETE nao pode capturar
-            // CLARINETE BAIXO apenas por ser um prefixo do nome.
-            const instEncontrado = instrumentos.find(
-              i => normalizeInstrumentoForSearch(i.nome) === instNomeBusca
-            );
-            if (instEncontrado) realInstrumentoId = instEncontrado.id;
-          }
-
-          // 🚨 NOVO: Mapear ID do cargo pelo nome real do banco (evita Encarregado virar Músico)
-          let realCargoId = selectedCargo;
-          if (p.cargo) {
-            const cargoNomeBusca = p.cargo.trim().toUpperCase();
-            const cargoEncontrado = cargos.find(c => c.nome.toUpperCase() === cargoNomeBusca);
-            if (cargoEncontrado) {
-              realCargoId = cargoEncontrado.id;
-              console.log(`ðŸ‘” [loadPessoas] Mapeado cargo real: "${cargoNomeBusca}" -> ${realCargoId}`);
-            }
-          }
-
-          const pessoa: Pessoa = {
-            id: p.id || `p_${nomeCompleto.toLowerCase().replace(/\s+/g, '_')}_${(comumNome || '').toLowerCase().replace(/\s+/g, '_')}`,
-            nome: primeiroNome,
-            sobrenome: ultimoNome,
-            nome_completo: nomeCompleto,
-            comum_id: selectedComum,
-            cargo_id: realCargoId,
-            cargo_real: (p.cargo || '').toUpperCase().trim(),
-            instrumento_id: realInstrumentoId || (showInstrumento ? selectedInstrumento : null),
-            cidade: (p.cidade || '').toUpperCase().trim(),
-            nivel: (p.nivel || '').trim().toUpperCase() || null,
-            ativo: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
-          if (
-            p.nivel &&
-            (p.nivel.toUpperCase().includes('OFICIALIZADA') ||
-              p.nivel.toUpperCase().includes('CLASSE'))
-          ) {
-            pessoa.classe_organista = p.nivel.toUpperCase().trim();
-          }
-
-          return pessoa;
-        });
-
-        setPessoas(pessoas);
-        return; // Retornar imediatamente - não precisa buscar do banco
-      }
-    } catch (error) {
-      console.log('ðŸ” [loadPessoas] Erro ao verificar cache, continuando com busca normal:', error);
-    }
-
-    // Se não encontrou cache, mostrar loading e buscar do banco
-    // Sem conexao e sem dados no cache, nao dispare as varias estrategias de
-    // consulta remota. O cadastro manual continua disponivel no modo offline.
-    if (!isOnline) {
-      console.log('[loadPessoas] Offline e sem cache; busca remota ignorada.');
-      setPessoas([]);
-      setLoadingPessoas(false);
-      return;
-    }
+    // O serviço central tenta primeiro o cache validado. Mesmo quando o
+    // indicador de rede oscila, a lista local continua disponível.
 
     setLoadingPessoas(true);
     setPessoas([]); // Limpar lista imediatamente para feedback visual
@@ -882,12 +740,18 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
       console.log(`✅ [loadPessoas] Recebeu ${pessoasData.length} pessoas`);
 
-      setPessoas(pessoasData);
+      if (requestId === loadPessoasRequestRef.current) {
+        setPessoas(pessoasData);
+      }
     } catch (error) {
       console.error('❌ Erro ao carregar pessoas:', error);
-      setPessoas([]);
+      if (requestId === loadPessoasRequestRef.current) {
+        setPessoas([]);
+      }
     } finally {
-      setLoadingPessoas(false);
+      if (requestId === loadPessoasRequestRef.current) {
+        setLoadingPessoas(false);
+      }
     }
   };
 
@@ -1121,117 +985,17 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           return false;
         }
 
-        // 3. A rede serve apenas para feedback; não bloqueia a gravação local.
+        // 3. A rede apenas dispara a sincronização; não bloqueia a confirmação visual.
         const isOnlineNow = isOnline;
-
-        // Na regional, validar no Supabase antes de salvar ou anunciar sucesso.
-        // Fora da regional continua com a confirmacao posterior, e offline continua resiliente.
-        if (isOnlineNow && !isForaRegional) {
-          const pessoaDuplicata = pessoas.find(p => p.id === registro.pessoa_id);
-          const nomeDuplicata = registro.pessoa_id.startsWith('manual_')
-            ? registro.pessoa_id.replace(/^manual_/, '')
-            : (pessoaDuplicata?.nome_completo || [pessoaDuplicata?.nome, pessoaDuplicata?.sobrenome].filter(Boolean).join(' ').trim());
-          const comumDuplicata = resolveComumById(comuns, registro.comum_id)?.nome || '';
-          const cargoDuplicata = pessoaDuplicata?.cargo_real || cargos.find(c => c.id === registro.cargo_id)?.nome || '';
-          const instrumentoDuplicata = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-
-          try {
-            await supabaseDataService.checkDuplicataRemota({
-              nome: nomeDuplicata,
-              comum: comumDuplicata,
-              cargo: cargoDuplicata,
-              instrumento: instrumentoDuplicata,
-              cidade: pessoaDuplicata?.cidade || registro.cidade || '',
-              uuid: registro.id,
-              sameUuidIsDuplicate: true,
-              pessoaId: registro.pessoa_id,
-              isForaRegional: false,
-              dataIso: registro.data_hora_registro
-            });
-          } catch (error) {
-            if (error instanceof Error && error.message.includes('DUPLICATA_BLOQUEADA')) {
-              const infoStr = error.message.split('DUPLICATA_BLOQUEADA:')[1] || '';
-              const details = infoStr ? infoStr.split('|') : [];
-
-              setDuplicateInfo({
-                nome: details[0] || nomeDuplicata,
-                comum: details[1] || comumDuplicata,
-                detalhe: obterDetalheDuplicata(details[4] || cargoDuplicata, details[5] || instrumentoDuplicata),
-                data: details[2] || '--/--/----',
-                horario: details[3] || '--:--:--',
-                isForaRegional: false
-              });
-              setPendingRegistro(null);
-              setDuplicateModalVisible(true);
-              setLoading(false);
-              isSubmittingRef.current = false;
-              return false;
-            }
-
-            // Falhas transitórias não impedem o modo offline; a fila validará novamente ao sincronizar.
-            console.warn('[SUBMIT] Verificação prévia de duplicidade indisponível; mantendo na fila.', error);
-          }
-        }
 
         // 4. Salvar localmente antes de qualquer operação remota
         console.log('💾 [SUBMIT] Salvando registro na fila para processamento em segundo plano...');
-        // Online: concluir validacao e envio antes de anunciar sucesso.
-        // createRegistro salva na fila automaticamente se a conexao oscilar.
-        if (isOnlineNow) {
-          const envio = await offlineSyncService.createRegistro(registro, false, true);
-
-          if (!envio.success) {
-            const erroEnvio = envio.error || 'Nao foi possivel validar o registro.';
-            const payloadDuplicata = erroEnvio
-              .replace(/^DUPLICATA_BLOQUEADA:\s*/i, '')
-              .replace(/^DUPLICATA:\s*/i, '');
-            const details = payloadDuplicata.split('|');
-            const isDuplicate = /DUPLICATA/i.test(erroEnvio) || details.length >= 4;
-
-            if (isDuplicate) {
-              const pessoaDuplicata = pessoas.find(p => p.id === registro.pessoa_id);
-              const nomeFallback = registro.pessoa_id.startsWith('manual_')
-                ? registro.pessoa_id.replace(/^manual_/, '')
-                : (pessoaDuplicata?.nome_completo || '');
-              const comumFallback = resolveComumById(comuns, registro.comum_id)?.nome || '';
-              const cargoFallback = pessoaDuplicata?.cargo_real || cargos.find(c => c.id === registro.cargo_id)?.nome || '';
-              const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-
-              setDuplicateInfo({
-                nome: details[0] || nomeFallback,
-                comum: details[1] || comumFallback,
-                detalhe: obterDetalheDuplicata(details[4] || cargoFallback, details[5] || instrumentoFallback),
-                data: details[2] || '--/--/----',
-                horario: details[3] || '--:--:--',
-                isForaRegional: Boolean(registro.is_fora_regional),
-              });
-              setPendingRegistro(isForaRegional ? registro : null);
-              setDuplicateModalVisible(true);
-            } else {
-              showToast.error('Erro', erroEnvio);
-            }
-
-            setLoading(false);
-            isSubmittingRef.current = false;
-            return false;
-          }
-
-          const feedbackMsgOnline = 'Registro conclu\u00eddo com sucesso.';
-          suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-          showToast.success('Registro salvo!', feedbackMsgOnline, 2500);
-          clearAllFields();
-          setLoading(false);
-          isSubmittingRef.current = false;
-          refreshCount().catch(error => console.warn('[SUBMIT] Contador sera atualizado depois:', error));
-          return true;
-        }
-
         await supabaseDataService.saveRegistroToLocal(registro);
         
         // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
         const feedbackMsg = isOnlineNow
-          ? 'Registro concluído com sucesso.'
+          ? 'Registro recebido. O envio está sendo concluído em segundo plano.'
           : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
         showToast.success('Registro salvo!', feedbackMsg, 2500);

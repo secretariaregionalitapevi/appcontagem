@@ -7,13 +7,23 @@ import { authService } from './authService';
 import { uuidv4 } from '../utils/uuid';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { formatDate, formatTime } from '../utils/dateUtils';
-import { robustRemoveItem, robustSetCriticalItem } from '../utils/robustStorage';
+import { robustGetItem, robustSetCriticalItem } from '../utils/robustStorage';
 import { resolveComumById } from '../utils/normalizeComum';
 
 // 🚨 PROTEÇÃO: Flag global para evitar processamento duplicado simultâneo
 let isProcessingQueue = false;
 let lastProcessTimestamp = 0;
 const PROCESS_COOLDOWN = 2000; // 2 segundos de cooldown entre processamentos
+let queueProcessRequested = false;
+let queueProcessTimer: ReturnType<typeof setTimeout> | null = null;
+
+const scheduleQueueProcessing = (delayMs: number) => {
+  if (queueProcessTimer) return;
+  queueProcessTimer = setTimeout(() => {
+    queueProcessTimer = null;
+    void offlineSyncService.processarFilaLocal(true);
+  }, delayMs);
+};
 
 // 🌐 CACHE DE CONECTIVIDADE: Evitar pings excessivos
 let lastOnlineCheck = 0;
@@ -186,7 +196,8 @@ export const offlineSyncService = {
     // 🚨 PROTEÇÃO: Evitar processamento duplicado simultâneo (ex: F5, múltiplos eventos online)
     const now = Date.now();
     if (isProcessingQueue) {
-      console.log('⚠️ Processamento da fila já em andamento, ignorando chamada duplicada');
+      console.log('⚠️ Processamento da fila já em andamento, nova passagem agendada');
+      queueProcessRequested = true;
       return { successCount: 0, errorCount: 0, duplicateCount: 0 };
     }
 
@@ -194,6 +205,7 @@ export const offlineSyncService = {
     if (now - lastProcessTimestamp < PROCESS_COOLDOWN) {
       const remainingCooldown = PROCESS_COOLDOWN - (now - lastProcessTimestamp);
       console.log(`⚠️ Processamento muito recente, aguardando ${remainingCooldown}ms antes de processar novamente`);
+      scheduleQueueProcessing(remainingCooldown + 25);
       return { successCount: 0, errorCount: 0, duplicateCount: 0 };
     }
 
@@ -379,24 +391,19 @@ export const offlineSyncService = {
           await new Promise(resolve => setTimeout(resolve, 150)); // Reduzido de 300ms para 150ms
         }
       }
-
-      // Atualiza fila removendo itens processados
-      // Salvar apenas itens com erro de volta na fila
+      // Atualize apenas os itens que falharam. A fila pode ter recebido novos
+      // registros enquanto as chamadas remotas estavam em andamento; esses itens
+      // nao pertencem ao snapshot inicial e precisam ser preservados.
       if (itensComErro.length > 0) {
         const filaKey = 'fila_registros_presenca';
-        for (const item of itensComErro) {
-          if (item.id) {
-            await supabaseDataService.deleteRegistroFromLocal(item.id);
-          }
-        }
-        await robustSetCriticalItem(filaKey, JSON.stringify(itensComErro));
-      } else {
-        // Se não há erros, limpar fila completamente
-        const filaKey = 'fila_registros_presenca';
-        await robustRemoveItem(filaKey);
+        const filaDataAtual = await robustGetItem(filaKey);
+        const filaAtual: RegistroPresenca[] = filaDataAtual ? JSON.parse(filaDataAtual) : [];
+        const errosPorId = new Map(itensComErro.map(item => [item.id, item]));
+        const filaReconciliada = filaAtual.map(item => errosPorId.get(item.id) || item);
+        await robustSetCriticalItem(filaKey, JSON.stringify(filaReconciliada));
       }
 
-      // Remover itens processados do storage local também
+      // Remover itens processados do storage local tambem
       for (const item of itensProcessados) {
         if (item.id) {
           try {
@@ -444,6 +451,11 @@ export const offlineSyncService = {
     } finally {
       // 🚨 PROTEÇÃO: Sempre liberar flag de processamento, mesmo em caso de erro
       isProcessingQueue = false;
+      if (queueProcessRequested) {
+        queueProcessRequested = false;
+        const elapsed = Date.now() - lastProcessTimestamp;
+        scheduleQueueProcessing(Math.max(25, PROCESS_COOLDOWN - elapsed));
+      }
     }
   },
 

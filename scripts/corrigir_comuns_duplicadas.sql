@@ -4,55 +4,61 @@
 -- - CAPELA VELHA - SURU permanece BR-21-1303
 -- - PEDRAS deve ficar BR-22-0424 - PEDRAS - COTIA
 -- - PARQUE SANTANA deve ficar PARQUE SANTANA I / II
--- - FAZENDINHA (SANTANA DE PARNAIBA) deve ficar
---   BR-22-0272 - FAZENDINHA - STNA DE PARNAIBA
---
--- IMPORTANTE: as comuns exibidas no aplicativo sao derivadas dos valores da
--- coluna cadastro.comum. Nao apague registros da variante incorreta: mova os
--- membros para a grafia oficial.
 
 BEGIN;
-
--- Aborta se o destino oficial nao existir, evitando consolidacao acidental em
--- um valor digitado incorretamente. U& mantem os literais Unicode portaveis.
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM public.cadastro
-    WHERE comum = U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA'
-      AND cidade = U&'SANTANA DE PARNA\00CD BA'
-  ) THEN
-    RAISE EXCEPTION
-      'Comum oficial da Fazendinha nao encontrada; nenhuma alteracao foi aplicada';
-  END IF;
-END
-$$;
-
--- Preserva id, nome, cargo, instrumento, nivel e todos os demais dados dos
--- membros. Somente comum/cidade sao corrigidas nas variantes inequivocas.
-UPDATE public.cadastro
-SET comum = U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA',
-    cidade = U&'SANTANA DE PARNA\00CD BA'
-WHERE cidade ILIKE 'SANTANA DE PARNA%BA'
-  AND comum IS NOT NULL
-  AND comum <> U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA'
-  AND trim(upper(comum)) IN (
-    'FAZENDINHA',
-    'FAZENDINHA - SANTANA DE PARNAIBA',
-    'FAZENDINHA - STNA DE PARNAIBA',
-    'BR-22-0272 - FAZENDINHA',
-    'BR-22-0272 - FAZENDINHA - SANTANA DE PARNAIBA'
-  );
 
 -- BR-22-0423 e exclusivamente CENTRAL - CAUCAIA DO ALTO.
 UPDATE public.cadastro
 SET comum = 'BR-22-0423 - CENTRAL - CAUCAIA DO ALTO'
 WHERE comum LIKE 'BR-22-0423%';
 
+-- Identidades oficiais confirmadas: corrige qualquer variante antiga pelo nome,
+-- preservando todos os demais campos do cadastro.
 UPDATE public.cadastro
-SET comum = 'BR-21-1303 - CAPELA VELHA - SURU'
-WHERE comum = 'BR-21-1251 - CAPELA VELHA - SURU';
+SET comum = 'BR-21-1251 - ALPHAVILLE',
+    cidade = 'SANTANA DE PARNAÍBA'
+WHERE comum ILIKE '%ALPHAVILLE%'
+  AND (comum, COALESCE(cidade, '')) IS DISTINCT FROM
+      ('BR-21-1251 - ALPHAVILLE', 'SANTANA DE PARNAÍBA');
+
+UPDATE public.cadastro
+SET comum = 'BR-21-1303 - CAPELA VELHA - SURU',
+    cidade = 'SANTANA DE PARNAÍBA'
+WHERE comum ILIKE '%CAPELA VELHA%'
+  AND comum ILIKE '%SURU%'
+  AND (comum, COALESCE(cidade, '')) IS DISTINCT FROM
+      ('BR-21-1303 - CAPELA VELHA - SURU', 'SANTANA DE PARNAÍBA');
+
+-- Barreira definitiva contra regressão em importações futuras: nomes e códigos
+-- precisam permanecer associados exatamente à identidade oficial.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'public.cadastro'::regclass
+      AND conname = 'cadastro_codigos_alphaville_capela_chk'
+  ) THEN
+    ALTER TABLE public.cadastro
+      ADD CONSTRAINT cadastro_codigos_alphaville_capela_chk
+      CHECK (
+        (UPPER(COALESCE(comum, '')) NOT LIKE '%ALPHAVILLE%'
+          OR TRIM(comum) = 'BR-21-1251 - ALPHAVILLE')
+        AND
+        (NOT (
+          UPPER(COALESCE(comum, '')) LIKE '%CAPELA VELHA%'
+          AND UPPER(COALESCE(comum, '')) LIKE '%SURU%'
+        ) OR TRIM(comum) = 'BR-21-1303 - CAPELA VELHA - SURU')
+        AND
+        (UPPER(TRIM(COALESCE(comum, ''))) NOT LIKE 'BR-21-1251%'
+          OR TRIM(comum) = 'BR-21-1251 - ALPHAVILLE')
+        AND
+        (UPPER(TRIM(COALESCE(comum, ''))) NOT LIKE 'BR-21-1303%'
+          OR TRIM(comum) = 'BR-21-1303 - CAPELA VELHA - SURU')
+      );
+  END IF;
+END
+$$;
 
 UPDATE public.cadastro
 SET comum = 'BR-22-0424 - PEDRAS - COTIA'
@@ -99,17 +105,34 @@ SET comum = 'BR-22-3865 - JARDIM BANDEIRANTES'
 WHERE comum = 'BR-22-3865 - JARDIM BANDEIRANTES - VOTUPARIM';
 
 UPDATE public.cadastro
-SET comum = 'BR-21-1312 - SITIO JOSÉ TEIXEIRA - ITAPEVI'
+SET comum = 'BR-21-1312 - SÍTIO JOSÉ TEIXEIRA - ITAPEVI'
 WHERE comum = 'BR-21-1312 - SÍTIO JOSÉ TEIXEIRA - ITAPEVI';
 
 UPDATE public.cadastro
-SET comum = 'BR-21-1481 - RECANTO DOS PASSAROS'
+SET comum = 'BR-21-1481 - RECANTO DOS PÁSSAROS - JARDIN NOVA COTIA'
 WHERE comum = 'BR-21-1481 - RECANTO DOS PÁSSAROS - JARDIM NOVA COTIA';
 
 UPDATE public.cadastro
 SET comum = 'BR-22-3396 - MORADAS SANTA FÉ'
 WHERE comum = 'BR-21-1463 - MORADAS SANTA FÉ';
 
+-- Falha a transacao se qualquer associacao incorreta ainda existir.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.cadastro
+    WHERE comum ILIKE '%ALPHAVILLE%'
+      AND TRIM(comum) <> 'BR-21-1251 - ALPHAVILLE'
+  ) OR EXISTS (
+    SELECT 1 FROM public.cadastro
+    WHERE comum ILIKE '%CAPELA VELHA%'
+      AND comum ILIKE '%SURU%'
+      AND TRIM(comum) <> 'BR-21-1303 - CAPELA VELHA - SURU'
+  ) THEN
+    RAISE EXCEPTION 'Associacao oficial de Alphaville/Capela Velha ainda inconsistente';
+  END IF;
+END
+$$;
 COMMIT;
 
 -- Verificacao pos-correcao:
@@ -133,19 +156,7 @@ WHERE comum ILIKE ANY (ARRAY[
   'BR-21-1312%',
   'BR-21-1481%',
   'BR-21-1463%',
-  'BR-22-3396%',
-  'BR-22-0272%',
-  'FAZENDINHA%'
+  'BR-22-3396%'
 ])
 GROUP BY comum, cidade
 ORDER BY comum, cidade;
-
--- Deve retornar zero linhas. Se retornar algo, ha uma variante nova que deve
--- ser analisada antes de ser consolidada; nao a apague.
-SELECT comum, cidade, COUNT(*) AS membros_a_revisar
-FROM public.cadastro
-WHERE cidade ILIKE 'SANTANA DE PARNA%BA'
-  AND comum ILIKE '%FAZENDINHA%'
-  AND comum <> U&'BR-22-0272 - FAZENDINHA - STNA DE PARNA\00CD BA'
-GROUP BY comum, cidade
-ORDER BY comum;

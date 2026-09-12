@@ -924,7 +924,7 @@ export const supabaseDataService = {
 
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
     // 🚨 CORREÇÃO: Adicionar versão ao cache key para invalidar caches antigos quando a lógica mudar
-    const CACHE_VERSION = 'v7'; // Invalida buscas vazias de clarinete baixo
+    const CACHE_VERSION = 'v8'; // Identidade por codigo e busca MUSICO/MÚSICO corrigidas
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
     const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
     if (cached) {
@@ -1202,7 +1202,7 @@ export const supabaseDataService = {
                 .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
             } else {
               query1 = query1
-                .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,instrumento.not.is.null`)
+                .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%MUSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,cargo.ilike.%SECRETARIO%,instrumento.not.is.null`)
                 .not('instrumento', 'ilike', '%ÓRGÃO%'); // 🚨 UNICA EXCLUSÃO: Organistas da lista de músicos
               console.log('🔍 [fetchPessoasFromCadastro] Busca inclusive (Todos os cargos musicais)');
             }
@@ -1298,7 +1298,7 @@ export const supabaseDataService = {
                     .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
                 } else {
                   q = q
-                    .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,instrumento.not.is.null`)
+                    .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%MUSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,cargo.ilike.%SECRETARIO%,instrumento.not.is.null`)
                     .not('instrumento', 'ilike', '%ÓRGÃO%');
                 }
               }
@@ -1481,7 +1481,7 @@ export const supabaseDataService = {
                       .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
                   } else {
                     queryFinal = queryFinal
-                      .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,instrumento.not.is.null`)
+                      .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%MUSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,cargo.ilike.%SECRETARIO%,instrumento.not.is.null`)
                       .not('instrumento', 'ilike', '%ÓRGÃO%');
                   }
                 }
@@ -1551,7 +1551,7 @@ export const supabaseDataService = {
                 .or('cargo.ilike.%SECRETÁRIA DA MÚSICA%');
             } else {
               query = query
-                .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,instrumento.not.is.null`)
+                .or(`cargo.ilike.%MÚSICO%,cargo.ilike.%MUSICO%,cargo.ilike.%ENCARREGADO%,cargo.ilike.%INSTRUTOR%,cargo.ilike.%SECRETÁRIO%,cargo.ilike.%SECRETARIO%,instrumento.not.is.null`)
                 .not('instrumento', 'ilike', '%ÓRGÃO%');
             }
           }

@@ -5,8 +5,24 @@ const COMUNS_CANONICAS_POR_CODIGO: Record<string, string> = {
   'BR-22-0272': 'BR-22-0272 - FAZENDINHA - STNA DE PARNA\u00cdBA',
 };
 
+// Exceções históricas nas quais o mesmo código foi usado por comuns distintas.
+// Nesses casos, o nome continua obrigatório para evitar misturar cadastros.
+const CODIGOS_COMPARTILHADOS = new Set(['BR-21-1251']);
+
 export const canonicalizeComum = (comum: string): string => {
   const texto = (comum || '').replace(/\s+/g, ' ').trim();
+  const nomeNormalizado = normalizeString(texto);
+
+  // Identidades oficiais confirmadas pelo relatorio da CCB. O nome vem antes
+  // do codigo para recuperar importacoes antigas em que Capela Velha recebeu
+  // incorretamente o codigo de Alphaville.
+  if (nomeNormalizado.includes('ALPHAVILLE')) {
+    return 'BR-21-1251 - ALPHAVILLE';
+  }
+  if (nomeNormalizado.includes('CAPELA VELHA') && nomeNormalizado.includes('SURU')) {
+    return 'BR-21-1303 - CAPELA VELHA - SURU';
+  }
+
   const codigo = texto.match(/^(?:BR-)?\d{2}-\d{3,6}/i)?.[0]?.toUpperCase() || '';
   return COMUNS_CANONICAS_POR_CODIGO[codigo] || texto;
 };
@@ -111,8 +127,12 @@ export const isSameComum = (
   const selecionada = extractComumParts(comumSelecionada);
   const registro = extractComumParts(comumRegistro);
 
-  if (selecionada.codigo && registro.codigo && selecionada.codigo !== registro.codigo) {
-    return false;
+  if (selecionada.codigo && registro.codigo) {
+    if (selecionada.codigo !== registro.codigo) return false;
+
+    // O código regional é a identidade mais estável. Assim, membros ainda
+    // gravados com uma variante textual do mesmo código continuam aparecendo.
+    if (!CODIGOS_COMPARTILHADOS.has(selecionada.codigo)) return true;
   }
 
   const nomeSelecionado = normalizeString(
