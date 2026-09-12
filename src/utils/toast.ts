@@ -156,6 +156,45 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
 };
 
 export const showToast = {
+  quickSuccess: (title: string, message?: string, duration: number = 1000) => {
+    if (Platform.OS === 'web') {
+      const Swal = getSwal();
+      if (Swal) {
+        Swal.fire(getSwalOptions(title, message, 'success', false, duration, 'top-end', true));
+      }
+    } else if (Toast) {
+      triggerHaptic('success');
+      Toast.show({
+        type: 'success',
+        text1: title,
+        text2: message,
+        position: 'top',
+        visibilityTime: duration,
+        autoHide: true,
+        topOffset: Platform.OS === 'ios' ? 60 : 50,
+      });
+    }
+  },
+
+  quickWarning: (title: string, message?: string, duration: number = 1800) => {
+    if (Platform.OS === 'web') {
+      const Swal = getSwal();
+      if (Swal) {
+        Swal.fire(getSwalOptions(title, message, 'warning', false, duration, 'top-end', true));
+      }
+    } else if (Toast) {
+      triggerHaptic('warning');
+      Toast.show({
+        type: 'info',
+        text1: title,
+        text2: message,
+        position: 'top',
+        visibilityTime: duration,
+        autoHide: true,
+        topOffset: Platform.OS === 'ios' ? 60 : 50,
+      });
+    }
+  },
   success: (title: string, message?: string, duration: number = 2000) => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();

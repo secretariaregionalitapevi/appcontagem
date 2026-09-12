@@ -524,6 +524,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       loadPessoasRequestRef.current += 1;
       setPessoas([]);
       setSelectedPessoa('');
+      setLoadingPessoas(false);
     }
 
     // Cleanup: limpar timeout ao desmontar ou quando dependências mudarem
@@ -977,28 +978,82 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
             horario: dupLocal.horario,
             isForaRegional: Boolean(registro.is_fora_regional)
           });
-          setPendingRegistro(registro);
+          setPendingRegistro(isForaRegional ? registro : null);
           setDuplicateModalVisible(true);
-          await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
           setLoading(false);
           isSubmittingRef.current = false;
           return false;
         }
 
-        // 3. A rede apenas dispara a sincronização; não bloqueia a confirmação visual.
-        const isOnlineNow = isOnline;
+        // 3. O Supabase é a autoridade: validar e inserir antes de confirmar.
+        // Assim não existe janela entre "não é duplicado" e a gravação.
+        let isOnlineNow = isOnline;
+        if (isOnlineNow) {
+          try {
+            const registroConfirmado = await supabaseDataService.createRegistroPresenca(registro, false);
+            registro.id = registroConfirmado.id || registro.id;
+            registro.sync_supabase_ok = true;
+            registro.duplicate_check_completed = true;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+
+            if (message.includes('DUPLICATA_BLOQUEADA')) {
+              const details = (message.split('DUPLICATA_BLOQUEADA:')[1] || '').split('|');
+              const pessoaSelecionada = pessoas.find(p => p.id === registro.pessoa_id);
+              const nomePessoa = registro.pessoa_id.startsWith('manual_')
+                ? registro.pessoa_id.replace(/^manual_/, '')
+                : [pessoaSelecionada?.nome, pessoaSelecionada?.sobrenome].filter(Boolean).join(' ').trim();
+              const comumSelecionada = resolveComumById(comuns, registro.comum_id);
+              const cargoSelecionado = cargos.find(c => c.id === registro.cargo_id);
+              const instrumentoSelecionado = instrumentos.find(i => i.id === registro.instrumento_id);
+
+              setDuplicateInfo({
+                nome: Boolean(registro.is_fora_regional)
+                  ? obterNomeCurto(details[0] || nomePessoa)
+                  : (details[0] || nomePessoa),
+                comum: details[1] || comumSelecionada?.nome || '',
+                detalhe: obterDetalheDuplicata(
+                  details[4] || pessoaSelecionada?.cargo_real || cargoSelecionado?.nome,
+                  details[5] || instrumentoSelecionado?.nome
+                ),
+                data: details[2] || formatDate(registro.data_hora_registro),
+                horario: details[3] || formatTime(registro.data_hora_registro),
+                isForaRegional: Boolean(registro.is_fora_regional),
+              });
+              setPendingRegistro(isForaRegional ? registro : null);
+              setDuplicateModalVisible(true);
+              setLoading(false);
+              isSubmittingRef.current = false;
+              return false;
+            }
+
+            // Falha de rede/serviço: preservar localmente sem afirmar conclusão remota.
+            console.warn('[SUBMIT] Supabase indisponível; registro será preservado localmente.', error);
+            isOnlineNow = false;
+            registro.sync_supabase_ok = false;
+            registro.duplicate_check_completed = false;
+          }
+        }
 
         // 4. Salvar localmente antes de qualquer operação remota
         console.log('💾 [SUBMIT] Salvando registro na fila para processamento em segundo plano...');
-        await supabaseDataService.saveRegistroToLocal(registro);
+        const localSaveStartedAt = performance.now();
+        await supabaseDataService.saveRegistroToLocal(registro, true);
+        console.log(
+          `⚡ [SUBMIT] Registro persistido localmente em ${(performance.now() - localSaveStartedAt).toFixed(2)}ms`
+        );
         
         // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
         const feedbackMsg = isOnlineNow
-          ? 'Registro recebido. O envio está sendo concluído em segundo plano.'
+          ? 'Você já pode realizar o próximo cadastro.'
           : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-        showToast.success('Registro salvo!', feedbackMsg, 2500);
+        showToast.success(
+          isOnlineNow ? 'Presença registrada!' : 'Registro salvo!',
+          feedbackMsg,
+          isOnlineNow ? 1200 : 2500
+        );
         
         // Limpar campos imediatamente
         clearAllFields();
@@ -1009,65 +1064,25 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         refreshCount().catch(error => console.warn('[SUBMIT] Contador será atualizado depois:', error));
 
         if (isOnlineNow) {
-          offlineSyncService.processarFilaLocal(true)
-            .then(async syncResult => {
-              if (syncResult.duplicateCount > 0) {
-                console.warn(
-                  '⚠️ [SUBMIT] Duplicidade detectada no processamento em background.',
-                  syncResult.duplicateError
-                );
-
-                if (isForaRegional) {
-                  // Fora da regional: pode ser pessoa diferente com mesmo nome.
-                  // Mostrar modal com opção de cadastrar mesmo assim.
-                  const infoStr = syncResult.duplicateError?.split('DUPLICATA_BLOQUEADA:')[1] || '';
-                  const details = infoStr ? infoStr.split('|') : [];
-                  const nomeFallback = registro.pessoa_id.startsWith('manual_')
-                    ? registro.pessoa_id.replace('manual_', '')
-                    : '';
-                  const comumFallback = resolveComumById(comuns, registro.comum_id)?.nome || '';
-                  const cargoFallback = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
-                  const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-
-                  setDuplicateInfo({
-                    nome: details[0] || nomeFallback,
-                    comum: details[1] || comumFallback,
-                    detalhe: obterDetalheDuplicata(details[4] || cargoFallback, details[5] || instrumentoFallback),
-                    data: details[2] || '--/--/----',
-                    horario: details[3] || '--:--:--',
-                    isForaRegional: Boolean(registro.is_fora_regional)
-                  });
-                  // Guardar registro original para o "cadastrar mesmo assim"
-                  setPendingRegistro(registro);
-                  setDuplicateModalVisible(true);
-                } else {
-                  // Dentro da regional: manter bloqueado e exigir fechamento explícito do modal.
-                  const infoStr = syncResult.duplicateError?.split('DUPLICATA_BLOQUEADA:')[1] || '';
-                  const details = infoStr ? infoStr.split('|') : [];
-                  const nomeFallback = registro.pessoa_id.startsWith('manual_')
-                    ? registro.pessoa_id.replace('manual_', '')
-                    : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
-                  const comumFallback = resolveComumById(comuns, registro.comum_id)?.nome || '';
-                  const cargoFallback = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
-                  const instrumentoFallback = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-
-                  setDuplicateInfo({
-                    nome: details[0] || nomeFallback,
-                    comum: details[1] || comumFallback,
-                    detalhe: obterDetalheDuplicata(details[4] || cargoFallback, details[5] || instrumentoFallback),
-                    data: details[2] || '--/--/----',
-                    horario: details[3] || '--:--:--',
-                    isForaRegional: false
-                  });
-                  setPendingRegistro(null);
-                  setDuplicateModalVisible(true);
+          // Permitir que o formulário limpo seja renderizado antes de iniciar a fila remota.
+          setTimeout(() => {
+            offlineSyncService.processarFilaLocal(true)
+              .then(async syncResult => {
+                // Se a fila encontrar depois um registro que já existe, o estado
+                // desejado já foi alcançado. Tratar como idempotência e nunca
+                // interromper o próximo atendimento com um modal tardio.
+                if (syncResult.duplicateCount > 0) {
+                  console.info(
+                    '[SUBMIT] Registro já existente confirmado pela fila; nenhuma ação do usuário é necessária.',
+                    syncResult.duplicateError
+                  );
                 }
-              }
-              await refreshCount();
-            })
-            .catch(err => {
-              console.error('[SUBMIT] Erro na sincronizacao em background:', err);
-            });
+                await refreshCount();
+              })
+              .catch(err => {
+                console.error('[SUBMIT] Erro na sincronizacao em background:', err);
+              });
+          }, 100);
 
           return true;
         }
@@ -1317,25 +1332,86 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         });
         setPendingRegistro(registro);
         setDuplicateModalVisible(true);
-        await supabaseDataService.deleteRegistrosDuplicadosFromLocal(registro);
         setNewRegistrationModalVisible(false);
         setLoading(false);
         isSubmittingRef.current = false;
         return;
       }
 
-      // 3. Duplicidade remota será tratada pela fila depois da gravação local.
+      // 3. Para cadastro manual/externo, validar por identidade de negócio antes
+      // de enfileirar, pois o UUID externo é aleatório.
+      if (isOnline) {
+        const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || data.instrumento || '';
+        try {
+          registro.duplicate_check_completed = await supabaseDataService.checkDuplicataRemota({
+            nome: data.nome,
+            comum: data.comum,
+            cargo: cargoObj.nome,
+            instrumento: instrumentoNome,
+            cidade: data.cidade,
+            uuid: registro.id,
+            pessoaId: registro.pessoa_id,
+            isForaRegional: true,
+            dataIso: registro.data_hora_registro,
+          });
+          if (!registro.duplicate_check_completed) {
+            await new Promise(resolve => setTimeout(resolve, 150));
+            registro.duplicate_check_completed = await supabaseDataService.checkDuplicataRemota({
+              nome: data.nome,
+              comum: data.comum,
+              cargo: cargoObj.nome,
+              instrumento: instrumentoNome,
+              cidade: data.cidade,
+              uuid: registro.id,
+              pessoaId: registro.pessoa_id,
+              isForaRegional: true,
+              dataIso: registro.data_hora_registro,
+            });
+          }
+
+          if (!registro.duplicate_check_completed) {
+            showToast.quickWarning('Não foi possível concluir', 'Tente novamente em instantes.');
+            setLoading(false);
+            isSubmittingRef.current = false;
+            return;
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (!message.includes('DUPLICATA_BLOQUEADA')) throw error;
+          const details = (message.split('DUPLICATA_BLOQUEADA:')[1] || '').split('|');
+          setDuplicateInfo({
+            nome: obterNomeCurto(details[0] || data.nome.toUpperCase()),
+            comum: details[1] || data.comum.toUpperCase(),
+            detalhe: obterDetalheDuplicata(details[4] || cargoObj.nome, details[5] || instrumentoNome),
+            data: details[2] || formatDate(registro.data_hora_registro),
+            horario: details[3] || formatTime(registro.data_hora_registro),
+            isForaRegional: true,
+          });
+          setPendingRegistro(registro);
+          setDuplicateModalVisible(true);
+          setNewRegistrationModalVisible(false);
+          setLoading(false);
+          isSubmittingRef.current = false;
+          return;
+        }
+      }
+
+      // A rede só processa um registro que já passou pela decisão de duplicidade.
       const isOnlineNow = isOnline;
 
       // 4. Salvar localmente antes de qualquer operação remota
       console.log('ðŸ’¾ [MODAL] Salvando registro externo na fila...');
-      await supabaseDataService.saveRegistroToLocal(registro);
+      await supabaseDataService.saveRegistroToLocal(registro, true);
 
       const feedbackMsgModal = isOnlineNow
-        ? 'Registro concluído com sucesso.'
+        ? 'Você já pode realizar o próximo cadastro.'
         : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
       suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
-      showToast.success('Registro salvo!', feedbackMsgModal, 2500);
+      showToast.success(
+        isOnlineNow ? 'Presença registrada!' : 'Registro salvo!',
+        feedbackMsgModal,
+        isOnlineNow ? 1200 : 2500
+      );
 
       setNewRegistrationModalVisible(false);
       setSelectedComum('');
@@ -1346,9 +1422,11 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       refreshCount().catch(error => console.warn('[MODAL] Contador será atualizado depois:', error));
 
       if (isOnlineNow) {
-        offlineSyncService.processarFilaLocal(true).catch(err => {
-          console.error('[MODAL] Erro na sincronizacao em background:', err);
-        });
+        setTimeout(() => {
+          offlineSyncService.processarFilaLocal(true).catch(err => {
+            console.error('[MODAL] Erro na sincronizacao em background:', err);
+          });
+        }, 100);
       }
 
       return;

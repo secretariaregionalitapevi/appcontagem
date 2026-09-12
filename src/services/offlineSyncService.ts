@@ -286,7 +286,7 @@ export const offlineSyncService = {
             console.log(`✅ Item ${i + 1}: Supabase já confirmado anteriormente`);
           } else {
             try {
-              await supabaseDataService.createRegistroPresenca(itemEmProcessamento, false);
+              await supabaseDataService.createRegistroPresenca(itemEmProcessamento, false, itemEmProcessamento.duplicate_check_completed === true);
               console.log(`✅ Item ${i + 1}: Supabase OK`);
               supabaseSuccess = true;
               itemEmProcessamento.sync_supabase_ok = true;

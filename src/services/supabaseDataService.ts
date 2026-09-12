@@ -3347,7 +3347,7 @@ export const supabaseDataService = {
     return blockedDuplicateKeys.has(getDuplicateBlockKey(registro));
   },
 
-  async saveRegistroToLocal(registro: RegistroPresenca): Promise<void> {
+  async saveRegistroToLocal(registro: RegistroPresenca, prevalidated = false): Promise<void> {
     // 🚨 BLOQUEIO CRÍTICO: Prevenir salvamentos simultâneos do mesmo registro
     const saveKey = `${registro.pessoa_id}_${registro.comum_id}_${registro.cargo_id}_${registro.data_hora_registro} `;
     const now = Date.now();
@@ -3373,14 +3373,16 @@ export const supabaseDataService = {
 
     // 🚨 CORREÇÃO CRÍTICA: Declarar registrosPendentes FORA do try e buscar ANTES de usar
     let registrosPendentes: RegistroPresenca[] = [];
-    try {
-      registrosPendentes = await this.getRegistrosPendentesFromLocal();
-    } catch (error) {
-      console.warn(
+    if (!prevalidated) {
+      try {
+        registrosPendentes = await this.getRegistrosPendentesFromLocal();
+      } catch (error) {
+        console.warn(
         '⚠️ Erro ao buscar registros pendentes, continuando sem validação de duplicata:',
         error
-      );
-      registrosPendentes = []; // Garantir que está definida
+        );
+        registrosPendentes = []; // Garantir que está definida
+      }
     }
 
     try {
@@ -3974,8 +3976,8 @@ export const supabaseDataService = {
     pessoaId?: string;
     isForaRegional?: boolean;
     dataIso: string;
-  }): Promise<void> {
-    if (!isSupabaseConfigured() || !supabase) return;
+  }): Promise<boolean> {
+    if (!isSupabaseConfigured() || !supabase) return false;
 
     try {
       const nomeBusca = (params.nome || '').trim().toUpperCase();
@@ -3991,7 +3993,7 @@ export const supabaseDataService = {
         !!pessoaIdBusca &&
         !pessoaIdBusca.startsWith('manual_');
 
-      if (!nomeBusca || !comumBusca) return;
+      if (!nomeBusca || !comumBusca) return false;
 
       // Tratar YYYY-MM-DD como data local. new Date('YYYY-MM-DD') vira UTC
       // e em Sao Paulo cai no dia anterior às 21:00.
@@ -4033,15 +4035,10 @@ export const supabaseDataService = {
 
         // Ausencia dessa chave garante que a pessoa ainda nao foi registrada
         // nesta comum/data; nao executar a consulta lenta por nome e intervalo.
-        return;
+        return true;
       }
 
-      // 🚨 NOVO: Safety Jitter
-      // Pequeno atraso aleatório para desincronizar requisições simultâneas
-      const jitter = Math.floor(Math.random() * 600); // 0-600ms
-      await new Promise(resolve => setTimeout(resolve, jitter));
-
-      console.log(`🔍 [checkDuplicataRemota] Verificando no Supabase (Exact Match) - Jitter: ${jitter}ms:`, {
+      console.log(`🔍 [checkDuplicataRemota] Verificando no Supabase (Exact Match):`, {
         nome: nomeBusca,
         comum: comumBusca,
         range: `${dataInicio.toISOString()} até ${dataFim.toISOString()}`
@@ -4097,7 +4094,7 @@ export const supabaseDataService = {
         if (!duplicataError.message?.includes('Timeout')) {
           console.warn('⚠️ Erro ao verificar duplicatas:', duplicataError);
         }
-        return;
+        return false;
       }
 
       if (duplicatas && duplicatas.length > 0) {
@@ -4112,7 +4109,7 @@ export const supabaseDataService = {
           )
         ) {
           console.log('✅ [checkDuplicataRemota] Registro já existe com o mesmo UUID; tratando como continuação do envio atual.');
-          return;
+          return true;
         }
         
         // Usar utils centralizados com timezone America/Sao_Paulo
@@ -4126,11 +4123,14 @@ export const supabaseDataService = {
           `DUPLICATA_BLOQUEADA:${nomeBusca}|${comumBusca}|${dataFormatada}|${horarioFormatado}|${cargoDuplicata}|${instrumentoDuplicata}`
         );
       }
+
+      return true;
     } catch (error) {
       if (error instanceof Error && error.message.includes('DUPLICATA_BLOQUEADA')) {
         throw error;
       }
       console.warn('⚠️ Erro na verificação remota (continuando...):', error);
+      return false;
     }
   },
 };

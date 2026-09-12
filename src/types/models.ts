@@ -57,6 +57,7 @@ export interface RegistroPresenca {
   sync_sheets_ok?: boolean;
   sync_last_error?: string;
   sync_attempts?: number;
+  duplicate_check_completed?: boolean; // Consulta remota concluída antes de entrar na fila
   created_at?: string;
   updated_at?: string;
 }
