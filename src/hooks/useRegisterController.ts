@@ -554,7 +554,12 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         const [comunsLocal, comunsFora, cargosLocal, instrumentosLocal] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
           // Referências externas são opcionais e não podem bloquear o atendimento.
-          Promise.resolve([] as Comum[]),
+          supabaseDataService
+            .fetchComunsForaRegional()
+            .catch(error => {
+              console.warn('⚠️ Erro ao carregar comuns fora regional:', error);
+              return [] as Comum[];
+            }),
           supabaseDataService.getCargosFromLocal(),
           (supabaseDataService as any).getInstrumentosFromLocal(),
         ]);
@@ -562,7 +567,12 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         cargosData = cargosLocal;
         instrumentosData = instrumentosLocal;
         
-        if (comunsLocal.length === 0) {
+        const temParqueJaguari = comunsLocal.some(c => {
+          const texto = normalizeString(`${c.nome || ''} ${c.displayName || ''}`).toUpperCase();
+          return texto.includes('BR-21-1644') || texto.includes('PARQUE JAGUARI');
+        });
+
+        if (comunsLocal.length === 0 || !temParqueJaguari) {
           missingRegionalComuns = true;
         }
       } else {
@@ -589,9 +599,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         try {
           const comunsDiretas = await supabaseDataService.fetchComuns();
           if (comunsDiretas.length > 0) {
-            // Recriar a lista final com as comuns recém buscadas + as de fora já carregadas
-            // Como comunsLocal estava vazio, comunsFinal tem apenas as de fora
-            const comunsFora = comunsFinal;
+            // Recriar a lista final com as comuns recém buscadas + as de fora já carregadas.
+            const comunsFora = comunsFinal.filter(c => c.id.startsWith('comum_fora_'));
             comunsFinal = [...comunsDiretas, ...comunsFora];
             
             // Salvar no cache em background

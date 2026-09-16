@@ -82,6 +82,25 @@ describe('normalizacao de comuns da regional', () => {
     ).toBe(false);
   });
 
+  it('mantem Jaguari e Parque Jaguari como comuns diferentes', () => {
+    expect(
+      isSameComum(
+        'BR-22-0273 - JAGUARI',
+        'BR-21-1644 - PARQUE JAGUARI',
+        'SANTANA DE PARNAIBA'
+      )
+    ).toBe(false);
+    expect(
+      isSameComum(
+        'BR-21-1644 - PARQUE JAGUARI',
+        'BR-22-0273 - JAGUARI',
+        'SANTANA DE PARNAIBA'
+      )
+    ).toBe(false);
+    expect(isSameComum('PARQUE JAGUARI', 'JAGUARI', 'SANTANA DE PARNAIBA')).toBe(false);
+    expect(isSameComum('JAGUARI', 'PARQUE JAGUARI', 'SANTANA DE PARNAIBA')).toBe(false);
+  });
+
   it('trata acentos e espacos sem criar outra igreja', () => {
     expect(normalizeComumDisplay('JARDIM TESTE  -  SANTANA DE PARNAÍBA', 'SANTANA DE PARNAIBA'))
       .toBe('JARDIM TESTE');
