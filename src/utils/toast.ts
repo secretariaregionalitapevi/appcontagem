@@ -27,6 +27,21 @@ const getSwal = (): any => {
   }
 };
 
+const simplifySuccessMessage = (title: string, message?: string): string | undefined => {
+  if (!message) return message;
+
+  const titleNorm = title.toLowerCase();
+  const messageNorm = message.toLowerCase();
+  const isRegistroSalvo = titleNorm.includes('registro salvo');
+  const isOfflineSave =
+    messageNorm.includes('conexão voltar') ||
+    messageNorm.includes('conexao voltar') ||
+    messageNorm.includes('salvo com segurança') ||
+    messageNorm.includes('salvo com seguranca');
+
+  return isRegistroSalvo && isOfflineSave ? 'Será enviado ao conectar.' : message;
+};
+
 // Carregar CSS do SweetAlert2 dinamicamente na web (via DOM)
 if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
   // Verificar se o CSS já foi carregado
@@ -196,26 +211,27 @@ export const showToast = {
     }
   },
   success: (title: string, message?: string, duration: number = 2000) => {
+    const displayMessage = simplifySuccessMessage(title, message);
     if (Platform.OS === 'web') {
       const Swal = getSwal();
       if (Swal) {
-        Swal.fire(getSwalOptions(title, message, 'success', false, duration));
+        Swal.fire(getSwalOptions(title, displayMessage, 'success', false, duration));
       } else {
-        console.log(`✅ ${title}: ${message || ''}`);
+        console.log(`✅ ${title}: ${displayMessage || ''}`);
       }
     } else if (Toast) {
       triggerHaptic('success');
       Toast.show({
         type: 'success',
         text1: title,
-        text2: message,
+        text2: displayMessage,
         position: 'top',
         visibilityTime: duration,
         autoHide: true,
         topOffset: Platform.OS === 'ios' ? 60 : 50,
       });
     } else if (Platform.OS === 'ios') {
-      Alert.alert('Sucesso', message ? `${title}\n${message}` : title);
+      Alert.alert('Sucesso', displayMessage ? `${title}\n${displayMessage}` : title);
     }
   },
 

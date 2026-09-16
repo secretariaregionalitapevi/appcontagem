@@ -214,8 +214,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     }
 
     // Verificar se está online antes de sincronizar
-    const isOnlineNow =
-      Platform.OS === 'web' ? typeof navigator !== 'undefined' && navigator.onLine : isOnline;
+    const isOnlineNow = await offlineSyncService.isOnline();
 
     if (!isOnlineNow) {
       console.log('📴 Sem conexão - não Ã© possível sincronizar agora');
@@ -996,7 +995,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
         // 3. O Supabase é a autoridade: validar e inserir antes de confirmar.
         // Assim não existe janela entre "não é duplicado" e a gravação.
-        let isOnlineNow = isOnline;
+        let isOnlineNow = await offlineSyncService.isOnline();
         if (isOnlineNow) {
           try {
             const registroConfirmado = await supabaseDataService.createRegistroPresenca(registro, false);
@@ -1056,7 +1055,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
         const feedbackMsg = isOnlineNow
           ? 'Você já pode realizar o próximo cadastro.'
-          : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
+          : 'Será enviado ao conectar.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
         showToast.success(
           isOnlineNow ? 'Presença registrada!' : 'Registro salvo!',
@@ -1406,7 +1405,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       }
 
       // A rede só processa um registro que já passou pela decisão de duplicidade.
-      const isOnlineNow = isOnline;
+      const isOnlineNow = await offlineSyncService.isOnline();
 
       // 4. Salvar localmente antes de qualquer operação remota
       console.log('ðŸ’¾ [MODAL] Salvando registro externo na fila...');
@@ -1414,7 +1413,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
       const feedbackMsgModal = isOnlineNow
         ? 'Você já pode realizar o próximo cadastro.'
-        : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
+        : 'Será enviado ao conectar.';
       suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
       showToast.success(
         isOnlineNow ? 'Presença registrada!' : 'Registro salvo!',

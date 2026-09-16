@@ -46,9 +46,46 @@ export const subscribeToSyncCompleted = (listener: SyncCompletedListener): (() =
 const ONLINE_CACHE_MS = 1000; // Cache reduzido para 1 segundo (mais resiliência no mobile)
 
 
+const checkWebConnectivity = async (timeoutMs = 1200): Promise<boolean> => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return false;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : '';
+    const url = origin
+      ? `${origin}/__online_check__?t=${Date.now()}`
+      : `https://clients3.google.com/generate_204?t=${Date.now()}`;
+
+    await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 export const offlineSyncService = {
   async isOnline(): Promise<boolean> {
     const now = Date.now();
+    if (Platform.OS === 'web') {
+      const online = await checkWebConnectivity();
+      lastOnlineCheck = now;
+      lastOnlineResult = online;
+      if (!online) {
+        console.warn('🌐 [isOnline] Web ping falhou, modo offline confirmado');
+      }
+      return online;
+    }
     // 🚀 OTIMIZAÇÃO: Retornar resultado do cache se verificado recentemente
     if (now - lastOnlineCheck < ONLINE_CACHE_MS) {
       return lastOnlineResult;
