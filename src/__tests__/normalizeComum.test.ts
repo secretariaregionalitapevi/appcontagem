@@ -55,6 +55,20 @@ describe('normalizacao de comuns da regional', () => {
     ).toBe(true);
   });
 
+  it('consolida todas as variantes BR-22-0417 na Central de VGP - Portão Vermelho', () => {
+    const oficial = 'BR-22-0417 - CENTRAL DE VGP - PORTÃO VERMELHO';
+
+    expect(canonicalizeComum('BR-22-0417 - PORTÃO VERMELHO - CENTRAL')).toBe(oficial);
+    expect(canonicalizeComum(oficial)).toBe(oficial);
+    expect(
+      isSameComum(
+        oficial,
+        'BR-22-0417 - PORTÃO VERMELHO - CENTRAL',
+        'VARGEM GRANDE PAULISTA'
+      )
+    ).toBe(true);
+  });
+
   it('agrupa apenas a cidade redundante quando a igreja permanece identificada', () => {
     expect(
       isSameComum(

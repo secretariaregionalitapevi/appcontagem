@@ -540,6 +540,14 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         setInitialLoading(true);
       }
 
+      if (isRefresh && !initialIsForaRegional && isOnline) {
+        try {
+          await supabaseDataService.syncComunsToLocal();
+        } catch (error) {
+          console.warn('Nao foi possivel renovar as comuns; mantendo o cache local:', error);
+        }
+      }
+
       // Carregar o cache primeiro. Sincronização de rede nunca bloqueia a abertura da tela.
       // Carregar do banco local/cache em paralelo (mais rápido)
       // Se formos a tela principal (initialIsForaRegional = false), carregamos comuns regionais E de fora para busca unificada
@@ -688,7 +696,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
       // 1. Recarregar dados iniciais (comuns, cargos, instrumentos) - passando true para isRefresh
       console.log('📚 Recarregando dados iniciais...');
-      loadInitialData(true).catch(error => console.log('📴 [REFRESH] Recarga adiada:', error));
+      await loadInitialData(true);
 
       // 3. Atualizar contador da fila
       console.log('📊 Atualizando contador da fila...');

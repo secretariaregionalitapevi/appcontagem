@@ -134,6 +134,10 @@ const memoryCache: {
   registros: [],
 };
 
+// Alterar a versao invalida somente a lista de comuns persistida no dispositivo.
+// Filas de presenca e os demais caches nao sao afetados.
+const COMUNS_CACHE_KEY = 'cache_comuns_v15';
+
 // Flag global para evitar salvamentos simultâneos
 let savingLock = false;
 let lastSaveTimestamp = 0;
@@ -460,8 +464,8 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v14', JSON.stringify(comuns));
-        console.log('✅ Comuns salvas no cache V14');
+        await robustSetItem(COMUNS_CACHE_KEY, JSON.stringify(comuns));
+        console.log('✅ Comuns salvas no cache V15');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
       }
@@ -502,7 +506,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v14');
+        const cached = await robustGetItem(COMUNS_CACHE_KEY);
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -514,7 +518,7 @@ export const supabaseDataService = {
             }));
 
           memoryCache.comuns = validComuns;
-          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V14`);
+          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V15`);
           return validComuns;
         }
       } catch (error) {
