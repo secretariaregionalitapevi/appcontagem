@@ -216,14 +216,15 @@ async function until(fn, label) {
       });
       fs.writeFileSync(path.join(pictures, name + '.png'), Buffer.from(shot.data, 'base64'));
     };
-    const select = async (id, value) =>
-      evaluate(
-        '(function(){const e=document.getElementById(' +
-          JSON.stringify(id) +
-          ');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(e,' +
-          JSON.stringify(value) +
-          ');e.dispatchEvent(new Event("change",{bubbles:true}));})()'
+    const select = async (id, value) => {
+      await evaluate('document.getElementById(' + JSON.stringify(id) + ').click()');
+      const selector = '[data-option-id="' + value + '"]';
+      await until(
+        () => evaluate('!!document.querySelector(' + JSON.stringify(selector) + ')'),
+        'municipality options'
       );
+      await evaluate('document.querySelector(' + JSON.stringify(selector) + ').click()');
+    };
     const type = async (value, id = 'ram-person') =>
       evaluate(
         '(function(){const e=document.getElementById(' +

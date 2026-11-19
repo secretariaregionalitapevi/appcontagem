@@ -8,8 +8,19 @@ export const LoginLocalSelect: React.FC<{
   disabled?: boolean;
   options: LocalEnsaio[];
   onChange: (value: string) => void;
-}> = ({ value, options, onChange, disabled = false }) => {
-  const entries = [{ id: '', nome: 'Local do Ensaio' }, ...options];
+  inputId?: string;
+  ariaLabel?: string;
+  placeholder?: string;
+}> = ({
+  value,
+  options,
+  onChange,
+  disabled = false,
+  inputId,
+  ariaLabel = 'Local do ensaio',
+  placeholder = 'Local do Ensaio',
+}) => {
+  const entries = [{ id: '', nome: placeholder }, ...options];
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -76,11 +87,12 @@ export const LoginLocalSelect: React.FC<{
   return (
     <>
       <button
+        id={inputId}
         disabled={disabled}
         ref={trigger}
         type="button"
         role="combobox"
-        aria-label="Local do ensaio"
+        aria-label={ariaLabel}
         aria-required="true"
         aria-expanded={open}
         aria-controls={`${id}-list`}
@@ -154,7 +166,7 @@ export const LoginLocalSelect: React.FC<{
         }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {selected?.nome || 'Local do Ensaio'}
+          {selected?.nome || placeholder}
         </span>
         <FontAwesome5 solid name="chevron-down" size={10} color="#94a3b8" />
       </button>
@@ -164,7 +176,7 @@ export const LoginLocalSelect: React.FC<{
             ref={menu}
             id={`${id}-list`}
             role="listbox"
-            aria-label="Locais do ensaio"
+            aria-label={ariaLabel}
             style={{
               ...position,
               zIndex: 10000,
@@ -181,6 +193,7 @@ export const LoginLocalSelect: React.FC<{
             {entries.map((option, index) => (
               <div
                 key={option.id}
+                data-option-id={option.id}
                 id={`${id}-${index}`}
                 role="option"
                 aria-selected={option.id === value}
