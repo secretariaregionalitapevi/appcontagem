@@ -128,56 +128,7 @@
 
     <div id="root"></div>
 
-    <!-- PWA Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then((registration) => {
-                        console.log('✅ ServiceWorker registrado com sucesso com escopo: ', registration.scope);
-
-                        // Forçar verificação imediata no carregamento inicial
-                        registration.update();
-
-                        // Detecta quando uma nova versão do SW for encontrada
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            if (newWorker) {
-                                newWorker.addEventListener('statechange', () => {
-                                    // Se a nova versão foi instalada e já existe um SW controlando a página (ou seja, é uma atualização)
-                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                        console.log('🔄 Nova versão encontrada e instalada. Forçando ativação agressiva...');
-                                        // Pede pro novo SW pular a fase de espera ("waiting") e assumir imediatamente
-                                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                    }
-                                });
-                            }
-                        });
-
-                        // Verificar atualizações automaticamente sempre que o usuário reabrir/focar no app
-                        document.addEventListener('visibilitychange', () => {
-                            if (document.visibilityState === 'visible') {
-                                console.log('👀 App voltou ao foco. Verificando atualizações de cache...');
-                                registration.update();
-                            }
-                        });
-                    })
-                    .catch((err) => {
-                        console.error('❌ Registro do ServiceWorker falhou: ', err);
-                    });
-            });
-
-            // Forçar reload da página instantaneamente assim que o novo Service Worker assumir o controle
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    refreshing = true;
-                    console.log('🔄 Novo cache ativado! Recarregando a aplicação de forma oculta...');
-                    window.location.reload();
-                }
-            });
-        }
-    </script>
+    <script src="/pwa-update.js" defer></script>
 </body>
 
 </html>

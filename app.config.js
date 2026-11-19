@@ -2,7 +2,7 @@ export default {
   expo: {
     name: 'CCB Contagem',
     slug: 'sistema-contagem-sac',
-    version: '1.4.7',
+    version: '1.5.2',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -31,7 +31,19 @@ export default {
       favicon: './assets/favicon.png',
       bundler: 'metro',
     },
-    plugins: ['expo-secure-store'],
+    plugins: [
+      'expo-secure-store',
+      [
+        'expo-location',
+        {
+          locationWhenInUsePermission:
+            'Sua localização é usada para conferir o local do ensaio e evitar registros na localidade errada.',
+          isIosBackgroundLocationEnabled: false,
+          isAndroidBackgroundLocationEnabled: false,
+          isAndroidForegroundServiceEnabled: false,
+        },
+      ],
+    ],
     extra: {
       eas: {
         projectId: 'c85667ba-a7a2-4792-86cc-27295890d75c',

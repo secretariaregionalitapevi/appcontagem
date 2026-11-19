@@ -19,6 +19,9 @@ interface SelectOption {
 }
 
 interface SimpleSelectFieldProps {
+  appearance?: 'default' | 'soft';
+  leadingIcon?: string;
+  iconColor?: string;
   label?: string;
   value?: string;
   options: SelectOption[];
@@ -36,6 +39,9 @@ export interface SimpleSelectFieldRef {
 export const SimpleSelectField = React.forwardRef<SimpleSelectFieldRef, SimpleSelectFieldProps>(
   (
     {
+      appearance = 'default',
+      leadingIcon,
+      iconColor = '#1684dc',
       label,
       value,
       options,
@@ -219,10 +225,7 @@ export const SimpleSelectField = React.forwardRef<SimpleSelectFieldRef, SimpleSe
           : {})}
       >
         <Text
-          style={[
-            styles.itemText,
-            value === item.id && styles.itemTextSelected,
-          ]}
+          style={[styles.itemText, value === item.id && styles.itemTextSelected]}
           numberOfLines={1}
         >
           {item.label}
@@ -297,10 +300,20 @@ export const SimpleSelectField = React.forwardRef<SimpleSelectFieldRef, SimpleSe
             },
           ]}
         >
+          {leadingIcon && (
+            <View
+              style={[styles.leadingIcon, { backgroundColor: iconColor + '12' }]}
+            >
+              <FontAwesome5 solid name={leadingIcon as any} size={17} color={iconColor} />
+            </View>
+          )}
           <TextInput
             ref={inputRef}
             style={[
               styles.input,
+              appearance === 'soft' && styles.softInput,
+              leadingIcon && { paddingLeft: 58 },
+              appearance === 'soft' && isFocused && styles.softFocused,
               error && styles.inputError,
               Platform.OS === 'web'
                 ? {
@@ -329,7 +342,8 @@ export const SimpleSelectField = React.forwardRef<SimpleSelectFieldRef, SimpleSe
                     } else if (e.key === 'ArrowDown') {
                       e.preventDefault();
                       if (filtered.length > 0) {
-                        const nextIndex = selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
+                        const nextIndex =
+                          selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
                         setSelectedIndex(nextIndex);
                         if (flatListRef.current && nextIndex >= 0) {
                           setTimeout(() => {
@@ -344,7 +358,8 @@ export const SimpleSelectField = React.forwardRef<SimpleSelectFieldRef, SimpleSe
                     } else if (e.key === 'ArrowUp') {
                       e.preventDefault();
                       if (filtered.length > 0) {
-                        const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
+                        const prevIndex =
+                          selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
                         setSelectedIndex(prevIndex);
                         if (flatListRef.current && prevIndex >= 0) {
                           setTimeout(() => {
@@ -426,7 +441,6 @@ export const SimpleSelectField = React.forwardRef<SimpleSelectFieldRef, SimpleSe
                     ]}
                     onStartShouldSetResponder={() => false}
                     onMoveShouldSetResponder={() => false}
-                    pointerEvents="auto"
                     {...(Platform.OS === 'web'
                       ? {
                           onMouseEnter: () => {
@@ -484,6 +498,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  leadingIcon: {
+    pointerEvents: 'none',
+    position: 'absolute',
+    left: 12,
+    top: 11,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
   inputContainer: {
     position: 'relative' as any,
     ...(Platform.OS === 'web'
@@ -493,6 +519,17 @@ const styles = StyleSheet.create({
         }
       : {}),
   },
+  softInput: {
+    backgroundColor: '#f5f8fb',
+    borderColor: '#e1e9f1',
+    borderWidth: 1,
+    borderRadius: 16,
+    minHeight: 56,
+    paddingVertical: 16,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  softFocused: { borderColor: '#2a83b9', backgroundColor: '#ffffff' },
   input: {
     borderWidth: 1.5,
     borderColor: theme.colors.border,
@@ -541,6 +578,7 @@ const styles = StyleSheet.create({
       : {}),
   },
   webDropdown: {
+    pointerEvents: 'auto',
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: theme.colors.primary,

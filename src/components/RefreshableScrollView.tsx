@@ -110,7 +110,7 @@ export const RefreshableScrollView: React.FC<RefreshableScrollViewProps> = ({
   return (
     <View style={styles.webContainer}>
       {(pulling || refreshing) && (
-        <View pointerEvents="none" style={styles.webIndicator}>
+        <View style={styles.webIndicator}>
           <ActivityIndicator size="small" color={theme.colors.primary} />
         </View>
       )}
@@ -133,6 +133,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   webIndicator: {
+    pointerEvents: 'none',
     position: 'absolute',
     top: 8,
     left: 0,

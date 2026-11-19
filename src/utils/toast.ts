@@ -43,7 +43,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
       'https://fonts.googleapis.com',
       'https://fonts.gstatic.com',
       'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap',
-      'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+      'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
     ];
 
     fontLinks.forEach((href, index) => {
@@ -58,11 +58,22 @@ if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !=
 }
 
 // Configuração base de layout idêntica ao alerta de "Registro Enviado"
-const getSwalOptions = (title: string, message?: string, icon: any = 'success', showConfirm = false, timer: number | undefined = 2000, position: any = 'center', toast = false, showCancel = false) => {
+const getSwalOptions = (
+  title: string,
+  message?: string,
+  icon: any = 'success',
+  showConfirm = false,
+  timer: number | undefined = 2000,
+  position: any = 'center',
+  toast = false,
+  showCancel = false
+) => {
   return {
     icon: icon,
     title: `<span style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #1e293b; font-size: ${toast ? '18px' : '26px'}; letter-spacing: -0.5px; line-height: 1.2; display: block;">${title}</span>`,
-    html: message ? `<div style="font-family: 'Inter', sans-serif; color: #64748b; font-size: ${toast ? '14px' : '16px'}; margin-top: 12px; line-height: 1.6; font-weight: 400;">${message}</div>` : '',
+    html: message
+      ? `<div style="font-family: 'Inter', sans-serif; color: #64748b; font-size: ${toast ? '14px' : '16px'}; margin-top: 12px; line-height: 1.6; font-weight: 400;">${message}</div>`
+      : '',
     showConfirmButton: showConfirm,
     showCancelButton: showCancel,
     confirmButtonText: 'Continuar',
@@ -76,10 +87,10 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
     position: position,
     toast: toast,
     showClass: {
-      popup: 'animate__animated animate__fadeInDown animate__faster'
+      popup: 'animate__animated animate__fadeInDown animate__faster',
     },
     hideClass: {
-      popup: 'animate__animated animate__fadeOutUp animate__faster'
+      popup: 'animate__animated animate__fadeOutUp animate__faster',
     },
     didOpen: () => {
       const Swal = getSwal();
@@ -87,17 +98,17 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
       const popup = Swal.getPopup();
       if (popup) {
         popup.style.borderRadius = toast ? '16px' : '24px';
-        popup.style.boxShadow = toast 
-          ? '0 10px 30px rgba(0,0,0,0.1)' 
+        popup.style.boxShadow = toast
+          ? '0 10px 30px rgba(0,0,0,0.1)'
           : '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
         popup.style.border = '1px solid rgba(0,0,0,0.05)';
-        
+
         // Responsividade para mobile
         if (window.innerWidth < 480) {
           popup.style.width = '92%';
           popup.style.padding = toast ? '10px 15px' : '1.5rem';
         }
-        
+
         const confirmBtn = Swal.getConfirmButton();
         if (confirmBtn) {
           confirmBtn.style.borderRadius = '14px';
@@ -110,13 +121,13 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
           confirmBtn.style.justifyContent = 'center';
           confirmBtn.style.gap = '8px';
           confirmBtn.style.transition = 'all 0.2s ease';
-          
+
           // Adicionar ícone se não tiver
           if (!confirmBtn.innerHTML.includes('<i')) {
             confirmBtn.innerHTML = `<i class="fas fa-check"></i> ${confirmBtn.innerText}`;
           }
         }
-        
+
         const cancelBtn = Swal.getCancelButton();
         if (cancelBtn) {
           cancelBtn.style.borderRadius = '14px';
@@ -131,7 +142,7 @@ const getSwalOptions = (title: string, message?: string, icon: any = 'success', 
           cancelBtn.style.margin = '0 5px';
           cancelBtn.style.transition = 'all 0.2s ease';
           cancelBtn.style.backgroundColor = '#64748b';
-          
+
           // Adicionar ícone se não tiver
           if (!cancelBtn.innerHTML.includes('<i')) {
             cancelBtn.innerHTML = `<i class="fas fa-times"></i> ${cancelBtn.innerText}`;
@@ -276,8 +287,8 @@ export const showToast = {
       if (Swal) {
         // Exceção do alerta de duplicidade pedida em contexto anterior
         const isDuplicidade = title === 'Atenção' && message?.includes('fila');
-        const isSalvoLocalmente = 
-          message?.toLowerCase().includes('salvo localmente') || 
+        const isSalvoLocalmente =
+          message?.toLowerCase().includes('salvo localmente') ||
           message?.toLowerCase().includes('salvos localmente') ||
           message?.toLowerCase().includes('será enviado automaticamente') ||
           title === 'Modo offline';
@@ -364,8 +375,8 @@ export const showToast = {
   },
 
   confirm: async (
-    title: string, 
-    message: string, 
+    title: string,
+    message: string,
     type: 'delete' | 'generic' = 'delete',
     options?: { confirmText?: string; cancelText?: string }
   ): Promise<boolean> => {
@@ -373,41 +384,52 @@ export const showToast = {
       const Swal = getSwal();
       if (Swal) {
         if (type === 'delete') {
-          return (await showToast.confirmCustom({
+          return await showToast.confirmCustom({
             title: title,
             html: `Você deseja mesmo excluir o registro de <strong style="color: #4a4a4a;">${message}</strong>?<br><small style="color: #999;">Esta ação não poderá ser revertida.</small>`,
             icon: 'warning',
-            confirmButtonText: '<i class="fas fa-check" style="margin-right: 8px;"></i> Sim, excluir',
+            confirmButtonText:
+              '<i class="fas fa-check" style="margin-right: 8px;"></i> Sim, excluir',
             cancelButtonText: '<i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar',
             confirmButtonColor: '#255ec8',
             cancelButtonColor: '#e74c3c',
-          }));
+          });
         } else {
-          return (await showToast.confirmCustom({
+          return await showToast.confirmCustom({
             title: title,
             html: message,
             icon: 'question',
-            confirmButtonText: options?.confirmText || '<i class="fas fa-sync-alt" style="margin-right: 8px;"></i> Sim, continuar',
-            cancelButtonText: options?.cancelText || '<i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar',
+            confirmButtonText:
+              options?.confirmText ||
+              '<i class="fas fa-sync-alt" style="margin-right: 8px;"></i> Sim, continuar',
+            cancelButtonText:
+              options?.cancelText ||
+              '<i class="fas fa-times" style="margin-right: 8px;"></i> Cancelar',
             confirmButtonColor: '#255ec8',
             cancelButtonColor: '#64748b',
-          }));
+          });
         }
       }
-      return typeof window !== 'undefined' && window.confirm ? window.confirm(`${title}\n${message}`) : false;
+      return typeof window !== 'undefined' && window.confirm
+        ? window.confirm(`${title}\n${message}`)
+        : false;
     } else {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         Alert.alert(
           title,
-          type === 'delete' 
+          type === 'delete'
             ? `Deseja mesmo excluir o registro de ${message}?\n\nVocê não poderá reverter esta exclusão.`
             : message,
           [
-            { text: options?.cancelText || 'Cancelar', onPress: () => resolve(false), style: 'cancel' },
-            { 
-              text: options?.confirmText || (type === 'delete' ? 'Sim, excluir' : 'Continuar'), 
-              onPress: () => resolve(true), 
-              style: type === 'delete' ? 'destructive' : 'default' 
+            {
+              text: options?.cancelText || 'Cancelar',
+              onPress: () => resolve(false),
+              style: 'cancel',
+            },
+            {
+              text: options?.confirmText || (type === 'delete' ? 'Sim, excluir' : 'Continuar'),
+              onPress: () => resolve(true),
+              style: type === 'delete' ? 'destructive' : 'default',
             },
           ],
           { cancelable: true, onDismiss: () => resolve(false) }
@@ -425,6 +447,7 @@ export const showToast = {
     confirmButtonColor?: string;
     cancelButtonColor?: string;
     width?: string;
+    zIndex?: number;
   }): Promise<boolean> => {
     if (Platform.OS === 'web') {
       const Swal = getSwal();
@@ -444,11 +467,13 @@ export const showToast = {
           backdrop: `rgba(15, 23, 42, 0.5)`,
           allowOutsideClick: false,
           didOpen: () => {
+            if (options.zIndex && Swal.getContainer())
+              Swal.getContainer().style.zIndex = String(options.zIndex);
             const popup = Swal.getPopup();
             if (popup) {
               popup.style.borderRadius = '24px';
               popup.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.25)';
-              
+
               const cBtn = Swal.getConfirmButton();
               if (cBtn) {
                 cBtn.style.borderRadius = '14px';
@@ -466,11 +491,11 @@ export const showToast = {
                 canBtn.style.transition = 'all 0.2s ease';
               }
             }
-          }
+          },
         });
         return result.isConfirmed;
       }
     }
     return false;
-  }
+  },
 };

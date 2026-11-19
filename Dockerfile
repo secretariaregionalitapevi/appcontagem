@@ -11,7 +11,7 @@ RUN npm ci
 COPY . .
 
 # Faz a build para web
-RUN npx expo export -p web
+RUN npm run build
 
 # Estágio 2: Hospedagem com Nginx
 FROM nginx:alpine

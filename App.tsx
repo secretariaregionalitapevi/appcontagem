@@ -1,16 +1,17 @@
+import { LocationReviewHost } from './src/components/LocationReviewHost';
 /**
  * ============================================================================
  * PROPRIEDADE INTELECTUAL E DIREITOS AUTORAIS
  * ============================================================================
  * Este sistema (App Frontend) foi desenvolvido e arquitetado exclusivamente pela:
  * SECRETARIA DA ADMINISTRAÇÃO MUSICAL - REGIONAL ITAPEVI
- * 
+ *
  * Sede da Administração Musical Itapevi:
  * Av. Ana Araújo de Castro, 815 - Jardim Itapevi, Itapevi - SP
  * CEP: 06653-140
- * 
- * É ESTRITAMENTE PROIBIDA a cópia, distribuição, engenharia reversa 
- * ou uso deste código-fonte por outras regionais ou terceiros sem 
+ *
+ * É ESTRITAMENTE PROIBIDA a cópia, distribuição, engenharia reversa
+ * ou uso deste código-fonte por outras regionais ou terceiros sem
  * autorização prévia e expressa da Secretaria de Itapevi.
  * ============================================================================
  */
@@ -25,7 +26,9 @@ import { logDeviceInfo } from './src/utils/deviceDetection';
 import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
 import { showToast } from './src/utils/toast';
 
-const CURRENT_APP_VERSION = '1.4.7';
+import pkg from './package.json';
+import { markPwaAppReady } from './src/services/pwaUpdateSafety';
+const CURRENT_APP_VERSION = pkg.version;
 
 // Importar SpeedInsights apenas para web
 // Para React/React Native, usar injectSpeedInsights ao invés de componente
@@ -59,12 +62,17 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    if (isReady) markPwaAppReady();
+  }, [isReady]);
+
+  useEffect(() => {
     // Inicializar sistema robusto de storage e detecção de dispositivos
     const initSystem = async () => {
       try {
         // Detectar se está rodando como PWA instalado (Standalone)
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+          const isStandalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
             (window.navigator as any).standalone ||
             document.referrer.includes('android-app://');
 
@@ -89,7 +97,10 @@ export default function App() {
           // Agendar notificação de atualização para logo após o app renderizar
           setTimeout(() => {
             if (Platform.OS === 'web') {
-              showToast.success('App Atualizado!', 'O sistema foi atualizado com sucesso para a versão ' + CURRENT_APP_VERSION);
+              showToast.success(
+                'App Atualizado!',
+                'O sistema foi atualizado com sucesso para a versão ' + CURRENT_APP_VERSION
+              );
             } else {
               showToast.success(
                 'App Atualizado!',
@@ -137,6 +148,7 @@ export default function App() {
         <StatusBar style="auto" />
         <ErrorBoundary onError={setInitError}>
           <AppNavigator />
+          <LocationReviewHost />
         </ErrorBoundary>
         {Platform.OS !== 'web' && Toast && <Toast />}
       </AuthProvider>

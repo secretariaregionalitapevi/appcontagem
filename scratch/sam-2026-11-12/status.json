@@ -1,0 +1,17 @@
+{
+  "status": "applied_and_verified",
+  "verification": {
+    "updated_verified": 161,
+    "inserted_verified": 139,
+    "before_total": 10238,
+    "after_total": 10377,
+    "unchanged_existing": 10077,
+    "unplanned_changes": [],
+    "missing_existing_ids": [],
+    "unexpected_new_ids": [],
+    "excluded_present": [],
+    "common_transfers_verified": 15,
+    "pending": 18,
+    "verified": true
+  }
+}

@@ -1,3 +1,4 @@
+import { setPwaUpdateBlock } from './pwaUpdateSafety';
 import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
 import { supabaseDataService } from './supabaseDataService';
@@ -211,6 +212,7 @@ export const offlineSyncService = {
 
     // Marcar como processando
     isProcessingQueue = true;
+    setPwaUpdateBlock('offline-sync', true);
     lastProcessTimestamp = now;
 
     try {
@@ -451,6 +453,7 @@ export const offlineSyncService = {
     } finally {
       // 🚨 PROTEÇÃO: Sempre liberar flag de processamento, mesmo em caso de erro
       isProcessingQueue = false;
+      setPwaUpdateBlock('offline-sync', false);
       if (queueProcessRequested) {
         queueProcessRequested = false;
         const elapsed = Date.now() - lastProcessTimestamp;

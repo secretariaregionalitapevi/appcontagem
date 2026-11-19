@@ -1,3 +1,4 @@
+import { usePwaUpdateGuard } from '../hooks/usePwaUpdateGuard';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -33,6 +34,8 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { theme } from '../theme';
 import { localStorageService } from '../services/localStorageService';
 import { LocalEnsaio } from '../types/models';
+import { locationSafetyService } from '../services/locationSafetyService';
+import { LoginLocalSelect } from '../components/LoginLocalSelect';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 export const LoginScreen: React.FC = () => {
@@ -44,6 +47,7 @@ export const LoginScreen: React.FC = () => {
   const [locaisEnsaio, setLocaisEnsaio] = useState<LocalEnsaio[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  usePwaUpdateGuard(loading || Boolean(email || password));
 
   // Configurações carregadas do config.js (ou fallback padrão)
   const appConfig = (typeof window !== 'undefined' && window.APP_CONFIG) || {
@@ -56,7 +60,7 @@ export const LoginScreen: React.FC = () => {
       { id: '5', nome: 'Jandira' },
       { id: '6', nome: 'Pirapora' },
       { id: '7', nome: 'Vargem Grande' },
-    ]
+    ],
   };
 
   const { signIn, signUp } = useAuthContext();
@@ -84,35 +88,18 @@ export const LoginScreen: React.FC = () => {
   };
 
   const handleLogin = async () => {
+    if (loading) return;
     if (!email || !password || !localEnsaio) {
       showToast.error('Campos obrigatórios', 'Preencha e-mail, senha e Local do Ensaio.');
       return;
     }
 
-    // Confirmar local de ensaio antes de prosseguir
-    const selectedLocal = locaisEnsaio.find(l => l.id === localEnsaio);
-    const localNome = selectedLocal ? selectedLocal.nome : '';
-
-    const confirmed = await showToast.confirm(
-      'Confirmação de Local',
-      Platform.OS === 'web'
-        ? `Você confirma que está no ensaio em:<br><span style="color: #1e4b7a; font-size: 28px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 15px; letter-spacing: -0.5px;"><i class="fas fa-map-marker-alt" style="color: #e11d2e; font-size: 25px;"></i>${localNome}</span>`
-        : `Você confirma que está no ensaio em:\n📍 ${localNome.toUpperCase()}?`,
-      'generic',
-      {
-        confirmText: Platform.OS === 'web'
-          ? '<i class="fas fa-check" style="margin-right: 8px;"></i> Confirmar'
-          : 'Confirmar',
-        cancelText: Platform.OS === 'web'
-          ? '<i class="fas fa-times" style="margin-right: 8px;"></i> Corrigir'
-          : 'Corrigir',
-      }
-    );
-
-    if (!confirmed) return;
-
     setLoading(true);
     try {
+      locationSafetyService.reset();
+      const confirmedTarget = await locationSafetyService.confirmEntry(localEnsaio);
+      if (!confirmedTarget) return;
+      setLocalEnsaio(confirmedTarget);
       console.log('Tentando fazer login...');
       const result = isSignUp ? await signUp(email, password) : await signIn(email, password);
 
@@ -124,7 +111,7 @@ export const LoginScreen: React.FC = () => {
         showToast.error('Credenciais inválidas', errorMessage);
       } else if (result.user) {
         // Salvar local do ensaio selecionado
-        await localStorageService.setLocalEnsaio(localEnsaio);
+        await localStorageService.setLocalEnsaio(confirmedTarget);
         console.log('Login bem-sucedido, navegando...');
         // Navegar para a tela de registro
         (navigation as any).navigate('Register');
@@ -149,7 +136,6 @@ export const LoginScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.loginWrap}>
-
           <View style={styles.sacCard}>
             {/* Header Estilo Santa Ceia */}
             <View style={styles.sacHeader}>
@@ -164,14 +150,11 @@ export const LoginScreen: React.FC = () => {
                 />
               </TouchableOpacity>
               <Text style={styles.sacTitle}>Lançamento de Presença</Text>
-              <Text style={styles.sacSubtitle}>
-                Ensaios Regionais
-              </Text>
+              <Text style={styles.sacSubtitle}>Ensaios Regionais</Text>
             </View>
 
             <View style={styles.sacBody}>
               {/* Lead Text (Estilizado) */}
-
 
               {/* Formulário com Icons boxes */}
               <View style={styles.formGroup}>
@@ -191,7 +174,7 @@ export const LoginScreen: React.FC = () => {
 
               <View style={styles.formGroup}>
                 <View style={styles.inputIconBox}>
-                  <FontAwesome5 name="lock" size={18} color="#1e4b7a" />
+                  <FontAwesome5 solid name="lock" size={18} color="#1e4b7a" />
                 </View>
                 <TextInput
                   style={styles.sacInput}
@@ -215,33 +198,18 @@ export const LoginScreen: React.FC = () => {
 
               <View style={styles.formGroup}>
                 <View style={styles.inputIconBox}>
-                  <FontAwesome5 name="map-marker-alt" size={18} color="#1e4b7a" />
+                  <FontAwesome5 solid name="map-marker-alt" size={18} color="#dc5265" />
                 </View>
                 {Platform.OS === 'web' ? (
-                  <select
-                    style={{
-                      ...styles.sacSelectWeb,
-                      color: !localEnsaio ? '#94a3b8' : '#334155',
-                      paddingLeft: 15,
-                      paddingRight: 15,
-                    }}
+                  <LoginLocalSelect
+                    disabled={loading}
                     value={localEnsaio}
-                    onChange={e => setLocalEnsaio(e.target.value)}
-                    required
-                  >
-                    <option value="" style={{ color: '#94a3b8' }}>Local do Ensaio</option>
-                    {locaisEnsaio.map(local => (
-                      <option key={local.id} value={local.id} style={{ color: '#334155' }}>
-                        {local.nome}
-                      </option>
-                    ))}
-                  </select>
+                    options={locaisEnsaio}
+                    onChange={setLocalEnsaio}
+                  />
                 ) : (
                   <View style={styles.sacSelectNative}>
-                    <Text style={[
-                      styles.sacSelectText,
-                      !localEnsaio && { color: '#94a3b8' }
-                    ]}>
+                    <Text style={[styles.sacSelectText, !localEnsaio && { color: '#94a3b8' }]}>
                       {localEnsaio
                         ? locaisEnsaio.find(l => l.id === localEnsaio)?.nome || 'Local do Ensaio'
                         : 'Local do Ensaio'}
@@ -255,7 +223,12 @@ export const LoginScreen: React.FC = () => {
                 onPress={handleLogin}
                 disabled={loading}
               >
-                <FontAwesome5 name="sign-in-alt" size={16} color="#fff" style={{ marginRight: 8 }} />
+                <FontAwesome5
+                  name="sign-in-alt"
+                  size={16}
+                  color="#fff"
+                  style={{ marginRight: 8 }}
+                />
                 <Text style={styles.sacBtnText}>{loading ? 'CARREGANDO...' : 'LOGIN'}</Text>
               </TouchableOpacity>
 
@@ -286,13 +259,15 @@ export const LoginScreen: React.FC = () => {
           {/* Rodapé da Página */}
           <View style={styles.sacPageFooter}>
             <Text style={styles.footerText}>
-              © Aplicativo de Contagem v{pkg.version || '1.0'}{'\n'}
+              © Aplicativo de Contagem v{pkg.version || '1.0'}
+              {'\n'}
               <Text
                 style={styles.footerLink}
                 onPress={() => Linking.openURL('https://congregacaocristanobrasil.org.br/')}
               >
                 Congregação Cristã no Brasil
-              </Text>{'\n'}
+              </Text>
+              {'\n'}
               Regional Itapevi
             </Text>
           </View>
@@ -301,6 +276,13 @@ export const LoginScreen: React.FC = () => {
     </KeyboardAvoidingView>
   );
 };
+
+const loginFontFamily =
+  Platform.OS === 'web'
+    ? 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    : Platform.OS === 'ios'
+      ? 'System'
+      : 'sans-serif';
 
 const styles = StyleSheet.create({
   container: {
@@ -341,8 +323,10 @@ const styles = StyleSheet.create({
     tintColor: '#fff', // Para forçar branco se a imagem permitir
   },
   sacTitle: {
+    letterSpacing: -0.5,
     color: '#fff',
     fontSize: 26,
+    fontFamily: loginFontFamily,
     fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
@@ -350,6 +334,7 @@ const styles = StyleSheet.create({
   sacSubtitle: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 15,
+    fontFamily: loginFontFamily,
     lineHeight: 20,
     textAlign: 'center',
   },
@@ -358,6 +343,7 @@ const styles = StyleSheet.create({
   },
   leadText: {
     fontSize: 15,
+    fontFamily: loginFontFamily,
     color: '#64748b',
     textAlign: 'center',
     lineHeight: 22,
@@ -369,6 +355,7 @@ const styles = StyleSheet.create({
   },
   subText: {
     fontSize: 13,
+    fontFamily: loginFontFamily,
     color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 20,
@@ -386,6 +373,7 @@ const styles = StyleSheet.create({
   },
   inputIconBox: {
     width: 50,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
@@ -394,13 +382,16 @@ const styles = StyleSheet.create({
   },
   sacInput: {
     flex: 1,
+    minWidth: 0,
     paddingHorizontal: 15,
     fontSize: 15,
+    fontFamily: loginFontFamily,
     color: '#334155',
   },
   sacSelectWeb: {
     flex: 1,
     fontSize: 15,
+    fontFamily: loginFontFamily,
     color: '#334155',
     paddingLeft: 15,
     paddingRight: 15,
@@ -416,10 +407,12 @@ const styles = StyleSheet.create({
   },
   sacSelectText: {
     fontSize: 15,
+    fontFamily: loginFontFamily,
     color: '#334155',
   },
   passwordToggle: {
     width: 50,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -440,6 +433,7 @@ const styles = StyleSheet.create({
   sacBtnText: {
     color: '#fff',
     fontSize: 14,
+    fontFamily: loginFontFamily,
     fontWeight: '700',
     letterSpacing: 0.8,
   },
@@ -450,6 +444,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: '#1e4b7a',
     fontSize: 13,
+    fontFamily: loginFontFamily,
     fontWeight: '600',
   },
   divider: {
@@ -462,6 +457,7 @@ const styles = StyleSheet.create({
   },
   registerText: {
     fontSize: 13,
+    fontFamily: loginFontFamily,
     color: '#64748b',
     marginBottom: 10,
   },
@@ -477,6 +473,7 @@ const styles = StyleSheet.create({
   sacBtnSecondaryText: {
     color: '#64748b',
     fontSize: 13,
+    fontFamily: loginFontFamily,
     fontWeight: '600',
   },
   sacPageFooter: {
@@ -485,6 +482,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
+    fontFamily: loginFontFamily,
     color: '#94a3b8',
     textAlign: 'center',
     lineHeight: 16,

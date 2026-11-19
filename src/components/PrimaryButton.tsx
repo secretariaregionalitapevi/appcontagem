@@ -8,7 +8,7 @@ import {
   Platform,
   View,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { triggerHaptic } from '../utils/haptics';
 
@@ -41,7 +41,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
         styles.button,
         (disabled || loading) && styles.buttonDisabled,
         style,
-        pressed && Platform.OS !== 'web' && { opacity: 0.7 }
+        pressed && Platform.OS !== 'web' && { opacity: 0.7 },
       ]}
       onPress={handlePress}
       disabled={disabled || loading}
@@ -52,13 +52,16 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
         <ActivityIndicator color={theme.colors.surface} size="small" />
       ) : (
         <View style={styles.buttonContent}>
-          <FontAwesome
-            name={icon as any}
-            size={12}
-            color={theme.colors.surface}
-            style={styles.icon}
-          />
-          <Text 
+          <View style={styles.iconBadge}>
+            <FontAwesome5
+              solid
+              name={icon as any}
+              size={18}
+              color={theme.colors.surface}
+              style={styles.icon}
+            />
+          </View>
+          <Text
             style={styles.buttonText}
             numberOfLines={1}
             adjustsFontSizeToFit={true}
@@ -90,10 +93,10 @@ const styles = StyleSheet.create({
     elevation: 3,
     ...(Platform.OS === 'web'
       ? {
-        backgroundImage: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)`,
-        transition: 'all 0.2s ease',
-        cursor: 'pointer',
-      }
+          backgroundImage: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.primaryDark} 100%)`,
+          transition: 'all 0.2s ease',
+          cursor: 'pointer',
+        }
       : {}),
   },
   buttonDisabled: {
@@ -106,6 +109,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  iconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   icon: {
     marginRight: 0,

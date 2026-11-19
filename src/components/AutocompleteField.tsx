@@ -39,6 +39,9 @@ interface AutocompleteOption {
 }
 
 interface AutocompleteFieldProps {
+  leadingIcon?: string;
+  iconColor?: string;
+  appearance?: 'default' | 'soft';
   label?: string;
   value?: string;
   options: AutocompleteOption[];
@@ -61,6 +64,9 @@ export interface AutocompleteFieldRef {
 export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFieldProps>(
   (
     {
+      appearance = 'default',
+      leadingIcon,
+      iconColor = '#1684dc',
       label,
       value,
       options,
@@ -110,14 +116,18 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
       const results = options.filter(opt => {
         const labelNorm = normalize(opt.label);
         const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
-        
+
         // Busca inteligente: todas as palavras da busca devem estar presentes (em qualquer ordem)
         // Mas ignorar palavras de ligação muito curtas se houver outras palavras maiores
-        const wordsToMatch = queryWords.length > 1 
-          ? queryWords.filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w))
-          : queryWords;
-          
-        if (wordsToMatch.length === 0) return labelNorm.includes(queryNorm) || nomeNorm.includes(queryNorm);
+        const wordsToMatch =
+          queryWords.length > 1
+            ? queryWords.filter(
+                w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w)
+              )
+            : queryWords;
+
+        if (wordsToMatch.length === 0)
+          return labelNorm.includes(queryNorm) || nomeNorm.includes(queryNorm);
 
         return wordsToMatch.every(word => labelNorm.includes(word) || nomeNorm.includes(word));
       });
@@ -166,18 +176,23 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
         // 🚨 Lógica de autoManualEntry - Threshold de 4 caracteres
         if (autoManualEntry && onManualEntry && text.trim().length >= 4) {
           const queryNorm = normalize(text);
-          const queryWords = queryNorm.split(/\s+/).filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w));
-          
+          const queryWords = queryNorm
+            .split(/\s+/)
+            .filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w));
+
           const hasMatches = options.some(opt => {
             const labelNorm = normalize(opt.label);
             const nomeNorm = opt.nomeCompleto ? normalize(opt.nomeCompleto) : '';
-            
-            if (queryWords.length === 0) return labelNorm.includes(queryNorm) || nomeNorm.includes(queryNorm);
+
+            if (queryWords.length === 0)
+              return labelNorm.includes(queryNorm) || nomeNorm.includes(queryNorm);
             return queryWords.every(word => labelNorm.includes(word) || nomeNorm.includes(word));
           });
 
           if (!hasMatches) {
-            console.log('✏️ [AutocompleteField] Sem correspondências (>=4 chars) - ativando modo manual automático');
+            console.log(
+              '✏️ [AutocompleteField] Sem correspondências (>=4 chars) - ativando modo manual automático'
+            );
             onManualEntry(text);
             setShowList(false);
           }
@@ -390,15 +405,15 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
           style,
           Platform.OS === 'web'
             ? {
-              position: 'relative' as ViewStyle['position'],
-              overflow: 'visible' as ViewStyle['overflow'],
-              zIndex: containerZIndex,
-            }
+                position: 'relative' as ViewStyle['position'],
+                overflow: 'visible' as ViewStyle['overflow'],
+                zIndex: containerZIndex,
+              }
             : {
-              overflow: 'visible' as ViewStyle['overflow'],
-              zIndex: containerZIndex,
-              elevation: isFocused ? 10 : 0,
-            },
+                overflow: 'visible' as ViewStyle['overflow'],
+                zIndex: containerZIndex,
+                elevation: isFocused ? 10 : 0,
+              },
         ]}
         ref={containerRef}
         collapsable={false}
@@ -414,25 +429,35 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
               zIndex: containerZIndex,
               ...(Platform.OS === 'web'
                 ? {
-                  backgroundColor: '#ffffff',
-                }
+                    backgroundColor: '#ffffff',
+                  }
                 : {}),
             },
           ]}
         >
+          {leadingIcon && (
+            <View
+              style={[styles.leadingIcon, { backgroundColor: iconColor + '12' }]}
+            >
+              <FontAwesome5 solid name={leadingIcon as any} size={17} color={iconColor} />
+            </View>
+          )}
           <TextInput
             ref={inputRef}
             style={[
               styles.input,
+              leadingIcon && { paddingLeft: 58 },
+              appearance === 'soft' && styles.softInput,
               isFocused && styles.inputFocused,
+              appearance === 'soft' && isFocused && { backgroundColor: '#ffffff' },
               error ? styles.inputError : undefined,
               Platform.OS === 'web'
                 ? {
-                  position: 'relative' as ViewStyle['position'],
-                  // @ts-ignore - Propriedades CSS apenas para web
-                  outlineStyle: 'none',
-                  outlineWidth: 0,
-                }
+                    position: 'relative' as ViewStyle['position'],
+                    // @ts-ignore - Propriedades CSS apenas para web
+                    outlineStyle: 'none',
+                    outlineWidth: 0,
+                  }
                 : undefined,
             ].filter(Boolean)}
             value={searchText}
@@ -446,51 +471,51 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
             onSubmitEditing={handleEnterPress}
             {...(Platform.OS === 'web'
               ? {
-                onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleEnterPress();
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (filtered.length > 0) {
-                      const nextIndex =
-                        selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
-                      setSelectedIndex(nextIndex);
-                      if (flatListRef.current && nextIndex >= 0) {
-                        setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({
-                            index: nextIndex,
-                            animated: true,
-                            viewOffset: 10,
-                          });
-                        }, 50);
+                  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleEnterPress();
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      if (filtered.length > 0) {
+                        const nextIndex =
+                          selectedIndex < filtered.length - 1 ? selectedIndex + 1 : 0;
+                        setSelectedIndex(nextIndex);
+                        if (flatListRef.current && nextIndex >= 0) {
+                          setTimeout(() => {
+                            flatListRef.current?.scrollToIndex({
+                              index: nextIndex,
+                              animated: true,
+                              viewOffset: 10,
+                            });
+                          }, 50);
+                        }
+                      }
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      if (filtered.length > 0) {
+                        const prevIndex =
+                          selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
+                        setSelectedIndex(prevIndex);
+                        if (flatListRef.current && prevIndex >= 0) {
+                          setTimeout(() => {
+                            flatListRef.current?.scrollToIndex({
+                              index: prevIndex,
+                              animated: true,
+                              viewOffset: 10,
+                            });
+                          }, 50);
+                        }
+                      }
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      setShowList(false);
+                      if (inputRef.current) {
+                        inputRef.current.blur();
                       }
                     }
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (filtered.length > 0) {
-                      const prevIndex =
-                        selectedIndex > 0 ? selectedIndex - 1 : filtered.length - 1;
-                      setSelectedIndex(prevIndex);
-                      if (flatListRef.current && prevIndex >= 0) {
-                        setTimeout(() => {
-                          flatListRef.current?.scrollToIndex({
-                            index: prevIndex,
-                            animated: true,
-                            viewOffset: 10,
-                          });
-                        }, 50);
-                      }
-                    }
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setShowList(false);
-                    if (inputRef.current) {
-                      inputRef.current.blur();
-                    }
-                  }
-                },
-              }
+                  },
+                }
               : {})}
           />
 
@@ -509,7 +534,9 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.manualEntryText}>✏️ Digitar "{searchText}" manualmente</Text>
+                    <Text style={styles.manualEntryText}>
+                      ✏️ Digitar "{searchText}" manualmente
+                    </Text>
                   </TouchableOpacity>
                 )}
 
@@ -538,8 +565,8 @@ export const AutocompleteField = forwardRef<AutocompleteFieldRef, AutocompleteFi
                         activeOpacity={0.7}
                         {...(Platform.OS === 'web'
                           ? {
-                            onMouseEnter: () => setSelectedIndex(index),
-                          }
+                              onMouseEnter: () => setSelectedIndex(index),
+                            }
                           : {})}
                       >
                         <FontAwesome5
@@ -575,9 +602,9 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     ...(Platform.OS === 'web'
       ? {
-        backgroundColor: '#ffffff',
-        position: 'relative' as ViewStyle['position'],
-      }
+          backgroundColor: '#ffffff',
+          position: 'relative' as ViewStyle['position'],
+        }
       : {}),
   },
   label: {
@@ -588,15 +615,27 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  leadingIcon: {
+    pointerEvents: 'none',
+    position: 'absolute',
+    left: 12,
+    top: 11,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
   inputContainer: {
     position: 'relative' as ViewStyle['position'],
     zIndex: 1,
     ...(Platform.OS === 'web'
       ? {
-        position: 'relative' as any,
-        overflow: 'visible' as any,
-        zIndex: 1,
-      }
+          position: 'relative' as any,
+          overflow: 'visible' as any,
+          zIndex: 1,
+        }
       : {}),
   },
   input: {
@@ -614,6 +653,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  softInput: {
+    backgroundColor: '#f5f8fb',
+    borderColor: '#e1e9f1',
+    borderWidth: 1,
+    borderRadius: 16,
+    minHeight: 56,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   inputFocused: {
     borderColor: theme.colors.primary,
@@ -640,8 +688,8 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     ...(Platform.OS === 'web'
       ? {
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-      }
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+        }
       : {}),
   },
   dropdownWrapper: {
@@ -650,13 +698,13 @@ const styles = StyleSheet.create({
     minHeight: '100%',
     ...(Platform.OS === 'web'
       ? {
-        backgroundColor: '#ffffff',
-        opacity: 1,
-        // @ts-ignore
-        backgroundImage: 'none',
-        // @ts-ignore
-        position: 'relative',
-      }
+          backgroundColor: '#ffffff',
+          opacity: 1,
+          // @ts-ignore
+          backgroundImage: 'none',
+          // @ts-ignore
+          position: 'relative',
+        }
       : {}),
   },
   dropdownInner: {
@@ -666,9 +714,9 @@ const styles = StyleSheet.create({
     width: '100%',
     ...(Platform.OS === 'web'
       ? {
-        backgroundColor: '#ffffff',
-        opacity: 1,
-      }
+          backgroundColor: '#ffffff',
+          opacity: 1,
+        }
       : {}),
   },
   list: {
@@ -685,13 +733,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
-        backgroundColor: '#ffffff',
-        opacity: 1,
-        // @ts-ignore
-        position: 'relative',
-        // @ts-ignore
-        zIndex: 99999,
-      }
+          backgroundColor: '#ffffff',
+          opacity: 1,
+          // @ts-ignore
+          position: 'relative',
+          // @ts-ignore
+          zIndex: 99999,
+        }
       : {}),
   },
   itemSelected: {
@@ -759,13 +807,13 @@ const styles = StyleSheet.create({
     elevation: 99999,
     ...(Platform.OS === 'web'
       ? {
-        position: 'fixed' as any,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'auto' as any,
-      }
+          position: 'fixed' as any,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'auto' as any,
+        }
       : {}),
   },
   webDropdownContainer: {
@@ -777,16 +825,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore
-        display: 'flex',
-        // @ts-ignore
-        visibility: 'visible',
-        opacity: 1,
-        // @ts-ignore
-        zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
-        // @ts-ignore
-        pointerEvents: 'auto',
-      }
+          // @ts-ignore
+          display: 'flex',
+          // @ts-ignore
+          visibility: 'visible',
+          opacity: 1,
+          // @ts-ignore
+          zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
+          // @ts-ignore
+          pointerEvents: 'auto',
+        }
       : {}),
   },
   webDropdown: {
@@ -803,20 +851,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-        backgroundColor: '#ffffff',
-        // @ts-ignore
-        display: 'flex',
-        // @ts-ignore
-        visibility: 'visible',
-        opacity: 1,
-        // @ts-ignore
-        backgroundImage: 'none',
-        // @ts-ignore
-        zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
-        // @ts-ignore
-        position: 'relative',
-      }
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+          backgroundColor: '#ffffff',
+          // @ts-ignore
+          display: 'flex',
+          // @ts-ignore
+          visibility: 'visible',
+          opacity: 1,
+          // @ts-ignore
+          backgroundImage: 'none',
+          // @ts-ignore
+          zIndex: theme.zIndex.DROPDOWN_FIELD_DROPDOWN,
+          // @ts-ignore
+          position: 'relative',
+        }
       : {}),
   },
   webDropdownList: {
@@ -824,8 +872,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
-        backgroundColor: '#ffffff',
-      }
+          backgroundColor: '#ffffff',
+        }
       : {}),
   },
   modalContainer: {

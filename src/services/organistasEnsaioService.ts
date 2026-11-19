@@ -204,25 +204,87 @@ export const organistasEnsaioService = {
     }
   },
 
+  /** Atualizar exatamente um registro, preservando o local e a data do ensaio. */
+  async updateOrganistaEnsaio(
+    registro: OrganistaEnsaio
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured() || !supabase)
+      return { success: false, error: 'Supabase não está configurado' };
+    if (
+      !registro.id ||
+      !registro.local_ensaio?.trim() ||
+      !registro.data_ensaio ||
+      !registro.organista_nome?.trim()
+    ) {
+      return { success: false, error: 'Identificador, local, data e nome são obrigatórios' };
+    }
+    try {
+      await ensureSessionRestored();
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .update({
+          organista_nome: registro.organista_nome.trim(),
+          organista_comum: registro.organista_comum?.trim() || null,
+          organista_cidade: registro.organista_cidade?.trim() || null,
+          tocou: registro.tocou,
+          observacoes: registro.observacoes?.trim() || null,
+          usuario_responsavel: registro.usuario_responsavel,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', registro.id)
+        .ilike('local_ensaio', registro.local_ensaio.trim())
+        .eq('data_ensaio', registro.data_ensaio)
+        .select('id')
+        .single();
+      if (error || !data)
+        return {
+          success: false,
+          error: error?.message || 'Registro não encontrado ou sem permissão para editar',
+        };
+      await atualizarPlanilhaOrganistas(registro.local_ensaio);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao atualizar registro' };
+    }
+  },
+
   /**
    * Deletar registro de organista no ensaio
    */
-  async deleteOrganistaEnsaio(id: string): Promise<{ success: boolean; error?: string }> {
+  async deleteOrganistaEnsaio(
+    id: string,
+    localEnsaio: string,
+    dataEnsaio: string
+  ): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured() || !supabase) {
       return { success: false, error: 'Supabase não está configurado' };
     }
 
+    if (!id || !localEnsaio?.trim() || !dataEnsaio)
+      return { success: false, error: 'Identificador, local e data são obrigatórios' };
+
     try {
       await ensureSessionRestored();
 
-      const { error } = await supabase.from(TABLE_NAME).delete().eq('id', id);
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .delete()
+        .eq('id', id)
+        .ilike('local_ensaio', localEnsaio.trim())
+        .eq('data_ensaio', dataEnsaio)
+        .select('id')
+        .single();
 
-      if (error) {
+      if (error || !data) {
         console.error('❌ Erro ao deletar registro de organista:', error);
-        return { success: false, error: error.message };
+        return {
+          success: false,
+          error: error?.message || 'Registro não encontrado ou sem permissão para excluir',
+        };
       }
 
       console.log('✅ Registro de organista deletado com sucesso');
+      await atualizarPlanilhaOrganistas(localEnsaio);
       return { success: true };
     } catch (error: any) {
       console.error('❌ Erro ao deletar registro de organista:', error);
@@ -257,7 +319,7 @@ export const organistasEnsaioService = {
       if (data && data.length > 0) {
         return {
           data: data[0].data_ensaio,
-          tocou: data[0].tocou
+          tocou: data[0].tocou,
         };
       }
 
@@ -274,8 +336,8 @@ export const organistasEnsaioService = {
         return null;
       }
 
-      return presencasData && presencasData.length > 0 
-        ? { data: presencasData[0].data_ensaio, tocou: true } 
+      return presencasData && presencasData.length > 0
+        ? { data: presencasData[0].data_ensaio, tocou: true }
         : null;
     } catch (error) {
       console.error('❌ Erro ao buscar última presença:', error);

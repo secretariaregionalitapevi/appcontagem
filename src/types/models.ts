@@ -74,6 +74,8 @@ export interface Usuario {
 export interface LocalEnsaio {
   id: string;
   nome: string;
+  geo?: { latitude: number; longitude: number; radiusMeters?: number };
+  mesesEnsaio?: number[];
 }
 
 export interface OrganistaEnsaio {
@@ -90,6 +92,7 @@ export interface OrganistaEnsaio {
   updated_at?: string;
 }
 export interface AppConfig {
+  MAP_TILE_URL?: string;
   REGIONAL_NAME: string;
   LOCAIS_ENSAIO: LocalEnsaio[];
 }

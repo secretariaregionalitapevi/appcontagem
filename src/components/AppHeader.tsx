@@ -1,3 +1,4 @@
+import { locationSafetyService } from '../services/locationSafetyService';
 import React from 'react';
 import {
   View,
@@ -27,6 +28,8 @@ interface AppHeaderProps {
   onBackPress?: () => void;
   onNewRegistroPress?: () => void;
   title?: string;
+  mobileDesign?: boolean;
+  locationReview?: boolean;
 }
 
 const ccbLogo = require('../img/ccb.png');
@@ -40,6 +43,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onBackPress,
   onNewRegistroPress,
   title,
+  mobileDesign = false,
+  locationReview = false,
 }) => {
   const { user, signOut } = useAuthContext();
   const [localEnsaio, setLocalEnsaio] = React.useState<string>('');
@@ -47,6 +52,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   React.useEffect(() => {
     loadLocalEnsaio();
   }, []);
+
+  React.useEffect(
+    () => locationSafetyService.subscribeVenue(venue => setLocalEnsaio(venue.nome)),
+    []
+  );
 
   const loadLocalEnsaio = async () => {
     try {
@@ -142,7 +152,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   };
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, mobileDesign && styles.mobileHeader]}>
       {/* Primeira linha: Logo, Título e Botões */}
       <View style={styles.headerTopRow}>
         <View style={styles.headerLeftSection}>
@@ -157,8 +167,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               >
                 {title || 'Registro de Presença'}
               </Text>
-              {!IS_SMALL_SCREEN && (
-                <View style={styles.brandSubtitleContainer}>
+              {(!IS_SMALL_SCREEN || mobileDesign) && (
+                <TouchableOpacity
+                  style={styles.brandSubtitleContainer}
+                  disabled={!locationReview}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver local do ensaio: ${localEnsaio}`}
+                  hitSlop={8}
+                  onPress={() => {
+                    void locationSafetyService.review(localEnsaio);
+                  }}
+                >
                   <View style={styles.pinContainer}>
                     <Ionicons name="location-sharp" size={14} color="#ef4444" />
                     <View style={styles.pinDot} />
@@ -166,133 +185,147 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   <Text style={styles.brandSubtitle} numberOfLines={1}>
                     Local do Ensaio: <Text style={styles.brandSubtitleBold}>{localEnsaio}</Text>
                   </Text>
-                </View>
+                  {locationReview && <Ionicons name="chevron-down" size={10} color="#b8d1e2" />}
+                </TouchableOpacity>
               )}
             </View>
           </View>
         </View>
 
         {/* Botões de ação - sempre na direita */}
-        <View style={[styles.headerActions, IS_SMALL_SCREEN && styles.headerActionsSmall]}>
-          {onBackPress && (
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                styles.defaultBtn,
-                IS_SMALL_SCREEN && styles.actionBtnSmall,
-              ]}
-              onPress={() => handlePressWithHaptic(onBackPress)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
-            </TouchableOpacity>
-          )}
-          {isMaster && onEditRegistrosPress && (
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                styles.defaultBtn,
-                IS_SMALL_SCREEN && styles.actionBtnSmall,
-              ]}
-              onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
-              activeOpacity={0.7}
-            >
-              <FontAwesome5 name="edit" size={IS_SMALL_SCREEN ? 16 : 18} color="#e2e8f0" />
-            </TouchableOpacity>
-          )}
-          {onOrganistasEnsaioPress && (
-            <TouchableOpacity
-              style={[
-                styles.actionBtn,
-                IS_SMALL_SCREEN && styles.actionBtnSmall,
-                styles.organistaBtn,
-              ]}
-              onPress={e => {
-                handlePressWithHaptic(() => {
-                  console.log('🎹 [AppHeader] Botão de organistas clicado!');
-                  console.log(
-                    '🎹 [AppHeader] onOrganistasEnsaioPress disponível?',
-                    !!onOrganistasEnsaioPress
-                  );
-                  console.log(
-                    '🎹 [AppHeader] Tipo de onOrganistasEnsaioPress:',
-                    typeof onOrganistasEnsaioPress
-                  );
-                  try {
-                    if (onOrganistasEnsaioPress) {
-                      onOrganistasEnsaioPress();
-                      console.log('✅ [AppHeader] onOrganistasEnsaioPress chamado com sucesso');
-                    } else {
-                      console.error('❌ [AppHeader] onOrganistasEnsaioPress é null/undefined');
+        {!mobileDesign && (
+          <View style={[styles.headerActions, IS_SMALL_SCREEN && styles.headerActionsSmall]}>
+            {onBackPress && (
+              <TouchableOpacity
+                style={[
+                  styles.actionBtn,
+                  styles.defaultBtn,
+                  IS_SMALL_SCREEN && styles.actionBtnSmall,
+                ]}
+                onPress={() => handlePressWithHaptic(onBackPress)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="arrow-back" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
+              </TouchableOpacity>
+            )}
+            {isMaster && onEditRegistrosPress && (
+              <TouchableOpacity
+                style={[
+                  styles.actionBtn,
+                  styles.defaultBtn,
+                  IS_SMALL_SCREEN && styles.actionBtnSmall,
+                ]}
+                onPress={() => handlePressWithHaptic(onEditRegistrosPress)}
+                activeOpacity={0.7}
+              >
+                <FontAwesome5 name="edit" size={IS_SMALL_SCREEN ? 16 : 18} color="#e2e8f0" />
+              </TouchableOpacity>
+            )}
+            {onOrganistasEnsaioPress && (
+              <TouchableOpacity
+                style={[
+                  styles.actionBtn,
+                  IS_SMALL_SCREEN && styles.actionBtnSmall,
+                  styles.organistaBtn,
+                ]}
+                onPress={e => {
+                  handlePressWithHaptic(() => {
+                    console.log('🎹 [AppHeader] Botão de organistas clicado!');
+                    console.log(
+                      '🎹 [AppHeader] onOrganistasEnsaioPress disponível?',
+                      !!onOrganistasEnsaioPress
+                    );
+                    console.log(
+                      '🎹 [AppHeader] Tipo de onOrganistasEnsaioPress:',
+                      typeof onOrganistasEnsaioPress
+                    );
+                    try {
+                      if (onOrganistasEnsaioPress) {
+                        onOrganistasEnsaioPress();
+                        console.log('✅ [AppHeader] onOrganistasEnsaioPress chamado com sucesso');
+                      } else {
+                        console.error('❌ [AppHeader] onOrganistasEnsaioPress é null/undefined');
+                      }
+                    } catch (error) {
+                      console.error(
+                        '❌ [AppHeader] Erro ao chamar onOrganistasEnsaioPress:',
+                        error
+                      );
                     }
-                  } catch (error) {
-                    console.error('❌ [AppHeader] Erro ao chamar onOrganistasEnsaioPress:', error);
-                  }
-                });
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="musical-notes" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
-            </TouchableOpacity>
-          )}
-          {onSettingsPress && (
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="musical-notes" size={IS_SMALL_SCREEN ? 18 : 20} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+            {onSettingsPress && (
+              <TouchableOpacity
+                style={[
+                  styles.actionBtn,
+                  styles.defaultBtn,
+                  IS_SMALL_SCREEN && styles.actionBtnSmall,
+                ]}
+                onPress={() => handlePressWithHaptic(onSettingsPress)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="settings" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
+              </TouchableOpacity>
+            )}
+            {onNewRegistroPress && (
+              <TouchableOpacity
+                style={[
+                  styles.actionBtn,
+                  styles.newRegistroBtn,
+                  IS_SMALL_SCREEN && styles.actionBtnSmall,
+                ]}
+                onPress={() => handlePressWithHaptic(onNewRegistroPress)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="add" size={IS_SMALL_SCREEN ? 20 : 24} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+
+            {/* Botão de Refresh (Pânico) para destravar o app */}
             <TouchableOpacity
               style={[
                 styles.actionBtn,
                 styles.defaultBtn,
                 IS_SMALL_SCREEN && styles.actionBtnSmall,
               ]}
-              onPress={() => handlePressWithHaptic(onSettingsPress)}
-              activeOpacity={0.7}
+              onPress={() =>
+                handlePressWithHaptic(() => {
+                  if (Platform.OS === 'web') {
+                    window.location.reload();
+                  } else {
+                    alert(
+                      'Para atualizar no celular, feche o aplicativo deslizando para cima e abra novamente.'
+                    );
+                  }
+                })
+              }
+              activeOpacity={0.6}
             >
-              <Ionicons name="settings" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
+              <Ionicons name="refresh" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
-          )}
-          {onNewRegistroPress && (
+
             <TouchableOpacity
               style={[
                 styles.actionBtn,
-                styles.newRegistroBtn,
+                styles.defaultBtn,
                 IS_SMALL_SCREEN && styles.actionBtnSmall,
               ]}
-              onPress={() => handlePressWithHaptic(onNewRegistroPress)}
-              activeOpacity={0.7}
+              onPress={() => handlePressWithHaptic(handleLogout)}
+              activeOpacity={0.6}
             >
-              <Ionicons name="add" size={IS_SMALL_SCREEN ? 20 : 24} color="#ffffff" />
+              <FontAwesome5 name="sign-out-alt" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
             </TouchableOpacity>
-          )}
-
-          {/* Botão de Refresh (Pânico) para destravar o app */}
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-            onPress={() =>
-              handlePressWithHaptic(() => {
-                if (Platform.OS === 'web') {
-                  window.location.reload();
-                } else {
-                  alert(
-                    'Para atualizar no celular, feche o aplicativo deslizando para cima e abra novamente.'
-                  );
-                }
-              })
-            }
-            activeOpacity={0.6}
-          >
-            <Ionicons name="refresh" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.defaultBtn, IS_SMALL_SCREEN && styles.actionBtnSmall]}
-            onPress={() => handlePressWithHaptic(handleLogout)}
-            activeOpacity={0.6}
-          >
-            <FontAwesome5 name="sign-out-alt" size={IS_SMALL_SCREEN ? 18 : 20} color="#e2e8f0" />
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
       </View>
 
       {/* Segunda linha (apenas em telas pequenas): Local */}
-      {IS_SMALL_SCREEN && (
+      {IS_SMALL_SCREEN && !mobileDesign && (
         <View style={styles.headerSecondRow}>
           <View style={styles.headerSecondRowContent}>
             <View style={styles.brandSubtitleContainer}>
@@ -312,6 +345,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 };
 
 const styles = StyleSheet.create({
+  mobileHeader: {
+    backgroundColor: '#073e60',
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 48 : 24,
+    paddingBottom: 22,
+    borderBottomWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   header: {
     backgroundColor: '#2f4050',
     paddingTop: Platform.OS === 'ios' ? 40 : 8,

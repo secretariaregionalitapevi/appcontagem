@@ -1,3 +1,4 @@
+import { locationSafetyService } from '../services/locationSafetyService';
 import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { userProfileService } from '../services/userProfileService';
@@ -49,14 +50,16 @@ export const useAuth = () => {
 
   // Escutar eventos de autenticação (como recuperação de senha)
   useEffect(() => {
-    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = authService.onAuthStateChange(async (event, session) => {
       console.log(`🔔 [useAuth] Evento de Auth: ${event}`);
-      
+
       if (event === 'PASSWORD_RECOVERY') {
         console.log('🔄 PASSWORD_RECOVERY detectado - redirecionando para ResetPassword');
         setIsRecoveringPassword(true);
       }
-      
+
       if (event === 'SIGNED_IN' && session?.user) {
         // Buscar perfil de forma assíncrona sem bloquear o listener
         (async () => {
@@ -78,8 +81,7 @@ export const useAuth = () => {
             console.warn('⚠️ Erro ao buscar perfil no listener de auth:', profileError);
           }
         })();
-      }
- else if (event === 'SIGNED_OUT') {
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsRecoveringPassword(false);
       }
@@ -95,7 +97,9 @@ export const useAuth = () => {
     if (signedUser) {
       // 🚀 NOVO: Resetar o timer de inatividade ANTES de setar o usuário
       // Isso evita que o hook de inatividade detecte o estado antigo no primeiro render
-      await robustStorage.robustSetItem('@last_activity_timestamp', Date.now().toString()).catch(() => {});
+      await robustStorage
+        .robustSetItem('@last_activity_timestamp', Date.now().toString())
+        .catch(() => {});
       setUser(signedUser);
       setIsRecoveringPassword(false);
       resetTimeout();
@@ -107,7 +111,9 @@ export const useAuth = () => {
     const { user: signedUser, error } = await authService.signUp(email, password, nome);
     if (signedUser) {
       // 🚀 NOVO: Resetar o timer de inatividade ANTES de setar o usuário
-      await robustStorage.robustSetItem('@last_activity_timestamp', Date.now().toString()).catch(() => {});
+      await robustStorage
+        .robustSetItem('@last_activity_timestamp', Date.now().toString())
+        .catch(() => {});
       setUser(signedUser);
       setIsRecoveringPassword(false);
       resetTimeout();
@@ -116,6 +122,7 @@ export const useAuth = () => {
   };
 
   const signOut = async () => {
+    locationSafetyService.reset();
     try {
       // 🚀 NOVO: Limpar o timestamp de inatividade ao deslogar
       await robustStorage.robustRemoveItem('@last_activity_timestamp');

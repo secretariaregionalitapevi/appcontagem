@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { RegisterBottomBar } from '../components/RegisterBottomBar';
 import { AppHeader } from '../components/AppHeader';
 import { AutocompleteField } from '../components/AutocompleteField';
 import { RefreshableScrollView } from '../components/RefreshableScrollView';
@@ -50,6 +51,7 @@ export const EditRegistrosScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [localEnsaio, setLocalEnsaio] = useState<string>('');
 
   // Atualizar lista automaticamente quando a tela ganha foco
@@ -101,7 +103,8 @@ export const EditRegistrosScreen: React.FC = () => {
       const localId = await localStorageService.getLocalEnsaio();
       if (localId) {
         // Converter ID para nome
-        const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
+        const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' &&
+          window.APP_CONFIG?.LOCAIS_ENSAIO) || [
           { id: '1', nome: 'Cotia' },
           { id: '2', nome: 'Caucaia do Alto' },
           { id: '3', nome: 'Fazendinha' },
@@ -123,7 +126,10 @@ export const EditRegistrosScreen: React.FC = () => {
 
   const performSearch = async (term: string) => {
     if (!localEnsaio || !isMaster) {
-      console.warn('⚠️ [performSearch] Busca cancelada (local não definido ou usuário não master):', { localEnsaio, isMaster, userRole: user?.role });
+      console.warn(
+        '⚠️ [performSearch] Busca cancelada (local não definido ou usuário não master):',
+        { localEnsaio, isMaster, userRole: user?.role }
+      );
       return;
     }
 
@@ -195,7 +201,7 @@ export const EditRegistrosScreen: React.FC = () => {
     // @ts-ignore
     navigation.navigate('EditRecordDetail', {
       registro,
-      localEnsaio
+      localEnsaio,
     });
   };
 
@@ -258,11 +264,20 @@ export const EditRegistrosScreen: React.FC = () => {
     }
   };
 
+  const bottomNavigation = (
+    <RegisterBottomBar
+      activeTab="records"
+      onHomePress={() => navigation.navigate('Register' as never)}
+      onEditRegistrosPress={() => navigation.navigate('EditRegistros' as never)}
+      onOrganistasEnsaioPress={() => navigation.navigate('OrganistasEnsaio' as never)}
+    />
+  );
+
   // Se não é master, mostrar mensagem
   if (!isMaster) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader mobileDesign />
         <View style={styles.noPermissionContainer}>
           <FontAwesome5 name="lock" size={48} color={theme.colors.error} />
           <Text style={styles.noPermissionText}>Acesso Restrito</Text>
@@ -280,6 +295,7 @@ export const EditRegistrosScreen: React.FC = () => {
             <Text style={styles.backButtonText}>Voltar</Text>
           </TouchableOpacity>
         </View>
+        {bottomNavigation}
       </View>
     );
   }
@@ -288,7 +304,7 @@ export const EditRegistrosScreen: React.FC = () => {
   if (!localEnsaio) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader mobileDesign />
         <View style={styles.noPermissionContainer}>
           <FontAwesome5 name="map-marker-alt" size={48} color={theme.colors.warning} />
           <Text style={styles.noPermissionText}>Local não definido</Text>
@@ -306,13 +322,14 @@ export const EditRegistrosScreen: React.FC = () => {
             <Text style={styles.backButtonText}>Voltar</Text>
           </TouchableOpacity>
         </View>
+        {bottomNavigation}
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <AppHeader />
+      <AppHeader mobileDesign />
       <RefreshableScrollView
         refreshing={refreshing}
         onRefresh={onRefresh}
@@ -329,9 +346,11 @@ export const EditRegistrosScreen: React.FC = () => {
       >
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <View style={styles.headerTop}>
+            <View style={styles.titleRow}>
               <TouchableOpacity
-                style={styles.backButton}
+                accessibilityRole="button"
+                accessibilityLabel="Voltar para a tela anterior"
+                style={styles.navigationBack}
                 onPress={() => {
                   console.log('🔙 Botão voltar clicado');
                   try {
@@ -346,27 +365,48 @@ export const EditRegistrosScreen: React.FC = () => {
                   }
                 }}
               >
-                <FontAwesome5 name="arrow-left" size={16} color={theme.colors.primary} />
-                <Text style={styles.backButtonText}>Voltar</Text>
+                <FontAwesome5 solid name="chevron-left" size={24} color="#174c70" />
               </TouchableOpacity>
+              <View style={styles.titleContent}>
+                <Text style={styles.sectionEyebrow}>GESTÃO DE PRESENÇAS</Text>
+                <Text style={styles.cardTitle}>Editar registros</Text>
+              </View>
             </View>
-            <Text style={styles.cardTitle}>Editar Registros</Text>
-            <Text style={styles.cardSubtitle}>
-              Local: {localEnsaio} • {registros.length} registro(s) encontrado(s)
-            </Text>
+            <Text style={styles.cardSubtitle}>Encontre e gerencie as presenças do ensaio.</Text>
+            <View style={styles.metadataRow}>
+              <View style={styles.locationInfo}>
+                <View style={styles.locationIcon}>
+                  <FontAwesome5 solid name="map-marker-alt" size={18} color="#dc4545" />
+                </View>
+                <Text style={styles.locationLabel}>
+                  Local: <Text style={styles.locationCity}>{localEnsaio}</Text>
+                </Text>
+              </View>
+              <View style={styles.resultsBadge} accessibilityLiveRegion="polite">
+                <View style={styles.resultDot} />
+                <Text style={styles.resultsText}>
+                  <Text style={styles.resultsCount}>{registros.length}</Text>{' '}
+                  {registros.length === 1 ? 'resultado encontrado' : 'resultados encontrados'}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Campo de busca */}
-          <View style={styles.searchContainer}>
+          <View style={[styles.searchContainer, searchFocused && styles.searchContainerFocused]}>
             <FontAwesome5
+              solid
               name="search"
-              size={16}
-              color={theme.colors.textSecondary}
+              size={22}
+              color={searchFocused ? '#0867a8' : '#718596'}
               style={styles.searchIcon}
             />
             <TextInput
+              accessibilityLabel="Pesquisar por nome, cargo ou comum"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               style={styles.searchInput}
-              placeholder="Pesquisar por nome, cargo ou comum..."
+              placeholder="Busque por nome, cargo ou comum"
               placeholderTextColor={theme.colors.textSecondary}
               value={searchTerm}
               onChangeText={handleSearch}
@@ -382,7 +422,9 @@ export const EditRegistrosScreen: React.FC = () => {
             </View>
           ) : registros.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <FontAwesome5 name="search" size={48} color={theme.colors.textSecondary} />
+              <View style={styles.emptyIcon}>
+                <FontAwesome5 solid name="search" size={36} color="#527b98" />
+              </View>
               <Text style={styles.emptyText}>
                 {searchTerm ? 'Nenhum registro encontrado' : 'Nenhuma pesquisa realizada'}
               </Text>
@@ -398,11 +440,80 @@ export const EditRegistrosScreen: React.FC = () => {
                 <View key={registro.uuid || index} style={styles.registroItem}>
                   <View style={styles.registroContent}>
                     <View style={styles.registroHeader}>
-                      <Text style={styles.registroNome}>
-                        {registro.nome_completo || 'Nome não informado'}
-                      </Text>
+                      <View style={styles.personAvatar}>
+                        <Text style={styles.personInitials}>
+                          {(registro.nome_completo || '?')
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .filter((_, i, parts) => i === 0 || i === parts.length - 1)
+                            .map(part => part[0])
+                            .join('')
+                            .toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.personIdentity}>
+                        <Text style={styles.personOverline}>PARTICIPANTE</Text>
+                        <Text style={styles.registroNome}>
+                          {registro.nome_completo || 'Nome não informado'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.participantBadges}>
+                      <View style={styles.roleBadge}>
+                        <FontAwesome5 solid name="user" size={14} color="#7253a2" />
+                        <Text style={styles.roleBadgeText}>
+                          {registro.cargo || 'Cargo não informado'}
+                        </Text>
+                      </View>
+                      {!!registro.instrumento && (
+                        <View style={styles.instrumentBadge}>
+                          <FontAwesome5 solid name="music" size={14} color="#147f89" />
+                          <Text style={styles.instrumentBadgeText}>{registro.instrumento}</Text>
+                        </View>
+                      )}
+                      {!!registro.classe_organista && (
+                        <View style={styles.instrumentBadge}>
+                          <Text style={styles.instrumentBadgeText}>
+                            {registro.classe_organista}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.commonInfo}>
+                      <View style={styles.commonIcon}>
+                        <FontAwesome5 solid name="users" size={20} color="#1684dc" />
+                      </View>
+                      <View style={styles.personIdentity}>
+                        <Text style={styles.personOverline}>COMUM CONGREGAÇÃO</Text>
+                        <Text style={styles.commonName}>{registro.comum || 'Não informado'}</Text>
+                      </View>
+                    </View>
+                    {!!registro.anotacoes && (
+                      <View style={styles.recordNote}>
+                        <FontAwesome5 solid name="file-alt" size={16} color="#dc9616" />
+                        <Text style={styles.detailText}>{registro.anotacoes}</Text>
+                      </View>
+                    )}
+                    <View style={styles.recordFooter}>
+                      <View style={styles.recordMetadata}>
+                        <View style={styles.detailRow}>
+                          <FontAwesome5 solid name="map-marker-alt" size={14} color="#dc4545" />
+                          <Text style={styles.recordLocation}>
+                            {registro.local_ensaio || 'Não informado'}
+                          </Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                          <FontAwesome5 solid name="clock" size={14} color="#079c98" />
+                          <Text style={styles.recordDate}>
+                            {formatRegistroDateTime(registro.data_ensaio, registro.created_at)}
+                          </Text>
+                        </View>
+                      </View>
                       <View style={styles.actionButtons}>
                         <TouchableOpacity
+                          accessibilityRole="button"
+                          accessibilityLabel={`Editar ${registro.nome_completo || 'registro'}`}
                           style={styles.editButton}
                           onPress={() => {
                             console.log('🔘 Botão de editar clicado para:', registro.nome_completo);
@@ -410,11 +521,17 @@ export const EditRegistrosScreen: React.FC = () => {
                           }}
                           activeOpacity={0.7}
                         >
-                          <FontAwesome5 name="edit" size={16} color={theme.colors.primary} />
+                          <FontAwesome5 solid name="edit" size={19} color="#ffffff" />
+                          <Text style={styles.editActionLabel}>Editar</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          style={[styles.deleteButton, deleting === registro.uuid && { opacity: 0.5 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Excluir ${registro.nome_completo || 'registro'}`}
+                          style={[
+                            styles.deleteButton,
+                            deleting === registro.uuid && { opacity: 0.5 },
+                          ]}
                           onPress={() => handleDelete(registro)}
                           disabled={deleting === registro.uuid}
                           activeOpacity={0.7}
@@ -422,69 +539,15 @@ export const EditRegistrosScreen: React.FC = () => {
                           {deleting === registro.uuid ? (
                             <ActivityIndicator size="small" color={theme.colors.error} />
                           ) : (
-                            <FontAwesome5 name="trash-alt" size={16} color={theme.colors.error} />
+                            <FontAwesome5
+                              solid
+                              name="trash-alt"
+                              size={21}
+                              color={theme.colors.error}
+                            />
                           )}
                         </TouchableOpacity>
                       </View>
-                    </View>
-
-                    <View style={styles.registroDetails}>
-                      <View style={styles.detailRow}>
-                        <FontAwesome5 name="users" size={12} color={theme.colors.textSecondary} />
-                        <Text style={styles.detailText}>{registro.comum || 'Não informado'}</Text>
-                      </View>
-
-                      <View style={styles.detailRow}>
-                        <FontAwesome5 name="user" size={12} color={theme.colors.textSecondary} />
-                        <Text style={styles.detailText}>{registro.cargo || 'Não informado'}</Text>
-                      </View>
-
-                      {registro.instrumento && (
-                        <View style={styles.detailRow}>
-                          <FontAwesome5 name="music" size={12} color={theme.colors.textSecondary} />
-                          <Text style={styles.detailText}>{registro.instrumento}</Text>
-                        </View>
-                      )}
-
-                      {registro.classe_organista && (
-                        <View style={styles.detailRow}>
-                          <FontAwesome5
-                            name="keyboard"
-                            size={12}
-                            color={theme.colors.textSecondary}
-                          />
-                          <Text style={styles.detailText}>Classe: {registro.classe_organista}</Text>
-                        </View>
-                      )}
-
-                      <View style={styles.detailRow}>
-                        <FontAwesome5
-                          name="map-marker-alt"
-                          size={12}
-                          color={theme.colors.textSecondary}
-                        />
-                        <Text style={styles.detailText}>
-                          {registro.local_ensaio || 'Não informado'}
-                        </Text>
-                      </View>
-
-                      <View style={styles.detailRow}>
-                        <FontAwesome5 name="clock" size={12} color={theme.colors.textSecondary} />
-                        <Text style={styles.detailText}>
-                          {formatRegistroDateTime(registro.data_ensaio, registro.created_at)}
-                        </Text>
-                      </View>
-
-                      {registro.anotacoes && (
-                        <View style={styles.detailRow}>
-                          <FontAwesome5
-                            name="sticky-note"
-                            size={12}
-                            color={theme.colors.textSecondary}
-                          />
-                          <Text style={styles.detailText}>{registro.anotacoes}</Text>
-                        </View>
-                      )}
                     </View>
                   </View>
                 </View>
@@ -493,6 +556,7 @@ export const EditRegistrosScreen: React.FC = () => {
           )}
         </View>
       </RefreshableScrollView>
+      {bottomNavigation}
     </View>
   );
 };
@@ -500,36 +564,102 @@ export const EditRegistrosScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#f3f6fa',
   },
   keyboardView: {
     flex: 1,
   },
   scrollView: {
     flex: 1,
+    minHeight: 0,
   },
   scrollContent: {
     padding: theme.spacing.lg,
     flexGrow: 1,
   },
   card: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#e3ebf1',
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
     elevation: 3,
+  },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  titleContent: { flex: 1, minWidth: 0 },
+  navigationBack: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    backgroundColor: '#f0f5f9',
+    borderWidth: 1,
+    borderColor: '#e3ebf1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    color: '#6c8395',
+    marginBottom: 5,
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 22,
+  },
+  locationInfo: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
+  locationIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: '#fff0ef',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationLabel: { fontSize: 13, lineHeight: 20, color: '#718196', flexShrink: 1 },
+  locationCity: { fontWeight: '700', color: '#223c50' },
+  resultsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#edf5fb',
+    marginLeft: 'auto',
+  },
+  resultDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#3684b8' },
+  resultsText: { fontSize: 11, color: '#42718f', lineHeight: 16 },
+  resultsCount: { fontWeight: '800', color: '#125d8c' },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 28,
+    backgroundColor: '#edf4f8',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardHeader: {
     padding: theme.spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: '#edf2f6',
   },
   headerTop: {
     marginBottom: theme.spacing.md,
   },
   backButton: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
@@ -545,31 +675,42 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
   },
   cardTitle: {
-    fontSize: theme.fontSize.xl,
+    fontSize: 26,
+    letterSpacing: -0.6,
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   cardSubtitle: {
+    marginTop: 14,
+    lineHeight: 21,
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
   },
   searchContainer: {
+    margin: 20,
+    backgroundColor: '#f3f7fa',
+    borderWidth: 1,
+    borderRadius: 16,
+    borderColor: '#e1eaf1',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingVertical: 5,
   },
+  searchContainerFocused: { borderColor: '#2a83b9', backgroundColor: '#ffffff' },
   searchIcon: {
     marginRight: theme.spacing.sm,
   },
   searchInput: {
     flex: 1,
+    minWidth: 0,
+    minHeight: 44,
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: 10,
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as any, borderWidth: 0 } : {}),
   },
   loadingContainer: {
     padding: theme.spacing.xl,
@@ -582,11 +723,13 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   emptyContainer: {
+    minHeight: 240,
     padding: theme.spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyText: {
+    textAlign: 'center',
     fontSize: theme.fontSize.lg,
     fontWeight: '600',
     color: theme.colors.text,
@@ -619,9 +762,75 @@ const styles = StyleSheet.create({
   registrosList: {
     padding: theme.spacing.md,
   },
+  personAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 17,
+    backgroundColor: '#eaf3fa',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  personInitials: { fontSize: 17, fontWeight: '700', color: '#176497' },
+  personIdentity: { flex: 1, minWidth: 0 },
+  personOverline: {
+    fontSize: 9,
+    letterSpacing: 1.1,
+    fontWeight: '700',
+    color: '#8192a1',
+    marginBottom: 5,
+  },
+  participantBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 16 },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f3eefb',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    maxWidth: '100%',
+  },
+  roleBadgeText: { fontSize: 11, fontWeight: '600', color: '#7253a2', flexShrink: 1 },
+  instrumentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#eaf7f7',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    maxWidth: '100%',
+  },
+  instrumentBadgeText: { fontSize: 11, fontWeight: '600', color: '#147f89', flexShrink: 1 },
+  commonInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#f7f9fc',
+    padding: 12,
+    borderRadius: 12,
+  },
+  commonIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  commonName: { fontSize: 12, lineHeight: 19, color: '#3b5368', fontWeight: '500' },
+  recordNote: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  recordFooter: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#edf2f6',
+    marginTop: 16,
+    paddingTop: 16,
+  },
+  recordMetadata: { gap: 6 },
+  recordLocation: { fontSize: 11, fontWeight: '600', color: '#526c80', flexShrink: 1 },
+  recordDate: { fontSize: 11, color: '#8494a2' },
+  editActionLabel: { fontSize: 12, color: '#ffffff', fontWeight: '600' },
   registroItem: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.md,
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
     marginBottom: theme.spacing.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
@@ -630,34 +839,39 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   registroHeader: {
+    gap: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
   },
   registroNome: {
-    fontSize: theme.fontSize.md,
+    fontSize: 17,
+    lineHeight: 24,
     fontWeight: '600',
     color: theme.colors.text,
     flex: 1,
   },
   editButton: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 14,
     padding: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.primary + '20', // Fundo mais visível
-    minWidth: 40,
-    minHeight: 40,
+    backgroundColor: '#0867a8', // Fundo mais visível
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.primary + '40',
+    borderColor: '#0867a8',
   },
   deleteButton: {
     padding: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
     backgroundColor: '#FEE8E8', // Vermelho suave
-    minWidth: 40,
-    minHeight: 40,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -687,13 +901,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...(Platform.OS === 'web'
       ? {
-        position: 'fixed' as any,
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 99999,
-      }
+          position: 'fixed' as any,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 99999,
+        }
       : {}),
   },
   modalOverlay: {
@@ -705,9 +919,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     ...(Platform.OS === 'web'
       ? {
-        position: 'fixed' as any,
-        zIndex: 99998,
-      }
+          position: 'fixed' as any,
+          zIndex: 99998,
+        }
       : {}),
   },
   modalContentWrapper: {
@@ -719,9 +933,9 @@ const styles = StyleSheet.create({
     zIndex: 99999,
     ...(Platform.OS === 'web'
       ? {
-        position: 'relative' as const,
-        zIndex: 99999,
-      }
+          position: 'relative' as const,
+          zIndex: 99999,
+        }
       : {}),
   },
   modalContent: {
@@ -737,12 +951,12 @@ const styles = StyleSheet.create({
     zIndex: 100000,
     ...(Platform.OS === 'web'
       ? {
-        maxWidth: '800px' as any,
-        maxHeight: '90%' as any,
-        width: '90%',
-        position: 'relative' as const,
-        zIndex: 100000,
-      }
+          maxWidth: '800px' as any,
+          maxHeight: '90%' as any,
+          width: '90%',
+          position: 'relative' as const,
+          zIndex: 100000,
+        }
       : {}),
   },
   modalHeader: {
@@ -766,8 +980,8 @@ const styles = StyleSheet.create({
     maxHeight: 500,
     ...(Platform.OS === 'web'
       ? {
-        maxHeight: '60vh' as any,
-      }
+          maxHeight: '60vh' as any,
+        }
       : {}),
   },
   formField: {
@@ -807,9 +1021,9 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     ...(Platform.OS === 'web'
       ? {
-        position: 'sticky' as any,
-        bottom: 0,
-      }
+          position: 'sticky' as any,
+          bottom: 0,
+        }
       : {}),
   },
   cancelButton: {
@@ -825,12 +1039,12 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     ...(Platform.OS === 'web'
       ? {
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-      }
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }
       : {
-        elevation: 0,
-      }),
+          elevation: 0,
+        }),
   },
   cancelButtonText: {
     fontSize: theme.fontSize.md,

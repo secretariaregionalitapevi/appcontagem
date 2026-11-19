@@ -30,7 +30,7 @@ interface NewRegistrationModalProps {
     instrumento?: string;
     classe?: string;
     nome: string;
-  }) => Promise<void>;
+  }) => Promise<void | boolean>;
 }
 
 export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
@@ -240,7 +240,7 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
       // 🚨 CRÍTICO: Aguardar resultado do onSave e tratar erros
       try {
         console.log('🔄 [MODAL] Chamando onSave...');
-        await onSave({
+        const saved = await onSave({
           comum: comum.trim(),
           cidade: cidade.trim(),
           cargo: selectedCargo,
@@ -248,6 +248,9 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
           classe: classeFinal,
           nome: nome.trim(),
         });
+
+        // Cancelar a conferência do local preserva todos os campos do formulário.
+        if (saved === false) return;
 
         console.log('✅ [MODAL] onSave concluído - aguardando confirmação de salvamento...');
         // 🚨 CRÍTICO: Não mostrar sucesso imediatamente - o handleSaveNewRegistration já mostra o toast
@@ -319,9 +322,16 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
             {
               borderRadius: Platform.OS === 'web' ? (isMobile ? 0 : 16) : 20,
               maxWidth: Platform.OS === 'web' ? (isMobile ? '100%' : 500) : '98%',
-              maxHeight: Platform.OS === 'web' ? (isMobile ? '100%' : '90%') : Platform.OS === 'android' ? '95%' : '92%',
+              maxHeight:
+                Platform.OS === 'web'
+                  ? isMobile
+                    ? '100%'
+                    : '90%'
+                  : Platform.OS === 'android'
+                    ? '95%'
+                    : '92%',
               height: Platform.OS === 'web' && isMobile ? '100%' : 'auto',
-            }
+            },
           ]}
           activeOpacity={1}
           onPress={e => e.stopPropagation()}
@@ -402,12 +412,12 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
                 style={
                   Platform.OS === 'web'
                     ? {
-                      position: 'relative' as const,
-                      zIndex: 99999,
-                      overflow: 'visible' as const,
-                      // @ts-ignore
-                      isolation: 'isolate',
-                    }
+                        position: 'relative' as const,
+                        zIndex: 99999,
+                        overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
+                      }
                     : {}
                 }
               >
@@ -490,12 +500,12 @@ export const NewRegistrationModal: React.FC<NewRegistrationModalProps> = ({
               style={
                 Platform.OS === 'web'
                   ? {
-                    position: 'relative' as const,
-                    zIndex: 0,
-                    overflow: 'visible' as const,
-                    // @ts-ignore
-                    isolation: 'isolate',
-                  }
+                      position: 'relative' as const,
+                      zIndex: 0,
+                      overflow: 'visible' as const,
+                      // @ts-ignore
+                      isolation: 'isolate',
+                    }
                   : {}
               }
             >
@@ -578,24 +588,24 @@ const styles = StyleSheet.create({
     flex: 1,
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        zIndex: 999999,
-        // @ts-ignore
-        position: 'fixed',
-        // @ts-ignore
-        top: 0,
-        // @ts-ignore
-        left: 0,
-        // @ts-ignore
-        right: 0,
-        // @ts-ignore
-        bottom: 0,
-        // @ts-ignore
-        isolation: 'isolate',
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          zIndex: 999999,
+          // @ts-ignore
+          position: 'fixed',
+          // @ts-ignore
+          top: 0,
+          // @ts-ignore
+          left: 0,
+          // @ts-ignore
+          right: 0,
+          // @ts-ignore
+          bottom: 0,
+          // @ts-ignore
+          isolation: 'isolate',
+        }
       : {
-        zIndex: 999999,
-      }),
+          zIndex: 999999,
+        }),
   },
   // @ts-ignore - overlay usa propriedades CSS específicas do web
   overlay: {
@@ -607,32 +617,32 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     ...(Platform.OS === 'web'
       ? {
-        backdropFilter: 'blur(4px)',
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-        // @ts-ignore - Propriedades CSS apenas para web
-        zIndex: 999999,
-        // @ts-ignore
-        position: 'fixed',
-        // @ts-ignore
-        top: 0,
-        // @ts-ignore
-        left: 0,
-        // @ts-ignore
-        right: 0,
-        // @ts-ignore
-        bottom: 0,
-        // @ts-ignore
-        padding: 0,
-        // @ts-ignore
-        width: '100%',
-        // @ts-ignore
-        height: '100%',
-        // @ts-ignore
-        isolation: 'isolate',
-      }
+          backdropFilter: 'blur(4px)',
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+          // @ts-ignore - Propriedades CSS apenas para web
+          zIndex: 999999,
+          // @ts-ignore
+          position: 'fixed',
+          // @ts-ignore
+          top: 0,
+          // @ts-ignore
+          left: 0,
+          // @ts-ignore
+          right: 0,
+          // @ts-ignore
+          bottom: 0,
+          // @ts-ignore
+          padding: 0,
+          // @ts-ignore
+          width: '100%',
+          // @ts-ignore
+          height: '100%',
+          // @ts-ignore
+          isolation: 'isolate',
+        }
       : {}),
   },
   modalContent: {
@@ -641,26 +651,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-        // @ts-ignore - Propriedades CSS apenas para web
-        zIndex: 999999,
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-        // @ts-ignore
-        zIndex: 1000000,
-        // @ts-ignore
-        position: 'relative',
-        // @ts-ignore
-        isolation: 'isolate',
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+          // @ts-ignore - Propriedades CSS apenas para web
+          zIndex: 999999,
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+          // @ts-ignore
+          zIndex: 1000000,
+          // @ts-ignore
+          position: 'relative',
+          // @ts-ignore
+          isolation: 'isolate',
+        }
       : {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 24,
-        elevation: 999999,
-      }),
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.25,
+          shadowRadius: 24,
+          elevation: 999999,
+        }),
   },
   header: {
     alignItems: 'center',
@@ -672,11 +682,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: '#ffffff',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
       : {}),
   },
   headerIcon: {
@@ -701,11 +711,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: '#ffffff',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
       : {}),
   },
   bodyContent: {
@@ -715,22 +725,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: '#ffffff',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
       : {}),
   },
   field: {
     marginBottom: Platform.OS === 'web' ? theme.spacing.md : theme.spacing.md,
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore
-        position: 'relative',
-        // @ts-ignore
-        zIndex: 1,
-      }
+          // @ts-ignore
+          position: 'relative',
+          // @ts-ignore
+          zIndex: 1,
+        }
       : {}),
   },
   label: {
@@ -754,14 +764,14 @@ const styles = StyleSheet.create({
     minHeight: Platform.OS === 'web' ? 44 : 50, // Aumentado para melhor toque no mobile
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        outlineStyle: 'none',
-        outlineWidth: 0,
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: '#ffffff',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
       : {}),
   },
   inputError: {
@@ -785,11 +795,11 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        backgroundColor: '#ffffff',
-        // @ts-ignore - Propriedades CSS apenas para web
-        opacity: 1,
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          backgroundColor: '#ffffff',
+          // @ts-ignore - Propriedades CSS apenas para web
+          opacity: 1,
+        }
       : {}),
   },
   cancelButton: {
@@ -817,9 +827,9 @@ const styles = StyleSheet.create({
     maxWidth: Platform.OS === 'web' ? 300 : '100%',
     ...(Platform.OS === 'web'
       ? {
-        // @ts-ignore - Propriedades CSS apenas para web
-        flexShrink: 0,
-      }
+          // @ts-ignore - Propriedades CSS apenas para web
+          flexShrink: 0,
+        }
       : {}),
   },
 });

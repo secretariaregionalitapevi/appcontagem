@@ -1,3 +1,4 @@
+import { locationSafetyService } from '../services/locationSafetyService';
 import React, { useState, useEffect, useMemo, useLayoutEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -109,7 +110,9 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   const lastIsForaRegionalRef = useRef(isForaRegional);
   useEffect(() => {
     if (lastIsForaRegionalRef.current !== isForaRegional) {
-      console.log('🔄 [RegisterController] Mudança no status de Regional detectada. Limpando campos dependentes.');
+      console.log(
+        '🔄 [RegisterController] Mudança no status de Regional detectada. Limpando campos dependentes.'
+      );
       setSelectedCargo('');
       setSelectedInstrumento('');
       setSelectedPessoa('');
@@ -151,12 +154,21 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   // Mostrar campo de instrumento apenas para Músico
   // Organista NÃƒO mostra campo de instrumento (sempre toca órgão)
   const selectedCargoObj = cargos.find(c => c.id === selectedCargo);
-  const cargoNome = selectedCargoObj?.nome || (selectedCargo.startsWith('manual_') ? selectedCargo.replace('manual_', '') : '');
+  const cargoNome =
+    selectedCargoObj?.nome ||
+    (selectedCargo.startsWith('manual_') ? selectedCargo.replace('manual_', '') : '');
 
-  const normalizedCargo = cargoNome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+  const normalizedCargo = cargoNome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
 
   const isOrganista = isCargoFemininoOrganista(cargoNome) || normalizedCargo === 'ORGANISTA';
-  const isCandidato = normalizedCargo === 'CANDIDATO (A)' || normalizedCargo === 'CANDIDATO' || normalizedCargo === 'CANDIDATA';
+  const isCandidato =
+    normalizedCargo === 'CANDIDATO (A)' ||
+    normalizedCargo === 'CANDIDATO' ||
+    normalizedCargo === 'CANDIDATA';
   const isInstrutor = normalizedCargo === 'INSTRUTOR' || normalizedCargo === 'INSTRUTORA';
 
   // O campo de classe só deve aparecer para o cargo específico "Organista"
@@ -164,8 +176,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   // Modificado: O campo de classe só deve aparecer quando a comum não retornar o nome (isNomeManual)
   // ou quando for de fora da regional e o cadastro estiver incompleto.
   const isEncarregado = normalizedCargo.includes('ENCARREGADO');
-  
-  // Mostrar campo de instrumento para: 
+
+  // Mostrar campo de instrumento para:
   // 1. Músico (Musical=true)
   // 2. Instrutor
   // 3. Encarregados (Local/Regional) quando em "Outras Localidades" (isForaRegional=true)
@@ -173,25 +185,30 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
   // - For "Outras Localidades" (tudo manual)
   // - For Nome Manual (não encontrado na lista)
   // - For uma pessoa selecionada mas que veio SEM instrumento do banco de dados (falha no mapeamento ou dado incompleto)
-  const isMusicalCargo = selectedCargoObj?.is_musical || 
-                         normalizedCargo === 'MUSICO' || 
-                         isInstrutor || 
-                         (isForaRegional && isEncarregado);
+  const isMusicalCargo =
+    selectedCargoObj?.is_musical ||
+    normalizedCargo === 'MUSICO' ||
+    isInstrutor ||
+    (isForaRegional && isEncarregado);
 
   const selectedPessoaData = useMemo(() => {
     if (!selectedPessoa || isNomeManual) return null;
     return pessoas.find(p => p.id === selectedPessoa);
   }, [selectedPessoa, isNomeManual, pessoas]);
 
-  const showClasseOrganista = normalizedCargo === 'ORGANISTA' && (
-    isNomeManual ||
-    (isForaRegional && !!selectedPessoa && !selectedPessoaData?.classe_organista && !selectedPessoaData?.nivel)
-  );
+  const showClasseOrganista =
+    normalizedCargo === 'ORGANISTA' &&
+    (isNomeManual ||
+      (isForaRegional &&
+        !!selectedPessoa &&
+        !selectedPessoaData?.classe_organista &&
+        !selectedPessoaData?.nivel));
 
-  const showInstrumento = !isOrganista && !isCandidato && isMusicalCargo && (
-    isNomeManual ||
-    (isForaRegional && !!selectedPessoa && !selectedPessoaData?.instrumento_id)
-  );
+  const showInstrumento =
+    !isOrganista &&
+    !isCandidato &&
+    isMusicalCargo &&
+    (isNomeManual || (isForaRegional && !!selectedPessoa && !selectedPessoaData?.instrumento_id));
 
   // DEBUGGING VISIBILIDADE INSTRUMENTO
   console.log('🎸 [RegisterController] Visibilidade Instrumento:', {
@@ -202,7 +219,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     isMusicalCargo,
     selectedPessoa,
     hasPessoaInstrumento: selectedPessoaData?.instrumento_id,
-    showInstrumento
+    showInstrumento,
   });
 
   // Função de sincronização - declarada ANTES dos useEffects que a usam
@@ -275,29 +292,33 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     }
   }, [syncing, isOnline, refreshCount]);
 
-  const syncDataFast = useCallback(async (notifyAfterReconnect = false) => {
-    if (syncing) return;
-    setSyncing(true);
-    try {
-      const result = await offlineSyncService.syncAllData({ fastSync: true });
-      await refreshCount();
-      const successCount = result.syncResult?.successCount || 0;
-      if (
-        successCount > 0 &&
-        (!notifyAfterReconnect && Date.now() > suppressSyncSuccessToastUntilRef.current)
-      ) {
-        const mensagem =
-          successCount === 1
-            ? '1 registro pendente foi enviado com sucesso.'
-            : `${successCount} registros pendentes foram enviados com sucesso.`;
-        showToast.success('Sincroniza\u00e7\u00e3o conclu\u00edda!', mensagem, 3000);
+  const syncDataFast = useCallback(
+    async (notifyAfterReconnect = false) => {
+      if (syncing) return;
+      setSyncing(true);
+      try {
+        const result = await offlineSyncService.syncAllData({ fastSync: true });
+        await refreshCount();
+        const successCount = result.syncResult?.successCount || 0;
+        if (
+          successCount > 0 &&
+          !notifyAfterReconnect &&
+          Date.now() > suppressSyncSuccessToastUntilRef.current
+        ) {
+          const mensagem =
+            successCount === 1
+              ? '1 registro pendente foi enviado com sucesso.'
+              : `${successCount} registros pendentes foram enviados com sucesso.`;
+          showToast.success('Sincroniza\u00e7\u00e3o conclu\u00edda!', mensagem, 3000);
+        }
+      } catch (error) {
+        console.log('📴 [SYNC FAST] Erro:', error);
+      } finally {
+        setSyncing(false);
       }
-    } catch (error) {
-      console.log('📴 [SYNC FAST] Erro:', error);
-    } finally {
-      setSyncing(false);
-    }
-  }, [syncing, refreshCount]);
+    },
+    [syncing, refreshCount]
+  );
 
   // O evento vem do servico que efetivamente concluiu a fila. Assim, mesmo se
   // outro gatilho iniciou o processamento, a reconexao sempre recebe feedback.
@@ -506,7 +527,6 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     // 🚨 NOVO FLUXO: Não bloquear busca de pessoas se o instrumento não estiver selecionado
     // Isso permite que o sistema busque todos os músicos da comum/cargo primeiro
     if (selectedComum && selectedCargo) {
-
       // 🚨 CORREÇÃƒO: Não recarregar se o instrumento mudar mas já tivermos uma pessoa selecionada (Fora Regional)
       // Isso evita que o nome selecionado "suma" da lista quando o usuário escolhe um instrumento manualmente
       if (isForaRegional && selectedPessoa && !isNomeManual && selectedInstrumento) {
@@ -533,7 +553,15 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         clearTimeout(loadPessoasTimeoutRef.current);
       }
     };
-  }, [selectedComum, selectedCargo, selectedInstrumento, cargos, isForaRegional, selectedPessoa, isNomeManual]);
+  }, [
+    selectedComum,
+    selectedCargo,
+    selectedInstrumento,
+    cargos,
+    isForaRegional,
+    selectedPessoa,
+    isNomeManual,
+  ]);
 
   const loadInitialData = async (isRefresh = false) => {
     try {
@@ -547,7 +575,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       let comunsFinal: Comum[] = [];
       let cargosData: Cargo[] = [];
       let instrumentosData: Instrumento[] = [];
-      let missingRegionalComuns = false;;
+      let missingRegionalComuns = false;
 
       if (!initialIsForaRegional) {
         console.log('🔄 [RegisterController] Carregando comuns regional e fora regional...');
@@ -561,7 +589,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         comunsFinal = [...comunsLocal, ...comunsFora];
         cargosData = cargosLocal;
         instrumentosData = instrumentosLocal;
-        
+
         if (comunsLocal.length === 0) {
           missingRegionalComuns = true;
         }
@@ -585,7 +613,9 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
       // Se ainda não há dados locais regionais e está online, tentar buscar diretamente (fallback crítico)
       if (!initialIsForaRegional && isOnline && missingRegionalComuns) {
-        console.log('🔄 Nenhuma comum regional no cache local, buscando diretamente do Supabase...');
+        console.log(
+          '🔄 Nenhuma comum regional no cache local, buscando diretamente do Supabase...'
+        );
         try {
           const comunsDiretas = await supabaseDataService.fetchComuns();
           if (comunsDiretas.length > 0) {
@@ -593,7 +623,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
             // Como comunsLocal estava vazio, comunsFinal tem apenas as de fora
             const comunsFora = comunsFinal;
             comunsFinal = [...comunsDiretas, ...comunsFora];
-            
+
             // Salvar no cache em background
             supabaseDataService
               .syncComunsToLocal()
@@ -713,7 +743,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       selectedComum,
       selectedCargo,
       selectedInstrumento,
-      isForaRegional
+      isForaRegional,
     });
 
     // 🚀 OTIMIZAÇÃƒO: Verificar cache primeiro antes de mostrar loading
@@ -729,7 +759,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       console.log('🔍 [loadPessoas] Buscando do banco local/remoto...', {
         selectedComum,
         selectedCargo,
-        isForaRegional
+        isForaRegional,
       });
 
       const pessoasData = await (supabaseDataService as any).getPessoasFromLocal(
@@ -756,7 +786,6 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     }
   };
 
-
   const handleSubmit = async () => {
     // Bloqueio síncrono antes de qualquer await: evita dois envios durante oscilação.
     if (isSubmittingRef.current || loading) {
@@ -766,10 +795,14 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     isSubmittingRef.current = true;
 
     // Apenas armazenamento local; nenhuma rede deve bloquear o envio.
-    const localEnsaioUnico = await localStorageService.getLocalEnsaio();
+    let localEnsaioUnico = await localStorageService.getLocalEnsaio();
 
     // 2. Verificar se existe local de ensaio definido (Prevenção contra 'NÃO DEFINIDO')
-    if (!localEnsaioUnico || localEnsaioUnico === 'Não definido' || localEnsaioUnico.trim() === '') {
+    if (
+      !localEnsaioUnico ||
+      localEnsaioUnico === 'Não definido' ||
+      localEnsaioUnico.trim() === ''
+    ) {
       console.error('❌ Submissão bloqueada: Local de ensaio não definido');
       showToast.error(
         'Sessão expirada',
@@ -780,16 +813,17 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       return false;
     }
 
-
     // 🛑 GARANTIA ABSOLUTA DE DESTRAVAMENTO: Try global da função
     try {
       // Recuperar texto digitado manualmente no NameSelectField para evitar perdas ou delay de blur no Web
       const nomeDigitado = nomeFieldRef.current?.getText?.().trim() || '';
-      const isNomeManualFinal = isNomeManual || 
-                                (!!nomeDigitado && (!selectedPessoa || selectedPessoa.trim() === '')) ||
-                                (isForaRegional && !selectedPessoa);
+      const isNomeManualFinal =
+        isNomeManual ||
+        (!!nomeDigitado && (!selectedPessoa || selectedPessoa.trim() === '')) ||
+        (isForaRegional && !selectedPessoa);
 
-      const selectedPessoaParaEnvio = isNomeManualFinal && nomeDigitado ? nomeDigitado : selectedPessoa;
+      const selectedPessoaParaEnvio =
+        isNomeManualFinal && nomeDigitado ? nomeDigitado : selectedPessoa;
 
       console.log('🔴 [SUBMIT] Botão ENVIAR REGISTRO clicado');
       console.log('🔎 [SUBMIT] Estado atual:', {
@@ -830,7 +864,10 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       }
 
       // Verificar se é nome manual e se tem valor válido
-      if (isNomeManualFinal && (!selectedPessoaParaEnvio || selectedPessoaParaEnvio.trim().length < 3)) {
+      if (
+        isNomeManualFinal &&
+        (!selectedPessoaParaEnvio || selectedPessoaParaEnvio.trim().length < 3)
+      ) {
         console.warn('⚠️ [SUBMIT] Nome manual muito curto', {
           selectedPessoaParaEnvio,
           isNomeManualFinal,
@@ -845,8 +882,11 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       // 🛑 CORREÇÃO: Só é OBRIGATÓRIO se for nome manual ou fora da regional
       // Para nomes selecionados da lista, o sistema cuida disso internamente (não bloqueia o usuário)
       const cargoNome = cargos.find(c => c.id === selectedCargo)?.nome || '';
-      const isMúsicoOuInstrutor = cargoNome.trim().toUpperCase() === 'MÚSICO' || cargoNome.trim().toUpperCase() === 'INSTRUTOR'; 
-      const instrumentoObrigatorioParaUsuario = (isNomeManualFinal || isForaRegional) && isMúsicoOuInstrutor;
+      const isMúsicoOuInstrutor =
+        cargoNome.trim().toUpperCase() === 'MÚSICO' ||
+        cargoNome.trim().toUpperCase() === 'INSTRUTOR';
+      const instrumentoObrigatorioParaUsuario =
+        (isNomeManualFinal || isForaRegional) && isMúsicoOuInstrutor;
 
       if (instrumentoObrigatorioParaUsuario && !selectedInstrumento) {
         console.warn('⚠️ [SUBMIT] Instrumento não selecionado para entrada manual');
@@ -864,6 +904,9 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
       console.log('✅ [SUBMIT] Validações passaram, iniciando processamento otimista...');
       setLoading(true);
+      const confirmedTarget = await locationSafetyService.confirmTarget(localEnsaioUnico);
+      if (!confirmedTarget) return false;
+      localEnsaioUnico = confirmedTarget;
 
       try {
         // 1. Preparar os dados do registro (mesma lógica de antes)
@@ -900,26 +943,33 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           }
         }
 
-        const pessoaIdFinal = isNomeManualFinal ? `manual_${selectedPessoaParaEnvio}` : selectedPessoaParaEnvio;
-        // 🛑 NOVO FLUXO: Garantir que se uma pessoa foi selecionada da lista, 
+        const pessoaIdFinal = isNomeManualFinal
+          ? `manual_${selectedPessoaParaEnvio}`
+          : selectedPessoaParaEnvio;
+        // 🛑 NOVO FLUXO: Garantir que se uma pessoa foi selecionada da lista,
         // usamos o cargo REAL dela ao invés do selecionado no dropdown (que pode ser genérico)
         let cargoIdFinal = selectedCargo;
         if (selectedPessoaParaEnvio && !isNomeManualFinal) {
           const pessoaObj = pessoas.find(p => p.id === selectedPessoaParaEnvio);
           if (pessoaObj && pessoaObj.cargo_id && pessoaObj.cargo_id !== selectedCargo) {
-            console.log(`🛑 [handleSubmit] Corrigindo cargo: ${selectedCargo} -> ${pessoaObj.cargo_id} (Pessoa: ${pessoaObj.nome_completo})`);
+            console.log(
+              `🛑 [handleSubmit] Corrigindo cargo: ${selectedCargo} -> ${pessoaObj.cargo_id} (Pessoa: ${pessoaObj.nome_completo})`
+            );
             cargoIdFinal = pessoaObj.cargo_id;
           }
         }
 
-        const comumIdFinal = isComumManual ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) + (cidadeManual ? `|${cidadeManual}` : '') : selectedComum;
+        const comumIdFinal = isComumManual
+          ? (selectedComum.startsWith('manual_') ? selectedComum : `manual_${selectedComum}`) +
+            (cidadeManual ? `|${cidadeManual}` : '')
+          : selectedComum;
         const dataHoraFinal = getCurrentDateTimeISO();
 
         const instrumentoIdFinal = isCandidato
           ? instrumentoCandidato
           : isNomeManualFinal || isForaRegional
             ? selectedInstrumento || null
-            : (selectedPessoaData?.instrumento_id || selectedInstrumento || null);
+            : selectedPessoaData?.instrumento_id || selectedInstrumento || null;
 
         const registro: RegistroPresenca = {
           pessoa_id: pessoaIdFinal,
@@ -952,15 +1002,15 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           cargoId: registro.cargo_id, // 🚨 CORREÇÃƒO: Usar cargoId
           instrumentoId: registro.instrumento_id,
           isForaRegional,
-          dataIso: registro.data_hora_registro
+          dataIso: registro.data_hora_registro,
         });
 
         if (dupLocal) {
           console.warn('⚠️ Duplicata detectada na fila local');
-          let nomePessoa = registro.pessoa_id.startsWith('manual_') 
-            ? registro.pessoa_id.replace('manual_', '') 
-            : (pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '');
-          
+          let nomePessoa = registro.pessoa_id.startsWith('manual_')
+            ? registro.pessoa_id.replace('manual_', '')
+            : pessoas.find(p => p.id === registro.pessoa_id)?.nome_completo || '';
+
           if (!nomePessoa && !registro.pessoa_id.startsWith('manual_')) {
             const p = pessoas.find(p => p.id === registro.pessoa_id);
             if (p) nomePessoa = `${p.nome} ${p.sobrenome || ''}`.trim();
@@ -968,15 +1018,16 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
           const nomeComum = resolveComumById(comuns, registro.comum_id)?.nome || '';
           const cargoDuplicata = cargos.find(c => c.id === registro.cargo_id)?.nome || '';
-          const instrumentoDuplicata = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-          
-          setDuplicateInfo({ 
+          const instrumentoDuplicata =
+            instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+
+          setDuplicateInfo({
             nome: Boolean(registro.is_fora_regional) ? obterNomeCurto(nomePessoa) : nomePessoa,
-            comum: nomeComum, 
+            comum: nomeComum,
             detalhe: obterDetalheDuplicata(cargoDuplicata, instrumentoDuplicata),
-            data: dupLocal.data, 
+            data: dupLocal.data,
             horario: dupLocal.horario,
-            isForaRegional: Boolean(registro.is_fora_regional)
+            isForaRegional: Boolean(registro.is_fora_regional),
           });
           setPendingRegistro(isForaRegional ? registro : null);
           setDuplicateModalVisible(true);
@@ -990,7 +1041,10 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         let isOnlineNow = isOnline;
         if (isOnlineNow) {
           try {
-            const registroConfirmado = await supabaseDataService.createRegistroPresenca(registro, false);
+            const registroConfirmado = await supabaseDataService.createRegistroPresenca(
+              registro,
+              false
+            );
             registro.id = registroConfirmado.id || registro.id;
             registro.sync_supabase_ok = true;
             registro.duplicate_check_completed = true;
@@ -1002,15 +1056,20 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
               const pessoaSelecionada = pessoas.find(p => p.id === registro.pessoa_id);
               const nomePessoa = registro.pessoa_id.startsWith('manual_')
                 ? registro.pessoa_id.replace(/^manual_/, '')
-                : [pessoaSelecionada?.nome, pessoaSelecionada?.sobrenome].filter(Boolean).join(' ').trim();
+                : [pessoaSelecionada?.nome, pessoaSelecionada?.sobrenome]
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim();
               const comumSelecionada = resolveComumById(comuns, registro.comum_id);
               const cargoSelecionado = cargos.find(c => c.id === registro.cargo_id);
-              const instrumentoSelecionado = instrumentos.find(i => i.id === registro.instrumento_id);
+              const instrumentoSelecionado = instrumentos.find(
+                i => i.id === registro.instrumento_id
+              );
 
               setDuplicateInfo({
                 nome: Boolean(registro.is_fora_regional)
                   ? obterNomeCurto(details[0] || nomePessoa)
-                  : (details[0] || nomePessoa),
+                  : details[0] || nomePessoa,
                 comum: details[1] || comumSelecionada?.nome || '',
                 detalhe: obterDetalheDuplicata(
                   details[4] || pessoaSelecionada?.cargo_real || cargoSelecionado?.nome,
@@ -1028,7 +1087,10 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
             }
 
             // Falha de rede/serviço: preservar localmente sem afirmar conclusão remota.
-            console.warn('[SUBMIT] Supabase indisponível; registro será preservado localmente.', error);
+            console.warn(
+              '[SUBMIT] Supabase indisponível; registro será preservado localmente.',
+              error
+            );
             isOnlineNow = false;
             registro.sync_supabase_ok = false;
             registro.duplicate_check_completed = false;
@@ -1042,7 +1104,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         console.log(
           `⚡ [SUBMIT] Registro persistido localmente em ${(performance.now() - localSaveStartedAt).toFixed(2)}ms`
         );
-        
+
         // 5. Feedback imediato ao usuário (O QUE O USUÁRIO PEDIU)
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
         const feedbackMsg = isOnlineNow
@@ -1054,19 +1116,22 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           feedbackMsg,
           isOnlineNow ? 1200 : 2500
         );
-        
+
         // Limpar campos imediatamente
         clearAllFields();
 
         // 5. Encerrar imediatamente: nem o contador local deve segurar a tela.
         setLoading(false);
         isSubmittingRef.current = false;
-        refreshCount().catch(error => console.warn('[SUBMIT] Contador será atualizado depois:', error));
+        refreshCount().catch(error =>
+          console.warn('[SUBMIT] Contador será atualizado depois:', error)
+        );
 
         if (isOnlineNow) {
           // Permitir que o formulário limpo seja renderizado antes de iniciar a fila remota.
           setTimeout(() => {
-            offlineSyncService.processarFilaLocal(true)
+            offlineSyncService
+              .processarFilaLocal(true)
               .then(async syncResult => {
                 // Se a fila encontrar depois um registro que já existe, o estado
                 // desejado já foi alcançado. Tratar como idempotência e nunca
@@ -1088,7 +1153,6 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         }
 
         return true;
-
       } catch (error) {
         console.error('❌ [SUBMIT] Erro no processamento otimista:', error);
         showToast.error('Erro', 'Ocorreu um erro ao salvar o registro localmente.');
@@ -1111,8 +1175,10 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       // Priorizar displayName (já limpo no fetching)
       const nomeExibicao = c.displayName || (supabaseDataService as any).extrairNomeComum(c.nome);
       // Incluir cidade no label para facilitar busca e identificação
-      const labelFinal = c.cidade ? `${nomeExibicao || c.nome} (${c.cidade})` : (nomeExibicao || c.nome);
-      
+      const labelFinal = c.cidade
+        ? `${nomeExibicao || c.nome} (${c.cidade})`
+        : nomeExibicao || c.nome;
+
       return {
         id: c.id,
         label: labelFinal,
@@ -1165,19 +1231,26 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
   // MEMOIZAR pessoasOptions para evitar recriação constante
   const pessoasOptions = useMemo(() => {
-    return pessoas.map(p => {
-      // 🛑 NOVO FLUXO: Incluir instrumento no label para diferenciar músicos
-      const nomeBase = (p.nome_completo || `${p.nome || ''} ${p.sobrenome || ''}`).trim();
-      if (!nomeBase) return null;
-      const instrumento = p.instrumento_id ? ` (${p.instrumento_id.replace(/^instrumento_(\d+_)?/gi, '').replace(/_/g, ' ').toUpperCase()})` : '';
-      
-      return {
-        id: p.id,
-        label: `${nomeBase}${instrumento}`,
-        value: p.id,
-        data: p, // 🛑 CRÍTICO: Passar objeto original para capturar instrumento no onSelect
-      };
-    }).filter(Boolean) as any[];
+    return pessoas
+      .map(p => {
+        // 🛑 NOVO FLUXO: Incluir instrumento no label para diferenciar músicos
+        const nomeBase = (p.nome_completo || `${p.nome || ''} ${p.sobrenome || ''}`).trim();
+        if (!nomeBase) return null;
+        const instrumento = p.instrumento_id
+          ? ` (${p.instrumento_id
+              .replace(/^instrumento_(\d+_)?/gi, '')
+              .replace(/_/g, ' ')
+              .toUpperCase()})`
+          : '';
+
+        return {
+          id: p.id,
+          label: `${nomeBase}${instrumento}`,
+          value: p.id,
+          data: p, // 🛑 CRÍTICO: Passar objeto original para capturar instrumento no onSelect
+        };
+      })
+      .filter(Boolean) as any[];
   }, [pessoas]);
 
   const handleEditRegistros = () => {
@@ -1255,10 +1328,15 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     try {
       // 1. Preparar os dados (mesma lógica de conversão de local e nome)
       let localEnsaio = await localStorageService.getLocalEnsaio();
+      if (!localEnsaio) return false;
+      const confirmedTarget = await locationSafetyService.confirmTarget(localEnsaio);
+      if (!confirmedTarget) return false;
+      localEnsaio = confirmedTarget;
       let localEnsaioNome: string = 'Não definido';
       if (localEnsaio) {
         if (/^\d+$/.test(localEnsaio.trim())) {
-          const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' && window.APP_CONFIG?.LOCAIS_ENSAIO) || [
+          const locais: { id: string; nome: string }[] = (typeof window !== 'undefined' &&
+            window.APP_CONFIG?.LOCAIS_ENSAIO) || [
             { id: '1', nome: 'Cotia' },
             { id: '2', nome: 'Caucaia do Alto' },
             { id: '3', nome: 'Fazendinha' },
@@ -1316,19 +1394,20 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         cargoId: registro.cargo_id,
         instrumentoId: registro.instrumento_id,
         isForaRegional: true,
-        dataIso: registro.data_hora_registro
+        dataIso: registro.data_hora_registro,
       });
 
       if (dupLocal) {
         console.warn('⚠️ Duplicata detectada no modal (fila local)');
-        const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
-        setDuplicateInfo({ 
-          nome: obterNomeCurto(data.nome.toUpperCase()), 
-          comum: data.comum.toUpperCase(), 
+        const instrumentoNome =
+          instrumentos.find(i => i.id === registro.instrumento_id)?.nome || '';
+        setDuplicateInfo({
+          nome: obterNomeCurto(data.nome.toUpperCase()),
+          comum: data.comum.toUpperCase(),
           detalhe: obterDetalheDuplicata(cargoObj.nome, instrumentoNome),
-          data: dupLocal.data, 
+          data: dupLocal.data,
           horario: dupLocal.horario,
-          isForaRegional: true
+          isForaRegional: true,
         });
         setPendingRegistro(registro);
         setDuplicateModalVisible(true);
@@ -1341,7 +1420,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       // 3. Para cadastro manual/externo, validar por identidade de negócio antes
       // de enfileirar, pois o UUID externo é aleatório.
       if (isOnline) {
-        const instrumentoNome = instrumentos.find(i => i.id === registro.instrumento_id)?.nome || data.instrumento || '';
+        const instrumentoNome =
+          instrumentos.find(i => i.id === registro.instrumento_id)?.nome || data.instrumento || '';
         try {
           registro.duplicate_check_completed = await supabaseDataService.checkDuplicataRemota({
             nome: data.nome,
@@ -1382,7 +1462,10 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
           setDuplicateInfo({
             nome: obterNomeCurto(details[0] || data.nome.toUpperCase()),
             comum: details[1] || data.comum.toUpperCase(),
-            detalhe: obterDetalheDuplicata(details[4] || cargoObj.nome, details[5] || instrumentoNome),
+            detalhe: obterDetalheDuplicata(
+              details[4] || cargoObj.nome,
+              details[5] || instrumentoNome
+            ),
             data: details[2] || formatDate(registro.data_hora_registro),
             horario: details[3] || formatTime(registro.data_hora_registro),
             isForaRegional: true,
@@ -1419,7 +1502,9 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       setSelectedInstrumento('');
       setSelectedPessoa('');
       setIsNomeManual(false);
-      refreshCount().catch(error => console.warn('[MODAL] Contador será atualizado depois:', error));
+      refreshCount().catch(error =>
+        console.warn('[MODAL] Contador será atualizado depois:', error)
+      );
 
       if (isOnlineNow) {
         setTimeout(() => {
@@ -1432,8 +1517,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       return;
 
       // 3. Feedback imediato ao usuário
-      const feedbackMsg = isOnlineNow 
-        ? 'O registro foi realizado com sucesso!' 
+      const feedbackMsg = isOnlineNow
+        ? 'O registro foi realizado com sucesso!'
         : 'Salvo localmente! Será enviado em breve.';
       showToast.success('Registro Salvo!', feedbackMsg, 1500);
 
@@ -1451,14 +1536,11 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       offlineSyncService.processarFilaLocal(true).catch(err => {
         console.error('âŒ [MODAL] Erro na sincronização em background:', err);
       });
-
     } catch (error) {
       console.error('âŒ [MODAL] Erro no processamento otimista:', error);
       showToast.error('Erro', 'Ocorreu um erro ao salvar o registro localmente.');
     }
   };
-
-
 
   // 🚨 REMOVIDO: Log desnecessário que estava causando loop - função já está definida e funcionando
 
@@ -1527,4 +1609,4 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     showClasseOrganista,
     isForaRegional,
   };
-}
+};

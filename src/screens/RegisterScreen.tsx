@@ -1,3 +1,5 @@
+import { usePwaUpdateGuard } from '../hooks/usePwaUpdateGuard';
+import { locationSafetyService } from '../services/locationSafetyService';
 import React, { useRef } from 'react';
 import {
   View,
@@ -9,12 +11,14 @@ import {
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { SimpleSelectField } from '../components/SimpleSelectField';
 import { AutocompleteField } from '../components/AutocompleteField';
 import { NameSelectField } from '../components/NameSelectField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { OfflineBadge } from '../components/OfflineBadge';
+import { RegisterBottomBar } from '../components/RegisterBottomBar';
 import { AppHeader } from '../components/AppHeader';
 import { DuplicateModal } from '../components/DuplicateModal';
 import { NewRegistrationModal } from '../components/NewRegistrationModal';
@@ -100,6 +104,19 @@ export const RegisterScreen: React.FC = () => {
   } = controller;
 
   const { width } = useWindowDimensions();
+  usePwaUpdateGuard(
+    Boolean(
+      selectedComum ||
+        selectedCargo ||
+        selectedPessoa ||
+        cidadeManual ||
+        loading ||
+        syncing ||
+        refreshing ||
+        duplicateModalVisible ||
+        newRegistrationModalVisible
+    )
+  );
   const isMobile = width <= 768;
 
   const handleConfirmDuplicate = async () => {
@@ -110,11 +127,19 @@ export const RegisterScreen: React.FC = () => {
     }
 
     try {
+      const confirmedTarget = await locationSafetyService.confirmTarget(
+        controller.pendingRegistro.local_ensaio
+      );
+      if (!confirmedTarget) return;
       controller.setDuplicateModalVisible(false);
       controller.setLoading(true);
 
       const result = await offlineSyncService.createRegistro(
-        { ...controller.pendingRegistro, id: generateExternalUUID() },
+        {
+          ...controller.pendingRegistro,
+          local_ensaio: confirmedTarget,
+          id: generateExternalUUID(),
+        },
         true // skipDuplicateCheck
       );
 
@@ -124,7 +149,11 @@ export const RegisterScreen: React.FC = () => {
         return;
       }
 
-      showToast.success('Registro Salvo!', 'Cadastro realizado mesmo com alerta de duplicidade.', 1500);
+      showToast.success(
+        'Registro Salvo!',
+        'Cadastro realizado mesmo com alerta de duplicidade.',
+        1500
+      );
       controller.setDuplicateInfo(null);
       controller.setPendingRegistro(null);
 
@@ -143,7 +172,7 @@ export const RegisterScreen: React.FC = () => {
   if (initialLoading) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader mobileDesign />
         <View style={styles.scrollContent}>
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -174,10 +203,7 @@ export const RegisterScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader
-        onEditRegistrosPress={handleEditRegistros}
-        onOrganistasEnsaioPress={handleOrganistasEnsaio}
-      />
+      <AppHeader mobileDesign />
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -209,44 +235,64 @@ export const RegisterScreen: React.FC = () => {
           style={
             Platform.OS === 'web'
               ? {
-                position: 'relative' as const,
-                overflow: 'visible' as const,
-                zIndex: 1,
-                // @ts-ignore
-                WebkitOverflowScrolling: 'touch',
-                // @ts-ignore - Permitir que dropdowns apareçam acima (propriedade CSS apenas para web)
-                overflowY: 'auto',
-              }
+                  position: 'relative' as const,
+                  overflow: 'hidden' as const,
+                  flex: 1,
+                  minHeight: 0,
+                  zIndex: 1,
+                  // @ts-ignore
+                  WebkitOverflowScrolling: 'touch',
+                  // @ts-ignore - Permitir que dropdowns apareçam acima (propriedade CSS apenas para web)
+                  overflowY: 'auto',
+                }
               : {
-                flex: 1,
-                backgroundColor: theme.colors.background,
-              }
+                  flex: 1,
+                  backgroundColor: theme.colors.background,
+                }
           }
         >
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, Platform.OS === 'web' && isMobile && { fontSize: theme.fontSize.lg }]}>Registro de Participante</Text>
+              <View style={styles.formEyebrow}>
+                <View style={styles.formIcon}>
+                  <FontAwesome5 solid name="user-plus" size={22} color="#0867a8" />
+                </View>
+                <Text style={styles.formEyebrowText}>CONTROLE DE PRESENÇA</Text>
+              </View>
+              <Text
+                style={[styles.cardTitle, Platform.OS === 'web' && isMobile && { fontSize: 26 }]}
+              >
+                Registrar presença
+              </Text>
               <Text style={styles.cardSubtitle}>
                 Preencha os campos abaixo para registrar a presença
               </Text>
             </View>
-            <View style={[styles.cardBody, Platform.OS === 'web' && isMobile && { padding: theme.spacing.md }]}>
+            <View
+              style={[
+                styles.cardBody,
+                Platform.OS === 'web' && isMobile && { padding: theme.spacing.md },
+              ]}
+            >
               <View
                 style={
                   Platform.OS === 'web'
                     ? {
-                      position: 'relative' as const,
-                      zIndex: 999999,
-                      overflow: 'visible' as const,
-                      // @ts-ignore
-                      isolation: 'isolate',
-                    }
+                        position: 'relative' as const,
+                        zIndex: 999999,
+                        overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
+                      }
                     : {}
                 }
               >
-                <Text style={styles.label}>COMUM CONGREGAÇÃO *</Text>
+                <Text style={styles.label}>Comum congregação *</Text>
                 <AutocompleteField
+                  appearance="soft"
                   ref={comumFieldRef}
+                  leadingIcon="map-marker-alt"
+                  iconColor="#1684dc"
                   label=""
                   value={isComumManual ? undefined : selectedComum}
                   options={comunsOptions}
@@ -256,7 +302,7 @@ export const RegisterScreen: React.FC = () => {
                     setIsNomeManual(false);
                     setIsComumManual(false);
                     setCidadeManual('');
-                    
+
                     // 🚀 SEQUENCIAL: Focar no Cargo após selecionar Comum
                     setTimeout(() => {
                       if (cargoFieldRef.current) {
@@ -264,7 +310,11 @@ export const RegisterScreen: React.FC = () => {
                       }
                     }, 100);
                   }}
-                  placeholder={isComumManual ? `"${selectedComum.replace(/^manual_/, '')}" (manual)` : 'Selecione a comum...'}
+                  placeholder={
+                    isComumManual
+                      ? `"${selectedComum.replace(/^manual_/, '')}" (manual)`
+                      : 'Selecione a comum...'
+                  }
                   allowManualEntry={true}
                   onManualEntry={text => {
                     const manualValue = `manual_${text}`;
@@ -275,14 +325,40 @@ export const RegisterScreen: React.FC = () => {
                   autoManualEntry={true}
                   onChangeText={text => {
                     if (isComumManual) {
-                      const queryNorm = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-                      const queryWords = queryNorm.split(/\s+/).filter(w => w.length > 2 || !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w));
+                      const queryNorm = text
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .trim();
+                      const queryWords = queryNorm
+                        .split(/\s+/)
+                        .filter(
+                          w =>
+                            w.length > 2 ||
+                            !['de', 'da', 'do', 'dos', 'das', 'no', 'na'].includes(w)
+                        );
                       const hasMatches = comunsOptions.some(opt => {
-                        const labelNorm = opt.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+                        const labelNorm = opt.label
+                          .toLowerCase()
+                          .normalize('NFD')
+                          .replace(/[\u0300-\u036f]/g, '')
+                          .trim();
                         // @ts-ignore
-                        const nomeNorm = opt.nomeCompleto ? opt.nomeCompleto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '';
+                        const nomeNorm = opt.nomeCompleto
+                          ? opt.nomeCompleto
+                              .toLowerCase()
+                              .normalize('NFD')
+                              .replace(/[\u0300-\u036f]/g, '')
+                              .trim()
+                          : '';
                         // @ts-ignore
-                        const cidadeNorm = opt.cidade ? opt.cidade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() : '';
+                        const cidadeNorm = opt.cidade
+                          ? opt.cidade
+                              .toLowerCase()
+                              .normalize('NFD')
+                              .replace(/[\u0300-\u036f]/g, '')
+                              .trim()
+                          : '';
                         const combined = `${labelNorm} ${nomeNorm} ${cidadeNorm}`;
                         if (queryWords.length === 0) return combined.includes(queryNorm);
                         return queryWords.every(word => combined.includes(word));
@@ -291,7 +367,22 @@ export const RegisterScreen: React.FC = () => {
                         setIsComumManual(false);
                       }
                     }
-                    if (isComumManual || !comunsOptions.some(opt => opt.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim())) {
+                    if (
+                      isComumManual ||
+                      !comunsOptions.some(
+                        opt =>
+                          opt.label
+                            .toLowerCase()
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .trim() ===
+                          text
+                            .toLowerCase()
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .trim()
+                      )
+                    ) {
                       setSelectedComum(`manual_${text}`);
                     }
                   }}
@@ -301,7 +392,9 @@ export const RegisterScreen: React.FC = () => {
                 {isComumManual && (
                   <View style={{ marginTop: 8, marginBottom: 12 }}>
                     <View style={styles.manualBadge}>
-                      <Text style={styles.manualBadgeText}>✏️ Comum manual: "{selectedComum.replace(/^manual_/, '')}"</Text>
+                      <Text style={styles.manualBadgeText}>
+                        ✏️ Comum manual: "{selectedComum.replace(/^manual_/, '')}"
+                      </Text>
                       <TouchableOpacity
                         onPress={() => {
                           setIsComumManual(false);
@@ -310,7 +403,9 @@ export const RegisterScreen: React.FC = () => {
                         }}
                         activeOpacity={0.7}
                       >
-                        <Text style={{ color: '#ef4444', fontSize: 13, fontWeight: '700' }}>✕ Limpar</Text>
+                        <Text style={{ color: '#ef4444', fontSize: 13, fontWeight: '700' }}>
+                          ✕ Limpar
+                        </Text>
                       </TouchableOpacity>
                     </View>
                     <Text style={styles.label}>CIDADE *</Text>
@@ -334,51 +429,67 @@ export const RegisterScreen: React.FC = () => {
                     : {},
                 ]}
               >
-                <Text style={styles.label}>CARGO/MINISTÉRIO *</Text>
+                <Text style={styles.label}>Cargo / ministério *</Text>
                 {Platform.OS === 'web' ? (
-                  <select
-                    ref={cargoFieldRef}
-                    style={
-                      {
-                        ...styles.selectWeb,
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        MozAppearance: 'none',
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right center',
-                        backgroundSize: '10px 10px',
-                        paddingRight: '35px',
-                      } as any
-                    }
-                    value={selectedCargo}
-                    onChange={e => {
-                      setSelectedCargo(e.target.value);
-                      setSelectedInstrumento('');
-                      setSelectedPessoa('');
-                      setSelectedClasseOrganista('');
-                      setIsNomeManual(false);
-
-                      // 🚀 SEQUENCIAL: No Web, focar no Nome após selecionar Cargo
-                      if (e.target.value) {
-                        setTimeout(() => {
-                          if (nomeFieldRef.current) {
-                            nomeFieldRef.current.focus();
-                          }
-                        }, 100);
+                  <View style={styles.selectShell}>
+                    <View style={styles.cargoIcon}>
+                      <FontAwesome5 solid name="user-tie" size={17} color="#8552cc" />
+                    </View>
+                    <select
+                      ref={cargoFieldRef}
+                      onFocus={event => {
+                        event.currentTarget.style.borderColor = '#2a83b9';
+                        event.currentTarget.style.backgroundColor = '#ffffff';
+                      }}
+                      onBlur={event => {
+                        event.currentTarget.style.borderColor = '#e1e9f1';
+                        event.currentTarget.style.backgroundColor = '#f5f8fb';
+                      }}
+                      style={
+                        {
+                          ...styles.selectWeb,
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none',
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 18px center',
+                          backgroundSize: '10px 10px',
+                          paddingRight: '35px',
+                        } as any
                       }
-                    }}
-                    required
-                  >
-                    <option value="">Selecione o cargo...</option>
-                    {cargosOptions.map(cargo => (
-                      <option key={cargo.id} value={cargo.value}>
-                        {cargo.label}
-                      </option>
-                    ))}
-                  </select>
+                      value={selectedCargo}
+                      onChange={e => {
+                        setSelectedCargo(e.target.value);
+                        setSelectedInstrumento('');
+                        setSelectedPessoa('');
+                        setSelectedClasseOrganista('');
+                        setIsNomeManual(false);
+
+                        // 🚀 SEQUENCIAL: No Web, focar no Nome após selecionar Cargo
+                        if (e.target.value) {
+                          setTimeout(() => {
+                            if (nomeFieldRef.current) {
+                              nomeFieldRef.current.focus();
+                            }
+                          }, 100);
+                        }
+                      }}
+                      required
+                    >
+                      <option value="">Selecione o cargo...</option>
+                      {cargosOptions.map(cargo => (
+                        <option key={cargo.id} value={cargo.value}>
+                          {cargo.label}
+                        </option>
+                      ))}
+                    </select>
+                  </View>
                 ) : (
                   <SimpleSelectField
+                    appearance="soft"
+                    leadingIcon="user-tie"
+                    iconColor="#8552cc"
                     ref={cargoFieldRef}
                     label=""
                     value={selectedCargo}
@@ -405,19 +516,22 @@ export const RegisterScreen: React.FC = () => {
                 style={
                   Platform.OS === 'web'
                     ? {
-                      position: 'relative' as const,
-                      zIndex: 1,
-                      overflow: 'visible' as const,
-                      // @ts-ignore
-                      isolation: 'isolate',
-                    }
+                        position: 'relative' as const,
+                        zIndex: 1,
+                        overflow: 'visible' as const,
+                        // @ts-ignore
+                        isolation: 'isolate',
+                      }
                     : {}
                 }
               >
                 <NameSelectField
+                  appearance="soft"
+                  leadingIcon="user"
+                  iconColor="#079c98"
                   ref={nomeFieldRef}
                   key={nameFieldKey} // Key para forçar remontagem quando limpar
-                  label="Nome e Sobrenome *"
+                  label="Nome e sobrenome *"
                   value={selectedPessoa}
                   options={pessoasOptions}
                   onSelect={(option: any) => {
@@ -435,14 +549,14 @@ export const RegisterScreen: React.FC = () => {
                       setSelectedPessoa(option.value.trim());
                       setIsNomeManual(true);
                       // Ao ser manual, o campo de instrumento aparecerá (via useRegisterController)
-                      setSelectedInstrumento(''); 
+                      setSelectedInstrumento('');
                     } else {
                       if (!option.value || option.value === '' || !option.id || option.id === '') {
                         setSelectedPessoa('');
                         setIsNomeManual(false);
                         return;
                       }
-                      
+
                       const pessoaId = option.value || option.id;
                       setSelectedPessoa(pessoaId);
                       setIsNomeManual(false);
@@ -450,12 +564,12 @@ export const RegisterScreen: React.FC = () => {
                       // 🚨 NOVO FLUXO: Capturar cargo, instrumento e classe automaticamente dos dados da pessoa
                       if (option.data) {
                         const p = option.data;
-                        
+
                         // 1. Definir instrumento automaticamente
                         if (p.instrumento_id) {
                           setSelectedInstrumento(p.instrumento_id);
                         }
-                        
+
                         // 2. Definir classe automaticamente
                         if (p.classe_organista || p.nivel) {
                           const classe = p.classe_organista || p.nivel;
@@ -477,17 +591,17 @@ export const RegisterScreen: React.FC = () => {
                     styles.field,
                     Platform.OS === 'web'
                       ? {
-                        position: 'relative' as const,
-                        zIndex: 100, // Z-index menor que o do nome para o dropdown do nome sobrepor este campo
-                        overflow: 'visible' as const,
-                        // @ts-ignore
-                        isolation: 'isolate',
-                        marginTop: theme.spacing.md,
-                        marginBottom: theme.spacing.md,
-                      }
+                          position: 'relative' as const,
+                          zIndex: 100, // Z-index menor que o do nome para o dropdown do nome sobrepor este campo
+                          overflow: 'visible' as const,
+                          // @ts-ignore
+                          isolation: 'isolate',
+                          marginTop: theme.spacing.md,
+                          marginBottom: theme.spacing.md,
+                        }
                       : {
-                        marginTop: theme.spacing.md,
-                      },
+                          marginTop: theme.spacing.md,
+                        },
                   ]}
                 >
                   <Text style={styles.label}>CLASSE DA ORGANISTA *</Text>
@@ -501,7 +615,7 @@ export const RegisterScreen: React.FC = () => {
                           MozAppearance: 'none',
                           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
                           backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right center',
+                          backgroundPosition: 'right 18px center',
                           backgroundSize: '10px 10px',
                           paddingRight: '35px',
                           borderWidth: 1,
@@ -544,17 +658,17 @@ export const RegisterScreen: React.FC = () => {
                     styles.field,
                     Platform.OS === 'web'
                       ? {
-                        position: 'relative' as const,
-                        zIndex: 100, // Z-index menor que o do nome para o dropdown do nome sobrepor este campo
-                        overflow: 'visible' as const,
-                        // @ts-ignore
-                        isolation: 'isolate',
-                        marginTop: theme.spacing.md,
-                        marginBottom: theme.spacing.md,
-                      }
+                          position: 'relative' as const,
+                          zIndex: 100, // Z-index menor que o do nome para o dropdown do nome sobrepor este campo
+                          overflow: 'visible' as const,
+                          // @ts-ignore
+                          isolation: 'isolate',
+                          marginTop: theme.spacing.md,
+                          marginBottom: theme.spacing.md,
+                        }
                       : {
-                        marginTop: theme.spacing.md,
-                      },
+                          marginTop: theme.spacing.md,
+                        },
                   ]}
                 >
                   <Text style={styles.label}>INSTRUMENTO (APENAS PARA CARGOS MUSICAIS) *</Text>
@@ -568,7 +682,7 @@ export const RegisterScreen: React.FC = () => {
                           MozAppearance: 'none',
                           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23999' d='M5 7L1 3h8z'/%3E%3C/svg%3E")`,
                           backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right center',
+                          backgroundPosition: 'right 18px center',
                           backgroundSize: '10px 10px',
                           paddingRight: '35px',
                         } as any
@@ -603,7 +717,7 @@ export const RegisterScreen: React.FC = () => {
               </Text>
 
               <PrimaryButton
-                title="ENVIAR REGISTRO"
+                title="Registrar presença"
                 onPress={async () => {
                   console.log('🔘 [BUTTON] Botão ENVIAR REGISTRO pressionado');
                   console.log('📊 [BUTTON] Estado atual:', {
@@ -637,6 +751,10 @@ export const RegisterScreen: React.FC = () => {
           </View>
         </RefreshableScrollView>
       </KeyboardAvoidingView>
+      <RegisterBottomBar
+        onEditRegistrosPress={handleEditRegistros}
+        onOrganistasEnsaioPress={handleOrganistasEnsaio}
+      />
 
       {/* Modal de Duplicata */}
       {duplicateInfo && (
@@ -650,9 +768,11 @@ export const RegisterScreen: React.FC = () => {
           isForaRegional={duplicateInfo.isForaRegional}
           onCancel={() => {
             if (pendingRegistro) {
-              supabaseDataService.deleteRegistrosDuplicadosFromLocal(pendingRegistro).catch(error => {
-                console.warn('Erro ao limpar duplicata pendente:', error);
-              });
+              supabaseDataService
+                .deleteRegistrosDuplicadosFromLocal(pendingRegistro)
+                .catch(error => {
+                  console.warn('Erro ao limpar duplicata pendente:', error);
+                });
             }
             setDuplicateModalVisible(false);
             setDuplicateInfo(null);
@@ -693,42 +813,43 @@ export const RegisterScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#f3f6fa',
     ...(Platform.OS !== 'web'
       ? {
-        height: '100%',
-      }
+          height: '100%',
+        }
       : {}),
   },
   keyboardView: {
     flex: 1,
+    minHeight: 0,
     ...(Platform.OS !== 'web'
       ? {
-        height: '100%',
-      }
+          height: '100%',
+        }
       : {}),
   },
   scrollContent: {
     flexGrow: 1,
     ...(Platform.OS === 'web'
       ? {
-        padding: theme.spacing.lg,
-        paddingBottom: theme.spacing.xl * 2,
-        overflow: 'visible' as const,
-        minHeight: '100%',
-        // @ts-ignore
-        position: 'relative' as const,
-      }
+          padding: theme.spacing.lg,
+          paddingBottom: theme.spacing.xl * 2,
+          overflow: 'visible' as const,
+          minHeight: '100%',
+          // @ts-ignore
+          position: 'relative' as const,
+        }
       : {
-        // 🚨 CRÃTICO: Para mobile, NÃƒO usar padding no contentContainerStyle
-        // Isso permite que o pull-to-refresh funcione corretamente
-        // O padding será aplicado no card em vez disso
-        paddingHorizontal: theme.spacing.md,
-        paddingTop: 0, // CRÃTICO: Sem paddingTop para permitir pull-to-refresh
-        paddingBottom: theme.spacing.xl * 2,
-        minHeight: '100%',
-        overflow: 'visible' as const,
-      }),
+          // 🚨 CRÃTICO: Para mobile, NÃƒO usar padding no contentContainerStyle
+          // Isso permite que o pull-to-refresh funcione corretamente
+          // O padding será aplicado no card em vez disso
+          paddingHorizontal: theme.spacing.md,
+          paddingTop: 0, // CRÃTICO: Sem paddingTop para permitir pull-to-refresh
+          paddingBottom: theme.spacing.xl * 2,
+          minHeight: '100%',
+          overflow: 'visible' as const,
+        }),
   },
   loadingContainer: {
     flex: 1,
@@ -742,41 +863,58 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   card: {
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#e3ebf1',
     backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: 24,
     marginBottom: theme.spacing.lg,
     // 🚨 CRÃTICO: Adicionar marginTop e paddingTop no mobile para compensar remoção do paddingTop do scrollContent
     // Isso permite que o pull-to-refresh funcione corretamente
     ...(Platform.OS !== 'web'
       ? {
-        marginTop: theme.spacing.lg,
-        paddingTop: theme.spacing.md,
-      }
+          marginTop: theme.spacing.lg,
+          paddingTop: theme.spacing.md,
+        }
       : {}),
-    shadowColor: '#000',
+    shadowColor: '#23425c',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: Platform.OS === 'web' ? 0.1 : 0.15,
-    shadowRadius: Platform.OS === 'web' ? 4 : 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
     elevation: Platform.OS === 'web' ? 3 : 4,
     ...(Platform.OS === 'web'
       ? {
-        position: 'relative' as const,
-        zIndex: 1,
-        overflow: 'visible' as const,
-      }
+          position: 'relative' as const,
+          zIndex: 1,
+          overflow: 'visible' as const,
+        }
       : {
-        marginHorizontal: theme.spacing.xs, // Margem horizontal no mobile
-        overflow: 'visible' as const,
-      }),
+          marginHorizontal: theme.spacing.xs, // Margem horizontal no mobile
+          overflow: 'visible' as const,
+        }),
   },
+  formEyebrow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  formIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#eaf3f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formEyebrowText: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: '#527185' },
   cardHeader: {
     backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
+    padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: '#edf2f6',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
   },
   cardTitle: {
-    fontSize: theme.fontSize.xl,
+    fontSize: 28,
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
@@ -790,32 +928,35 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
-        overflow: 'visible' as const,
-        position: 'relative' as const,
-        zIndex: 1,
-      }
+          overflow: 'visible' as const,
+          position: 'relative' as const,
+          zIndex: 1,
+        }
       : {
-        overflow: 'visible' as const,
-        padding: theme.spacing.md, // Menos padding no mobile nativo
-      }),
+          overflow: 'visible' as const,
+          padding: theme.spacing.md, // Menos padding no mobile nativo
+        }),
   },
   hint: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
-    fontStyle: 'italic',
+    lineHeight: 19,
     marginTop: -theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
   submitButton: {
+    width: '100%',
+    borderRadius: 16,
+    minHeight: 56,
     marginTop: theme.spacing.md,
     alignSelf: 'center',
     ...(Platform.OS !== 'web'
       ? {
-        width: '100%', // Botão full width no mobile
-        maxWidth: 400, // Mas com limite máximo
-        paddingVertical: theme.spacing.md, // Mais padding vertical no mobile
-        minHeight: 50, // Altura mínima maior no mobile para melhor toque
-      }
+          width: '100%', // Botão full width no mobile
+          maxWidth: 400, // Mas com limite máximo
+          paddingVertical: theme.spacing.md, // Mais padding vertical no mobile
+          minHeight: 50, // Altura mínima maior no mobile para melhor toque
+        }
       : {}),
   },
   footer: {
@@ -823,14 +964,14 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     ...(Platform.OS === 'web'
       ? {
-        position: 'relative' as const,
-        zIndex: 0,
-        // @ts-ignore
-        isolation: 'isolate',
-      }
+          position: 'relative' as const,
+          zIndex: 0,
+          // @ts-ignore
+          isolation: 'isolate',
+        }
       : {
-        elevation: 0,
-      }),
+          elevation: 0,
+        }),
   },
   syncIndicator: {
     flexDirection: 'row',
@@ -848,8 +989,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     ...(Platform.OS === 'web'
       ? {
-        cursor: 'pointer',
-      }
+          cursor: 'pointer',
+        }
       : {}),
   },
   newRegistrationLinkText: {
@@ -859,33 +1000,49 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     ...(Platform.OS === 'web'
       ? {
-        cursor: 'pointer',
-        userSelect: 'none',
-      }
+          cursor: 'pointer',
+          userSelect: 'none',
+        }
       : {}),
   },
   field: {
     marginBottom: theme.spacing.md,
   },
   label: {
+    lineHeight: 20,
+    letterSpacing: 0.2,
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: 8,
+  },
+  selectShell: { position: 'relative', width: '100%' },
+  cargoIcon: {
+    pointerEvents: 'none',
+    position: 'absolute',
+    left: 12,
+    top: 11,
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: '#f0eafa',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   selectWeb: {
     width: '100%',
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.surface,
+    borderColor: '#e1e9f1',
+    borderRadius: 16,
+    backgroundColor: '#f5f8fb',
     paddingTop: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
-    paddingLeft: theme.spacing.md,
+    paddingLeft: 58,
     paddingRight: '35px',
     fontSize: theme.fontSize.md,
     color: theme.colors.text,
-    minHeight: 48,
+    minHeight: 56,
     // @ts-ignore - Propriedades CSS apenas para web
     outlineStyle: 'none',
     outlineWidth: 0,
@@ -923,4 +1080,3 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 });
-
