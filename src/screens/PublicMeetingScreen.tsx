@@ -224,7 +224,7 @@ export const PublicMeetingScreen: React.FC = () => {
               Reunião de Aprimoramento Musical.
             </p>
             <div className="ram-receipt">
-              <Icon name="church" color="#71849b" size={17} />
+              <Icon name="map-marker-alt" color="#df5266" size={17} />
               <div>
                 <strong>{churchName(church?.nome || '', city?.nome || '')}</strong>
                 <span>{meetingLabel(city?.nome || '')}</span>
