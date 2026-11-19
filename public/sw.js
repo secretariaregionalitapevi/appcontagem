@@ -5,9 +5,10 @@ const CACHE_NAME = CACHE_PREFIX + BUILD_ID;
 const ASSETS = '__PWA_ASSETS__';
 
 self.addEventListener('message', event => {
-  if (event.data?.type === 'GET_BUILD_ID') event.ports[0]?.postMessage({ buildId: BUILD_ID });
+  if (event.data && event.data.type === 'GET_BUILD_ID' && event.ports && event.ports[0])
+    event.ports[0].postMessage({ buildId: BUILD_ID });
   // Compatibility with installed clients before 1.5.2.
-  if (event.data?.type === 'SKIP_WAITING') event.waitUntil(self.skipWaiting());
+  if (event.data && event.data.type === 'SKIP_WAITING') event.waitUntil(self.skipWaiting());
 });
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -86,17 +87,14 @@ self.addEventListener('fetch', event => {
           )
         );
         return response;
-      } catch {
+      } catch (error) {
         if (cached) return cached;
         if (navigation) {
           const shell = await cache.match('/index.html');
           if (shell) return shell;
         }
         for (const name of await caches.keys()) {
-          if (
-            !name.startsWith(CACHE_PREFIX) &&
-            !/^(app-presenca|runtime-cache)-v\d+$/.test(name)
-          )
+          if (!name.startsWith(CACHE_PREFIX) && !/^(app-presenca|runtime-cache)-v\d+$/.test(name))
             continue;
           const old = await (await caches.open(name)).match(request);
           if (old) return old;

@@ -46,6 +46,16 @@ export async function getDeviceLocation(force = false): Promise<LocationFix> {
   let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
   let deadline: ReturnType<typeof setTimeout>;
   let observationDeadline: ReturnType<typeof setTimeout>;
+  const clearObservation = () => {
+    if (watchId === undefined) return;
+    try {
+      if (typeof navigator.geolocation.clearWatch === 'function')
+        navigator.geolocation.clearWatch(watchId);
+    } catch {
+      /* An optional native browser bridge must not abort the primary read. */
+    }
+    watchId = undefined;
+  };
   const cleanup = () => {
     if (stopped) return;
     stopped = true;
@@ -53,7 +63,7 @@ export async function getDeviceLocation(force = false): Promise<LocationFix> {
     clearTimeout(observationDeadline);
     clearTimeout(coarseTimer);
     clearTimeout(fallbackTimer);
-    if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+    clearObservation();
     if (stopObservation === cleanup) stopObservation = undefined;
     if (!settled) settle(best ? { position: best } : { reason: 'unavailable' });
   };
@@ -100,7 +110,14 @@ export async function getDeviceLocation(force = false): Promise<LocationFix> {
     // Timeout/unavailable in one provider is not failure of another pending provider.
   };
   if (Platform.OS === 'web') {
-    if (typeof window === 'undefined' || !window.isSecureContext) {
+    const secureContext =
+      typeof window !== 'undefined' &&
+      (typeof window.isSecureContext === 'boolean'
+        ? window.isSecureContext
+        : window.location &&
+          (window.location.protocol === 'https:' ||
+            ['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname)));
+    if (!secureContext) {
       settle({ reason: 'insecure' });
       cleanup();
     } else if (!navigator.geolocation) {
@@ -114,44 +131,66 @@ export async function getDeviceLocation(force = false): Promise<LocationFix> {
           accuracy: value.coords.accuracy,
           timestamp: value.timestamp,
         });
+      let coarseStarted = false,
+        coarseAvailable = false;
       const coarse = () => {
-        if (stopped || (best && best.accuracy <= 1000)) return;
-        try {
-          navigator.geolocation.getCurrentPosition(success, error => failed(error.code), {
-            enableHighAccuracy: false,
-            maximumAge: 60000,
-            timeout: 12000,
-          });
-        } catch {
-          /* Keep the other provider alive. */
-        }
+        if (stopped || coarseStarted || (best && best.accuracy <= 1000)) return;
+        coarseStarted = true;
+        coarseAvailable = readSingle(false);
       };
-      try {
-        if (force && typeof navigator.geolocation.watchPosition === 'function') {
-          // iOS may first return an approximate reading, then improve it.
-          watchId = navigator.geolocation.watchPosition(
-            success,
-            error => {
-              failed(error.code);
-              if (error.code !== 1) coarse();
-            },
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
-          );
-          if (stopped) navigator.geolocation.clearWatch(watchId);
-        } else {
+      const readSingle = (highAccuracy: boolean): boolean => {
+        try {
           navigator.geolocation.getCurrentPosition(
             success,
             error => {
               failed(error.code);
-              if (error.code !== 1) coarse();
+              if (highAccuracy && error.code !== 1) coarse();
             },
-            { enableHighAccuracy: true, maximumAge: force ? 0 : 30000, timeout: 20000 }
+            {
+              enableHighAccuracy: highAccuracy,
+              maximumAge: highAccuracy ? (force ? 0 : 30000) : 60000,
+              timeout: highAccuracy ? 20000 : 12000,
+            }
           );
+          return true;
+        } catch {
+          return false;
         }
-        if (!stopped) fallbackTimer = setTimeout(coarse, 4000);
-      } catch {
-        settle({ reason: 'unavailable' });
-        cleanup();
+      };
+      // Always start the widely supported one-shot API directly from the user's action.
+      const singleAvailable = readSingle(true);
+      if (
+        force &&
+        !stopped &&
+        typeof navigator.geolocation.watchPosition === 'function' &&
+        typeof navigator.geolocation.clearWatch === 'function'
+      ) {
+        let watchDenied = false;
+        try {
+          watchId = navigator.geolocation.watchPosition(
+            success,
+            error => {
+              // Some browser bridges reject observation while allowing one-shot reads.
+              if (error.code === 1) {
+                watchDenied = true;
+                clearObservation();
+              } else coarse();
+            },
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+          );
+          if (stopped || watchDenied) clearObservation();
+        } catch {
+          // Safari/Mi Browser observation failure cannot cancel the primary provider.
+        }
+      }
+      if (!stopped) {
+        if (!singleAvailable) {
+          coarse();
+          if (!coarseAvailable && watchId === undefined) {
+            settle({ reason: 'unavailable' });
+            cleanup();
+          }
+        } else fallbackTimer = setTimeout(coarse, 4000);
       }
     }
   } else {

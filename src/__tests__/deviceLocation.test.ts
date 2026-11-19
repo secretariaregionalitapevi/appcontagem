@@ -180,14 +180,82 @@ describe('Leitura de localização com limite de tempo', () => {
     expect(changed).not.toHaveBeenCalled();
     unsubscribe();
   });
-  it('clears a watch that denies permission before returning its id', async () => {
+  it('a rejected observation does not cancel a supported one-shot read', async () => {
+    let answer!: (position: unknown) => void;
+    getCurrentPosition.mockImplementation(success => {
+      answer = success;
+    });
     const clearWatch = jest.fn();
     (global as any).navigator.geolocation.watchPosition = jest.fn((_, error) => {
       error({ code: 1 });
       return 0;
     });
     (global as any).navigator.geolocation.clearWatch = clearWatch;
-    expect(await getDeviceLocation(true)).toEqual({ reason: 'denied' });
+    const result = getDeviceLocation(true);
+    answer({ coords: { latitude: -23, longitude: -47, accuracy: 25 }, timestamp: Date.now() });
+    expect((await result).position?.accuracy).toBe(25);
     expect(clearWatch).toHaveBeenCalledWith(0);
+  });
+  it('continues the one-shot read when watchPosition throws in a browser bridge', async () => {
+    getCurrentPosition.mockImplementation(success =>
+      setTimeout(
+        () =>
+          success({
+            coords: { latitude: -23, longitude: -47, accuracy: 25 },
+            timestamp: Date.now(),
+          }),
+        1000
+      )
+    );
+    (global as any).navigator.geolocation.watchPosition = jest.fn(() => {
+      throw new Error('Unsupported observation');
+    });
+    (global as any).navigator.geolocation.clearWatch = jest.fn();
+    const result = getDeviceLocation(true);
+    jest.advanceTimersByTime(1001);
+    expect((await result).position?.accuracy).toBe(25);
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+  it('uses HTTPS on legacy Safari without the isSecureContext property', async () => {
+    delete (global as any).window.isSecureContext;
+    (global as any).window.location = { protocol: 'https:', hostname: 'example.test' };
+    expect((await getDeviceLocation(true)).position?.accuracy).toBe(25);
+  });
+  it('does not enable insecure remote HTTP on legacy browsers', async () => {
+    delete (global as any).window.isSecureContext;
+    (global as any).window.location = { protocol: 'http:', hostname: 'example.test' };
+    expect(await getDeviceLocation(true)).toEqual({ reason: 'insecure' });
+  });
+  it('does not depend on watchPosition delivering an initial callback', async () => {
+    getCurrentPosition.mockImplementation(success =>
+      setTimeout(
+        () =>
+          success({
+            coords: { latitude: -23, longitude: -47, accuracy: 25 },
+            timestamp: Date.now(),
+          }),
+        900
+      )
+    );
+    (global as any).navigator.geolocation.watchPosition = jest.fn(() => 25);
+    const clearWatch = jest.fn();
+    (global as any).navigator.geolocation.clearWatch = clearWatch;
+    const result = getDeviceLocation(true);
+    jest.advanceTimersByTime(901);
+    expect((await result).position?.accuracy).toBe(25);
+    expect(clearWatch).toHaveBeenCalledWith(25);
+  });
+  it('a failing clearWatch cannot break a valid position', async () => {
+    let answer!: (position: unknown) => void;
+    getCurrentPosition.mockImplementation(success => {
+      answer = success;
+    });
+    (global as any).navigator.geolocation.watchPosition = jest.fn(() => 26);
+    (global as any).navigator.geolocation.clearWatch = jest.fn(() => {
+      throw new Error('Bridge unavailable');
+    });
+    const result = getDeviceLocation(true);
+    answer({ coords: { latitude: -23, longitude: -47, accuracy: 25 }, timestamp: Date.now() });
+    expect((await result).position?.accuracy).toBe(25);
   });
 });

@@ -47,10 +47,12 @@
   const safe = () =>
     active() &&
     window.__pwaAppReady === true &&
-    !window.__pwaUpdateBlocked?.() &&
+    !(window.__pwaUpdateBlocked && window.__pwaUpdateBlocked()) &&
     !hasDraft() &&
     !document.querySelector('[aria-modal="true"], .swal2-container') &&
-    !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) &&
+    !['INPUT', 'TEXTAREA', 'SELECT'].includes(
+      document.activeElement && document.activeElement.tagName
+    ) &&
     Date.now() - lastActivity >= 2000;
   const apply = () => {
     clearTimeout(timer);
@@ -70,7 +72,7 @@
     channel.port1.onmessage = event => {
       clearTimeout(timeout);
       channel.port1.close();
-      if (event.data?.buildId && event.data.buildId !== BUILD_ID) {
+      if (event.data && event.data.buildId && event.data.buildId !== BUILD_ID) {
         pending = true;
         apply();
       }
@@ -83,7 +85,7 @@
     try {
       await registration.update();
       inspectController();
-    } catch {
+    } catch (error) {
       /* Offline: keep installed release and retry on reconnect. */
     } finally {
       checking = false;
@@ -128,7 +130,7 @@
         scope: '/',
         updateViaCache: 'none',
       });
-      registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
       await check();
       inspectController();
       setInterval(check, 60000);

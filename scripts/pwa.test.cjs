@@ -4,8 +4,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
+const acorn = require('acorn');
 const { preparePwa } = require('./prepare-pwa.cjs');
 const root = path.resolve(__dirname, '..');
+test('untranspiled PWA entry points parse as ES2017 for older Safari', () => {
+  for (const file of ['public/sw.js', 'public/pwa-update.js']) {
+    acorn.parse(fs.readFileSync(path.join(root, file), 'utf8'), { ecmaVersion: 2017 });
+  }
+});
 
 function fixture() {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ccb-pwa-'));
@@ -47,7 +53,8 @@ function worker(options = {}) {
     deleted = [];
   let skipped = 0,
     claimed = 0;
-  const keyOf = key => new URL(typeof key === 'string' ? key : key.url, 'https://example.test').pathname;
+  const keyOf = key =>
+    new URL(typeof key === 'string' ? key : key.url, 'https://example.test').pathname;
   const cache = {
     put: async (key, value) => stores.set(keyOf(key), value),
     match: async key => stores.get(keyOf(key)),
@@ -319,10 +326,15 @@ test('typed autocomplete draft remains protected after losing focus', async () =
   assert.equal(u.reloads, 1);
 });
 test('navigation keeps installed HTML paired with its bundles instead of mixing deployments', async () => {
-  const w = worker({ fetch: () => assert.fail('installed navigation must use its cached release') });
+  const w = worker({
+    fetch: () => assert.fail('installed navigation must use its cached release'),
+  });
   w.stores.set('/index.html', 'installed-release');
   let response;
-  w.events.fetch({ request: { url: 'https://example.test/?source=pwa', method: 'GET', mode: 'navigate' }, respondWith: value => response = value });
+  w.events.fetch({
+    request: { url: 'https://example.test/?source=pwa', method: 'GET', mode: 'navigate' },
+    respondWith: value => (response = value),
+  });
   assert.equal(await response, 'installed-release');
 });
 test('version metadata and Vercel build/cache configuration are consistent', () => {
@@ -332,8 +344,16 @@ test('version metadata and Vercel build/cache configuration are consistent', () 
   assert.equal(pkg.version, '1.5.2');
   assert.equal(lock.version, pkg.version);
   assert.equal(lock.packages[''].version, pkg.version);
-  assert.ok(fs.readFileSync(path.join(root, 'app.config.js'), 'utf8').includes("version: '" + pkg.version + "'"));
+  assert.ok(
+    fs
+      .readFileSync(path.join(root, 'app.config.js'), 'utf8')
+      .includes("version: '" + pkg.version + "'")
+  );
   assert.equal(pkg.scripts['vercel-build'], 'npm run build');
   assert.ok(pkg.scripts.build.includes('prepare-pwa.cjs'));
-  assert.ok(vercel.headers.find(header => header.source === '/sw.js').headers.some(header => header.key === 'Cache-Control' && header.value.includes('no-store')));
+  assert.ok(
+    vercel.headers
+      .find(header => header.source === '/sw.js')
+      .headers.some(header => header.key === 'Cache-Control' && header.value.includes('no-store'))
+  );
 });

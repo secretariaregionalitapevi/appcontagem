@@ -202,6 +202,23 @@ export const LocationReviewHost: React.FC = () => {
                   )}
                 </TouchableOpacity>
               </View>
+              {!nearest && (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={checking}
+                  onPress={recheck}
+                  style={styles.locationRetry}
+                >
+                  {checking ? (
+                    <ActivityIndicator size="small" color="#1777b3" />
+                  ) : (
+                    <FontAwesome5 solid name="location-arrow" size={15} color="#1777b3" />
+                  )}
+                  <Text style={styles.locationRetryText}>
+                    {checking ? 'Buscando sua localização…' : 'Usar minha localização'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               {nearest && (
                 <View style={styles.suggestion} accessibilityRole="alert">
                   <View style={styles.suggestionIcon}>
@@ -318,6 +335,18 @@ export const LocationReviewHost: React.FC = () => {
   );
 };
 const styles = StyleSheet.create({
+  locationRetry: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#edf6fc',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+  locationRetryText: { color: '#1777b3', fontSize: 13, fontWeight: '600', flexShrink: 1 },
   presenceAlert: {
     flexDirection: 'row',
     alignItems: 'flex-start',
