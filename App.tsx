@@ -1,4 +1,6 @@
 import { LocationReviewHost } from './src/components/LocationReviewHost';
+import { PublicMeetingScreen } from './src/screens/PublicMeetingScreen';
+import { isPublicMeetingPath } from './src/config/publicMeeting';
 /**
  * ============================================================================
  * PROPRIEDADE INTELECTUAL E DIREITOS AUTORAIS
@@ -58,6 +60,10 @@ if (Platform.OS !== 'web') {
 }
 
 export default function App() {
+  const publicMeeting =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    isPublicMeetingPath(window.location.pathname);
   const [initError, setInitError] = useState<Error | null>(null);
   const [isReady, setIsReady] = useState(false);
 
@@ -91,7 +97,7 @@ export default function App() {
 
         // Verificação de Versão
         const storedVersion = await robustGetItem('@app_version');
-        if (storedVersion !== CURRENT_APP_VERSION) {
+        if (storedVersion !== CURRENT_APP_VERSION && !publicMeeting) {
           await robustSetItem('@app_version', CURRENT_APP_VERSION);
 
           // Agendar notificação de atualização para logo após o app renderizar
@@ -143,6 +149,14 @@ export default function App() {
       return <AnimatedSplashScreen />;
     }
 
+    if (publicMeeting) {
+      return (
+        <ErrorBoundary onError={setInitError}>
+          <StatusBar style="dark" />
+          <PublicMeetingScreen />
+        </ErrorBoundary>
+      );
+    }
     return (
       <AuthProvider>
         <StatusBar style="auto" />
