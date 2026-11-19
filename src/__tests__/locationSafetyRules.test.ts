@@ -34,6 +34,21 @@ describe('Conferência geográfica do ensaio', () => {
     expect(evaluatePosition(itapevi, [caucaia], { ...fix, accuracy: 5000 }, now).status).toBe(
       'uncertain'
     ));
+  it('sugere Caucaia com localização aproximada do desktop/iOS sem afirmar presença', () => {
+    const result = evaluatePosition(itapevi, [caucaia, itapevi], { ...fix, accuracy: 3500 }, now);
+    expect(result.status).toBe('uncertain');
+    expect(result.approximate).toBe(true);
+    expect(result.nearest?.id).toBe('2');
+    expect(result.suggested).toBeUndefined();
+  });
+  it('informa o ensaio mais próximo também quando o local selecionado já corresponde', () => {
+    expect(evaluatePosition(caucaia, [caucaia, itapevi], fix, now).nearest?.id).toBe('2');
+  });
+  it('uma leitura com erro de dezenas de quilômetros não gera sugestão enganosa', () => {
+    const result = evaluatePosition(itapevi, [caucaia, itapevi], { ...fix, accuracy: 50000 }, now);
+    expect(result.status).toBe('uncertain');
+    expect(result.nearest).toBeUndefined();
+  });
   it('não sugere outra localidade se o usuário está longe de todas', () => {
     expect(
       evaluatePosition(itapevi, [caucaia, itapevi], { ...fix, latitude: -22, longitude: -45 }, now)

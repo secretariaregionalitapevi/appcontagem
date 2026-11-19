@@ -134,7 +134,9 @@ export const LocationReviewHost: React.FC = () => {
                   : request.entry
                     ? assessment.geo.status === 'near'
                       ? 'Confirme o local do ensaio'
-                      : 'Não foi possível validar o GPS'
+                      : assessment.geo.approximate
+                        ? 'Localização aproximada'
+                        : 'Não foi possível validar o GPS'
                     : 'Onde vamos contar?'}
               </Text>
             </View>
@@ -175,11 +177,15 @@ export const LocationReviewHost: React.FC = () => {
                       ? `Seu GPS está a ${(assessment.geo.distance! / 1000).toFixed(1)} km de ${original.nome}. Confira antes de continuar.`
                       : assessment.geo.status === 'near'
                         ? 'Sua posição é compatível com este ensaio.'
-                        : assessment.reason === 'denied'
-                          ? 'Permita o acesso à localização para comparar com o ensaio.'
-                          : assessment.reason === 'insecure'
-                            ? 'A verificação do GPS requer uma conexão HTTPS.'
-                            : 'Sem uma posição precisa. Atualize o GPS ou confirme o destino.'}
+                        : assessment.geo.approximate
+                          ? nearest
+                            ? 'O navegador forneceu uma posição aproximada. Confira a sugestão abaixo.'
+                            : 'A posição recebida tem pouca precisão para sugerir um ensaio. Tente atualizar.'
+                          : assessment.reason === 'denied'
+                            ? 'Permita o acesso à localização para comparar com o ensaio.'
+                            : assessment.reason === 'insecure'
+                              ? 'A verificação do GPS requer uma conexão HTTPS.'
+                              : 'Sem uma posição precisa. Atualize o GPS ou confirme o destino.'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -196,53 +202,58 @@ export const LocationReviewHost: React.FC = () => {
                   )}
                 </TouchableOpacity>
               </View>
-              {different && nearest && (
+              {nearest && (
                 <View style={styles.suggestion} accessibilityRole="alert">
                   <View style={styles.suggestionIcon}>
                     <FontAwesome5 solid name="map-marked-alt" size={19} color="#138367" />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={styles.suggestionLabel}>ENSAIO MAIS PRÓXIMO DO GPS</Text>
+                    <Text style={styles.suggestionLabel}>
+                      {assessment.geo.approximate
+                        ? 'SUGESTÃO POR LOCALIZAÇÃO APROXIMADA'
+                        : 'ENSAIO MAIS PRÓXIMO DO GPS'}
+                    </Text>
                     <Text style={styles.suggestionText}>
                       Pela sua localização, o ensaio sugerido é{' '}
                       <Text style={styles.suggestionVenue}>{nearest.nome}</Text>.
                     </Text>
                     <Text style={styles.suggestionHint}>
-                      {suggested
-                        ? 'Sua posição está próxima deste ensaio. Selecione-o abaixo para confirmar.'
-                        : `Aprox. ${((assessment.geo.nearestDistance || 0) / 1000).toFixed(1)} km do GPS. Confira se este é o destino da contagem.`}
+                      {assessment.geo.approximate
+                        ? `Margem de erro de até ${(assessment.position!.accuracy / 1000).toFixed(1)} km. Confirme o local; essa leitura não comprova presença.`
+                        : suggested
+                          ? 'Sua posição está próxima deste ensaio. Selecione-o abaixo para confirmar.'
+                          : `Aprox. ${((assessment.geo.nearestDistance || 0) / 1000).toFixed(1)} km do GPS. Confira se este é o destino da contagem.`}
                     </Text>
                   </View>
                 </View>
               )}
-              {assessment.position &&
-                (assessment.geo.status === 'near' || assessment.geo.status === 'mismatch') && (
-                  <View style={styles.coordinates}>
+              {assessment.position && Boolean(nearest) && (
+                <View style={styles.coordinates}>
+                  <View style={styles.coordinateRow}>
+                    <View style={[styles.coordinateDot, { backgroundColor: '#3b82f6' }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.coordinateLabel}>
+                        Seu GPS · precisão ±{Math.round(assessment.position.accuracy)} m
+                      </Text>
+                      <Text selectable style={styles.coordinateValue}>
+                        {assessment.position.latitude.toFixed(5)},{' '}
+                        {assessment.position.longitude.toFixed(5)}
+                      </Text>
+                    </View>
+                  </View>
+                  {original.geo && (
                     <View style={styles.coordinateRow}>
-                      <View style={[styles.coordinateDot, { backgroundColor: '#3b82f6' }]} />
+                      <FontAwesome5 solid name="map-marker-alt" size={12} color="#ea5269" />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.coordinateLabel}>
-                          Seu GPS · precisão ±{Math.round(assessment.position.accuracy)} m
-                        </Text>
+                        <Text style={styles.coordinateLabel}>Selecionado · {original.nome}</Text>
                         <Text selectable style={styles.coordinateValue}>
-                          {assessment.position.latitude.toFixed(5)},{' '}
-                          {assessment.position.longitude.toFixed(5)}
+                          {original.geo.latitude.toFixed(5)}, {original.geo.longitude.toFixed(5)}
                         </Text>
                       </View>
                     </View>
-                    {original.geo && (
-                      <View style={styles.coordinateRow}>
-                        <FontAwesome5 solid name="map-marker-alt" size={12} color="#ea5269" />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.coordinateLabel}>Selecionado · {original.nome}</Text>
-                          <Text selectable style={styles.coordinateValue}>
-                            {original.geo.latitude.toFixed(5)}, {original.geo.longitude.toFixed(5)}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                )}
+                  )}
+                </View>
+              )}
               {options.map(venue => (
                 <TouchableOpacity
                   key={venue.id}
@@ -327,8 +338,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    paddingTop: 12,
+    paddingBottom: 36,
   },
-  mobileOverlay: { justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 16 },
+  mobileOverlay: {
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
   sheet: {
     width: '100%',
     maxWidth: 500,

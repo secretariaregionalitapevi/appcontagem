@@ -2,6 +2,8 @@ jest.mock('../config/ensaioVenues', () => ({ getEnsaioVenues: () => mockVenues }
 jest.mock('../services/deviceLocation', () => ({
   getDeviceLocation: jest.fn(),
   resetDeviceLocation: jest.fn(),
+  subscribeDeviceLocation: jest.fn(() => () => {}),
+  stopDeviceLocationWatch: jest.fn(),
 }));
 jest.mock('../services/locationReview', () => ({
   requestLocationReview: jest.fn(),
@@ -11,11 +13,12 @@ jest.mock('../services/localStorageService', () => ({
   localStorageService: { setLocalEnsaio: jest.fn(), getLocalEnsaio: jest.fn() },
 }));
 import { EnsaioVenue } from '../utils/locationSafetyRules';
-import { getDeviceLocation } from '../services/deviceLocation';
+import { getDeviceLocation, subscribeDeviceLocation } from '../services/deviceLocation';
 import { requestLocationReview } from '../services/locationReview';
 import { localStorageService } from '../services/localStorageService';
 import { locationSafetyService } from '../services/locationSafetyService';
 let mockVenues: EnsaioVenue[];
+const onDeviceFix = (subscribeDeviceLocation as jest.Mock).mock.calls[0][0];
 describe('Conferência discreta com decisão pelo mapa', () => {
   let now: number;
   beforeEach(() => {
@@ -241,5 +244,23 @@ describe('Conferência discreta com decisão pelo mapa', () => {
     (requestLocationReview as jest.Mock).mockResolvedValue(null);
     expect(await locationSafetyService.confirmEntry('4', '2026-11-19')).toBeNull();
     expect(requestLocationReview).toHaveBeenCalledTimes(2);
+  });
+  it('updates the entry suggestion when a late location arrives', async () => {
+    (getDeviceLocation as jest.Mock).mockResolvedValue({ reason: 'timeout' });
+    let finish!: (choice: { venueId: string }) => void;
+    (requestLocationReview as jest.Mock).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const entry = locationSafetyService.confirmEntry('4', '2026-11-19');
+    for (let n = 0; n < 8; n++) await Promise.resolve();
+    expect(locationSafetyService.snapshot()?.geo.status).toBe('uncertain');
+    onDeviceFix({ position: { ...mockVenues[0].geo, accuracy: 2500, timestamp: now } });
+    expect(locationSafetyService.snapshot()?.geo.nearest?.id).toBe('2');
+    expect(locationSafetyService.snapshot()?.geo.approximate).toBe(true);
+    finish({ venueId: '2' });
+    expect(await entry).toBe('2');
   });
 });

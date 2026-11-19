@@ -20,7 +20,12 @@ export const LocationMap: React.FC<{
       </View>
     );
   const hasPosition =
-    !!position && position.accuracy <= 1000 && Date.now() - position.timestamp <= 120000;
+    !!position &&
+    validGeo(position) &&
+    position.accuracy >= 0 &&
+    position.accuracy <= 20000 &&
+    Date.now() - position.timestamp <= 120000 &&
+    position.timestamp <= Date.now() + 10000;
   const points = [venue.geo, ...(hasPosition ? [position!] : [])];
   const view = mapViewport(points, width, height, zoom);
   const destination = view.pins[0],
@@ -83,7 +88,9 @@ export const LocationMap: React.FC<{
       {device && (
         <View style={[styles.device, { left: device.x - 14, top: device.y - 14 }]}>
           <View style={styles.deviceDot} />
-          <Text style={styles.deviceLabel}>Você está aqui</Text>
+          <Text style={styles.deviceLabel}>
+            {position!.accuracy > 1000 ? 'Posição aproximada' : 'Você está aqui'}
+          </Text>
         </View>
       )}
       <View style={styles.legend}>

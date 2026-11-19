@@ -9,7 +9,13 @@ import {
   validGeo,
   DevicePosition,
 } from '../utils/locationSafetyRules';
-import { getDeviceLocation, LocationFix, resetDeviceLocation } from './deviceLocation';
+import {
+  getDeviceLocation,
+  LocationFix,
+  resetDeviceLocation,
+  subscribeDeviceLocation,
+  stopDeviceLocationWatch,
+} from './deviceLocation';
 import { localStorageService } from './localStorageService';
 import { finishLocationReview, requestLocationReview } from './locationReview';
 
@@ -30,6 +36,18 @@ const venueListeners = new Set<(venue: EnsaioVenue) => void>();
 let latest: LocationAssessment | undefined;
 let generation = 0;
 const emit = () => listeners.forEach(listener => listener());
+// A delayed permission response or improved iOS fix updates the open panel.
+subscribeDeviceLocation(fix => {
+  if (!latest || !fix.position) return;
+  latest = {
+    ...latest,
+    position: fix.position,
+    reason: fix.reason,
+    geo: evaluatePosition(latest.selected, getEnsaioVenues(), fix.position),
+    checkedAt: Date.now(),
+  };
+  emit();
+});
 const configKey = () => JSON.stringify(getEnsaioVenues());
 const areaKey = (assessment: LocationAssessment) =>
   assessment.geo.suggested?.id ||
@@ -138,6 +156,7 @@ export const locationSafetyService = {
     const choosing = requestLocationReview({ assessment, automatic: false });
     void this.inspect(local, date, true);
     const choice = await choosing;
+    stopDeviceLocationWatch();
     if (choice && version === generation)
       await this.applyChoice(
         latest?.selected.id === venue.id && latest.date === date ? latest : assessment,
@@ -151,6 +170,7 @@ export const locationSafetyService = {
     const assessment = await this.inspect(local, date, true);
     if (!assessment || version !== generation) return null;
     const choice = await requestLocationReview({ assessment, automatic: true, entry: true });
+    stopDeviceLocationWatch();
     if (!choice || version !== generation) return null;
     const current =
       latest?.selected.id === assessment.selected.id && latest.date === date ? latest : assessment;

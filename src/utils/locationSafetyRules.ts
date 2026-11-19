@@ -21,6 +21,7 @@ export type GeoResult = {
   suggested?: EnsaioVenue;
   nearest?: EnsaioVenue;
   nearestDistance?: number;
+  approximate?: boolean;
 };
 
 export const normalizeVenue = (value: string) =>
@@ -79,24 +80,41 @@ export function evaluatePosition(
     !validGeo(position) ||
     !Number.isFinite(position.accuracy) ||
     position.accuracy < 0 ||
-    position.accuracy > 1000 ||
     !Number.isFinite(position.timestamp) ||
     now - position.timestamp > 120000 ||
     position.timestamp > now + 10000
   )
     return { status: 'uncertain' };
   const distance = distanceMeters(selected.geo, position);
-  const radius = venueRadius(selected);
-  // Do not label a boundary/overlapping accuracy circle as a confirmed mismatch.
-  if (distance <= radius + position.accuracy) return { status: 'near', distance };
-  if (distance <= radius + position.accuracy + 200) return { status: 'uncertain', distance };
   const ranked = venues
-    .filter(venue => venue.id !== selected.id && validGeo(venue.geo))
+    .filter(venue => validGeo(venue.geo))
     .map(venue => ({ venue, distance: distanceMeters(venue.geo!, position) }))
     .sort((a, b) => a.distance - b.distance);
+  const closest = ranked[0];
+  // Wi-Fi/approximate iOS readings can guide a choice without proving presence.
+  if (position.accuracy > 1000) {
+    return {
+      status: 'uncertain',
+      distance,
+      approximate: true,
+      ...(position.accuracy <= 20000 && closest
+        ? { nearest: closest.venue, nearestDistance: closest.distance }
+        : {}),
+    };
+  }
+  const radius = venueRadius(selected);
+  // Do not label a boundary/overlapping accuracy circle as a confirmed mismatch.
+  const nearestDetails = closest
+    ? { nearest: closest.venue, nearestDistance: closest.distance }
+    : {};
+  if (distance <= radius + position.accuracy)
+    return { status: 'near', distance, ...nearestDetails };
+  if (distance <= radius + position.accuracy + 200)
+    return { status: 'uncertain', distance, ...nearestDetails };
   const nearest = ranked[0];
   const suggested = ranked.find(
-    item => item.distance <= venueRadius(item.venue) + position.accuracy
+    item =>
+      item.venue.id !== selected.id && item.distance <= venueRadius(item.venue) + position.accuracy
   );
   return {
     status: 'mismatch',

@@ -6,7 +6,12 @@ jest.mock('expo-location', () => ({
 }));
 import { Platform } from 'react-native';
 import * as NativeLocation from 'expo-location';
-import { getDeviceLocation, resetDeviceLocation } from '../services/deviceLocation';
+import {
+  getDeviceLocation,
+  resetDeviceLocation,
+  subscribeDeviceLocation,
+  stopDeviceLocationWatch,
+} from '../services/deviceLocation';
 
 describe('Leitura de localização com limite de tempo', () => {
   const originalOS = Platform.OS;
@@ -31,6 +36,7 @@ describe('Leitura de localização com limite de tempo', () => {
     });
   });
   afterEach(() => {
+    resetDeviceLocation();
     jest.useRealTimers();
     (Platform as any).OS = originalOS;
     if (windowDescriptor) Object.defineProperty(global, 'window', windowDescriptor);
@@ -47,10 +53,10 @@ describe('Leitura de localização com limite de tempo', () => {
     getCurrentPosition.mockImplementation((_, error) => error({ code: 1 }));
     expect(await getDeviceLocation()).toEqual({ reason: 'denied' });
   });
-  it('encerra em 12 segundos mesmo quando a caixa de permissão não é respondida', async () => {
+  it('retorna em 15 segundos quando a caixa de permissão não é respondida', async () => {
     getCurrentPosition.mockImplementation(() => {});
     const promise = getDeviceLocation();
-    jest.advanceTimersByTime(12001);
+    jest.advanceTimersByTime(15001);
     expect(await promise).toEqual({ reason: 'timeout' });
   });
   it('não trata resposta tardia como nova posição depois do timeout', async () => {
@@ -59,7 +65,7 @@ describe('Leitura de localização com limite de tempo', () => {
       late = success;
     });
     const promise = getDeviceLocation();
-    jest.advanceTimersByTime(12001);
+    jest.advanceTimersByTime(15001);
     await promise;
     late({ coords: { latitude: -23, longitude: -47, accuracy: 25 }, timestamp: Date.now() });
     expect(await getDeviceLocation()).toEqual({ reason: 'timeout' });
@@ -101,5 +107,87 @@ describe('Leitura de localização com limite de tempo', () => {
     expect(await getDeviceLocation()).toEqual({ reason: 'denied' });
     expect(NativeLocation.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
     expect(NativeLocation.getForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+  });
+  it('usa a leitura por rede quando a alta precisão falha no desktop', async () => {
+    getCurrentPosition.mockImplementationOnce((_, error) => error({ code: 3 }));
+    expect((await getDeviceLocation()).position?.accuracy).toBe(25);
+    expect(getCurrentPosition).toHaveBeenCalledTimes(2);
+    expect(getCurrentPosition.mock.calls[1][2].enableHighAccuracy).toBe(false);
+  });
+  it('uma permissão lenta no iOS atualiza o painel mesmo após a primeira espera', async () => {
+    let answer!: (value: unknown) => void;
+    const clearWatch = jest.fn();
+    (global as any).navigator.geolocation.watchPosition = jest.fn(success => {
+      answer = success;
+      return 17;
+    });
+    (global as any).navigator.geolocation.clearWatch = clearWatch;
+    getCurrentPosition.mockImplementation(() => {});
+    const changed = jest.fn(),
+      unsubscribe = subscribeDeviceLocation(changed);
+    const result = getDeviceLocation(true);
+    jest.advanceTimersByTime(15001);
+    expect(await result).toEqual({ reason: 'timeout' });
+    answer({
+      coords: { latitude: -23.6824552, longitude: -47.0214911, accuracy: 30 },
+      timestamp: Date.now(),
+    });
+    expect(changed).toHaveBeenCalledWith(
+      expect.objectContaining({ position: expect.objectContaining({ accuracy: 30 }) })
+    );
+    expect((await getDeviceLocation()).position?.accuracy).toBe(30);
+    stopDeviceLocationWatch();
+    expect(clearWatch).toHaveBeenCalledWith(17);
+    unsubscribe();
+  });
+  it('mantém uma posição aproximada e permite refinar sem rastreamento permanente', async () => {
+    let answer!: (value: unknown) => void;
+    const clearWatch = jest.fn();
+    (global as any).navigator.geolocation.watchPosition = jest.fn(success => {
+      answer = success;
+      return 18;
+    });
+    (global as any).navigator.geolocation.clearWatch = clearWatch;
+    getCurrentPosition.mockImplementation(() => {});
+    const result = getDeviceLocation(true);
+    answer({
+      coords: { latitude: -23.6824552, longitude: -47.0214911, accuracy: 3000 },
+      timestamp: Date.now(),
+    });
+    jest.advanceTimersByTime(1501);
+    expect((await result).position?.accuracy).toBe(3000);
+    answer({
+      coords: { latitude: -23.6824552, longitude: -47.0214911, accuracy: 40 },
+      timestamp: Date.now(),
+    });
+    expect((await getDeviceLocation()).position?.accuracy).toBe(40);
+    jest.advanceTimersByTime(45000);
+    expect(clearWatch).toHaveBeenCalledWith(18);
+    answer({ coords: { latitude: -24, longitude: -48, accuracy: 10 }, timestamp: Date.now() });
+    expect((await getDeviceLocation()).position?.accuracy).toBe(40);
+  });
+  it('reset invalida callbacks tardios de uma sessão anterior', async () => {
+    let answer!: (value: unknown) => void;
+    getCurrentPosition.mockImplementation(success => {
+      answer = success;
+    });
+    const result = getDeviceLocation();
+    resetDeviceLocation();
+    await result;
+    const changed = jest.fn(),
+      unsubscribe = subscribeDeviceLocation(changed);
+    answer({ coords: { latitude: -23, longitude: -47, accuracy: 25 }, timestamp: Date.now() });
+    expect(changed).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+  it('clears a watch that denies permission before returning its id', async () => {
+    const clearWatch = jest.fn();
+    (global as any).navigator.geolocation.watchPosition = jest.fn((_, error) => {
+      error({ code: 1 });
+      return 0;
+    });
+    (global as any).navigator.geolocation.clearWatch = clearWatch;
+    expect(await getDeviceLocation(true)).toEqual({ reason: 'denied' });
+    expect(clearWatch).toHaveBeenCalledWith(0);
   });
 });
