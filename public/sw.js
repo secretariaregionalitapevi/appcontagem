@@ -95,7 +95,7 @@ self.addEventListener('fetch', event => {
         for (const name of await caches.keys()) {
           if (
             !name.startsWith(CACHE_PREFIX) &&
-            !['app-presenca-v22', 'runtime-cache-v22'].includes(name)
+            !/^(app-presenca|runtime-cache)-v\d+$/.test(name)
           )
             continue;
           const old = await (await caches.open(name)).match(request);

@@ -103,6 +103,9 @@ const cargoMatchesForaRegional = (cargoRegistro: string | null | undefined, carg
   return aliases.some(alias => registroNorm.includes(alias) || alias.includes(registroNorm));
 };
 
+const buildCargoIlikePattern = (cargo: string): string =>
+  `%${buildAccentWildcard(normalizeString(cargo.toUpperCase()))}%`;
+
 // 🚨 FUNÇÃO AUXILIAR: Verificar se é Secretário da Música (excluir) vs Secretário do GEM (incluir como instrutor)
 const isSecretarioDaMusica = (cargo: string | undefined): boolean => {
   if (!cargo) return false;
@@ -130,6 +133,10 @@ const memoryCache: {
   pessoas: [],
   registros: [],
 };
+
+// Alterar a versao invalida somente a lista de comuns persistida no dispositivo.
+// Filas de presenca e os demais caches nao sao afetados.
+const COMUNS_CACHE_KEY = 'cache_comuns_v15';
 
 // Flag global para evitar salvamentos simultâneos
 let savingLock = false;
@@ -457,8 +464,8 @@ export const supabaseDataService = {
 
       // Salvar usando robustStorage (com fallbacks)
       try {
-        await robustSetItem('cache_comuns_v13', JSON.stringify(comuns));
-        console.log('✅ Comuns salvas no cache V12');
+        await robustSetItem(COMUNS_CACHE_KEY, JSON.stringify(comuns));
+        console.log('✅ Comuns salvas no cache V15');
       } catch (error) {
         console.warn('⚠️ Erro ao salvar comuns no cache:', error);
       }
@@ -499,7 +506,7 @@ export const supabaseDataService = {
 
       // Tentar robustStorage
       try {
-        const cached = await robustGetItem('cache_comuns_v13');
+        const cached = await robustGetItem(COMUNS_CACHE_KEY);
         if (cached) {
           const comuns = JSON.parse(cached);
           // Validar e sanitizar dados
@@ -511,7 +518,7 @@ export const supabaseDataService = {
             }));
 
           memoryCache.comuns = validComuns;
-          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V12`);
+          console.log(`✅ Retornando ${validComuns.length} comuns do cache robusto V15`);
           return validComuns;
         }
       } catch (error) {
@@ -924,7 +931,7 @@ export const supabaseDataService = {
 
     // 🚀 OTIMIZAÇÃO: Verificar cache primeiro (evitar queries repetidas)
     // 🚨 CORREÇÃO: Adicionar versão ao cache key para invalidar caches antigos quando a lógica mudar
-    const CACHE_VERSION = 'v8'; // Identidade por codigo e busca MUSICO/MÚSICO corrigidas
+    const CACHE_VERSION = 'v9'; // Invalida cache antigo que podia misturar JAGUARI e PARQUE JAGUARI
     const cacheKey = `pessoas_${CACHE_VERSION}_${comumNome}_${cargoNome}_${instrumentoNome || ''}`;
     const cached = await cacheManager.get<any[]>(cacheKey, 'pessoas');
     if (cached) {
@@ -1209,7 +1216,7 @@ export const supabaseDataService = {
           }
         } else {
           // 🚨 CORREÇÃO CRÍTICA: Para cargos específicos (Ancião, Diácono, etc), aplicar filtro de cargo
-          query1 = query1.ilike('cargo', `%${cargoBusca}%`);
+          query1 = query1.ilike('cargo', buildCargoIlikePattern(cargoBusca));
           console.log(`🔍 [fetchPessoasFromCadastro] Aplicando filtro de cargo: ${cargoBusca}`);
         }
 
@@ -1304,7 +1311,7 @@ export const supabaseDataService = {
               }
             } else {
               // Para outros cargos (Ancião, Diácono, etc), aplicar filtro de cargo
-              q = q.ilike('cargo', `%${cargoBusca}%`);
+              q = q.ilike('cargo', buildCargoIlikePattern(cargoBusca));
             }
 
             return q.order('nome', { ascending: true }).range(from, to);
@@ -1487,7 +1494,7 @@ export const supabaseDataService = {
                 }
               } else {
                 // 🚨 CORREÇÃO CRÍTICA: Para cargos específicos (Ancião, Diácono, etc), aplicar filtro de cargo
-                queryFinal = queryFinal.ilike('cargo', `%${cargoBusca}%`);
+                queryFinal = queryFinal.ilike('cargo', buildCargoIlikePattern(cargoBusca));
               }
 
               // Aplicar order e range após os filtros
@@ -1557,7 +1564,7 @@ export const supabaseDataService = {
           }
         } else {
           // 🚨 CORREÇÃO CRÍTICA: Para outros cargos (Ancião, Diácono, etc), filtrar por cargo
-          query = query.ilike('cargo', `%${cargoBusca}%`);
+          query = query.ilike('cargo', buildCargoIlikePattern(cargoBusca));
         }
 
         // Aplicar order e range para paginação
@@ -1902,17 +1909,20 @@ export const supabaseDataService = {
 
       if (comumNome) {
         // Busca inteligente para Comum: todas as palavras devem estar presentes
-        const comumWords = comumNome.trim().toUpperCase()
+        const comumWords = normalizeString(comumNome.trim().toUpperCase())
           .replace(/[()\-|]/g, ' ')
           .split(/\s+/)
           .filter(w => w.length > 2 && w !== 'BR' && !/^\d+$/.test(w));
         
         if (comumWords.length > 0) {
           comumWords.forEach(word => {
-            query = query.ilike('comum', `%${word}%`);
+            query = query.ilike('comum', `%${buildAccentWildcard(word)}%`);
           });
         } else {
-          query = query.ilike('comum', `%${comumNome.trim().toUpperCase()}%`);
+          query = query.ilike(
+            'comum',
+            `%${buildAccentWildcard(normalizeString(comumNome.trim().toUpperCase()))}%`
+          );
         }
       }
 
@@ -1947,8 +1957,8 @@ export const supabaseDataService = {
           .from('cadastro_fora_regional')
           .select('id, nome, comum, cidade, instrumento, cargo, nivel');
         
-        const firstWord = comumNome.split(' ')[0].replace(/[()\-|]/g, '');
-        fallbackQuery = fallbackQuery.ilike('comum', `%${firstWord}%`);
+        const firstWord = normalizeString(comumNome.split(' ')[0].toUpperCase()).replace(/[()\-|]/g, '');
+        fallbackQuery = fallbackQuery.ilike('comum', `%${buildAccentWildcard(firstWord)}%`);
         if (instrumentoNome) {
             fallbackQuery = fallbackQuery.ilike('instrumento', `%${instrumentoNome}%`);
         }

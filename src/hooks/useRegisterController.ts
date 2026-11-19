@@ -231,8 +231,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
     }
 
     // Verificar se está online antes de sincronizar
-    const isOnlineNow =
-      Platform.OS === 'web' ? typeof navigator !== 'undefined' && navigator.onLine : isOnline;
+    const isOnlineNow = await offlineSyncService.isOnline();
 
     if (!isOnlineNow) {
       console.log('📴 Sem conexão - não Ã© possível sincronizar agora');
@@ -569,6 +568,14 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         setInitialLoading(true);
       }
 
+      if (isRefresh && !initialIsForaRegional && isOnline) {
+        try {
+          await supabaseDataService.syncComunsToLocal();
+        } catch (error) {
+          console.warn('Nao foi possivel renovar as comuns; mantendo o cache local:', error);
+        }
+      }
+
       // Carregar o cache primeiro. Sincronização de rede nunca bloqueia a abertura da tela.
       // Carregar do banco local/cache em paralelo (mais rápido)
       // Se formos a tela principal (initialIsForaRegional = false), carregamos comuns regionais E de fora para busca unificada
@@ -582,7 +589,10 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         const [comunsLocal, comunsFora, cargosLocal, instrumentosLocal] = await Promise.all([
           supabaseDataService.getComunsFromLocal(),
           // Referências externas são opcionais e não podem bloquear o atendimento.
-          Promise.resolve([] as Comum[]),
+          supabaseDataService.fetchComunsForaRegional().catch(error => {
+            console.warn('⚠️ Erro ao carregar comuns fora regional:', error);
+            return [] as Comum[];
+          }),
           supabaseDataService.getCargosFromLocal(),
           (supabaseDataService as any).getInstrumentosFromLocal(),
         ]);
@@ -590,7 +600,12 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         cargosData = cargosLocal;
         instrumentosData = instrumentosLocal;
 
-        if (comunsLocal.length === 0) {
+        const temParqueJaguari = comunsLocal.some(c => {
+          const texto = normalizeString(`${c.nome || ''} ${c.displayName || ''}`).toUpperCase();
+          return texto.includes('BR-21-1644') || texto.includes('PARQUE JAGUARI');
+        });
+
+        if (comunsLocal.length === 0 || !temParqueJaguari) {
           missingRegionalComuns = true;
         }
       } else {
@@ -619,9 +634,8 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         try {
           const comunsDiretas = await supabaseDataService.fetchComuns();
           if (comunsDiretas.length > 0) {
-            // Recriar a lista final com as comuns recém buscadas + as de fora já carregadas
-            // Como comunsLocal estava vazio, comunsFinal tem apenas as de fora
-            const comunsFora = comunsFinal;
+            // Recriar a lista final com as comuns recém buscadas + as de fora já carregadas.
+            const comunsFora = comunsFinal.filter(c => c.id.startsWith('comum_fora_'));
             comunsFinal = [...comunsDiretas, ...comunsFora];
 
             // Salvar no cache em background
@@ -710,7 +724,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
       // 1. Recarregar dados iniciais (comuns, cargos, instrumentos) - passando true para isRefresh
       console.log('📚 Recarregando dados iniciais...');
-      loadInitialData(true).catch(error => console.log('📴 [REFRESH] Recarga adiada:', error));
+      await loadInitialData(true);
 
       // 3. Atualizar contador da fila
       console.log('📊 Atualizando contador da fila...');
@@ -1038,7 +1052,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
         // 3. O Supabase é a autoridade: validar e inserir antes de confirmar.
         // Assim não existe janela entre "não é duplicado" e a gravação.
-        let isOnlineNow = isOnline;
+        let isOnlineNow = await offlineSyncService.isOnline();
         if (isOnlineNow) {
           try {
             const registroConfirmado = await supabaseDataService.createRegistroPresenca(
@@ -1109,7 +1123,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
         // Liberar tela e mostrar sucesso rápido (2 segundos conforme pedido)
         const feedbackMsg = isOnlineNow
           ? 'Você já pode realizar o próximo cadastro.'
-          : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
+          : 'Será enviado ao conectar.';
         suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
         showToast.success(
           isOnlineNow ? 'Presença registrada!' : 'Registro salvo!',
@@ -1480,7 +1494,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
       }
 
       // A rede só processa um registro que já passou pela decisão de duplicidade.
-      const isOnlineNow = isOnline;
+      const isOnlineNow = await offlineSyncService.isOnline();
 
       // 4. Salvar localmente antes de qualquer operação remota
       console.log('ðŸ’¾ [MODAL] Salvando registro externo na fila...');
@@ -1488,7 +1502,7 @@ export const useRegisterController = ({ isForaRegional: initialIsForaRegional = 
 
       const feedbackMsgModal = isOnlineNow
         ? 'Você já pode realizar o próximo cadastro.'
-        : 'Registro salvo com segurança. O envio será concluído automaticamente quando a conexão voltar.';
+        : 'Será enviado ao conectar.';
       suppressSyncSuccessToastUntilRef.current = Date.now() + 15000;
       showToast.success(
         isOnlineNow ? 'Presença registrada!' : 'Registro salvo!',

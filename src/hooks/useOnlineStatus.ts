@@ -60,19 +60,28 @@ export const useOnlineStatus = () => {
         setIsOnline(newStatus);
       };
 
+      const verifyWebStatus = async () => {
+        try {
+          const { offlineSyncService } = require('../services/offlineSyncService');
+          await updateStatus(await offlineSyncService.isOnline());
+        } catch (error) {
+          await updateStatus(typeof navigator !== 'undefined' ? navigator.onLine : true);
+        }
+      };
+
       // Status inicial
-      const initStatus = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      previousStatusRef.current = initStatus;
-      setIsOnline(initStatus);
+      void verifyWebStatus();
       setTimeout(() => { isInitialLoad.current = false; }, 2000);
 
-      const handleOnline = () => updateStatus(true);
-      const handleOffline = () => updateStatus(false);
+      const handleOnline = () => { void verifyWebStatus(); };
+      const handleOffline = () => { void updateStatus(false); };
+      const intervalId = setInterval(() => { void verifyWebStatus(); }, 2000);
 
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
 
       return () => {
+        clearInterval(intervalId);
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
       };

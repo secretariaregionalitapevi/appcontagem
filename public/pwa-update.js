@@ -1,7 +1,34 @@
 /* Installed PWAs use this updater without reinstalling or clearing user data. */
 (() => {
   const BUILD_ID = '__PWA_BUILD_ID__';
-  if (BUILD_ID.startsWith('__') || !('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator)) return;
+  if (BUILD_ID.startsWith('__')) {
+    // Preserve the remote branch's development fix without clearing user data.
+    if (['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname)) {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then(registrations =>
+          Promise.all(
+            registrations
+              .filter(item => item.scope === window.location.origin + '/')
+              .map(item => item.unregister())
+          )
+        )
+        .catch(() => {});
+      if ('caches' in window)
+        caches
+          .keys()
+          .then(names =>
+            Promise.all(
+              names
+                .filter(name => /^(ccb-contagem-build-|app-presenca-v|runtime-cache-v)/.test(name))
+                .map(name => caches.delete(name))
+            )
+          )
+          .catch(() => {});
+    }
+    return;
+  }
   let registration,
     checking = false,
     starting = false,
