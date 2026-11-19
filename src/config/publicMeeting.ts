@@ -24,3 +24,17 @@ export function meetingDate(value: string): string {
   const parts = value.split('-');
   return parts.length === 3 ? parts[2] + '/' + parts[1] + '/' + parts[0] : value;
 }
+export function filterMeetingOptions<T extends { label: string; searchText?: string }>(
+  options: T[],
+  query: string
+): T[] {
+  const normalize = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('pt-BR');
+  const terms = normalize(query).trim().split(/\s+/).filter(Boolean);
+  return options.filter(option =>
+    terms.every(term => normalize(option.label + ' ' + (option.searchText || '')).includes(term))
+  );
+}

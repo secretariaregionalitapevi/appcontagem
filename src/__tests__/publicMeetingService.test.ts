@@ -2,7 +2,12 @@ jest.mock('../config/env', () => ({
   env: { SUPABASE_URL: 'https://example.test', SUPABASE_ANON_KEY: 'public-key' },
 }));
 import { PublicMeetingService, MeetingRequestError } from '../services/publicMeetingService';
-import { PUBLIC_MEETING, isPublicMeetingPath, meetingLabel } from '../config/publicMeeting';
+import {
+  PUBLIC_MEETING,
+  isPublicMeetingPath,
+  meetingLabel,
+  filterMeetingOptions,
+} from '../config/publicMeeting';
 const response = (data: unknown, ok = true) => ({ ok, json: async () => data }) as Response;
 describe('Public meeting requests', () => {
   let fetcher: jest.Mock;
@@ -81,6 +86,22 @@ describe('Public meeting requests', () => {
   });
 });
 describe('Public route and labels', () => {
+  const churches = [
+    { id: '1', label: 'Vila São João', searchText: 'BR-21-0001' },
+    { id: '2', label: 'Central' },
+    { id: '3', label: 'Jardim São Pedro' },
+  ];
+  it('filters congregation names without accents or case sensitivity', () => {
+    expect(filterMeetingOptions(churches, 'SAO JOAO').map(item => item.id)).toEqual(['1']);
+    expect(filterMeetingOptions(churches, 'pedro jardim').map(item => item.id)).toEqual(['3']);
+  });
+  it('also finds a congregation by its code and supports an empty search', () => {
+    expect(filterMeetingOptions(churches, '21-0001').map(item => item.id)).toEqual(['1']);
+    expect(filterMeetingOptions(churches, '')).toEqual(churches);
+  });
+  it('does not return unrelated congregations for an unknown search', () => {
+    expect(filterMeetingOptions(churches, 'nao existe')).toEqual([]);
+  });
   it('accepts only the explicit public path, including its trailing slash', () => {
     expect(isPublicMeetingPath('/confirmar-presenca')).toBe(true);
     expect(isPublicMeetingPath('/confirmar-presenca/')).toBe(true);

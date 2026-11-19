@@ -1,7 +1,12 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Image } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { PUBLIC_MEETING, meetingDate, meetingLabel } from '../config/publicMeeting';
+import {
+  PUBLIC_MEETING,
+  meetingDate,
+  meetingLabel,
+  filterMeetingOptions,
+} from '../config/publicMeeting';
 import {
   MeetingCatalog,
   MeetingPerson,
@@ -28,6 +33,10 @@ export const PublicMeetingScreen: React.FC = () => {
     [retry, setRetry] = useState(0);
   const [cityId, setCityId] = useState(''),
     [churchId, setChurchId] = useState('');
+  const [churchQuery, setChurchQuery] = useState('');
+  const [churchFocused, setChurchFocused] = useState(false);
+  const [churchActive, setChurchActive] = useState(0);
+  const churchBlurTimer = useRef<ReturnType<typeof setTimeout>>();
   const [query, setQuery] = useState(''),
     [person, setPerson] = useState<MeetingPerson | null>(null);
   const [people, setPeople] = useState<MeetingPerson[]>([]),
@@ -44,10 +53,22 @@ export const PublicMeetingScreen: React.FC = () => {
   const picker = useRef<HTMLDivElement>(null),
     blurTimer = useRef<ReturnType<typeof setTimeout>>();
   const listId = useId();
+  const churchListId = useId();
   const city = catalog?.municipios.find(item => item.id === cityId);
   const church = city?.comuns.find(item => item.id === churchId);
   const event = catalog?.evento;
   const closed = !!event && !event.aberto;
+  const churchOptions = filterMeetingOptions(
+    (city?.comuns || [])
+      .map(item => ({
+        id: item.id,
+        label: churchName(item.nome, city?.nome || ''),
+        searchText: item.nome,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')),
+    churchId ? '' : churchQuery
+  );
+  const churchListOpen = churchFocused && !!city && !saving && !closed;
   const listOpen = focused && !person && query.trim().length >= 2 && !!church && !closed;
   useEffect(() => {
     if (receipt) {
@@ -116,6 +137,7 @@ export const PublicMeetingScreen: React.FC = () => {
   useEffect(
     () => () => {
       if (blurTimer.current) clearTimeout(blurTimer.current);
+      if (churchBlurTimer.current) clearTimeout(churchBlurTimer.current);
     },
     []
   );
@@ -123,6 +145,12 @@ export const PublicMeetingScreen: React.FC = () => {
     if (listOpen && people[active])
       document.getElementById(listId + '-' + active)?.scrollIntoView({ block: 'nearest' });
   }, [active]);
+  useEffect(() => {
+    if (churchListOpen && churchOptions[churchActive])
+      document
+        .getElementById(churchListId + '-' + churchActive)
+        ?.scrollIntoView({ block: 'nearest' });
+  }, [churchActive, churchListOpen, churchQuery, cityId]);
   const choose = (item: MeetingPerson) => {
     setPerson(item);
     setQuery(item.nome);
@@ -134,6 +162,9 @@ export const PublicMeetingScreen: React.FC = () => {
   const changeCity = (value: string) => {
     setCityId(value);
     setChurchId('');
+    setChurchQuery('');
+    setChurchFocused(false);
+    setChurchActive(0);
     setQuery('');
     setPerson(null);
     setPeople([]);
@@ -141,12 +172,27 @@ export const PublicMeetingScreen: React.FC = () => {
     setSearchError('');
   };
   const changeChurch = (value: string) => {
+    const chosen = city?.comuns.find(item => item.id === value);
+    setChurchQuery(chosen ? churchName(chosen.nome, city?.nome || '') : '');
+    setChurchFocused(false);
+    if (value === churchId) return;
     setChurchId(value);
     setQuery('');
     setPerson(null);
     setPeople([]);
     setError('');
     setSearchError('');
+  };
+  const openChurchPicker = () => {
+    setChurchFocused(true);
+    setChurchActive(
+      churchId
+        ? Math.max(
+            0,
+            churchOptions.findIndex(item => item.id === churchId)
+          )
+        : 0
+    );
   };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -322,26 +368,107 @@ export const PublicMeetingScreen: React.FC = () => {
               <span className="ram-field-icon">
                 <Icon name="map-marker-alt" color="#df5266" />
               </span>
-              <select
+              <input
                 id="ram-church"
-                value={churchId}
-                onChange={e => changeChurch(e.target.value)}
+                type="text"
+                autoComplete="off"
+                value={churchQuery}
                 disabled={!city || saving || closed}
+                placeholder={
+                  city ? 'Pesquise sua comum congregação' : 'Selecione primeiro o município'
+                }
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={churchListOpen}
+                aria-controls={churchListId}
+                aria-activedescendant={
+                  churchListOpen && churchOptions[churchActive]
+                    ? churchListId + '-' + churchActive
+                    : undefined
+                }
+                aria-describedby="ram-church-help"
+                maxLength={120}
+                onChange={e => {
+                  setChurchQuery(e.target.value);
+                  setChurchId('');
+                  setChurchFocused(true);
+                  setChurchActive(0);
+                  setQuery('');
+                  setPerson(null);
+                  setPeople([]);
+                  setError('');
+                  setSearchError('');
+                }}
+                onClick={openChurchPicker}
+                onFocus={e => {
+                  if (churchBlurTimer.current) clearTimeout(churchBlurTimer.current);
+                  openChurchPicker();
+                  if (churchId) e.currentTarget.select();
+                }}
+                onBlur={() => {
+                  churchBlurTimer.current = setTimeout(() => setChurchFocused(false), 150);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') setChurchFocused(false);
+                  if (
+                    churchListOpen &&
+                    churchOptions.length &&
+                    (e.key === 'ArrowDown' || e.key === 'ArrowUp')
+                  ) {
+                    e.preventDefault();
+                    setChurchActive(
+                      index =>
+                        (index + (e.key === 'ArrowDown' ? 1 : -1) + churchOptions.length) %
+                        churchOptions.length
+                    );
+                  }
+                  if (e.key === 'Enter' && churchListOpen) {
+                    e.preventDefault();
+                    if (churchOptions[churchActive]) changeChurch(churchOptions[churchActive].id);
+                  }
+                }}
                 required
-              >
-                <option value="">
-                  {city ? 'Selecione sua comum congregação' : 'Selecione primeiro o município'}
-                </option>
-                {city?.comuns.map(item => (
-                  <option value={item.id} key={item.id}>
-                    {churchName(item.nome, city.nome)}
-                  </option>
-                ))}
-              </select>
+              />
               <span className="ram-chevron">
-                <Icon name="chevron-down" size={11} color="#8295aa" />
+                <Icon name="search" size={13} color="#8295aa" />
               </span>
             </div>
+            {churchListOpen && (
+              <div className="ram-results">
+                {churchOptions.length ? (
+                  <ul id={churchListId} role="listbox" aria-label="Comuns encontradas">
+                    {churchOptions.map((item, index) => (
+                      <li key={item.id} role="presentation">
+                        <button
+                          type="button"
+                          id={churchListId + '-' + index}
+                          data-church-id={item.id}
+                          role="option"
+                          aria-selected={churchActive === index}
+                          className={churchActive === index ? 'active' : ''}
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => changeChurch(item.id)}
+                        >
+                          <span className="ram-avatar">
+                            <Icon name="map-marker-alt" color="#df5266" size={14} />
+                          </span>
+                          <strong>{item.label}</strong>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p role="status">
+                    Nenhuma comum encontrada neste município. Tente outra parte do nome.
+                  </p>
+                )}
+              </div>
+            )}
+            <p id="ram-church-help" className="ram-church-help">
+              {churchId
+                ? 'Comum selecionada.'
+                : 'Pesquise pelo nome ou bairro e selecione sua comum.'}
+            </p>
             <label className="ram-label" htmlFor="ram-person">
               Nome completo <span>*</span>
             </label>
@@ -472,5 +599,5 @@ export const PublicMeetingScreen: React.FC = () => {
   );
 };
 const css = `
-.ram-page,.ram-page *{box-sizing:border-box}.ram-page{width:100%;height:100%;overflow-y:auto;background:#f1f5f9;padding:32px 20px 24px;display:flex;flex-direction:column;align-items:center;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#28435b;-webkit-text-size-adjust:100%}.ram-card{width:100%;max-width:548px;border:1px solid #e1e9f1;border-radius:25px;background:white;box-shadow:0 12px 38px rgba(32,57,82,.08);flex-shrink:0}.ram-hero{padding:30px 24px 27px;background:#1e4b7a;border-radius:24px 24px 0 0;text-align:center;color:white}.ram-logo{display:flex;justify-content:center;filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1)}.ram-hero h1{font-family:Outfit,Inter,sans-serif;font-size:28px;line-height:1.2;letter-spacing:-.55px;margin:20px 0 9px;font-weight:700}.ram-hero p{font-size:17px;line-height:1.5;margin:0 auto;max-width:330px;color:#f0f5fb}.ram-regional{display:block;margin-top:5px;font-size:12px;color:#c5d8ec;letter-spacing:.3px}.ram-event{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:21px 24px;border-bottom:1px solid #e9eff5;background:#fbfcfe}.ram-event-item{display:flex;align-items:center;gap:10px;min-width:0}.ram-event-item small{font-size:10px;display:block;color:#7f91a4;margin-bottom:5px}.ram-event-item strong{font-size:12px;line-height:1.4;display:block;color:#2e4b64}.ram-event-icon{height:36px;width:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.ram-amber{background:#fff5df}.ram-rose{background:#fff0f3}.ram-form{padding:25px 27px 23px}.ram-intro h2{font-size:17px;line-height:1.4;margin:0 0 5px;letter-spacing:-.25px}.ram-intro p{font-size:12px;line-height:1.6;margin:0;color:#7b8fa3}.ram-steps{display:flex;list-style:none;padding:0;margin:21px 0 26px;gap:14px}.ram-steps li{display:flex;align-items:center;gap:6px;font-size:11px;color:#99a8b8;white-space:nowrap}.ram-steps li>span{display:flex;align-items:center;justify-content:center;background:#f0f4f8;width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:700;flex-shrink:0}.ram-steps .current{color:#176fb0;font-weight:600}.ram-steps .current>span{background:#e8f3fc;color:#176fb0}.ram-steps .done{color:#486d81}.ram-steps .done>span{background:#1685bb}.ram-label{display:block;font-size:12px;font-weight:600;color:#40576f;margin:19px 0 8px}.ram-label>span{color:#dc6b7c}.ram-field{position:relative;height:54px;border:1px solid #dfe7f0;border-radius:12px;display:flex;align-items:stretch;background:#fff;transition:border-color .15s,box-shadow .15s;min-width:0}.ram-field:focus-within{border-color:#338dce;box-shadow:0 0 0 3px #2987c917}.ram-field-icon{width:48px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#f8fafc;border-right:1px solid #e4ebf3;border-radius:11px 0 0 11px}.ram-field select,.ram-field input{width:100%;min-width:0;flex:1;border:0;outline:0;background:transparent;color:#324c65;font:400 15px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:0 13px;border-radius:0 12px 12px 0}.ram-field select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:32px}.ram-chevron{position:absolute;right:16px;top:19px;pointer-events:none;display:flex}.ram-field select:disabled,.ram-field input:disabled{color:#9baabb;opacity:1;cursor:default}.ram-field input::placeholder{color:#97a7b8}.ram-field-selected{border-color:#9cd8ca;background:#fbfefd}.ram-selected-icon{width:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.ram-help{margin:10px 0 22px;font-size:11px;line-height:1.6;color:#8192a5}.ram-help.selected{color:#278975}.ram-primary,.ram-secondary{width:100%;min-height:52px;border:0;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;padding:12px 16px}.ram-primary{background:#1e4b7a;color:#fff;box-shadow:0 3px 6px #193e6417}.ram-primary:hover:not(:disabled){background:#153e69}.ram-primary:disabled{background:#c5d2df;color:#fff;box-shadow:none;cursor:default}.ram-primary:focus-visible,.ram-secondary:focus-visible,.ram-results button:focus-visible{outline:3px solid #85bdec;outline-offset:3px}.ram-footnote{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10px;line-height:1.5;color:#8b9bad;text-align:center;margin:16px 0 0}.ram-page-footer{font-size:11px;line-height:1.7;color:#8b9bad;text-align:center;margin:20px 0 0;flex-shrink:0}.ram-page-footer strong{font-weight:500;color:#7f91a6}.ram-error,.ram-message{display:flex;align-items:flex-start;gap:9px;padding:12px;border-radius:11px;margin:0 0 16px;font-size:12px;line-height:1.6}.ram-error{background:#fff1f3;color:#a64255;border:1px solid #f4d2d9}.ram-error button{display:block;border:0;background:transparent;color:#176fb0;padding:9px 0 0;font:600 12px Inter,sans-serif;cursor:pointer}.ram-message{color:#84662a;background:#fff8e9;border:1px solid #efdfb8}.ram-results{margin-top:8px;border:1px solid #d9e7f2;background:#fff;border-radius:12px;box-shadow:0 5px 16px #2947600c;overflow:hidden}.ram-results ul{list-style:none;margin:0;padding:5px;max-height:250px;overflow:auto;overscroll-behavior:contain}.ram-results li{margin:0;padding:0}.ram-results button{display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:0;background:white;border-radius:8px;cursor:pointer;padding:10px;font-family:inherit;min-height:52px;color:#355069}.ram-results button.active,.ram-results button:hover{background:#eff6fc}.ram-results strong{display:block;font-size:13px;font-weight:600;line-height:1.5}.ram-results small{display:block;font-size:11px;color:#8394a7;margin-top:2px}.ram-results p{font-size:12px;color:#7b8fa3;line-height:1.6;padding:13px 15px;margin:0}.ram-avatar{height:32px;width:32px;background:#e8f3f9;color:#297db2;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:700;font-size:12px;flex-shrink:0}.ram-success{padding:32px 27px;text-align:center}.ram-success-icon{margin:0 auto 18px;background:#e6f7ef;display:flex;align-items:center;justify-content:center;width:70px;height:70px;border-radius:24px}.ram-eyebrow{font-size:9px;letter-spacing:1.5px;color:#42957e;font-weight:700}.ram-success h2{font-family:Outfit,Inter,sans-serif;color:#24485c;font-size:25px;line-height:1.25;letter-spacing:-.4px;margin:9px 0 12px}.ram-success>p{font-size:13px;color:#788da1;line-height:1.8;margin:0}.ram-success>p strong{color:#355971;font-weight:600}.ram-receipt{display:flex;align-items:center;gap:12px;padding:15px;background:#f6f9fc;border:1px solid #e6edf4;border-radius:13px;text-align:left;margin:22px 0 17px}.ram-receipt strong{display:block;font-size:13px;line-height:1.5}.ram-receipt span{display:block;font-size:11px;color:#8295a8;margin-top:3px}.ram-success .ram-success-note{font-size:12px}.ram-secondary{background:#edf4fa;color:#1e4b7a;font-size:12px;margin-top:24px}.ram-secondary:hover{background:#e3eef7}@media(max-width:480px){.ram-page{padding:16px 14px 24px}.ram-card{border-radius:22px}.ram-hero{border-radius:21px 21px 0 0;padding:25px 19px 23px}.ram-hero h1{font-size:25px;margin-top:17px}.ram-hero p{font-size:16px;max-width:270px}.ram-form{padding:22px 20px}.ram-event{padding:18px 20px;gap:10px}.ram-event-item{gap:8px}.ram-event-item strong{font-size:11px}.ram-event-icon{width:32px;height:34px;border-radius:10px}.ram-steps{gap:10px;justify-content:space-between}.ram-steps li{font-size:10px;gap:5px}.ram-field input,.ram-field select{font-size:16px}.ram-field-icon{width:44px}.ram-success{padding:28px 20px}.ram-success h2{font-size:24px}}@media(max-width:350px){.ram-page{padding:12px 10px 20px}.ram-form{padding:20px 15px}.ram-event{padding:16px 15px}.ram-event-item strong{font-size:10px}.ram-hero h1{font-size:23px}.ram-steps{gap:6px}.ram-steps li{font-size:9px}}@media(prefers-reduced-motion:reduce){.ram-field{transition:none}}
+.ram-page,.ram-page *{box-sizing:border-box}.ram-page{width:100%;height:100%;overflow-y:auto;background:#f1f5f9;padding:32px 20px 24px;display:flex;flex-direction:column;align-items:center;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#28435b;-webkit-text-size-adjust:100%}.ram-card{width:100%;max-width:548px;border:1px solid #e1e9f1;border-radius:25px;background:white;box-shadow:0 12px 38px rgba(32,57,82,.08);flex-shrink:0}.ram-hero{padding:30px 24px 27px;background:#1e4b7a;border-radius:24px 24px 0 0;text-align:center;color:white}.ram-logo{display:flex;justify-content:center;filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1)}.ram-hero h1{font-family:Outfit,Inter,sans-serif;font-size:28px;line-height:1.2;letter-spacing:-.55px;margin:20px 0 9px;font-weight:700}.ram-hero p{font-size:17px;line-height:1.5;margin:0 auto;max-width:330px;color:#f0f5fb}.ram-regional{display:block;margin-top:5px;font-size:12px;color:#c5d8ec;letter-spacing:.3px}.ram-event{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:21px 24px;border-bottom:1px solid #e9eff5;background:#fbfcfe}.ram-event-item{display:flex;align-items:center;gap:10px;min-width:0}.ram-event-item small{font-size:10px;display:block;color:#7f91a4;margin-bottom:5px}.ram-event-item strong{font-size:12px;line-height:1.4;display:block;color:#2e4b64}.ram-event-icon{height:36px;width:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.ram-amber{background:#fff5df}.ram-rose{background:#fff0f3}.ram-form{padding:25px 27px 23px}.ram-intro h2{font-size:17px;line-height:1.4;margin:0 0 5px;letter-spacing:-.25px}.ram-intro p{font-size:12px;line-height:1.6;margin:0;color:#7b8fa3}.ram-steps{display:flex;list-style:none;padding:0;margin:21px 0 26px;gap:14px}.ram-steps li{display:flex;align-items:center;gap:6px;font-size:11px;color:#99a8b8;white-space:nowrap}.ram-steps li>span{display:flex;align-items:center;justify-content:center;background:#f0f4f8;width:22px;height:22px;border-radius:50%;font-size:10px;font-weight:700;flex-shrink:0}.ram-steps .current{color:#176fb0;font-weight:600}.ram-steps .current>span{background:#e8f3fc;color:#176fb0}.ram-steps .done{color:#486d81}.ram-steps .done>span{background:#1685bb}.ram-label{display:block;font-size:12px;font-weight:600;color:#40576f;margin:19px 0 8px}.ram-label>span{color:#dc6b7c}.ram-field{position:relative;height:54px;border:1px solid #dfe7f0;border-radius:12px;display:flex;align-items:stretch;background:#fff;transition:border-color .15s,box-shadow .15s;min-width:0}.ram-field:focus-within{border-color:#338dce;box-shadow:0 0 0 3px #2987c917}.ram-field-icon{width:48px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#f8fafc;border-right:1px solid #e4ebf3;border-radius:11px 0 0 11px}.ram-field select,.ram-field input{width:100%;min-width:0;flex:1;border:0;outline:0;background:transparent;color:#324c65;font:400 15px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:0 13px;border-radius:0 12px 12px 0}.ram-field select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:32px}.ram-chevron{position:absolute;right:16px;top:19px;pointer-events:none;display:flex}.ram-field select:disabled,.ram-field input:disabled{color:#9baabb;opacity:1;cursor:default}.ram-field input::placeholder{color:#97a7b8}.ram-field-selected{border-color:#9cd8ca;background:#fbfefd}.ram-selected-icon{width:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0}.ram-church-help{font-size:11px;line-height:1.5;color:#8192a5;margin:8px 0 0}#ram-church{padding-right:36px}.ram-help{margin:10px 0 22px;font-size:11px;line-height:1.6;color:#8192a5}.ram-help.selected{color:#278975}.ram-primary,.ram-secondary{width:100%;min-height:52px;border:0;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;padding:12px 16px}.ram-primary{background:#1e4b7a;color:#fff;box-shadow:0 3px 6px #193e6417}.ram-primary:hover:not(:disabled){background:#153e69}.ram-primary:disabled{background:#c5d2df;color:#fff;box-shadow:none;cursor:default}.ram-primary:focus-visible,.ram-secondary:focus-visible,.ram-results button:focus-visible{outline:3px solid #85bdec;outline-offset:3px}.ram-footnote{display:flex;align-items:center;justify-content:center;gap:6px;font-size:10px;line-height:1.5;color:#8b9bad;text-align:center;margin:16px 0 0}.ram-page-footer{font-size:11px;line-height:1.7;color:#8b9bad;text-align:center;margin:20px 0 0;flex-shrink:0}.ram-page-footer strong{font-weight:500;color:#7f91a6}.ram-error,.ram-message{display:flex;align-items:flex-start;gap:9px;padding:12px;border-radius:11px;margin:0 0 16px;font-size:12px;line-height:1.6}.ram-error{background:#fff1f3;color:#a64255;border:1px solid #f4d2d9}.ram-error button{display:block;border:0;background:transparent;color:#176fb0;padding:9px 0 0;font:600 12px Inter,sans-serif;cursor:pointer}.ram-message{color:#84662a;background:#fff8e9;border:1px solid #efdfb8}.ram-results{margin-top:8px;border:1px solid #d9e7f2;background:#fff;border-radius:12px;box-shadow:0 5px 16px #2947600c;overflow:hidden}.ram-results ul{list-style:none;margin:0;padding:5px;max-height:250px;overflow:auto;overscroll-behavior:contain}.ram-results li{margin:0;padding:0}.ram-results button{scroll-margin-bottom:16px;display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:0;background:white;border-radius:8px;cursor:pointer;padding:10px;font-family:inherit;min-height:52px;color:#355069}.ram-results button.active,.ram-results button:hover{background:#eff6fc}.ram-results strong{display:block;font-size:13px;font-weight:600;line-height:1.5}.ram-results small{display:block;font-size:11px;color:#8394a7;margin-top:2px}.ram-results p{font-size:12px;color:#7b8fa3;line-height:1.6;padding:13px 15px;margin:0}.ram-avatar{height:32px;width:32px;background:#e8f3f9;color:#297db2;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:700;font-size:12px;flex-shrink:0}.ram-success{padding:32px 27px;text-align:center}.ram-success-icon{margin:0 auto 18px;background:#e6f7ef;display:flex;align-items:center;justify-content:center;width:70px;height:70px;border-radius:24px}.ram-eyebrow{font-size:9px;letter-spacing:1.5px;color:#42957e;font-weight:700}.ram-success h2{font-family:Outfit,Inter,sans-serif;color:#24485c;font-size:25px;line-height:1.25;letter-spacing:-.4px;margin:9px 0 12px}.ram-success>p{font-size:13px;color:#788da1;line-height:1.8;margin:0}.ram-success>p strong{color:#355971;font-weight:600}.ram-receipt{display:flex;align-items:center;gap:12px;padding:15px;background:#f6f9fc;border:1px solid #e6edf4;border-radius:13px;text-align:left;margin:22px 0 17px}.ram-receipt strong{display:block;font-size:13px;line-height:1.5}.ram-receipt span{display:block;font-size:11px;color:#8295a8;margin-top:3px}.ram-success .ram-success-note{font-size:12px}.ram-secondary{background:#edf4fa;color:#1e4b7a;font-size:12px;margin-top:24px}.ram-secondary:hover{background:#e3eef7}@media(max-width:480px){.ram-page{padding:16px 14px 24px}.ram-card{border-radius:22px}.ram-hero{border-radius:21px 21px 0 0;padding:25px 19px 23px}.ram-hero h1{font-size:25px;margin-top:17px}.ram-hero p{font-size:16px;max-width:270px}.ram-form{padding:22px 20px}.ram-event{padding:18px 20px;gap:10px}.ram-event-item{gap:8px}.ram-event-item strong{font-size:11px}.ram-event-icon{width:32px;height:34px;border-radius:10px}.ram-steps{gap:10px;justify-content:space-between}.ram-steps li{font-size:10px;gap:5px}.ram-field input,.ram-field select{font-size:16px}.ram-field-icon{width:44px}.ram-success{padding:28px 20px}.ram-success h2{font-size:24px}}@media(max-width:350px){.ram-page{padding:12px 10px 20px}.ram-form{padding:20px 15px}.ram-event{padding:16px 15px}.ram-event-item strong{font-size:10px}.ram-hero h1{font-size:23px}.ram-steps{gap:6px}.ram-steps li{font-size:9px}}@media(prefers-reduced-motion:reduce){.ram-field{transition:none}}
 `;

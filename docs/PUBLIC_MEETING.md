@@ -26,6 +26,8 @@ O evento encerra as inscrições ao fim do dia 28/11, no horário de São Paulo,
 
 ## Acompanhamento interno
 
+Para a lista de controle pronta para Excel/impressão, executar `docs/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql` no SQL Editor e exportar o resultado como CSV. A consulta inclui numeração, nome, município, comum, cargo, horário de confirmação e campos em branco para presença e assinatura. Não altera os registros.
+
 Consultar/exportar pelo SQL Editor, com a conta administrativa:
 
 ```sql

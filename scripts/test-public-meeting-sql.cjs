@@ -112,6 +112,16 @@ const { PGlite } = require(
       1
     );
     checks++;
+    const report = await db.query(
+      fs.readFileSync(
+        path.join(__dirname, '../docs/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql'),
+        'utf8'
+      )
+    );
+    assert.equal(report.rows.length, 1);
+    assert.equal(report.rows[0]['Nome completo'], 'JOÃO DE TESTE');
+    assert.equal(report.rows[0]['Presença no dia'], '');
+    checks++;
     await db.exec('update public.reunioes_publicas set inscricoes_abertas=false; set role anon');
     await assert.rejects(
       confirm('ITAPEVI', itapevi.comuns[0].id, 'test-1'),

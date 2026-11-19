@@ -23,7 +23,10 @@ const catalog = {
     {
       id: 'ITAPEVI',
       nome: 'ITAPEVI',
-      comuns: [{ id: churches[0], nome: 'BR-21-0001 - CENTRAL - ITAPEVI' }],
+      comuns: [
+        { id: churches[0], nome: 'BR-21-0001 - CENTRAL - ITAPEVI' },
+        { id: '3'.repeat(32), nome: 'BR-21-0003 - VILA SÃO JOÃO - ITAPEVI' },
+      ],
     },
     {
       id: 'COTIA',
@@ -221,12 +224,22 @@ async function until(fn, label) {
           JSON.stringify(value) +
           ');e.dispatchEvent(new Event("change",{bubbles:true}));})()'
       );
-    const type = async value =>
+    const type = async (value, id = 'ram-person') =>
       evaluate(
-        '(function(){const e=document.getElementById("ram-person");e.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(e,' +
+        '(function(){const e=document.getElementById(' +
+          JSON.stringify(id) +
+          ');e.focus();Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(e,' +
           JSON.stringify(value) +
           ');e.dispatchEvent(new Event("input",{bubbles:true}));})()'
       );
+    const chooseChurch = async id => {
+      await type('central', 'ram-church');
+      await until(
+        () => evaluate('!!document.querySelector(\'[data-church-id="' + id + '"]\')'),
+        'church search result'
+      );
+      await evaluate('document.querySelector(\'[data-church-id="' + id + '"]\').click()');
+    };
     await metrics(1024, 1050);
     await send('Page.navigate', { url: origin + '/confirmar-presenca' });
     await until(
@@ -256,7 +269,34 @@ async function until(fn, label) {
       () => evaluate('!document.getElementById("ram-church").disabled'),
       'church enabled'
     );
-    await select('ram-church', churches[0]);
+    await type('sao joao', 'ram-church');
+    await until(
+      () => evaluate('document.querySelectorAll("[data-church-id]").length === 1'),
+      'accent-insensitive church search'
+    );
+    assert.equal(
+      await evaluate('document.querySelector("[data-church-id]").getAttribute("data-church-id")'),
+      '3'.repeat(32)
+    );
+    await until(
+      () =>
+        evaluate(
+          'document.querySelector("[data-church-id]").getBoundingClientRect().bottom <= window.innerHeight'
+        ),
+      'church search result visible on mobile'
+    );
+    await snapshot('church-search-mobile');
+    await type('inexistente', 'ram-church');
+    await until(
+      () => evaluate('document.body.innerText.includes("Nenhuma comum encontrada")'),
+      'empty church search'
+    );
+    assert.equal(await evaluate('document.getElementById("ram-person").disabled'), true);
+    await type('central', 'ram-church');
+    await until(() => evaluate('!!document.querySelector("[data-church-id]")'), 'central search');
+    await evaluate(
+      'document.getElementById("ram-church").dispatchEvent(new KeyboardEvent("keydown",{key:"Enter",bubbles:true}))'
+    );
     await until(() => evaluate('!document.getElementById("ram-person").disabled'), 'name enabled');
     await type('jo');
     await until(() => evaluate('!!document.querySelector("[role=option]")'), 'name results');
@@ -273,9 +313,17 @@ async function until(fn, label) {
         ),
       'dependent reset'
     );
-    assert.equal(await evaluate('document.getElementById("ram-church").options.length'), 2);
+    await type('', 'ram-church');
+    await until(
+      () => evaluate('document.querySelectorAll("[data-church-id]").length === 1'),
+      'municipality-scoped churches'
+    );
+    assert.equal(
+      await evaluate('document.querySelector("[data-church-id]").getAttribute("data-church-id")'),
+      churches[1]
+    );
     await select('ram-city', 'ITAPEVI');
-    await select('ram-church', churches[0]);
+    await chooseChurch(churches[0]);
     await type('jo');
     await until(() => evaluate('!!document.querySelector("[role=option]")'), 'repeat name search');
     await evaluate('document.querySelector("[role=option]").click()');
