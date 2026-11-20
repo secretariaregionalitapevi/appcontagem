@@ -28,6 +28,7 @@ web-build/
 
 # Testing
 coverage/
+scratch/diagnostics/meeting-*
 
 # Windows system files
 AppData/

@@ -22,7 +22,7 @@ Antes de levantar o servidor do aplicativo, sua regional precisa ter o seu próp
 ### 2.1. Configurando seu Supabase
 1. Crie uma conta no **[Supabase](https://supabase.com/)** e inicie um Novo Projeto.
 2. No menu **Project Settings > API**, copie a rota da sua `URL` e sua `anon public key`. (Você precisará delas depois).
-3. No painel **SQL Editor**, aplique os scripts oficiais do SAC de criação das tabelas (tabelas `organistas_ensaio`, etc) e criação da tabela de Perfis do Usuário (veja o arquivo `SUPABASE_SETUP.md` do nosso repositório).
+3. No painel **SQL Editor**, aplique os scripts oficiais do SAC de criação das tabelas (tabelas `organistas_ensaio`, etc) e criação da tabela de Perfis do Usuário (veja o arquivo `docs/guides/SUPABASE_SETUP.md` do nosso repositório).
 
 ### 2.2. Configurando o Google Sheets
 1. Crie uma planilha no Google Sheets da sua administração.
@@ -100,4 +100,4 @@ Acesse `http://localhost:8080` ou IP do servidor na porta indicada.
 
 O sistema em nuvem roda em Nginx Alpine. Caso ocorra erro de rotas nos PWAs dependendo da VPS, nós já embutimos na nossa imagem Docker o roteamento correto contra erros "404 page not found" quando atualizar a página. 
 
-Dúvidas gerais devem ser tratadas preenchendo as configurações descritas em `SUPABASE_SETUP.md` da sua Regional antes da validação do aplicativo pelo time de testes locais.
+Dúvidas gerais devem ser tratadas preenchendo as configurações descritas em `docs/guides/SUPABASE_SETUP.md` da sua Regional antes da validação do aplicativo pelo time de testes locais.

@@ -4,3 +4,4 @@ temp_*.tsx
 temp_check.txt
 *.txt
 scripts/
+scratch/

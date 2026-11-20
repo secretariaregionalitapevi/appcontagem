@@ -51,7 +51,7 @@ Para que os registros sejam enviados para a sua Planilha Google, você deve conf
 
 1.  Abra a sua planilha de destino.
 2.  Vá em **Extensões > Apps Script**.
-3.  Copie o conteúdo do arquivo `Code_Regional_Template.gs` (disponível na raiz deste projeto) e cole no editor do Google Apps Script.
+3.  Copie o conteúdo do arquivo `backend-separado/templates/Code_Regional_Template.gs` e cole no editor do Google Apps Script.
 4.  No menu lateral esquerdo, clique no ícone de engrenagem (**Configurações do Projeto**).
 5.  Role até a seção **Propriedades do Script** e clique em "Adicionar propriedade do script".
 6.  Adicione a seguinte propriedade:
@@ -66,7 +66,7 @@ Para que os registros sejam enviados para a sua Planilha Google, você deve conf
 10. Copie a **URL do App da Web** gerada e coloque na variável de ambiente `SHEETS_ENDPOINT_URL` do seu Docker.
 
 > [!IMPORTANT]
-> Você **não precisa** usar o arquivo `Code.gs` original. Ele contém regras específicas da Regional Itapevi. Use o `Code_Regional_Template.gs` para garantir que tudo funcione de forma simples e segura.
+> Você **não precisa** usar o arquivo `Code.gs` original. Ele contém regras específicas da Regional Itapevi. Use o `backend-separado/templates/Code_Regional_Template.gs` para garantir que tudo funcione de forma simples e segura.
 
 ## 5. Atualizações
 

@@ -1,5 +1,6 @@
 # Script PowerShell para iniciar Expo iOS com configuração correta
-# Uso: .\start-ios.ps1
+Set-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
+# Uso: .\scripts/start-ios.ps1
 
 Write-Host "🔍 Verificando configurações..." -ForegroundColor Cyan
 

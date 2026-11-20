@@ -3,10 +3,8 @@
   "extends": "expo/tsconfig.base",
   "exclude": [
     "scripts",
+    "scratch",
     "node_modules",
-    "NameSelectField_github.tsx",
-    "NameSelectField_online.tsx",
-    "temp_*.tsx",
     "**/*.backup.*"
   ]
 }

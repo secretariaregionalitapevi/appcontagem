@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const assetsDir = path.join(__dirname, 'assets');
+const assetsDir = path.join(__dirname, '..', 'assets');
 
 if (!fs.existsSync(assetsDir)) {
   fs.mkdirSync(assetsDir, { recursive: true });

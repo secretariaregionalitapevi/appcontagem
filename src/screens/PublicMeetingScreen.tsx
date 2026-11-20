@@ -260,7 +260,7 @@ export const PublicMeetingScreen: React.FC = () => {
             />
           </div>
           <h1 id="ram-title">Confirmação de Presença</h1>
-          <p>{event?.titulo || PUBLIC_MEETING.title}</p>
+          <p>Reunião Musical</p>
           <span className="ram-regional">Regional Itapevi</span>
         </header>
         <div className="ram-event" aria-label="Informações da reunião">

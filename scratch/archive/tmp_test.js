@@ -37,8 +37,8 @@ function post(targetUrl, payload) {
         res2.on('data', (chunk) => body += chunk);
         res2.on('end', () => {
            const logContent = `Status: ${res2.statusCode}\nBody: ${body}`;
-           fs.writeFileSync('c:/Users/Usuário/OneDrive/APLICATIVOS REGIONAL/APPEnR/gas_response.txt', logContent);
-           console.log('--- RESPONSE WRITTEN TO gas_response.txt ---');
+           fs.writeFileSync('c:/Users/Usuário/OneDrive/APLICATIVOS REGIONAL/APPEnR/scratch/logs/gas_response.txt', logContent);
+           console.log('--- RESPONSE WRITTEN TO scratch/logs/gas_response.txt ---');
         });
       });
     } else {

@@ -81,7 +81,7 @@ END;
 $sam_import$;
 COMMIT;
 """.replace('PAYLOAD',payload)
-output=Path('docs/ATUALIZAR-CADASTRO-SAM-2026-11-12.sql');output.write_text(sql,encoding='utf8')
+output=Path('migrations/ATUALIZAR-CADASTRO-SAM-2026-11-12.sql');output.write_text(sql,encoding='utf8')
 with D.joinpath('pending.csv').open('w',encoding='utf-8-sig',newline='') as f:
  fields=['linha_excel','nome','instrumento','localidade','cargo','nivel','motivo','cadastros_existentes','revisao_necessaria']
  wr=csv.DictWriter(f,fieldnames=fields,delimiter=';');wr.writeheader()

@@ -27,6 +27,7 @@ web-build/
 
 # Testing
 coverage/
+scratch/
 
 # macOS
 .DS_Store

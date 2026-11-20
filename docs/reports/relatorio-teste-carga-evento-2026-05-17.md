@@ -24,7 +24,7 @@ O teste anterior nao mediu esse contrato de ponta a ponta.
 
 ## Evidencias de invalidacao
 
-- O resultado salvo em `load_test_result.txt` mostra apenas 183 requisicoes, nao milhares.
+- O resultado salvo em `scratch/logs/load_test_result.txt` mostra apenas 183 requisicoes, nao milhares.
 - A latencia media observada foi de 23.329ms.
 - Varias requisicoes passaram de 40s.
 - O teste nao comprovou comportamento com queda de internet durante envio.

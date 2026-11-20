@@ -44,9 +44,9 @@ Abrir http://localhost:8081/confirmar-presenca e recarregar a página para obter
 
 Exclusões ficam sob controle do administrador na planilha e/ou no Supabase. A página não apaga registros nem propaga exclusões. Ao encontrar o UUID em `presencas`, devolve o recibo existente sem reenviar à planilha. Assim, repetir a confirmação não restaura uma linha que o administrador apagou da planilha. Confirmar explicitamente depois de excluir do Supabase pode criar uma nova presença.
 
-As confirmações históricas em `confirmacoes_reuniao` não são apagadas. `docs/RECUPERAR_CONFIRMACOES_REUNIAO_2026-11-28.sql` permite recuperá-las pontualmente com acesso administrativo, preservando a data original. O arquivo também gera a exportação para a planilha. Não instalar a recuperação como tarefa periódica, pois isso poderia restaurar exclusões manuais.
+As confirmações históricas em `confirmacoes_reuniao` não são apagadas. `migrations/RECUPERAR_CONFIRMACOES_REUNIAO_2026-11-28.sql` permite recuperá-las pontualmente com acesso administrativo, preservando a data original. O arquivo também gera a exportação para a planilha. Não instalar a recuperação como tarefa periódica, pois isso poderia restaurar exclusões manuais.
 
-`docs/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql` gera a lista de controle a partir de `presencas`.
+`migrations/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql` gera a lista de controle a partir de `presencas`.
 
 ## Verificações
 

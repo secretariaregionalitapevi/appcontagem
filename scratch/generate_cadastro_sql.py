@@ -11,8 +11,8 @@ for i in range(0,len(rows),100):
  updates=',\n'.join('  '+c+' = EXCLUDED.'+c for c in cols if c!='id')
  parts.append('INSERT INTO public.cadastro ('+', '.join(cols)+') VALUES\n'+values+'\nON CONFLICT (id) DO UPDATE SET\n'+updates+';')
 parts.extend(['COMMIT;',''])
-open(r'docs/ATUALIZAR-CADASTRO-SAM-2026-09-08.sql','w',encoding='utf8',newline='\n').write('\n\n'.join(parts))
-with open(r'docs/CADASTRO-SAM-PENDENCIAS-2026-09-08.csv','w',encoding='utf-8-sig',newline='') as f:
+open(r'migrations/ATUALIZAR-CADASTRO-SAM-2026-09-08.sql','w',encoding='utf8',newline='\n').write('\n\n'.join(parts))
+with open(r'data/reports/CADASTRO-SAM-PENDENCIAS-2026-09-08.csv','w',encoding='utf-8-sig',newline='') as f:
  w=csv.writer(f,delimiter=';')
  w.writerow(['TIPO','PAGINA','NOME','INSTRUMENTO','LOCALIDADE','CARGO','NIVEL','CANDIDATE_IDS'])
  for x in p['ambiguous']:

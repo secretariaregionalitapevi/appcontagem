@@ -2,6 +2,15 @@ po# Sistema de Contagem – SAC
 
 Aplicativo mobile para registro de participantes em eventos (ensaios) da Congregação Cristã no Brasil.
 
+## Organização
+
+- `migrations/`: scripts SQL e consultas administrativas.
+- `docs/`: documentação, com guias em `guides/` e relatórios em `reports/`.
+- `scripts/`: ferramentas de desenvolvimento, diagnóstico e testes de carga.
+- `data/`: arquivos de importação, relatórios de dados e exemplos.
+- `scratch/`: logs, diagnósticos temporários e cópias de referência.
+- `backend-separado/templates/`: modelos do Google Apps Script.
+
 ## Tecnologias
 
 - **React Native** com **Expo**
@@ -22,7 +31,7 @@ Aplicativo mobile para registro de participantes em eventos (ensaios) da Congreg
 ## Configuração
 
 > [!TIP]
-> **Outras Regionais**: Se você estiver configurando este sistema para uma regional diferente de Itapevi utilizando Docker, consulte o [Guia de Configuração Regional (Docker)](file:///c:/Users/Usuário/OneDrive/APLICATIVOS%20REGIONAL/APPEnR/DOCKER_REGIONAL_GUIDE.md) para instruções específicas sobre como conectar sua própria planilha.
+> **Outras Regionais**: Se você estiver configurando este sistema para uma regional diferente de Itapevi utilizando Docker, consulte o [Guia de Configuração Regional (Docker)](docs/guides/DOCKER_REGIONAL_GUIDE.md) para instruções específicas sobre como conectar sua própria planilha.
 
 ### 1. Instalar dependências
 

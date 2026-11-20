@@ -33,7 +33,7 @@ const { PGlite } = require(
       ]
     );
     const sql = fs.readFileSync(
-      path.join(__dirname, '../docs/REUNIAO_APRIMORAMENTO_2026-11-28.sql'),
+      path.join(__dirname, '../migrations/REUNIAO_APRIMORAMENTO_2026-11-28.sql'),
       'utf8'
     );
     await db.exec(sql);
@@ -132,7 +132,7 @@ const { PGlite } = require(
     checks++;
     const report = await db.query(
       fs.readFileSync(
-        path.join(__dirname, '../docs/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql'),
+        path.join(__dirname, '../migrations/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql'),
         'utf8'
       )
     );

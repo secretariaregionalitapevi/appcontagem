@@ -1,5 +1,5 @@
 
-import { supabase } from './src/services/supabaseClient';
+import { supabase } from '../../src/services/supabaseClient';
 
 async function checkSchema() {
     const { data, error } = await supabase

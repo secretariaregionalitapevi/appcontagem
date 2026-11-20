@@ -23,8 +23,9 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # [NOVO] Copia documentação e templates para serem acessíveis via navegador
-COPY DOCKER_REGIONAL_GUIDE.md /usr/share/nginx/html/
-COPY Code_Regional_Template.gs /usr/share/nginx/html/
+COPY docs/guides/DOCKER_REGIONAL_GUIDE.md /usr/share/nginx/html/
+COPY docs/guides/DOCKER_REGIONAL_GUIDE.md /usr/share/nginx/html/docs/guides/DOCKER_REGIONAL_GUIDE.md
+COPY backend-separado/templates/Code_Regional_Template.gs /usr/share/nginx/html/
 COPY README.md /usr/share/nginx/html/
 
 # Copia nossa configuração de roteamento

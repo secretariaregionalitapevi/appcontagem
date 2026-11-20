@@ -2,7 +2,7 @@
  * 🚀 Script de Teste de Carga
  * Simula 100+ usuários simultâneos enviando 5000 registros em 2 horas
  * 
- * Uso: node load-test.js
+ * Uso: node scripts/load/load-test.js
  */
 
 const BASE_URL = process.env.API_URL || 'http://localhost:3000';

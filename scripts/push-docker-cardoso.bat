@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0.."
 set IMAGE_NAME=regionalitapevi/appcontagem:cardoso
 
 echo 🚀 Iniciando Build da imagem Docker...

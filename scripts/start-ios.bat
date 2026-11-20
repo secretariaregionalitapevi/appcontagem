@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0.."
 echo 🔍 Verificando configurações...
 
 REM Limpar cache do Expo

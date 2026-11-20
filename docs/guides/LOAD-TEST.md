@@ -18,12 +18,12 @@ yarn install
 
 ### Executar Teste
 ```bash
-node load-test.js
+node scripts/load/load-test.js
 ```
 
 ### Executar com Variáveis de Ambiente
 ```bash
-API_URL=https://sua-api.com node load-test.js
+API_URL=https://sua-api.com node scripts/load/load-test.js
 ```
 
 ## 📊 Métricas Monitoradas
@@ -74,7 +74,7 @@ API_URL=https://sua-api.com node load-test.js
 
 ## 🔧 Ajustes de Configuração
 
-Edite `load-test.js` para ajustar:
+Edite `scripts/load/load-test.js` para ajustar:
 
 ```javascript
 const CONFIG = {
