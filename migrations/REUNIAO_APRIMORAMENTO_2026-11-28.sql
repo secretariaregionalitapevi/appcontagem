@@ -1,4 +1,4 @@
--- Confirmação pública: Reunião de Aprimoramento Musical, 28/11/2026.
+-- Confirmação pública: Reunião Musical, 28/11/2026.
 -- Execute uma vez no SQL Editor do mesmo projeto Supabase do aplicativo.
 -- Não altera os dados do cadastro, usuários, ensaios ou filas existentes.
 begin;
@@ -52,8 +52,8 @@ grant all on table public.reunioes_publicas, public.confirmacoes_reuniao to serv
 create index if not exists confirmacoes_reuniao_evento_idx on public.confirmacoes_reuniao(evento_slug, confirmado_em);
 
 insert into public.reunioes_publicas(slug,titulo,data_evento,local_evento,horario,encerramento)
-values ('aprimoramento-musical-2026-11-28','Reunião de Aprimoramento Musical','2026-11-28','Central de Itapevi','09h00','2026-11-29 03:00:00+00')
-on conflict (slug) do update set horario=coalesce(public.reunioes_publicas.horario,excluded.horario);
+values ('aprimoramento-musical-2026-11-28','Reunião Musical','2026-11-28','Central de Itapevi','09h00','2026-11-29 03:00:00+00')
+on conflict (slug) do update set titulo=excluded.titulo,horario=coalesce(public.reunioes_publicas.horario,excluded.horario);
 
 create or replace function public.ram_public_catalog(p_evento text)
 returns jsonb language plpgsql security definer set search_path = ''
@@ -160,8 +160,8 @@ begin
   end if;
   insert into public.presencas(uuid,nome_completo,cidade,comum,cargo,local_ensaio,data_ensaio,registrado_por,created_at,anotacoes)
     values(v_id,upper(v_pessoa.nome),upper(v_pessoa.cidade),upper(v_pessoa.comum),upper(v_pessoa.cargo),
-      'REUNIAO APRIMORAMENTO MUSICAL - CENTRAL DE ITAPEVI',
-      '2026-11-28 12:00:00+00','CONFIRMACAO PUBLICA 2026-11-28',now(),case when v_manual then 'SAM Desatualizado' else null end)
+      'REUNIAO MUSICAL - CENTRAL DE ITAPEVI',
+      '2026-11-28 12:00:00+00','Sistema',now(),case when v_manual then 'SAM Desatualizado' else null end)
     on conflict (uuid) do nothing;
   select uuid as id,created_at as confirmado_em into v_receipt from public.presencas where uuid=v_id;
   return jsonb_build_object('id',v_receipt.id,'confirmado_em',v_receipt.confirmado_em,'ja_confirmado',false);

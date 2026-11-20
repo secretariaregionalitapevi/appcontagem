@@ -295,7 +295,7 @@ export const PublicMeetingScreen: React.FC = () => {
             <h2>Presença confirmada!</h2>
             <p>
               <strong>{meetingLabel(person?.nome || '')}</strong>, recebemos sua confirmação para a
-              Reunião de Aprimoramento Musical.
+              Reunião Musical.
             </p>
             <div className="ram-receipt">
               <Icon name="map-marker-alt" color="#df5266" size={17} />
@@ -601,10 +601,10 @@ export const PublicMeetingScreen: React.FC = () => {
               <Icon name={saving ? 'hourglass-half' : 'check-circle'} color="#ffffff" size={18} />
               {saving ? 'Confirmando presença…' : 'Confirmar presença'}
             </button>
-            <p className="ram-footnote">
+            <div className="ram-footnote">
               <Icon name="lock" size={10} color="#8b9bad" />
               Sua confirmação será usada na organização desta reunião.
-            </p>
+            </div>
           </form>
         )}
       </article>

@@ -81,7 +81,11 @@ describe('Public meeting destinations', () => {
     expect(body.data['NÍVEL']).toBe('OFICIALIZADO');
     expect(body.data.INSTRUMENTO).toBe('VIOLINO');
     expect(body.data.NAIPE_INSTRUMENTO).toBe('CORDAS');
-    expect(body.data.DATA_ENSAIO).toBe('28/11/2026 09:00:00');
+    expect(body.data.DATA_ENSAIO).toBe('28/11/2026');
+    expect(body.data.REGISTRADO_POR).toBe('Sistema');
+    expect(body.data.LOCAL_ENSAIO).toBe('REUNIAO MUSICAL - CENTRAL DE ITAPEVI');
+    expect(body.data.ANOTACOES).toBe('');
+    expect(saved[0].registrado_por).toBe('Sistema');
     expect(body.data.SYNCED_AT).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
     expect(body.data.CLASSE_ORGANISTA).toBe('');
     expect(saved[0]).toMatchObject({

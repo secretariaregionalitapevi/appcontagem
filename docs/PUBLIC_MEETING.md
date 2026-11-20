@@ -1,6 +1,6 @@
 # Confirmação pública — reunião de 28/11/2026
 
-URL: `/confirmar-presenca`. Evento: Reunião de Aprimoramento Musical, 28/11/2026 às 9h, Central de Itapevi.
+URL: `/confirmar-presenca`. Evento: Reunião Musical, 28/11/2026 às 9h, Central de Itapevi.
 
 ## Fluxo ativo
 
@@ -23,9 +23,9 @@ Quando o registro já existe, o serviço retorna o recibo existente sem repetir 
 
 O envio aos dois serviços é sequencial, sem transação distribuída. Uma falha pode deixar somente a planilha gravada; o formulário mantém a seleção para repetir a operação e concluir o banco. Se a conexão cair antes de receber o recibo do Sheets, a repetição depende da deduplicação do endpoint. A página não informa sucesso para uma resposta ambígua.
 
-`data_ensaio` indica o evento, e `created_at` indica quando a confirmação foi recebida. O marcador é `CONFIRMACAO PUBLICA 2026-11-28` em `registrado_por`.
+`data_ensaio` indica o evento, e `created_at` indica quando a confirmação foi recebida. `registrado_por` recebe `Sistema`. As consultas administrativas identificam o evento pela data e pelo local, aceitando também a descrição antiga.
 
-Na planilha, `DATA_ENSAIO` e `SYNCED_AT` são exibidos em `DD/MM/AAAA HH:mm:ss`, no fuso `America/Sao_Paulo`, usando as funções de data compartilhadas do sistema raiz. No Supabase, os instantes permanecem em ISO, com fuso preservado.
+Na planilha, `LOCAL_ENSAIO` recebe `REUNIAO MUSICAL - CENTRAL DE ITAPEVI`; `DATA_ENSAIO` é exibido em `DD/MM/AAAA`, sem horário; e `SYNCED_AT` mantém `DD/MM/AAAA HH:mm:ss`, no fuso `America/Sao_Paulo`. `ANOTACOES` fica vazia para nomes do cadastro e contém apenas `SAM Desatualizado` para inclusões manuais. No Supabase, os instantes permanecem em ISO, com fuso preservado.
 
 ## Publicação e teste local
 

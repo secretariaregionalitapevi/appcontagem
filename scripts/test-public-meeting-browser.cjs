@@ -13,7 +13,7 @@ const slug = 'aprimoramento-musical-2026-11-28',
 const catalog = {
   evento: {
     slug,
-    titulo: 'Reunião de Aprimoramento Musical',
+    titulo: 'Reunião Musical',
     data: '2026-11-28',
     local: 'Central de Itapevi',
     horario: null,
@@ -75,9 +75,13 @@ async function until(fn, label) {
       for await (const chunk of req) raw += chunk;
       const input = JSON.parse(raw);
       assert.equal(input.sheet, 'Dados');
+      assert.equal(input.data.DATA_ENSAIO, '28/11/2026');
+      assert.equal(input.data.REGISTRADO_POR, 'Sistema');
+      assert.equal(input.data.LOCAL_ENSAIO, 'REUNIAO MUSICAL - CENTRAL DE ITAPEVI');
       assert.ok(input.data.UUID);
       assert.ok(['JOÃO DE TESTE', 'MANOEL LUIZ'].includes(input.data['NOME COMPLETO']));
       if (input.data['NOME COMPLETO'] === 'JOÃO DE TESTE') {
+        assert.equal(input.data.ANOTACOES, '');
         assert.equal(input.data['NÍVEL'], 'OFICIALIZADO');
         assert.equal(input.data.INSTRUMENTO, 'VIOLINO');
         assert.equal(input.data.NAIPE_INSTRUMENTO, 'CORDAS');

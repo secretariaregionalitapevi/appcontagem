@@ -1,7 +1,7 @@
 export const PUBLIC_MEETING = {
   slug: 'aprimoramento-musical-2026-11-28',
   path: '/confirmar-presenca',
-  title: 'Reunião de Aprimoramento Musical',
+  title: 'Reunião Musical',
   date: '2026-11-28',
   time: '09h00',
   venue: 'Central de Itapevi',

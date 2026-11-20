@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-const getEnvVar = (key: string, defaultValue?: string): string => {
+const getEnvVar = (key: string, defaultValue?: string, required = true): string => {
   // Tentar várias fontes de variáveis de ambiente
   // No build do Docker, window.APP_CONFIG é injetado pelo entrypoint.sh no index.html
   const appConfig = (window as any).APP_CONFIG || {};
@@ -13,7 +13,7 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
     defaultValue ||
     '';
 
-  if (!value && __DEV__) {
+  if (!value && required && __DEV__) {
     console.warn(`⚠️ Missing environment variable: ${key}. Using default or empty value.`);
   }
 
@@ -24,5 +24,5 @@ export const env = {
   SUPABASE_URL: getEnvVar('SUPABASE_URL', ''),
   SUPABASE_ANON_KEY: getEnvVar('SUPABASE_ANON_KEY', ''),
   SHEETS_ENDPOINT_URL: getEnvVar('SHEETS_ENDPOINT_URL', ''),
-  SITE_URL: getEnvVar('SITE_URL', ''),
+  SITE_URL: getEnvVar('SITE_URL', '', false),
 };
