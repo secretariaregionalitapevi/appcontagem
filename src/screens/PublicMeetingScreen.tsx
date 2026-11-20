@@ -11,12 +11,12 @@ import {
 import {
   MeetingCatalog,
   MeetingPerson,
-  MeetingReceipt,
   MeetingRequestError,
   publicMeetingService,
 } from '../services/publicMeetingService';
 import { setPwaUpdateBlock } from '../services/pwaUpdateSafety';
 import { normalizeComumDisplay } from '../utils/normalizeComum';
+import { publicMeetingQueue } from '../services/publicMeetingQueue';
 
 const Icon: React.FC<{
   name: React.ComponentProps<typeof FontAwesome5>['name'];
@@ -46,8 +46,9 @@ export const PublicMeetingScreen: React.FC = () => {
     [searched, setSearched] = useState(false);
   const [error, setError] = useState(''),
     [searchError, setSearchError] = useState('');
-  const [saving, setSaving] = useState(false),
-    [receipt, setReceipt] = useState<MeetingReceipt | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [queueState, setQueueState] = useState(() => publicMeetingQueue.state());
   const [active, setActive] = useState(0);
   const savingRef = useRef(false),
     input = useRef<HTMLInputElement>(null);
@@ -70,13 +71,41 @@ export const PublicMeetingScreen: React.FC = () => {
     churchId ? '' : churchQuery
   );
   const churchListOpen = churchFocused && !!city && !saving && !closed;
-  const listOpen = focused && !person && query.trim().length >= 2 && !!church && !closed;
+  const listOpen =
+    focused &&
+    !person &&
+    query.trim().length >= 2 &&
+    !!church &&
+    !closed &&
+    (searching || !searched || !!searchError || people.length > 0);
+  const manualReady =
+    !person &&
+    searched &&
+    !searching &&
+    !searchError &&
+    people.length === 0 &&
+    query.trim().length >= 5 &&
+    query.trim().split(/\s+/).length >= 2;
+  const personToConfirm =
+    person || (manualReady ? { id: 'manual_' + query.trim(), nome: query.trim() } : null);
   useEffect(() => {
-    if (receipt) {
+    if (confirmed) {
       const page = document.querySelector<HTMLElement>('.ram-page');
       if (page) page.scrollTop = 0;
     }
-  }, [receipt]);
+  }, [confirmed]);
+  useEffect(() => {
+    const unsubscribe = publicMeetingQueue.subscribe(setQueueState);
+    const stop = publicMeetingQueue.start();
+    return () => {
+      unsubscribe();
+      stop();
+    };
+  }, []);
+  useLayoutEffect(() => {
+    setPwaUpdateBlock('public-meeting-queue', queueState.pending > 0);
+    return () => setPwaUpdateBlock('public-meeting-queue', false);
+  }, [queueState.pending]);
   useEffect(() => {
     document.title = 'Confirmação de Presença | Reunião Musical';
     const controller = new AbortController();
@@ -97,9 +126,9 @@ export const PublicMeetingScreen: React.FC = () => {
     return () => controller.abort();
   }, [retry]);
   useLayoutEffect(() => {
-    setPwaUpdateBlock('public-meeting', !receipt && Boolean(cityId || query || saving));
+    setPwaUpdateBlock('public-meeting', Boolean(cityId || query || saving));
     return () => setPwaUpdateBlock('public-meeting', false);
-  }, [cityId, query, saving, receipt]);
+  }, [cityId, query, saving]);
   useEffect(() => {
     const controller = new AbortController();
     setPeople([]);
@@ -197,21 +226,21 @@ export const PublicMeetingScreen: React.FC = () => {
   };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (savingRef.current || !city || !church || !person || closed) return;
+    if (savingRef.current || !city || !church || !personToConfirm || closed) return;
     savingRef.current = true;
     setSaving(true);
     setError('');
     setFocused(false);
     try {
-      setReceipt(await publicMeetingService.confirm(cityId, churchId, person.id));
+      publicMeetingQueue.enqueue(cityId, churchId, personToConfirm);
+      setPerson(personToConfirm);
+      setConfirmed(true);
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : 'Não foi possível confirmar sua presença.'
+        reason instanceof Error
+          ? reason.message
+          : 'Não foi possível salvar o registro neste aparelho.'
       );
-      if (reason instanceof MeetingRequestError && reason.kind === 'closed')
-        setCatalog(
-          previous => previous && { ...previous, evento: { ...previous.evento, aberto: false } }
-        );
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -257,15 +286,13 @@ export const PublicMeetingScreen: React.FC = () => {
             </div>
           </div>
         </div>
-        {receipt ? (
+        {confirmed ? (
           <section className="ram-success" aria-live="polite">
             <span className="ram-success-icon">
               <Icon name="check" color="#139576" size={29} />
             </span>
             <span className="ram-eyebrow">TUDO CERTO</span>
-            <h2>
-              {receipt.ja_confirmado ? 'Sua presença já está confirmada!' : 'Presença confirmada!'}
-            </h2>
+            <h2>Presença confirmada!</h2>
             <p>
               <strong>{meetingLabel(person?.nome || '')}</strong>, recebemos sua confirmação para a
               Reunião de Aprimoramento Musical.
@@ -284,7 +311,7 @@ export const PublicMeetingScreen: React.FC = () => {
               type="button"
               className="ram-secondary"
               onClick={() => {
-                setReceipt(null);
+                setConfirmed(false);
                 setPerson(null);
                 setQuery('');
                 setError('');
@@ -301,7 +328,7 @@ export const PublicMeetingScreen: React.FC = () => {
             </div>
             <ol className="ram-steps" aria-label="Etapas da confirmação">
               {['Município', 'Comum', 'Seu nome'].map((label, index) => {
-                const complete = index === 0 ? !!city : index === 1 ? !!church : !!person;
+                const complete = index === 0 ? !!city : index === 1 ? !!church : !!personToConfirm;
                 const current = !city ? 0 : !church ? 1 : 2;
                 return (
                   <li
@@ -493,6 +520,8 @@ export const PublicMeetingScreen: React.FC = () => {
                   onChange={e => {
                     setQuery(e.target.value);
                     setPerson(null);
+                    setSearched(false);
+                    setPeople([]);
                     setError('');
                   }}
                   onFocus={() => {
@@ -527,7 +556,7 @@ export const PublicMeetingScreen: React.FC = () => {
                   </span>
                 )}
               </div>
-              {listOpen && (
+              {listOpen && (searchError || searching || !searched || people.length > 0) && (
                 <div className="ram-results">
                   {searchError ? (
                     <p role="alert">{searchError}</p>
@@ -555,24 +584,19 @@ export const PublicMeetingScreen: React.FC = () => {
                         </li>
                       ))}
                     </ul>
-                  ) : (
-                    <p role="status">
-                      Nenhum nome encontrado. Confira o município e a comum ou tente outra parte do
-                      nome.
-                    </p>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
             <p id="ram-name-help" className={'ram-help' + (person ? ' selected' : '')}>
-              {person
-                ? 'Nome selecionado. Agora é só confirmar sua presença.'
+              {personToConfirm
+                ? 'Agora é só confirmar sua presença.'
                 : 'Digite pelo menos 2 letras e selecione seu nome na lista.'}
             </p>
             <button
               type="submit"
               className="ram-primary"
-              disabled={!person || !church || saving || closed}
+              disabled={!personToConfirm || !church || saving || closed}
             >
               <Icon name={saving ? 'hourglass-half' : 'check-circle'} color="#ffffff" size={18} />
               {saving ? 'Confirmando presença…' : 'Confirmar presença'}

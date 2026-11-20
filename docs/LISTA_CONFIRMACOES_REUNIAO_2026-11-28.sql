@@ -4,19 +4,19 @@
 -- No resultado, use Export > CSV para abrir no Excel ou preparar a impressão.
 
 select
-  row_number() over (order by municipio, comum, nome) as "Nº",
-  nome as "Nome completo",
-  municipio as "Município",
+  row_number() over (order by cidade, comum, nome_completo) as "Nº",
+  nome_completo as "Nome completo",
+  cidade as "Município",
   comum as "Comum congregação",
   coalesce(cargo, '') as "Cargo / ministério",
-  to_char(confirmado_em at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as "Confirmado em",
+  to_char(created_at at time zone 'America/Sao_Paulo', 'DD/MM/YYYY HH24:MI') as "Confirmado em",
   ''::text as "Presença no dia",
   ''::text as "Assinatura"
-from public.confirmacoes_reuniao
-where evento_slug = 'aprimoramento-musical-2026-11-28'
-order by municipio, comum, nome;
+from public.presencas
+where registrado_por = 'CONFIRMACAO PUBLICA 2026-11-28'
+order by cidade, comum, nome_completo;
 
 -- Para consultar somente o total, execute separadamente:
 -- select count(*) as "Total de confirmações"
--- from public.confirmacoes_reuniao
--- where evento_slug = 'aprimoramento-musical-2026-11-28';
+-- from public.presencas
+-- where registrado_por = 'CONFIRMACAO PUBLICA 2026-11-28';

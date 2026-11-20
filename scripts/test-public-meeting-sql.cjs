@@ -11,6 +11,7 @@ const { PGlite } = require(
     await db.exec(
       'create role anon; create role authenticated; create role service_role; create table public.cadastro(id text primary key,nome text,comum text,cidade text,cargo text);'
     );
+    await db.exec('create table public.presencas(uuid uuid primary key,nome_completo text,cidade text,comum text,cargo text,local_ensaio text,data_ensaio timestamptz,registrado_por text,created_at timestamptz)');
     await db.query(
       'insert into public.cadastro values ($1,$2,$3,$4,$5),($6,$7,$8,$9,$10),($11,$12,$13,$14,$15)',
       [
@@ -105,12 +106,29 @@ const { PGlite } = require(
     checks++;
     await assert.rejects(db.query('delete from public.confirmacoes_reuniao'), /permission denied/);
     checks++;
+    const manual = await confirm('ITAPEVI', itapevi.comuns[0].id, 'manual_MANOEL LUIZ');
+    const manualRetry = await confirm('ITAPEVI', itapevi.comuns[0].id, 'manual_  manoel   luiz  ');
+    assert.equal(manualRetry.id, manual.id);
+    assert.equal(manualRetry.ja_confirmado, true);
+    const existingManual = await confirm('ITAPEVI', itapevi.comuns[0].id, 'manual_JOAO DE TESTE');
+    assert.equal(existingManual.id, first.id);
+    await assert.rejects(confirm('ITAPEVI', itapevi.comuns[0].id, 'manual_AB'), /PARTICIPANTE_INVALIDO/);
+    await assert.rejects(confirm('ITAPEVI', cotia.comuns[0].id, 'manual_MANOEL LUIZ'), /PARTICIPANTE_INVALIDO/);
     await db.exec('reset role');
+    const manualRow = (await db.query('select * from public.presencas where uuid=$1', [manual.id])).rows[0];
+    assert.equal(manualRow.nome_completo, 'MANOEL LUIZ');
+    assert.equal(manualRow.cidade, 'ITAPEVI');
+    assert.equal(manualRow.anotacoes, 'SAM Desatualizado');
+    assert.equal((await db.query('select count(*)::int as count from public.cadastro where nome=$1', ['MANOEL LUIZ'])).rows[0].count, 0);
+    await db.query('delete from public.presencas where uuid=$1', [manual.id]);
+    checks += 8;
     assert.equal(
-      (await db.query('select count(*)::int as count from public.confirmacoes_reuniao')).rows[0]
+      (await db.query('select count(*)::int as count from public.presencas')).rows[0]
         .count,
       1
     );
+    checks++;
+    assert.equal((await db.query('select count(*)::int as count from public.confirmacoes_reuniao')).rows[0].count, 0);
     checks++;
     const report = await db.query(
       fs.readFileSync(
@@ -122,6 +140,12 @@ const { PGlite } = require(
     assert.equal(report.rows[0]['Nome completo'], 'JOÃO DE TESTE');
     assert.equal(report.rows[0]['Presença no dia'], '');
     checks++;
+    await db.exec(sql);
+    assert.equal((await db.query('select count(*)::int as count from public.presencas')).rows[0].count, 1);
+    await db.query('delete from public.presencas where uuid=$1', [first.id]);
+    await db.exec(sql);
+    assert.equal((await db.query('select count(*)::int as count from public.presencas')).rows[0].count, 0);
+    checks += 2;
     await db.exec('update public.reunioes_publicas set inscricoes_abertas=false; set role anon');
     await assert.rejects(
       confirm('ITAPEVI', itapevi.comuns[0].id, 'test-1'),

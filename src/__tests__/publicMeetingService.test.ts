@@ -1,116 +1,270 @@
 jest.mock('../config/env', () => ({
-  env: { SUPABASE_URL: 'https://example.test', SUPABASE_ANON_KEY: 'public-key' },
+  env: {
+    SUPABASE_URL: 'https://example.test',
+    SUPABASE_ANON_KEY: 'public-key',
+    SHEETS_ENDPOINT_URL: 'https://sheets.test',
+  },
 }));
-import { PublicMeetingService, MeetingRequestError } from '../services/publicMeetingService';
-import {
-  PUBLIC_MEETING,
-  isPublicMeetingPath,
-  meetingLabel,
-  filterMeetingOptions,
-} from '../config/publicMeeting';
+import { PublicMeetingService } from '../services/publicMeetingService';
+import { PUBLIC_MEETING, isPublicMeetingPath, filterMeetingOptions } from '../config/publicMeeting';
 const response = (data: unknown, ok = true) => ({ ok, json: async () => data }) as Response;
-describe('Public meeting requests', () => {
-  let fetcher: jest.Mock;
-  let service: PublicMeetingService;
+const catalog = () => ({
+  evento: { slug: PUBLIC_MEETING.slug, aberto: true },
+  municipios: [{ id: 'ITAPEVI', nome: 'ITAPEVI', comuns: [{ id: 'common', nome: 'CENTRAL' }] }],
+});
+describe('Public meeting destinations', () => {
+  let fetcher: jest.Mock,
+    service: PublicMeetingService,
+    saved: any[],
+    sheetOk: boolean,
+    databaseOk: boolean,
+    profile: any;
   beforeEach(() => {
-    fetcher = jest.fn();
-    service = new PublicMeetingService(fetcher, { url: 'https://example.test', key: 'public-key' });
-  });
-  it('uses the public key and dedicated event without reading an authenticated session', async () => {
-    fetcher.mockResolvedValue(response([{ id: 'person-1', nome: 'Nome de Teste' }]));
-    await service.people('ITAPEVI', 'church-1', '  teste  ');
-    const [url, options] = fetcher.mock.calls[0];
-    expect(url).toBe('https://example.test/rest/v1/rpc/ram_public_people');
-    expect(options.headers.Authorization).toBe('Bearer public-key');
-    expect(JSON.parse(options.body)).toEqual({
-      p_evento: PUBLIC_MEETING.slug,
-      p_municipio: 'ITAPEVI',
-      p_comum: 'church-1',
-      p_busca: 'teste',
+    const storage = new Map<string, string>();
+    (globalThis as any).localStorage = {
+      getItem: (key: string) => storage.get(key) || null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+    };
+    saved = [];
+    sheetOk = true;
+    databaseOk = true;
+    profile = {
+      id: 'person',
+      nome: 'JOÃO DE TESTE',
+      cargo: 'MÚSICO',
+      instrumento: 'VIOLINO',
+      nivel: 'OFICIALIZADO(A)',
+      cidade: 'ITAPEVI',
+      comum: 'CENTRAL',
+    };
+    fetcher = jest.fn(async (url, options) => {
+      if (url.endsWith('ram_public_catalog')) return response(catalog());
+      if (url.endsWith('ram_public_people'))
+        return response([{ id: 'person', nome: 'JOÃO DE TESTE', cargo: 'MÚSICO' }]);
+      if (url.includes('/rest/v1/cadastro?')) return response(profile ? [profile] : []);
+      if (url === 'https://sheets.test')
+        return response({
+          ok: sheetOk,
+          uuid: JSON.parse(options.body).data.UUID,
+          diag: {
+            master: {
+              ok: true,
+              id: '1LGoW7lbYS4crpEdTfGR2evuH9kArZgqrvVbmi6buBoQ',
+              sheet: 'Dados',
+            },
+          },
+        });
+      if (url.includes('/rest/v1/presencas')) {
+        if (options.method === 'POST') {
+          if (!databaseOk) return response({ message: 'private diagnostic' }, false);
+          saved = [JSON.parse(options.body)];
+        }
+        return response(saved);
+      }
+      throw new Error('Unexpected destination: ' + url);
+    });
+    service = new PublicMeetingService(fetcher, {
+      url: 'https://example.test',
+      key: 'public-key',
+      sheetsUrl: 'https://sheets.test',
     });
   });
-  it('does not query names before municipality, church and minimum search text are provided', async () => {
-    expect(await service.people('', 'church-1', 'teste')).toEqual([]);
-    expect(await service.people('ITAPEVI', '', 'teste')).toEqual([]);
-    expect(await service.people('ITAPEVI', 'church-1', 'a')).toEqual([]);
-    expect(fetcher).not.toHaveBeenCalled();
+  it('sends the same UUID to Dados and presencas without calling the old RPC', async () => {
+    await service.people('ITAPEVI', 'common', 'jo');
+    const receipt = await service.confirm('ITAPEVI', 'common', 'person');
+    const body = JSON.parse(
+      fetcher.mock.calls.find(([url]) => url === 'https://sheets.test')![1].body
+    );
+    expect(body.sheet).toBe('Dados');
+    expect(body.data.UUID).toBe(saved[0].uuid);
+    expect(body.data['NOME COMPLETO']).toBe('JOÃO DE TESTE');
+    expect(body.data['NÍVEL']).toBe('OFICIALIZADO');
+    expect(body.data.INSTRUMENTO).toBe('VIOLINO');
+    expect(body.data.NAIPE_INSTRUMENTO).toBe('CORDAS');
+    expect(body.data.DATA_ENSAIO).toBe('28/11/2026 09:00:00');
+    expect(body.data.SYNCED_AT).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
+    expect(body.data.CLASSE_ORGANISTA).toBe('');
+    expect(saved[0]).toMatchObject({
+      nivel: 'OFICIALIZADO',
+      instrumento: 'VIOLINO',
+      naipe_instrumento: 'CORDAS',
+      classe_organista: null,
+    });
+    expect(receipt.id).toBe(saved[0].uuid);
+    expect(
+      fetcher.mock.calls.some(([url]) => /ram_public_confirm|confirmacoes_reuniao/.test(url))
+    ).toBe(false);
   });
-  it('accepts an idempotent receipt from the database', async () => {
-    const receipt = { id: 'receipt-1', confirmado_em: '2026-11-19T12:00:00Z', ja_confirmado: true };
-    fetcher.mockResolvedValue(response(receipt));
-    expect(await service.confirm('ITAPEVI', 'church-1', 'person-1')).toEqual(receipt);
+  it('sends the manual name and SAM Desatualizado to the sheet', async () => {
+    await service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz');
+    expect(saved[0].nome_completo).toBe('MANOEL LUIZ');
+    const body = JSON.parse(
+      fetcher.mock.calls.find(([url]) => url === 'https://sheets.test')![1].body
+    );
+    expect(body.data.ANOTACOES).toBe('SAM Desatualizado');
+    expect(body.data['NÍVEL']).toBe('');
+    expect(body.data.INSTRUMENTO).toBe('');
+    expect(body.data.NAIPE_INSTRUMENTO).toBe('');
+    expect(body.data.CLASSE_ORGANISTA).toBe('');
+    expect(saved[0]).toMatchObject({
+      nivel: null,
+      instrumento: null,
+      naipe_instrumento: null,
+      classe_organista: null,
+    });
   });
-  it.each([null, {}, { id: 'receipt-1', confirmado_em: 'invalid', ja_confirmado: false }])(
-    'never reports success for an invalid response %#',
-    async value => {
-      fetcher.mockResolvedValue(response(value));
-      await expect(service.confirm('ITAPEVI', 'church-1', 'person-1')).rejects.toBeInstanceOf(
-        MeetingRequestError
+  it.each(['ORGANISTA', 'INSTRUTORA', 'EXAMINADORA', 'SECRETÁRIA DA MÚSICA'])(
+    'normalizes %s as in the root app',
+    async cargo => {
+      profile = { ...profile, cargo, instrumento: null, nivel: 'RJM / OFICIALIZADO(A)' };
+      await service.people('ITAPEVI', 'common', 'jo');
+      await service.confirm('ITAPEVI', 'common', 'person');
+      expect(saved[0]).toMatchObject({
+        cargo,
+        nivel: 'RJM / OFICIALIZADA',
+        instrumento: 'ÓRGÃO',
+        naipe_instrumento: 'TECLADO',
+        classe_organista: 'RJM / OFICIALIZADA',
+      });
+      const body = JSON.parse(
+        fetcher.mock.calls.find(([url]) => url === 'https://sheets.test')![1].body
       );
+      expect(body.data).toMatchObject({
+        NÍVEL: 'RJM / OFICIALIZADA',
+        INSTRUMENTO: 'ÓRGÃO',
+        NAIPE_INSTRUMENTO: 'TECLADO',
+        CLASSE_ORGANISTA: 'RJM / OFICIALIZADA',
+      });
     }
   );
-  it('rejects a missing person without issuing a write', async () => {
-    await expect(service.confirm('ITAPEVI', 'church-1', '')).rejects.toMatchObject({
+  it('preserves the organist class provided in cadastro', async () => {
+    profile = { ...profile, cargo: 'ORGANISTA', instrumento: 'ÓRGÃO', nivel: '2ª CLASSE' };
+    await service.people('ITAPEVI', 'common', 'jo');
+    await service.confirm('ITAPEVI', 'common', 'person');
+    expect(saved[0]).toMatchObject({ nivel: '2ª CLASSE', classe_organista: '2ª CLASSE' });
+  });
+  it('does not send incomplete data when the cadastro lookup fails', async () => {
+    await service.people('ITAPEVI', 'common', 'jo');
+    profile = null;
+    await expect(service.confirm('ITAPEVI', 'common', 'person')).rejects.toMatchObject({
+      kind: 'invalid',
+    });
+    expect(fetcher.mock.calls.some(([url]) => url === 'https://sheets.test')).toBe(false);
+  });
+  it('does not report success or save in the database if the sheet rejects the record', async () => {
+    sheetOk = false;
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toMatchObject({
+      kind: 'unavailable',
+    });
+    expect(saved).toEqual([]);
+  });
+  it('identifies the root Sheets duplicate response without inserting again', async () => {
+    fetcher
+      .mockResolvedValueOnce(response(catalog()))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response({ ok: false, error: 'DUPLICATA' }));
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toMatchObject({
+      kind: 'duplicate',
+    });
+    expect(saved).toEqual([]);
+  });
+  it('retries a database failure by sending the same UUID for Sheets to deduplicate', async () => {
+    databaseOk = false;
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toMatchObject({
+      kind: 'unavailable',
+    });
+    databaseOk = true;
+    await service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz');
+    const calls = fetcher.mock.calls.filter(([url]) => url === 'https://sheets.test');
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(calls[0][1].body).data.UUID).toBe(JSON.parse(calls[1][1].body).data.UUID);
+  });
+  it('resends to Sheets after a reload while the database is pending', async () => {
+    databaseOk = false;
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toThrow();
+    databaseOk = true;
+    const reloaded = new PublicMeetingService(fetcher, {
+      url: 'https://example.test',
+      key: 'public-key',
+      sheetsUrl: 'https://sheets.test',
+    });
+    await reloaded.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz');
+    expect(fetcher.mock.calls.filter(([url]) => url === 'https://sheets.test')).toHaveLength(2);
+  });
+  it('ignores stale browser flags after the owner deletes records and confirms again', async () => {
+    const first = await service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz');
+    localStorage.setItem('ram-sheet:' + first.id, '1');
+    saved = []; // Manual deletion in Supabase before a new explicit confirmation.
+    await service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz');
+    expect(fetcher.mock.calls.filter(([url]) => url === 'https://sheets.test')).toHaveLength(2);
+    expect(saved[0].uuid).toBe(first.id);
+  });
+  it('does not accept a bare ok response as proof of delivery to the correct sheet', async () => {
+    fetcher
+      .mockResolvedValueOnce(response(catalog()))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response({ ok: true }));
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toMatchObject({
+      kind: 'unavailable',
+    });
+    expect(saved).toEqual([]);
+  });
+  it('does not recreate a manually deleted sheet row on repeated confirmation', async () => {
+    const first = await service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz');
+    const retry = await service.confirm('ITAPEVI', 'common', 'manual_ manoel   luiz ');
+    expect(retry.id).toBe(first.id);
+    expect(retry.ja_confirmado).toBe(true);
+    expect(fetcher.mock.calls.filter(([url]) => url === 'https://sheets.test')).toHaveLength(1);
+  });
+  it.each([
+    ['COTIA', 'common', 'manual_Manoel Luiz'],
+    ['ITAPEVI', 'wrong', 'manual_Manoel Luiz'],
+    ['ITAPEVI', 'common', 'unknown'],
+    ['ITAPEVI', 'common', 'manual_ABC'],
+  ])('rejects invalid selection %s %s %s', async (city, church, person) => {
+    await expect(service.confirm(city, church, person)).rejects.toMatchObject({ kind: 'invalid' });
+    expect(fetcher.mock.calls).toHaveLength(1);
+  });
+  it('rejects an empty selection before any request', async () => {
+    await expect(service.confirm('ITAPEVI', 'common', '')).rejects.toMatchObject({
       kind: 'invalid',
     });
     expect(fetcher).not.toHaveBeenCalled();
   });
-  it('keeps server diagnostics out of participant error messages', async () => {
-    fetcher.mockResolvedValue(response({ message: 'internal SQL secret: table not found' }, false));
-    await expect(service.confirm('ITAPEVI', 'church-1', 'person-1')).rejects.toMatchObject({
-      kind: 'unavailable',
-      message: 'Não foi possível concluir agora. Tente novamente em instantes.',
-    });
-  });
-  it('recognizes event closure and invalid participant responses', async () => {
-    fetcher.mockResolvedValueOnce(response({ message: 'INSCRICOES_ENCERRADAS' }, false));
-    await expect(service.confirm('ITAPEVI', 'church-1', 'person-1')).rejects.toMatchObject({
+  it('honors closure before saving', async () => {
+    fetcher.mockResolvedValueOnce(
+      response({ ...catalog(), evento: { slug: PUBLIC_MEETING.slug, aberto: false } })
+    );
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toMatchObject({
       kind: 'closed',
     });
-    fetcher.mockResolvedValueOnce(response({ message: 'PARTICIPANTE_INVALIDO' }, false));
-    await expect(service.confirm('ITAPEVI', 'church-1', 'person-1')).rejects.toMatchObject({
-      kind: 'invalid',
+  });
+  it('rejects a receipt from the wrong spreadsheet', async () => {
+    fetcher
+      .mockResolvedValueOnce(response(catalog()))
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response({ ok: true, diag: { master: { id: 'wrong' } } }));
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toMatchObject({
+      kind: 'unavailable',
+    });
+    expect(saved).toEqual([]);
+  });
+  it('does not accept malformed database receipts', async () => {
+    saved = [{ uuid: 'invalid', created_at: 'invalid' }];
+    await expect(service.confirm('ITAPEVI', 'common', 'manual_Manoel Luiz')).rejects.toMatchObject({
+      kind: 'unavailable',
     });
   });
-  it('does not accept a catalog for a different event', async () => {
-    fetcher.mockResolvedValue(
-      response({ evento: { slug: 'other', aberto: true }, municipios: [] })
-    );
-    await expect(service.catalog()).rejects.toBeInstanceOf(MeetingRequestError);
-  });
-  it('a network failure remains retryable and does not produce a receipt', async () => {
-    fetcher.mockRejectedValue(new Error('Offline'));
-    await expect(service.confirm('ITAPEVI', 'church-1', 'person-1')).rejects.toMatchObject({
-      kind: 'network',
-    });
+  it('does not search without minimum selections and query', async () => {
+    expect(await service.people('', 'common', 'jo')).toEqual([]);
+    expect(await service.people('ITAPEVI', '', 'jo')).toEqual([]);
+    expect(await service.people('ITAPEVI', 'common', 'j')).toEqual([]);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });
-describe('Public route and labels', () => {
-  const churches = [
-    { id: '1', label: 'Vila São João', searchText: 'BR-21-0001' },
-    { id: '2', label: 'Central' },
-    { id: '3', label: 'Jardim São Pedro' },
-  ];
-  it('filters congregation names without accents or case sensitivity', () => {
-    expect(filterMeetingOptions(churches, 'SAO JOAO').map(item => item.id)).toEqual(['1']);
-    expect(filterMeetingOptions(churches, 'pedro jardim').map(item => item.id)).toEqual(['3']);
-  });
-  it('also finds a congregation by its code and supports an empty search', () => {
-    expect(filterMeetingOptions(churches, '21-0001').map(item => item.id)).toEqual(['1']);
-    expect(filterMeetingOptions(churches, '')).toEqual(churches);
-  });
-  it('does not return unrelated congregations for an unknown search', () => {
-    expect(filterMeetingOptions(churches, 'nao existe')).toEqual([]);
-  });
-  it('accepts only the explicit public path, including its trailing slash', () => {
-    expect(isPublicMeetingPath('/confirmar-presenca')).toBe(true);
-    expect(isPublicMeetingPath('/confirmar-presenca/')).toBe(true);
-    expect(isPublicMeetingPath('/')).toBe(false);
-    expect(isPublicMeetingPath('/confirmar-presenca-admin')).toBe(false);
-    expect(isPublicMeetingPath('/Register')).toBe(false);
-  });
-  it('formats municipality names without changing Portuguese accents', () => {
-    expect(meetingLabel('SANTANA DE PARNAÍBA')).toBe('Santana de Parnaíba');
-    expect(meetingLabel('CAUCAIA DO ALTO')).toBe('Caucaia do Alto');
-  });
+it('matches the public route and searches congregations without accents', () => {
+  expect(isPublicMeetingPath('/confirmar-presenca/')).toBe(true);
+  expect(isPublicMeetingPath('/Register')).toBe(false);
+  const options = [{ label: 'Vila São João', searchText: 'BR-21-0001' }];
+  expect(filterMeetingOptions(options, 'sao joao')).toEqual(options);
 });

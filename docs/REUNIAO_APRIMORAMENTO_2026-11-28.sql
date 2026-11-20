@@ -108,29 +108,63 @@ begin
 end;
 $$;
 
+-- A observação acompanha o registro até a planilha.
+alter table public.presencas add column if not exists anotacoes text;
+
 create or replace function public.ram_public_confirm(p_evento text,p_municipio text,p_comum text,p_pessoa text)
 returns jsonb language plpgsql security definer set search_path = ''
 as $$
-declare v_pessoa record; v_id uuid; v_receipt record;
+declare v_pessoa record; v_id uuid; v_receipt record; v_nome text; v_manual boolean := false;
 begin
   if not exists(select 1 from public.reunioes_publicas where slug=p_evento and inscricoes_abertas and now()<encerramento)
     then raise exception 'INSCRICOES_ENCERRADAS' using errcode='22023'; end if;
-  if p_pessoa is null or char_length(p_pessoa)>150 or p_municipio is null or char_length(p_municipio)>150 or char_length(p_comum)<>32
+  if p_pessoa is null or char_length(p_pessoa)>157 or p_municipio is null or char_length(p_municipio)>150 or char_length(p_comum)<>32
     then raise exception 'PARTICIPANTE_INVALIDO' using errcode='22023'; end if;
+  if left(p_pessoa,7) = 'manual_' then
+    v_nome := public.ram_normalize(substr(p_pessoa,8));
+    if char_length(v_nome) not between 5 and 150 or strpos(v_nome,' ') = 0
+      or v_nome ~ '[[:cntrl:]]' then
+      raise exception 'PARTICIPANTE_INVALIDO' using errcode='22023';
+    end if;
+    -- Município e comum continuam vindo do cadastro, nunca do texto livre.
+    select v_nome as nome,btrim(c.cidade) as cidade,btrim(c.comum) as comum,null::text as cargo
+      into v_pessoa from public.cadastro c
+      where public.ram_normalize(c.cidade)=p_municipio
+        and md5(public.ram_normalize(c.cidade)||'|'||public.ram_normalize(c.comum))=p_comum
+      order by c.id::text limit 1;
+    if not found then raise exception 'PARTICIPANTE_INVALIDO' using errcode='22023'; end if;
+    -- Se já houver o nome exato, usar o cadastro e não marcá-lo como desatualizado.
+    select c.id::text into v_nome from public.cadastro c
+      where public.ram_normalize(c.cidade)=p_municipio
+        and md5(public.ram_normalize(c.cidade)||'|'||public.ram_normalize(c.comum))=p_comum
+        and public.ram_normalize(c.nome)=public.ram_normalize(v_pessoa.nome)
+      order by c.id::text limit 1;
+    if found then
+      return public.ram_public_confirm(p_evento,p_municipio,p_comum,v_nome);
+    end if;
+    v_manual := true;
+  else
   select c.id::text as id,btrim(c.nome) as nome,btrim(c.cidade) as cidade,btrim(c.comum) as comum,c.cargo
     into v_pessoa from public.cadastro c
     where c.id::text=p_pessoa and public.ram_normalize(c.cidade)=p_municipio
       and md5(public.ram_normalize(c.cidade)||'|'||public.ram_normalize(c.comum))=p_comum;
   if not found or nullif(v_pessoa.nome,'') is null
     then raise exception 'PARTICIPANTE_INVALIDO' using errcode='22023'; end if;
-  insert into public.confirmacoes_reuniao(evento_slug,pessoa_id,nome,municipio,comum,cargo,municipio_chave,comum_chave,nome_chave)
-    values(p_evento,v_pessoa.id,v_pessoa.nome,v_pessoa.cidade,v_pessoa.comum,v_pessoa.cargo,p_municipio,p_comum,public.ram_normalize(v_pessoa.nome))
-    on conflict do nothing returning id into v_id;
-  select id,confirmado_em into v_receipt from public.confirmacoes_reuniao
-    where evento_slug=p_evento and (pessoa_id=p_pessoa or
-      (municipio_chave=p_municipio and comum_chave=p_comum and nome_chave=public.ram_normalize(v_pessoa.nome)))
-    order by confirmado_em limit 1;
-  return jsonb_build_object('id',v_receipt.id,'confirmado_em',v_receipt.confirmado_em,'ja_confirmado',v_id is null);
+  end if;
+  -- UUID estável: repetir a confirmação não duplica a presença.
+  v_id := md5(p_evento || '|' || p_municipio || '|' || p_comum || '|' || public.ram_normalize(v_pessoa.nome))::uuid;
+  select uuid as id,created_at as confirmado_em into v_receipt
+    from public.presencas where uuid=v_id;
+  if found then
+    return jsonb_build_object('id',v_receipt.id,'confirmado_em',v_receipt.confirmado_em,'ja_confirmado',true);
+  end if;
+  insert into public.presencas(uuid,nome_completo,cidade,comum,cargo,local_ensaio,data_ensaio,registrado_por,created_at,anotacoes)
+    values(v_id,upper(v_pessoa.nome),upper(v_pessoa.cidade),upper(v_pessoa.comum),upper(v_pessoa.cargo),
+      'REUNIAO APRIMORAMENTO MUSICAL - CENTRAL DE ITAPEVI',
+      '2026-11-28 12:00:00+00','CONFIRMACAO PUBLICA 2026-11-28',now(),case when v_manual then 'SAM Desatualizado' else null end)
+    on conflict (uuid) do nothing;
+  select uuid as id,created_at as confirmado_em into v_receipt from public.presencas where uuid=v_id;
+  return jsonb_build_object('id',v_receipt.id,'confirmado_em',v_receipt.confirmado_em,'ja_confirmado',false);
 end;
 $$;
 

@@ -1,62 +1,58 @@
 # Confirmação pública — reunião de 28/11/2026
 
-URL: `/confirmar-presenca` no mesmo domínio do aplicativo.
-Evento: **Reunião de Aprimoramento Musical**, **28/11/2026, às 9h**, **Central de Itapevi**.
+URL: `/confirmar-presenca`. Evento: Reunião de Aprimoramento Musical, 28/11/2026 às 9h, Central de Itapevi.
 
-## Funcionamento
+## Fluxo ativo
 
-A rota é identificada no App antes de montar AuthProvider/AppNavigator. Não exige login, não abre a verificação de GPS, não aplica o tempo de inatividade do sistema interno e não interfere na sessão existente do operador. O cadastro de presenças dos ensaios continua usando seu fluxo normal.
+A página consulta `ram_public_catalog` e `ram_public_people` para selecionar município, comum e pessoa sem login. Quando uma busca concluída não encontra nomes e o nome completo digitado é válido, libera automaticamente o botão de confirmar, sem mensagem ou etapa extra de inclusão manual. O registro mantém a observação `SAM Desatualizado` em `ANOTACOES` na planilha. Não cria pessoas em `cadastro`.
 
-A pessoa escolhe município e comum, busca pelo menos duas letras do nome e seleciona um resultado. A busca é limitada à combinação escolhida e retorna no máximo 25 nomes por consulta. Mudanças nos campos anteriores limpam os posteriores. Resultados antigos de uma busca cancelada são descartados. Os nomes vêm da tabela existente `cadastro`; não há criação manual de pessoas nessa página.
+A confirmação envia diretamente aos mesmos serviços do sistema raiz:
 
-O botão confirma somente um nome selecionado. O sucesso depende de um recibo válido retornado pelo banco. Uma falha de rede conserva a seleção e permite nova tentativa. Confirmações duplicadas devolvem o mesmo recibo; não criam outra inscrição. O formulário não coloca essas confirmações na fila dos ensaios nem informa sucesso offline.
+Para nomes encontrados, a página consulta o cadastro pelo ID selecionado e valida nome, município e comum antes do envio. Nível e instrumento vêm desse cadastro. As funções compartilhadas do app raiz normalizam o nível, calculam o naipe e preenchem instrumento `ÓRGÃO`, naipe `TECLADO` e classe para os cargos de organistas. Os campos `nivel`, `instrumento`, `naipe_instrumento` e `classe_organista` são enviados ao Supabase e às colunas correspondentes da planilha. Para nomes sem cadastro, esses campos permanecem vazios, conforme a preferência definida para esta página.
 
-## Estrutura no Supabase
+1. Aba `Dados` de https://docs.google.com/spreadsheets/d/1LGoW7lbYS4crpEdTfGR2evuH9kArZgqrvVbmi6buBoQ/edit, usando o Apps Script já configurado em `SHEETS_ENDPOINT_URL`, operação `append`.
+2. Tabela `public.presencas` do projeto `wfqehmdawhfjqbqpjapp`, usando a credencial pública já configurada e as permissões existentes dessa tabela.
 
-Executar `docs/REUNIAO_APRIMORAMENTO_2026-11-28.sql` no SQL Editor do projeto. O script é idempotente e cria:
+A página não chama mais `ram_public_confirm` nem grava em `confirmacoes_reuniao`. Não exige novo gatilho, chave administrativa no navegador ou instalação de outro Apps Script.
 
-- `reunioes_publicas`: data, horário, local e controle de abertura.
-- `confirmacoes_reuniao`: confirmação e fotografia dos dados da pessoa naquele momento.
-- Funções públicas específicas para catálogo, busca limitada de pessoas e confirmação.
-- Normalizador puro e índice de consulta no cadastro, sem alterar seus dados. A permissão do normalizador também é concedida às funções que já gravam no cadastro, para que a manutenção do índice não interrompa essas operações.
+O registro é primeiro salvo numa fila local persistente, com verificação da escrita. A tela de confirmação original aparece imediatamente e o botão `Confirmar outra pessoa` já pode ser usado, enquanto o envio segue em segundo plano. Não há aviso amarelo de fila. Pendências sobrevivem à recarga e são retomadas ao abrir a página, a cada oito segundos e quando a conexão volta. A fila só remove um item após o serviço confirmar a entrega. Se o navegador for fechado, o processamento retoma quando a página for aberta novamente.
 
-RLS permanece habilitado nas tabelas novas. Não há permissão anônima de listar, alterar ou excluir confirmações. As funções de negócio usam search_path fixo, não constroem SQL dinâmico e validam evento/pessoa/município/comum no servidor. Nenhuma chave administrativa foi adicionada ao navegador. As permissões seguem a [documentação de funções do Supabase](https://supabase.com/docs/guides/database/functions).
+O UUID é derivado do evento, município, comum e nome normalizado. A planilha é enviada antes do Supabase porque o Apps Script raiz pode bloquear append quando a presença já está no banco. Não há marca antiga de entrega no navegador para pular o Sheets: uma nova confirmação após exclusão no banco envia novamente aos dois destinos. Novas tentativas mantêm o UUID para deduplicação. O recibo do Sheets precisa confirmar esse UUID, `master.ok`, a planilha e a aba `Dados`.
 
-O evento encerra as inscrições ao fim do dia 28/11, no horário de São Paulo, ou quando `inscricoes_abertas` for desativado. O horário exibido usa o valor do banco e, se vazio, o horário confirmado no código (09h00).
+Quando o registro já existe, o serviço retorna o recibo existente sem repetir a inserção. A confirmação visual mantém o desenho original, sem toast.
 
-## Acompanhamento interno
+O envio aos dois serviços é sequencial, sem transação distribuída. Uma falha pode deixar somente a planilha gravada; o formulário mantém a seleção para repetir a operação e concluir o banco. Se a conexão cair antes de receber o recibo do Sheets, a repetição depende da deduplicação do endpoint. A página não informa sucesso para uma resposta ambígua.
 
-Para a lista de controle pronta para Excel/impressão, executar `docs/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql` no SQL Editor e exportar o resultado como CSV. A consulta inclui numeração, nome, município, comum, cargo, horário de confirmação e campos em branco para presença e assinatura. Não altera os registros.
+`data_ensaio` indica o evento, e `created_at` indica quando a confirmação foi recebida. O marcador é `CONFIRMACAO PUBLICA 2026-11-28` em `registrado_por`.
 
-Consultar/exportar pelo SQL Editor, com a conta administrativa:
+Na planilha, `DATA_ENSAIO` e `SYNCED_AT` são exibidos em `DD/MM/AAAA HH:mm:ss`, no fuso `America/Sao_Paulo`, usando as funções de data compartilhadas do sistema raiz. No Supabase, os instantes permanecem em ISO, com fuso preservado.
 
-```sql
-select confirmado_em, nome, municipio, comum, cargo
-from public.confirmacoes_reuniao
-where evento_slug = 'aprimoramento-musical-2026-11-28'
-order by municipio, comum, nome;
+## Publicação e teste local
 
-select municipio, count(*) as confirmacoes
-from public.confirmacoes_reuniao
-where evento_slug = 'aprimoramento-musical-2026-11-28'
-group by municipio order by municipio;
+Publicar a versão atual do aplicativo. Não é necessário reaplicar o SQL para ativar este envio direto quando os RPCs de catálogo/busca e as permissões do sistema raiz já estão disponíveis.
+
+Para desenvolvimento local no PowerShell:
+
+```powershell
+$env:EXPO_OFFLINE='1'
+node node_modules/expo/bin/cli start --web --localhost --port 8081
 ```
 
-Para alterar o horário ou encerrar manualmente:
+Abrir http://localhost:8081/confirmar-presenca e recarregar a página para obter o código atualizado.
 
-```sql
-update public.reunioes_publicas
-set horario = '09h00'
-where slug = 'aprimoramento-musical-2026-11-28';
--- Encerrar: set inscricoes_abertas = false
-```
+## Exclusões e registros antigos
+
+Exclusões ficam sob controle do administrador na planilha e/ou no Supabase. A página não apaga registros nem propaga exclusões. Ao encontrar o UUID em `presencas`, devolve o recibo existente sem reenviar à planilha. Assim, repetir a confirmação não restaura uma linha que o administrador apagou da planilha. Confirmar explicitamente depois de excluir do Supabase pode criar uma nova presença.
+
+As confirmações históricas em `confirmacoes_reuniao` não são apagadas. `docs/RECUPERAR_CONFIRMACOES_REUNIAO_2026-11-28.sql` permite recuperá-las pontualmente com acesso administrativo, preservando a data original. O arquivo também gera a exportação para a planilha. Não instalar a recuperação como tarefa periódica, pois isso poderia restaurar exclusões manuais.
+
+`docs/LISTA_CONFIRMACOES_REUNIAO_2026-11-28.sql` gera a lista de controle a partir de `presencas`.
 
 ## Verificações
 
-- `node node_modules/jest/bin/jest.js --runInBand src/__tests__/publicMeetingService.test.ts`: serviço público, recibos, falhas e roteamento.
-- `node scripts/test-public-meeting-sql.cjs`: executa o SQL de verdade em PostgreSQL/PGlite isolado, com pessoas fictícias. Inclui repetição da migração, duplicidade, vínculo inválido, permissões, encerramento e compatibilidade com INSERT no cadastro.
-- Dependência isolada para esse teste: `npm install --prefix scratch/meeting-sql-test.tmp --no-save --package-lock=false --ignore-scripts @electric-sql/pglite`. Não faz parte do aplicativo publicado.
-- Após `npm run build`, `node scripts/test-public-meeting-browser.cjs` testa o bundle real no Chromium: acesso sem login, dependências, pesquisa, repetição após falha, duplo clique e telas de 320/375 px. Todos os dados e respostas são fictícios.
-- `node scripts/check-public-meeting.cjs` verifica os RPCs reais somente por leitura, sem imprimir nomes de pessoas e sem criar confirmações.
+- `node node_modules/jest/bin/jest.js --runInBand src/__tests__/publicMeetingService.test.ts`: destinos, UUID, observação manual, falhas parciais, repetição, fechamento e recibos inválidos.
+- `npm run build`: exportação web e preparação do PWA.
+- `node scripts/test-public-meeting-browser.cjs`: fluxo real do bundle com serviços simulados, incluindo inclusão manual e falha de banco após envio à planilha.
+- `node scripts/test-public-meeting-sql.cjs`: compatibilidade do SQL opcional com PostgreSQL/PGlite isolado.
 
-A build segue o fluxo de atualização automática do PWA existente. O service worker não armazena respostas POST dessas funções.
+As verificações automatizadas usam pessoas fictícias e não inserem presenças em produção. Consultas de disponibilidade do ambiente real devem limitar-se à leitura e ao `ping` do Apps Script.
